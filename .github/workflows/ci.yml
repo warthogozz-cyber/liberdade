@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions: {}
 
@@ -34,7 +34,7 @@ jobs:
         with:
           name: jacoco-report
           path: api/build/reports/jacoco/
-          if-no-files-found: warn
+          if-no-files-found: error
 
   web:
     runs-on: ubuntu-24.04
@@ -61,7 +61,7 @@ jobs:
         with:
           name: web-coverage
           path: web/coverage/
-          if-no-files-found: warn
+          if-no-files-found: error
 
   dependency-review:
     if: github.event_name == 'pull_request'
