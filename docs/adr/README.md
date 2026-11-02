@@ -16,5 +16,6 @@ quando houver, custo. Um ADR aceito não é editado; se a decisão mudar, um nov
 | [0009](0009-ci-cd-release-please-ghcr-ssm.md) | CI/CD: GitHub Actions, release-please, GHCR e SSM | Aceito |
 | [0010](0010-license-agpl-public-repo.md) | Repositório público com AGPL-3.0 | Aceito |
 | [0011](0011-frontend-ui-stack.md) | Bibliotecas do front | Aceito |
+| [0012](0012-data-access-jdbcclient.md) | Acesso a dados com JdbcClient e SQL explícito | Aceito |
 
 Modelo: [0001](0001-record-architecture-decisions.md).
