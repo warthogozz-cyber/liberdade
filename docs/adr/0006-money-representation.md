@@ -24,6 +24,8 @@ Regras de arredondamento:
 - **Aporte sugerido** de meta: arredonda para cima (`CEILING`) ao centavo, para atingir a meta.
 - **Meses de reserva:** arredonda para baixo, com uma casa, para nunca superestimar.
 - **Ponto de equilíbrio** em unidades: arredonda para cima.
+- **Uso do orçamento** em %: arredonda para baixo, em inteiro, para não mostrar 100% antes de
+  atingir o limite.
 - Percentuais com até 6 casas internas, exibidos com 0 a 2 casas.
 
 Testes: casos manuais do PRD (seção 7) + testes de propriedade com jqwik (ex.: "a soma do rateio é

@@ -46,7 +46,7 @@ exportar e excluir conta, auditoria.
 - a AWS foi ligada (último passo da v0.1), com staging e produção no ar;
 - a família usa por 2 semanas.
 
-**Custo a partir daqui:** ≈ R$ 313/mês (infra ≈ R$ 310 + domínio ≈ R$ 3,33), ou ≈ R$ 223/mês com
+**Custo a partir daqui:** ≈ R$ 311/mês (AWS ≈ R$ 304 + domínio e DNS ≈ R$ 7), ou ≈ R$ 220/mês com
 instâncias reservadas por 1 ano. Os créditos de conta nova da AWS (até US$ 200 ≈ R$ 1.084) cobrem
 cerca de 3,5 meses ([ADR-0004](adr/0004-hosting-aws-sa-east-1-lean.md)).
 
@@ -74,9 +74,9 @@ planejado e 3 modelos prontos.
 **Sai quando:** o exemplo da seção 7.7 do PRD passa como teste e um projeto real da família é
 acompanhado por 1 mês.
 
-**Payback do app:** o primeiro mês em que ele ajudar a família a evitar pelo menos R$ 313 em gastos
-(≈ 3% de uma renda de R$ 10 mil). ROI mensal = (economia − 313) ÷ 313; por exemplo, R$ 500
-economizados dão ≈ 60%.
+**Payback do app:** o primeiro mês em que ele ajudar a família a evitar pelo menos R$ 311 em gastos
+(≈ 3% de uma renda de R$ 10 mil). ROI mensal = (economia − 311) ÷ 311; por exemplo, R$ 500
+economizados dão ≈ 61%.
 
 ## Fases seguintes (cada uma com spec próprio)
 

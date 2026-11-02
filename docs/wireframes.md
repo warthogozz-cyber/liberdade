@@ -197,7 +197,9 @@ Tocar em uma categoria abre os lançamentos filtrados.
 └──────────────────────────────────┘
 ```
 
-Para "Jovem", o Dono confirma o consentimento parental antes do primeiro acesso.
+- Ao escolher "Jovem", aparece a caixa obrigatória "Sou responsável legal e autorizo o uso do app
+  por este jovem". Sem ela, "Gerar link" fica desabilitado.
+- O Jovem entra com a conta "Carteira de <apelido>" já criada, da qual é titular.
 
 ## 8. Módulos
 

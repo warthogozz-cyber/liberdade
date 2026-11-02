@@ -87,6 +87,7 @@ erDiagram
     text kind "INVITE RECOVERY"
     text role
     uuid target_membership_id FK "só RECOVERY"
+    timestamptz parental_consent_at "só convite de Jovem"
     bytea token_hash UK
     uuid created_by FK
     timestamptz expires_at
@@ -173,6 +174,7 @@ fora do diagrama.
 | `memberships` | `UNIQUE (workspace_id, user_id)`; pelo menos um `OWNER` ativo por família (checado na aplicação, com teste) |
 | `invitations` | Guarda só o **hash** do token; uso único; convite expira em 7 dias e recuperação em 24 h |
 | `transactions` | `amount > 0`; `TRANSFER` ⇔ `to_account_id IS NOT NULL` e `category_id IS NULL`; `to_account_id <> account_id`; moeda igual à das contas |
+| `transactions` | Reenvio com id já existente: mesma família e mesmo conteúdo → devolve o registro (`200`); qualquer outro caso → `409 transaction.id-conflict`, sem revelar nada do registro existente |
 | `transactions` | Índices `(workspace_id, occurred_on)`, `(workspace_id, account_id, occurred_on)` e `(workspace_id, category_id, occurred_on)` |
 | `categories` | `UNIQUE (workspace_id, parent_id, name)` entre as não arquivadas; um só nível de subcategoria |
 
@@ -188,7 +190,9 @@ fora do diagrama.
   vez as linhas excluídas há mais de 30 dias.
 - **Membro removido** vira `status = REMOVED`; os lançamentos dele continuam na família, com o
   apelido.
-- **Jovem** pode não ter e-mail (`users.email` nulo) e entra só por passkey.
+- **Jovem** pode não ter e-mail (`users.email` nulo) e entra só por passkey. O consentimento
+  parental dado no convite é copiado para `memberships` e `consents` (`PARENTAL`) quando o convite
+  é aceito.
 
 ## 3. v0.2 — Planejamento
 

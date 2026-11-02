@@ -127,10 +127,10 @@ trafega como texto decimal: `{"amount": "1234.56", "currency": "BRL"}`.
 | Recurso | Operações |
 |---|---|
 | Sessão | `GET /oauth2/authorization/google`, endpoints WebAuthn do Spring Security, `POST /logout`, `GET /v1/csrf` |
-| Eu | `GET /v1/me`, `POST /v1/me/export`, `POST /v1/me/deletion`, `DELETE /v1/me/deletion`, `GET /v1/me/activity` |
-| Famílias | `POST /v1/workspaces`, `GET /v1/workspaces/{ws}`, `PATCH /v1/workspaces/{ws}` |
-| Membros | `GET /v1/workspaces/{ws}/members`, `PATCH .../members/{id}` (papel), `DELETE .../members/{id}` |
-| Convites | `POST /v1/workspaces/{ws}/invitations`, `DELETE .../invitations/{id}`, `POST /v1/invitations/{token}/accept` |
+| Eu | `GET /v1/me`, `POST /v1/me/export`, `POST /v1/me/deletion`, `DELETE /v1/me/deletion`, `GET /v1/me/activity`, `GET /v1/me/consents`, `DELETE /v1/me/consents/{id}`, `GET /v1/me/passkeys`, `DELETE /v1/me/passkeys/{id}` |
+| Famílias | `POST /v1/workspaces`, `GET /v1/workspaces/{ws}`, `PATCH /v1/workspaces/{ws}`, `POST .../export`, `POST .../deletion`, `DELETE .../deletion` |
+| Membros | `GET /v1/workspaces/{ws}/members`, `PATCH .../members/{id}` (papel), `DELETE .../members/{id}`, `POST .../members/{id}/recovery` (link de recuperação) |
+| Convites | `POST /v1/workspaces/{ws}/invitations` (com `parentalConsent` quando o papel é Jovem), `DELETE .../invitations/{id}`, `POST /v1/invitations/{token}/accept` |
 | Módulos | `GET /v1/workspaces/{ws}/modules`, `PUT .../modules/{key}` |
 | Contas | `GET`, `POST`, `PATCH .../accounts/{id}`, `POST .../accounts/{id}/archive` |
 | Categorias | `GET`, `POST`, `PATCH .../categories/{id}`, `POST .../categories/{id}/archive` |
@@ -186,7 +186,7 @@ sequenceDiagram
   API->>DB: INSERT … ON CONFLICT (id) DO NOTHING
   alt Lançamento novo
     API-->>S: 201 Created
-  else Reenvio do mesmo id
+  else Reenvio (mesmo id, mesma família, mesmo conteúdo)
     API-->>S: 200 OK (o mesmo recurso)
   end
   S->>Q: Remove o item da fila
@@ -204,8 +204,10 @@ Regras do sincronizador:
   e jitter (2 s, 4 s, 8 s… até 5 min) e sempre que o app ganha foco. O iOS não tem Background Sync,
   por isso o gatilho de foco é obrigatório.
 - **401 (sessão expirou):** o item continua pendente; o app pede login e retoma depois.
-- **409 com o mesmo `id` e conteúdo diferente:** marca "precisa de atenção" (não deveria acontecer,
-  porque o id é gerado no aparelho).
+- **Mesmo `id` com conteúdo diferente ou de outra família:** a API responde `409`
+  `transaction.id-conflict` sem revelar nada do registro existente; o item fica "precisa de
+  atenção". Na prática não acontece, porque o UUIDv7 é gerado no aparelho, mas a checagem impede
+  que alguém leia dados de outra família adivinhando ids.
 - **Desfazer antes de sincronizar:** remove da fila sem chamar a API.
 - Editar e excluir exigem conexão e usam `version` (lock otimista); conflito responde `409` com o
   código `transaction.version-conflict` e a versão atual.
@@ -283,7 +285,9 @@ Referência: **OWASP ASVS 5.0, nível 2**, com checklist revisado a cada release
 - **Logs:** driver `awslogs` do Docker → CloudWatch Logs (nível gratuito).
 - **Alarmes:** status check da EC2, CPU e espaço livre do RDS (alarmes do nível gratuito).
 - **Disponibilidade:** workflow agendado no GitHub Actions chama o `/health` de produção a cada
-  15 min e abre uma issue se falhar (grátis em repositório público).
+  15 min e abre uma issue se falhar (grátis em repositório público). O GitHub pausa workflows
+  agendados após 60 dias sem atividade no repositório; por isso o workflow abre uma issue quando
+  o último commit passa de 50 dias.
 - **Backups:** automáticos do RDS com restauração a qualquer ponto dos últimos 7 dias. Teste de
   restauração no staging a cada release minor.
 

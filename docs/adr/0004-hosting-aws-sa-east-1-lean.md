@@ -37,13 +37,13 @@ Preços on-demand de `sa-east-1` consultados em 2026-11-02, com dólar PTAX de v
 | Armazenamento do RDS | — | ≈ 25 |
 | Route 53 + domínio `.com.br` (≈ R$ 40/ano) | — | ≈ 7 |
 | Cloudflare Pages, SSM, CloudWatch (nível grátis) | 0 | 0 |
-| **Total** | | **≈ R$ 313/mês** |
-| Com EC2 e RDS reservadas por 1 ano | | **≈ R$ 223/mês** |
+| **Total** | | **≈ R$ 311/mês** |
+| Com EC2 e RDS reservadas por 1 ano | | **≈ R$ 220/mês** |
 
 - **Créditos de conta nova:** até US$ 200 (≈ R$ 1.084), cerca de 3,5 meses de operação.
 - **ROI e payback:** o app se paga no primeiro mês em que ajudar a família a evitar pelo menos
-  R$ 313 em gastos (≈ 3% de uma renda de R$ 10 mil). ROI mensal = (economia − 313) ÷ 313; por
-  exemplo, R$ 500 economizados dão ≈ 60%.
+  R$ 311 em gastos (≈ 3% de uma renda de R$ 10 mil). ROI mensal = (economia − 311) ÷ 311; por
+  exemplo, R$ 500 economizados dão ≈ 61%.
 - Conferir na [calculadora da AWS](https://calculator.aws/) antes de ligar, porque preços mudam.
 
 Fontes: [EC2 on-demand](https://aws.amazon.com/ec2/pricing/on-demand/),

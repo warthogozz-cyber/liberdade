@@ -141,8 +141,10 @@ Como membro, quero entrar com Google ou passkey, para não precisar criar senha.
 - Dono e Adulto geram link de convite com papel definido (o Adulto não convida Dono). O link vale
   7 dias, é de uso único e pode ser revogado.
 - O convidado entra com Google ou cria uma passkey direto. O Jovem não precisa de e-mail.
-- Para o papel Jovem, o Dono confirma o consentimento parental antes do primeiro acesso
-  (LGPD art. 14).
+- Para o papel Jovem, quem convida (Dono ou Adulto) declara ser responsável legal e dá o
+  consentimento parental ao gerar o link (LGPD art. 14); sem essa confirmação o link não é gerado.
+- Ao entrar, o Jovem ganha a conta "Carteira de <apelido>" (dinheiro, R$ 0,00), da qual é
+  titular, para registrar a mesada e os próprios gastos.
 - Recuperação de acesso para quem só tem passkey: Dono ou Adulto gera um link de recuperação de uso
   único, válido por 24 h, registrado na auditoria e avisado ao membro.
 
@@ -158,6 +160,8 @@ Como membro, quero entrar com Google ou passkey, para não precisar criar senha.
 | Mudar papéis e remover membros | ✓ | — | — | — |
 | Ligar e desligar módulos | ✓ | ✓ | — | — |
 | Exportar dados da família, excluir a família | ✓ | — | — | — |
+
+Para o Jovem, saldo total e painel consideram só as contas em que ele é titular.
 
 **US-11 Módulos ligáveis** (RF-04, critério S2)
 - Em Ajustes > Módulos, cada módulo aparece com uma linha de descrição e uma chave liga/desliga,
@@ -274,7 +278,8 @@ prazo de 7 meses → 9.000,00 ÷ 7 = 1.285,714… → **R$ 1.285,72/mês**.
 ### 7.5 Reserva de emergência (meses cobertos)
 `meses = saldo das contas de reserva ÷ média dos gastos dos 3 últimos meses completos`
 (transferências não contam), arredondado **para baixo** com uma casa decimal, para nunca
-superestimar. Com menos de 3 meses de histórico, usa o custo mensal informado pela família.
+superestimar. Com menos de 3 meses de histórico, usa o custo mensal informado pela família; se ele não
+foi informado, o app pede esse valor em vez de mostrar um número.
 
 Exemplo: gastos de R$ 4.000,00, R$ 4.500,00 e R$ 5.000,00 → média R$ 4.500,00; reserva
 R$ 18.000,00 → **4,0 meses**; para a meta de 6 meses faltam **R$ 9.000,00**.
@@ -357,7 +362,7 @@ mensal = 300 × 2,70 − 270,00 = **R$ 540,00**; payback = **2 meses** (540,00 n
 | Escopo gigante | Nunca entregar | Versões pequenas e usáveis; cada fase com spec próprio |
 | Regulação CVM | Sanção se virar recomendação | Tom educativo, aviso visível, revisão da norma antes da fase 4 |
 | Dados de menores (LGPD art. 14) | Tratamento irregular | Consentimento parental, apelido em vez de nome, sem e-mail obrigatório |
-| Custo da AWS | ≈ R$ 313/mês sem retorno direto | AWS só liga no fim da v0.1; reserva de 1 ano reduz para ≈ R$ 223 |
+| Custo da AWS | ≈ R$ 311/mês sem retorno direto | AWS só liga no fim da v0.1; reserva de 1 ano reduz para ≈ R$ 220 |
 | Nome "Liberdade" é palavra comum | Marca fraca no INPI, buscas poluídas | Sem impacto no uso familiar; revisar antes de abrir ao público |
 | Instância única | Queda derruba o app | Backups com restauração pontual; recriação por IaC; migração para ECS documentada |
 | Dependência do Google | Sem login se o Google cair | Passkeys como segundo caminho |
