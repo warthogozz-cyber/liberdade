@@ -28,7 +28,7 @@ Regras de arredondamento:
   atingir o limite.
 - Percentuais com até 6 casas internas, exibidos com 0 a 2 casas.
 
-Testes: casos manuais do PRD (seção 7) + testes de propriedade com jqwik (ex.: "a soma do rateio é
+Testes: casos manuais do PRD (seção 7) + testes de propriedade com jqwik (ver ADR-0013) (ex.: "a soma do rateio é
 igual ao total", "transferência não muda o total da família").
 
 ## Alternativas consideradas

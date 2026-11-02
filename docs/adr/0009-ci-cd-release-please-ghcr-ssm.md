@@ -12,7 +12,7 @@ o pipeline precisa fazer o trabalho chato sozinho.
 
 ### Em todo pull request
 
-- **API:** Spotless (formatação), compilação, testes (JUnit, AssertJ, jqwik, Testcontainers com
+- **API:** Spotless (formatação), compilação, testes (JUnit, AssertJ, jqwik (ver ADR-0013), Testcontainers com
   PostgreSQL 18), verificação do Spring Modulith, testes de isolamento, cobertura com JaCoCo.
 - **Front:** ESLint, Prettier, typecheck, testes (Vitest, Testing Library, fake-indexeddb),
   cobertura, build.
