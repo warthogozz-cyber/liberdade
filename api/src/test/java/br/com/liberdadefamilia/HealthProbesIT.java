@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 @SpringBootTest
@@ -42,6 +43,8 @@ class HealthProbesIT {
 
     @Test
     void envIsNotExposed() {
-        assertThat(mvc.get().uri("/actuator/env")).hasStatus(404);
+        var result = mvc.get().uri("/actuator/env");
+        assertThat(result).hasStatus(404).hasContentType(MediaType.parseMediaType("application/problem+json"));
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("not-found");
     }
 }
