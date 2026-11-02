@@ -6,16 +6,21 @@ import br.com.liberdadefamilia.shared.DomainException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+@ExtendWith(OutputCaptureExtension.class)
 @WebMvcTest
 @Import({ProblemHandler.class, ProblemHandlerTest.ProblemProbeController.class})
 class ProblemHandlerTest {
@@ -36,7 +41,7 @@ class ProblemHandlerTest {
     @Test
     void unexpectedExceptionNeverLeaksInternals() {
         var result = mvc.get().uri("/test/boom").exchange();
-        assertThat(result).hasStatus(500);
+        assertThat(result).hasStatus(500).hasContentType(MediaType.parseMediaType(PROBLEM_JSON));
         assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("internal");
         assertThat(result)
                 .bodyJson()
@@ -94,8 +99,20 @@ class ProblemHandlerTest {
     @Test
     void wrongMethodIs405() {
         var result = mvc.delete().uri("/test/boom");
-        assertThat(result).hasStatus(405);
+        assertThat(result).hasStatus(405).hasContentType(MediaType.parseMediaType(PROBLEM_JSON));
         assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("method.not-allowed");
+    }
+
+    @Test
+    void frameworkRaisedServerErrorIsLoggedButStaysGeneric(CapturedOutput output) {
+        var result = mvc.get().uri("/test/missing-var").exchange();
+        assertThat(result).hasStatus(500).hasContentType(MediaType.parseMediaType(PROBLEM_JSON));
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("internal");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .isEqualTo("Algo deu errado do nosso lado. Tente de novo em instantes.");
+        assertThat(output).contains("MissingPathVariableException");
     }
 
     static class TestConflictException extends DomainException {
@@ -112,6 +129,11 @@ class ProblemHandlerTest {
         @GetMapping("/test/domain-error")
         String domainError() {
             throw new TestConflictException();
+        }
+
+        @GetMapping("/test/missing-var")
+        String missingVar(@PathVariable("id") String id) {
+            return id;
         }
 
         @GetMapping("/test/boom")

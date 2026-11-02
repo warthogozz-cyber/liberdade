@@ -31,6 +31,9 @@ class ProblemHandler extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(
             Exception ex, Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+        if (statusCode.is5xxServerError()) {
+            log.error("Unhandled server error", ex);
+        }
         return ResponseEntity.status(statusCode).headers(headers).body(problem(statusCode.value()));
     }
 
