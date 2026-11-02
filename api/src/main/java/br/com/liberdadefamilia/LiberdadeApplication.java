@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.modulith.Modulithic;
 
 @SpringBootApplication
-@Modulithic
+@Modulithic(sharedModules = "shared")
 public class LiberdadeApplication {
 
     public static void main(String[] args) {

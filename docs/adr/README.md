@@ -17,5 +17,6 @@ quando houver, custo. Um ADR aceito não é editado; se a decisão mudar, um nov
 | [0010](0010-license-agpl-public-repo.md) | Repositório público com AGPL-3.0 | Aceito |
 | [0011](0011-frontend-ui-stack.md) | Bibliotecas do front | Aceito |
 | [0012](0012-data-access-jdbcclient.md) | Acesso a dados com JdbcClient e SQL explícito | Aceito |
+| [0013](0013-property-tests-without-jqwik.md) | Testes de propriedade sem jqwik | Aceito |
 
 Modelo: [0001](0001-record-architecture-decisions.md).
