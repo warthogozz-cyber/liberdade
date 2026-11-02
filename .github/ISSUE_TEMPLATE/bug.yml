@@ -1,0 +1,40 @@
+name: Relatar um erro
+description: Algo não funciona como deveria
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Não cole dados financeiros reais nem dados pessoais.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: O que aconteceu
+      description: Conte o que você viu na tela.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos para reproduzir
+      description: Liste, passo a passo, o que fazer para o erro aparecer.
+      placeholder: |
+        1. Abra a tela de lançamentos
+        2. Toque em "Novo"
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: O que você esperava
+      description: Como deveria funcionar?
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Aparelho e navegador
+      description: Por exemplo, celular Android com Chrome ou notebook com Firefox.
+    validations:
+      required: true
