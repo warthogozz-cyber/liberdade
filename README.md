@@ -10,7 +10,47 @@ Em construção — Fase 0.
 
 ## Como rodar
 
-Em breve.
+Copie as variáveis de ambiente (o `.env` não é versionado):
+
+```bash
+cp .env.example .env
+```
+
+Suba o banco e a API em contêineres:
+
+```bash
+docker compose up -d --build --wait
+```
+
+API em desenvolvimento (sobe o PostgreSQL via Testcontainers):
+
+```bash
+cd api && ./gradlew bootTestRun
+```
+
+Instale as dependências da web:
+
+```bash
+corepack pnpm install
+```
+
+Rode a web em desenvolvimento:
+
+```bash
+corepack pnpm --filter web dev
+```
+
+Testes da API:
+
+```bash
+cd api && ./gradlew build
+```
+
+Testes da web:
+
+```bash
+corepack pnpm --filter web test
+```
 
 ## Documentação
 
