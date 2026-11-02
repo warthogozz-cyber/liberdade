@@ -30,7 +30,7 @@ export function centsToApi(cents: bigint): string {
 export function formatBRL(cents: bigint): string {
   const negative = cents < 0n
   const formatted = BRL.format(decimalText(negative ? -cents : cents))
-  return negative ? `−${formatted}` : formatted
+  return negative ? `\u2212${formatted}` : formatted
 }
 
 /** Appends a typed digit; returns the input unchanged if it would exceed MAX_CENTS. */
