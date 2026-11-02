@@ -1,3 +1,13 @@
+// The Spring Boot plugin pulls commons-lang3 3.16.0 (CVE-2025-48924) through
+// commons-compress; pin the version Spring Boot manages for the app.
+buildscript {
+    dependencies {
+        constraints {
+            classpath("org.apache.commons:commons-lang3:3.20.0")
+        }
+    }
+}
+
 plugins {
     java
     jacoco
