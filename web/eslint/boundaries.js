@@ -11,10 +11,20 @@ export const CORE = [
 ]
 export const OPTIONAL = ['planning', 'indicators', 'gamification', 'ventures']
 
-const RELATIVE_ESCAPE = {
-  regex: '^(\.\./)+(features|app|shared)/',
-  message: 'Use the @/ alias to import across areas instead of climbing with ../',
+const ALL = [...CORE, ...OPTIONAL]
+
+// Blocks relative imports that climb out of the current area into one of the
+// given top-level folders. Known false positive: a sub-folder inside a feature
+// named like another feature (e.g. features/planning/sub/a.ts importing
+// ../ventures/x).
+function relativeEscape(names) {
+  return {
+    regex: String.raw`^(\.\./)+(${names.join('|')})(/|$)`,
+    message: 'Use the @/ alias to import across areas instead of climbing with ../',
+  }
 }
+
+const AREAS = ['features', 'app', 'shared']
 
 const FEATURES = ['@/features', '@/features/**']
 const APP = ['@/app', '@/app/**']
@@ -34,21 +44,23 @@ export function boundaryConfigs() {
           group: [...FEATURES, ...APP],
           message: 'Shared code cannot depend on features or the app layer.',
         },
-        RELATIVE_ESCAPE,
+        relativeEscape([...AREAS, ...ALL]),
       ],
     ),
-    restrict(
-      CORE.map((name) => `src/features/${name}/**/*.{ts,tsx}`),
-      [
-        {
-          group: [
-            ...OPTIONAL.flatMap((name) => [`@/features/${name}`, `@/features/${name}/**`]),
-            ...APP,
-          ],
-          message: 'Core features cannot depend on optional features or the app layer.',
-        },
-        RELATIVE_ESCAPE,
-      ],
+    ...CORE.map((name) =>
+      restrict(
+        [`src/features/${name}/**/*.{ts,tsx}`],
+        [
+          {
+            group: [
+              ...OPTIONAL.flatMap((other) => [`@/features/${other}`, `@/features/${other}/**`]),
+              ...APP,
+            ],
+            message: 'Core features cannot depend on optional features or the app layer.',
+          },
+          relativeEscape([...AREAS, ...ALL.filter((other) => other !== name)]),
+        ],
+      ),
     ),
     ...OPTIONAL.map((name) =>
       restrict(
@@ -58,10 +70,10 @@ export function boundaryConfigs() {
             group: [...FEATURES, `!@/features/${name}`, `!@/features/${name}/**`, ...APP],
             message: `Optional feature "${name}" may only use @/shared and itself.`,
           },
-          RELATIVE_ESCAPE,
+          relativeEscape([...AREAS, ...ALL.filter((other) => other !== name)]),
         ],
       ),
     ),
-    restrict(['src/app/**/*.{ts,tsx}'], [RELATIVE_ESCAPE]),
+    restrict(['src/app/**/*.{ts,tsx}'], [relativeEscape([...AREAS, ...ALL])]),
   ]
 }
