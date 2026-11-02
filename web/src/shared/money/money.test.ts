@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_CENTS, appendDigit, centsToApi, formatBRL, parseCents, removeLastDigit } from './money'
 
-const NBSP = ' '
-const MINUS = '−'
+const NBSP = '\u00A0'
+const MINUS = '\u2212'
 
 describe('formatBRL', () => {
   it('formats PRD 7.1 total', () => expect(formatBRL(476544n)).toBe(`R$${NBSP}4.765,44`))
@@ -21,6 +21,9 @@ describe('parseCents', () => {
     ['1234.5', 123450n],
     ['-0.05', -5n],
     ['0', 0n],
+    ['-0.5', -50n],
+    ['-0', 0n],
+    ['-0.00', 0n],
   ])('parses %s', (text, expected) => expect(parseCents(text)).toBe(expected))
 
   it.each(['1.234,56', '1e3', '12.345', '', ' 5', '+5'])('rejects %j', (text) =>
