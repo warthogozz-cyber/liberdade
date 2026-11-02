@@ -48,4 +48,18 @@ describe('module boundaries', () => {
   it('lets a feature import shared code', async () => {
     expect(await lint('src/features/ventures/a.ts', '@/shared/money')).toBe(0)
   })
+
+  it.each([
+    ['src/features/transactions/a.ts', '../planning/b', 1],
+    ['src/features/transactions/a.ts', '../accounts/b', 1],
+    ['src/features/planning/a.ts', '../ventures/b', 1],
+    ['src/features/planning/a.ts', '../ventures', 1],
+    ['src/features/planning/sub/a.ts', '../../ventures/b', 1],
+    ['src/features/planning/sub/a.ts', '../../planning/b', 0],
+    ['src/features/planning/sub/a.ts', '../b', 0],
+    ['src/features/planning/a.ts', '@a/shared/x', 0],
+    ['src/shared/ui/a.ts', '../../features/auth/b', 1],
+  ])('relative imports: %s importing %s yields %i', async (file, spec, expected) => {
+    expect(await lint(file, spec)).toBe(expected)
+  })
 })
