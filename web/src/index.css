@@ -17,6 +17,12 @@
   --radius-sheet: 16px;
 }
 
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --color-bg: #0b1f24;

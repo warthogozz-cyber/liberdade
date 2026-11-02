@@ -22,7 +22,9 @@ Suba o banco e a API em contêineres:
 docker compose up -d --build --wait
 ```
 
-API em desenvolvimento (sobe o PostgreSQL via Testcontainers):
+**Ou** rode a API em desenvolvimento (sobe o PostgreSQL via Testcontainers). Os dois usam a porta
+8080, então escolha um. Se a stack do compose estiver no ar, pare a API antes com
+`docker compose stop api`. O `bootTestRun` mantém o terminal ocupado enquanto a API roda:
 
 ```bash
 cd api && ./gradlew bootTestRun
