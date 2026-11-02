@@ -38,6 +38,9 @@ updates:
       include: scope
   - package-ecosystem: docker
     directory: /api
+    ignore:
+      - dependency-name: eclipse-temurin
+        update-types: ["version-update:semver-major"]
     schedule:
       interval: weekly
     cooldown:
@@ -48,8 +51,12 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+  # TestcontainersConfiguration.java pins postgres:18 by hand; keep it in sync with compose.yaml.
   - package-ecosystem: docker-compose
     directory: /
+    ignore:
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
     schedule:
       interval: weekly
     cooldown:
