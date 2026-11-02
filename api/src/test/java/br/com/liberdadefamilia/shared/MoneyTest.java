@@ -39,7 +39,7 @@ class MoneyTest {
 
     @Test
     void acceptsTrailingZerosBeyondTheFourthDecimal() {
-        assertThatCode(() -> Money.of(new BigDecimal("1.23450"), BRL)).doesNotThrowAnyException();
+        assertThat(Money.of(new BigDecimal("1.23450"), BRL)).isEqualTo(Money.brl("1.2345"));
     }
 
     @Test
