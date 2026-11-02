@@ -1,0 +1,11 @@
+.env
+build/
+.gradle/
+out/
+node_modules/
+dist/
+coverage/
+.idea/
+*.iml
+.vscode/
+.DS_Store
