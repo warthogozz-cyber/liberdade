@@ -11,6 +11,7 @@ Estes documentos formam o spec do MVP (v0.1 a v0.4). Comece pelo PRD.
 | [Wireframes](wireframes.md) | Fluxo principal do primeiro acesso ao primeiro gasto e telas das versões seguintes |
 | [Roadmap](roadmap.md) | Fases, critérios de saída de cada versão, custos e payback |
 | [ADRs](adr/README.md) | Decisões de arquitetura com alternativas e custos |
+| [Planos](superpowers/plans/README.md) | Planos de implementação, um por fatia vertical |
 
 ## Convenções
 
