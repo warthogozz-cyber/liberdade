@@ -51,8 +51,8 @@ C4Container
 ## 4. Componentes da API
 
 A API é um **monólito modular**: um único deploy, com módulos isolados por pacote e verificados
-pelo Spring Modulith em teste. Cada módulo expõe só o pacote `api` (serviços e eventos); o resto é
-interno.
+pelo Spring Modulith em teste. Cada módulo expõe só o pacote raiz (serviços, eventos e tipos
+públicos); o subpacote `internal` é privado.
 
 ```mermaid
 flowchart LR

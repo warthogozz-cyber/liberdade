@@ -21,7 +21,8 @@
 ```mermaid
 erDiagram
   users ||--o{ auth_identities : "entra com"
-  users ||--o{ passkey_credentials : "tem"
+  users ||--o| user_entities : "identifica no WebAuthn"
+  user_entities ||--o{ user_credentials : "tem passkeys"
   users ||--o{ memberships : "participa"
   users ||--o{ consents : "concede"
   workspaces ||--o{ memberships : "tem"
@@ -53,14 +54,21 @@ erDiagram
     text subject "sub do ID token"
     timestamptz last_used_at
   }
-  passkey_credentials {
-    uuid id PK
-    uuid user_id FK
-    bytea credential_id UK
+  user_entities {
+    varchar id PK "user handle do WebAuthn"
+    varchar name UK "guarda users.id"
+    varchar display_name
+  }
+  user_credentials {
+    varchar credential_id PK
+    varchar user_entity_user_id FK
     bytea public_key
-    bigint sign_count
-    text label "ex.: Celular"
-    timestamptz last_used_at
+    bigint signature_count
+    boolean backup_eligible
+    boolean backup_state
+    varchar label "ex.: Celular"
+    timestamp created
+    timestamp last_used
   }
   workspaces {
     uuid id PK
@@ -166,17 +174,23 @@ erDiagram
 As tabelas de sessão do Spring Session JDBC (`spring_session`, `spring_session_attributes`) ficam
 fora do diagrama.
 
+As tabelas de passkey (`user_entities` e `user_credentials`) seguem o schema JDBC do WebAuthn do
+Spring Security, por isso fogem das convenções acima. O diagrama mostra só as colunas principais.
+`user_entities.name` guarda o `users.id`: é por ele que o Spring liga a passkey à pessoa.
+
 ### Regras no banco
 
 | Tabela | Regra |
 |---|---|
 | `auth_identities` | `UNIQUE (provider, subject)` |
 | `memberships` | `UNIQUE (workspace_id, user_id)`; pelo menos um `OWNER` ativo por família (checado na aplicação, com teste) |
+| `memberships` | Na v0.1, uma família ativa por pessoa: índice único parcial em `user_id` com `status = 'ACTIVE'`. Sai quando chegarem os convites |
+| `user_entities`, `user_credentials` | `UNIQUE (name)` em `user_entities`; as credenciais são apagadas junto com o `user_entities` (`ON DELETE CASCADE`) |
 | `invitations` | Guarda só o **hash** do token; uso único; convite expira em 7 dias e recuperação em 24 h |
 | `transactions` | `amount > 0`; `TRANSFER` ⇔ `to_account_id IS NOT NULL` e `category_id IS NULL`; `to_account_id <> account_id`; moeda igual à das contas |
 | `transactions` | Reenvio com id já existente: mesma família e mesmo conteúdo → devolve o registro (`200`); qualquer outro caso → `409 transaction.id-conflict`, sem revelar nada do registro existente |
 | `transactions` | Índices `(workspace_id, occurred_on)`, `(workspace_id, account_id, occurred_on)` e `(workspace_id, category_id, occurred_on)` |
-| `categories` | `UNIQUE (workspace_id, parent_id, name)` entre as não arquivadas; um só nível de subcategoria |
+| `categories` | `UNIQUE (workspace_id, kind, parent_id, name)` entre as não arquivadas, porque "Outros" existe nos dois tipos; um só nível de subcategoria |
 
 ### Decisões do modelo
 
