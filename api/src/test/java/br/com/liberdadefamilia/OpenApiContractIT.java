@@ -2,8 +2,13 @@ package br.com.liberdadefamilia;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.jayway.jsonpath.DocumentContext;
+import com.jayway.jsonpath.JsonPath;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -11,6 +16,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.json.AbstractJsonContentAssert;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /** The parts of the contract the web relies on: money as text, months as {@code yyyy-MM}, nulls marked (D32). */
 @SpringBootTest
@@ -65,6 +71,7 @@ class OpenApiContractIT {
         contract.extractingPath(accounts + "[0].required").isEqualTo(true);
         contract.extractingPath(accounts + "[0].schema.type").isEqualTo("string");
         contract.extractingPath(accounts + "[0].schema.format").isEqualTo("uuid");
+        contract.extractingPath(accounts + "[0].description").isEqualTo("Workspace (family) id");
     }
 
     @Test
@@ -147,6 +154,28 @@ class OpenApiContractIT {
                 .noneMatch(id -> id.toString().matches(".*_\\d+$"));
     }
 
+    /**
+     * The web marks every property required only while a schema has no {@code required} list (D32). One entry would
+     * leave every other field of that schema optional in TypeScript, so only Money and the request bodies may have one.
+     */
+    @Test
+    void responseSchemasDeclareNoRequiredList() {
+        DocumentContext contract = contractDocument();
+        List<String> requestBodies = contract.read("$.paths.*.*.requestBody.content.*.schema['$ref']");
+        Map<String, Map<String, Object>> schemas = contract.read(SCHEMAS);
+        Set<String> exempt = new HashSet<>(Set.of("Money"));
+        requestBodies.forEach(ref -> exempt.add(ref.substring(ref.lastIndexOf('/') + 1)));
+
+        List<String> withRequired = schemas.entrySet().stream()
+                .filter(schema -> !exempt.contains(schema.getKey()))
+                .filter(schema -> schema.getValue().containsKey("required"))
+                .map(Map.Entry::getKey)
+                .toList();
+
+        assertThat(requestBodies).isNotEmpty();
+        assertThat(withRequired).as("response schemas with a required list").isEmpty();
+    }
+
     @Test
     void onlyV1Paths() {
         contract()
@@ -157,8 +186,16 @@ class OpenApiContractIT {
     }
 
     private AbstractJsonContentAssert<?> contract() {
+        return assertThat(apiDocs()).bodyJson();
+    }
+
+    private DocumentContext contractDocument() {
+        return JsonPath.parse(new String(apiDocs().getResponse().getContentAsByteArray(), StandardCharsets.UTF_8));
+    }
+
+    private MvcTestResult apiDocs() {
         var result = mvc.get().uri("/v3/api-docs").exchange();
         assertThat(result).hasStatusOk();
-        return assertThat(result).bodyJson();
+        return result;
     }
 }

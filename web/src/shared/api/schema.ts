@@ -297,6 +297,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Workspace (family) id */
                 ws: string;
             };
             cookie?: never;
@@ -321,6 +322,7 @@ export interface operations {
             };
             header?: never;
             path: {
+                /** @description Workspace (family) id */
                 ws: string;
             };
             cookie?: never;
@@ -345,6 +347,7 @@ export interface operations {
             };
             header?: never;
             path: {
+                /** @description Workspace (family) id */
                 ws: string;
             };
             cookie?: never;
@@ -369,6 +372,7 @@ export interface operations {
             };
             header?: never;
             path: {
+                /** @description Workspace (family) id */
                 ws: string;
             };
             cookie?: never;
@@ -393,6 +397,7 @@ export interface operations {
                 "Idempotency-Key": string;
             };
             path: {
+                /** @description Workspace (family) id */
                 ws: string;
             };
             cookie?: never;

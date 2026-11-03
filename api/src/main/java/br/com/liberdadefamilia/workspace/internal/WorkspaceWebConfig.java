@@ -43,7 +43,10 @@ class WorkspaceWebConfig implements WebMvcConfigurer {
                     .anyMatch(parameter -> "ws".equals(parameter.getName()) && "path".equals(parameter.getIn()));
             if (handler.hasMethodAnnotation(WorkspaceScoped.class) && !declared) {
                 List<Parameter> withWs = new ArrayList<>();
-                withWs.add(new PathParameter().name("ws").schema(new UUIDSchema()));
+                withWs.add(new PathParameter()
+                        .name("ws")
+                        .description("Workspace (family) id")
+                        .schema(new UUIDSchema()));
                 withWs.addAll(parameters);
                 operation.setParameters(withWs);
             }

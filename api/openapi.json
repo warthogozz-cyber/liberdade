@@ -85,6 +85,7 @@
         "operationId": "listAccounts",
         "parameters": [
           {
+            "description": "Workspace (family) id",
             "in": "path",
             "name": "ws",
             "required": true,
@@ -119,6 +120,7 @@
         "operationId": "listCategories",
         "parameters": [
           {
+            "description": "Workspace (family) id",
             "in": "path",
             "name": "ws",
             "required": true,
@@ -165,6 +167,7 @@
         "operationId": "dashboard",
         "parameters": [
           {
+            "description": "Workspace (family) id",
             "in": "path",
             "name": "ws",
             "required": true,
@@ -206,6 +209,7 @@
         "operationId": "listTransactions",
         "parameters": [
           {
+            "description": "Workspace (family) id",
             "in": "path",
             "name": "ws",
             "required": true,
@@ -248,6 +252,7 @@
         "operationId": "recordTransaction",
         "parameters": [
           {
+            "description": "Workspace (family) id",
             "in": "path",
             "name": "ws",
             "required": true,

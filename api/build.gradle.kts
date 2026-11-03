@@ -108,6 +108,9 @@ tasks.bootTestRun {
 
 tasks.test {
     finalizedBy(tasks.jacocoTestReport)
+    // OpenApiDriftIT reads the contract and UPDATE_OPENAPI, so a change to either reruns the tests.
+    inputs.file("openapi.json").withPathSensitivity(PathSensitivity.RELATIVE).optional()
+    inputs.property("updateOpenApi", providers.environmentVariable("UPDATE_OPENAPI").orElse(""))
 }
 
 tasks.jacocoTestReport {

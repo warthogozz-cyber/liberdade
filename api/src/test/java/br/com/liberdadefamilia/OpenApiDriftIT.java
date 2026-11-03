@@ -30,9 +30,6 @@ class OpenApiDriftIT {
     /** Gradle runs the tests from {@code api/}. */
     private static final Path CONTRACT = Path.of("openapi.json");
 
-    private static final String OUT_OF_DATE = "api/openapi.json is out of date. Run: "
-            + "UPDATE_OPENAPI=true ./gradlew test --rerun --tests '*OpenApiDriftIT'";
-
     private static final JsonMapper JSON = JsonMapper.shared();
 
     /** Two spaces and LF on every machine, like {@code JSON.stringify(contract, null, 2)}. */
@@ -56,7 +53,6 @@ class OpenApiDriftIT {
             Files.writeString(CONTRACT, JSON.writer().with(PRETTY).writeValueAsString(served) + "\n");
             return;
         }
-        JsonNode committed = Files.exists(CONTRACT) ? JSON.readTree(CONTRACT) : null;
-        assertThat(committed).withFailMessage(OUT_OF_DATE).isEqualTo(served);
+        CommittedContract.assertMatches(CONTRACT, served);
     }
 }
