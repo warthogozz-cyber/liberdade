@@ -3,11 +3,10 @@ package br.com.liberdadefamilia.identity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
+import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestUsers;
-import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +29,7 @@ class SecurityIT {
 
     private static final MediaType PROBLEM_JSON = MediaType.parseMediaType("application/problem+json");
     private static final String WEB_ORIGIN = "http://localhost:5173";
-    private static final String SESSION_COOKIE = "__Host-sid";
+    private static final String SESSION_COOKIE = CsrfSession.SESSION_COOKIE;
     private static final String AUTHORIZATION_REQUEST =
             HttpSessionOAuth2AuthorizationRequestRepository.class.getName() + ".AUTHORIZATION_REQUEST";
 
@@ -128,43 +127,27 @@ class SecurityIT {
         assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("Sua sessão foi atualizada. Tente de novo.");
     }
 
-    // spring-security-test's csrf() is avoided on purpose: it swaps the CsrfFilter's repository for a default one
-    // (header X-CSRF-TOKEN) in the cached context, which would break csrfEndpointGivesToken.
     @Test
-    void logoutIs204() throws Exception {
+    void logoutIs204() {
         UUID userId = users.create("Ana Teste", "ana@example.com");
-        var csrf = mvc.get()
-                .uri("/v1/csrf")
-                .with(TestUsers.signedIn(userId, "Teste"))
-                .exchange();
-        String body = csrf.getResponse().getContentAsString(StandardCharsets.UTF_8);
-        Cookie session = csrf.getResponse().getCookie(SESSION_COOKIE);
-        assertThat(session).isNotNull();
+        var csrf = CsrfSession.start(mvc, TestUsers.signedIn(userId, "Teste"));
 
         assertThat(mvc.post()
                         .uri("/logout")
                         .with(TestUsers.signedIn(userId, "Teste"))
-                        .cookie(session)
-                        .header(JsonPath.read(body, "$.headerName"), (String) JsonPath.read(body, "$.token")))
+                        .with(csrf))
                 .hasStatus(204);
     }
 
     @Test
-    void tokenFromCsrfEndpointIsAcceptedInItsHeader() throws Exception {
-        var csrf = mvc.get().uri("/v1/csrf").exchange();
-        String body = csrf.getResponse().getContentAsString(StandardCharsets.UTF_8);
-        Cookie session = csrf.getResponse().getCookie(SESSION_COOKIE);
-        assertThat(session).isNotNull();
+    void tokenFromCsrfEndpointIsAcceptedInItsHeader() {
+        var csrf = CsrfSession.start(mvc);
 
-        var logout = mvc.post()
-                .uri("/logout")
-                .cookie(session)
-                .header(JsonPath.read(body, "$.headerName"), (String) JsonPath.read(body, "$.token"))
-                .exchange();
+        var logout = mvc.post().uri("/logout").with(csrf).exchange();
 
         assertThat(logout).hasStatus(204);
         Long sessions = jdbc.sql("select count(*) from spring_session where session_id = :id")
-                .param("id", sessionIdOf(csrf))
+                .param("id", csrf.sessionId())
                 .query(Long.class)
                 .single();
         assertThat(sessions).isZero();
@@ -214,10 +197,9 @@ class SecurityIT {
                 .single();
     }
 
-    /** Spring Session writes the session id Base64-encoded in the cookie. */
     private static String sessionIdOf(MvcTestResult result) {
         Cookie cookie = result.getResponse().getCookie(SESSION_COOKIE);
         assertThat(cookie).isNotNull();
-        return new String(Base64.getDecoder().decode(cookie.getValue()), StandardCharsets.UTF_8);
+        return CsrfSession.sessionIdOf(cookie);
     }
 }

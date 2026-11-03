@@ -9,7 +9,7 @@ import org.springframework.validation.annotation.Validated;
 /** Where the web app lives and how passkeys name this site. */
 @Validated
 @ConfigurationProperties("liberdade")
-record IdentityProperties(@Valid Web web, WebAuthn webauthn) {
+record IdentityProperties(@Valid Web web, @Valid WebAuthn webauthn) {
 
     /**
      * @param origin scheme, host and optional port, such as {@code https://app.example.com}. A path or a trailing
@@ -19,5 +19,9 @@ record IdentityProperties(@Valid Web web, WebAuthn webauthn) {
             @NotBlank @Pattern(regexp = "https?://[^/?#\\s]+")
             String origin) {}
 
-    record WebAuthn(String rpId, String rpName) {}
+    /**
+     * @param rpId the domain passkeys are bound to, such as {@code app.example.com}
+     * @param rpName the site name the device shows next to the passkey
+     */
+    record WebAuthn(@NotBlank String rpId, @NotBlank String rpName) {}
 }

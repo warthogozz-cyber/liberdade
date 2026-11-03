@@ -1,13 +1,27 @@
 package br.com.liberdadefamilia.identity.internal;
 
+import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
+
+import jakarta.servlet.Filter;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.session.autoconfigure.DefaultCookieSerializerCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationTrustResolver;
+import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
@@ -16,19 +30,25 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.RedirectStrategy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.access.ExceptionTranslationFilter;
+import org.springframework.security.web.authentication.AuthenticationEntryPointFailureHandler;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.savedrequest.NullRequestCache;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
- * One filter chain for the whole API: Google sign-in with PKCE, a server-side session, CSRF tokens sent in a header,
- * CORS for the web app only, and problem responses instead of login redirects.
+ * One filter chain for the whole API: Google sign-in with PKCE, passkeys, a limit on sign-in attempts, a server-side
+ * session, CSRF tokens sent in a header, CORS for the web app only, and problem responses instead of login redirects.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(IdentityProperties.class)
@@ -41,7 +61,8 @@ class SecurityConfig {
 
     /**
      * How long a signed-in session lasts without use. Every session starts at {@code spring.session.timeout} (30
-     * minutes), so the ones opened before sign-in, by {@code GET /v1/csrf} or the trip to Google, stay short.
+     * minutes), so the ones opened before sign-in, by {@code GET /v1/csrf} or the trip to Google, stay short. Both
+     * sign-ins raise it through the one {@link #signedInIdleTimeout() session strategy}.
      */
     static final Duration SIGNED_IN_IDLE_TIMEOUT = Duration.ofDays(30);
 
@@ -52,9 +73,14 @@ class SecurityConfig {
             ClientRegistrationRepository clients,
             LiberdadeOidcUserService oidcUserService,
             NoOpAuthorizedClientRepository authorizedClients,
-            SecurityProblemHandlers problems) {
+            SecurityProblemHandlers problems,
+            UserAccounts accounts,
+            LoginRateLimiter limiter,
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
         String origin = properties.web().origin();
         RedirectStrategy redirects = new DefaultRedirectStrategy();
+        // Shared rather than a bean: a UserDetailsService bean would also turn on username and password sign-in.
+        http.setSharedObject(UserDetailsService.class, new PasskeyUserDetailsService(accounts));
 
         http.authorizeHttpRequests(requests -> requests.requestMatchers(
                                 "/actuator/health", "/actuator/health/**", "/v1/csrf", "/error")
@@ -65,10 +91,21 @@ class SecurityConfig {
                         .authorizationEndpoint(endpoint -> endpoint.authorizationRequestResolver(pkce(clients)))
                         .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService))
                         .authorizedClientRepository(authorizedClients)
-                        .successHandler(signedIn(origin, redirects))
+                        .successHandler((request, response, authentication) ->
+                                redirects.sendRedirect(request, response, origin + "/"))
                         // A plain redirect: unlike the default handler, it keeps the exception out of the session.
                         .failureHandler((request, response, exception) ->
                                 redirects.sendRedirect(request, response, origin + "/entrar?erro=login")))
+                // Answers {"redirectUrl":"/","authenticated":true}, or a 401 problem when the passkey fails.
+                .webAuthn(webAuthn -> webAuthn.rpName(properties.webauthn().rpName())
+                        .rpId(properties.webauthn().rpId())
+                        .allowedOrigins(origin)
+                        .disableDefaultRegistrationPage(true)
+                        .withObjectPostProcessor(passkeySignIn(http, problems)))
+                // Runs on every sign-in, before the session gets a new id (fixation protection).
+                .sessionManagement(session -> session.addSessionAuthenticationStrategy(signedInIdleTimeout()))
+                .addFilterAfter(registrationNeedsSignIn(problems), ExceptionTranslationFilter.class)
+                .addFilterBefore(new LoginRateLimitFilter(limiter, resolver, properties), CsrfFilter.class)
                 .requestCache(cache -> cache.requestCache(new NullRequestCache()))
                 .exceptionHandling(exceptions ->
                         exceptions.authenticationEntryPoint(problems).accessDeniedHandler(problems))
@@ -105,11 +142,53 @@ class SecurityConfig {
         return new LiberdadeOidcUserService(new OidcUserService(), accounts);
     }
 
-    /** Raises the session to {@link #SIGNED_IN_IDLE_TIMEOUT} and sends the browser back to the web app. */
-    private static AuthenticationSuccessHandler signedIn(String origin, RedirectStrategy redirects) {
-        return (request, response, authentication) -> {
-            request.getSession().setMaxInactiveInterval(Math.toIntExact(SIGNED_IN_IDLE_TIMEOUT.toSeconds()));
-            redirects.sendRedirect(request, response, origin + "/");
+    /** At most 20 sign-in attempts a minute per address (D10). */
+    @Bean
+    LoginRateLimiter loginRateLimiter(Clock clock) {
+        return new LoginRateLimiter(clock, 20);
+    }
+
+    /** Raises the session to {@link #SIGNED_IN_IDLE_TIMEOUT} on every sign-in, with Google or with a passkey. */
+    private static SessionAuthenticationStrategy signedInIdleTimeout() {
+        return (authentication, request, response) ->
+                request.getSession().setMaxInactiveInterval(Math.toIntExact(SIGNED_IN_IDLE_TIMEOUT.toSeconds()));
+    }
+
+    /**
+     * The passkey sign-in runs the same session strategy as Google's (by default it runs none, so the session would
+     * keep its id and its 30 minutes), and a failed passkey gets the same 401 problem as any other request.
+     */
+    private static ObjectPostProcessor<WebAuthnAuthenticationFilter> passkeySignIn(
+            HttpSecurity http, SecurityProblemHandlers problems) {
+        return new ObjectPostProcessor<>() {
+            @Override
+            public <O extends WebAuthnAuthenticationFilter> O postProcess(O filter) {
+                // Read while the chain is built: session management shares its strategy only from then on.
+                filter.setSessionAuthenticationStrategy(http.getSharedObject(SessionAuthenticationStrategy.class));
+                filter.setAuthenticationFailureHandler(new AuthenticationEntryPointFailureHandler(problems));
+                return filter;
+            }
+        };
+    }
+
+    /**
+     * Passkey registration options need a signed-in user. Spring answers anyone else with a bare 400; this gives the
+     * same 401 problem as every other endpoint that needs sign-in.
+     */
+    private static Filter registrationNeedsSignIn(SecurityProblemHandlers problems) {
+        RequestMatcher registerOptions = pathPattern(HttpMethod.POST, "/webauthn/register/options");
+        AuthenticationTrustResolver trust = new AuthenticationTrustResolverImpl();
+        return (servletRequest, servletResponse, chain) -> {
+            var request = (HttpServletRequest) servletRequest;
+            if (registerOptions.matches(request)
+                    && !trust.isAuthenticated(SecurityContextHolder.getContext().getAuthentication())) {
+                problems.commence(
+                        request,
+                        (HttpServletResponse) servletResponse,
+                        new InsufficientAuthenticationException("Sign in to register a passkey"));
+                return;
+            }
+            chain.doFilter(servletRequest, servletResponse);
         };
     }
 

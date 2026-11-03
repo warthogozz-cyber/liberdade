@@ -53,4 +53,18 @@ class IdentityPropertiesTest {
                     .hasMessageContaining("liberdade.web.origin");
         });
     }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"rp-id", "rp-name"})
+    void rejectsBlankRelyingParty(String property) {
+        withOrigin("http://localhost:5173")
+                .withPropertyValues("liberdade.webauthn." + property + "= ")
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .rootCause()
+                            .isInstanceOf(BindValidationException.class)
+                            .hasMessageContaining("liberdade.webauthn");
+                });
+    }
 }
