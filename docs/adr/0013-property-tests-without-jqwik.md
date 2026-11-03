@@ -2,11 +2,14 @@
 
 - **Status:** Aceito
 - **Data:** 2026-11-02
-- **Substitui em parte:** [ADR-0006](0006-money-representation.md) (só a linha sobre jqwik)
+- **Substitui em parte:** [ADR-0002](0002-stack-react-pwa-spring-boot.md),
+  [ADR-0006](0006-money-representation.md) e [ADR-0009](0009-ci-cd-release-please-ghcr-ssm.md)
+  (só as linhas sobre jqwik)
 
 ## Contexto
 
-- O [ADR-0006](0006-money-representation.md) previa testes de propriedade com jqwik.
+- Os ADRs [0002](0002-stack-react-pwa-spring-boot.md), [0006](0006-money-representation.md) e
+  [0009](0009-ci-cd-release-please-ghcr-ssm.md) previam testes de propriedade com jqwik.
 - As notas da versão 1.10.1 do jqwik (jqwik.net, consultadas em 2026-11-02) dizem que ela é
   provavelmente a última sobre o JUnit Platform 1.x. Versões futuras, "se um dia saírem",
   exigirão JUnit Platform 6 e Java ≥ 21.
