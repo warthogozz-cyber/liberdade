@@ -12,6 +12,7 @@ import {
   postTransaction,
   type CreateTransactionRequest,
 } from '@/shared/api'
+import { csrfFetch } from './csrf'
 
 const CSRF_INVALID = 'Sua sessão foi atualizada. Tente de novo.'
 
@@ -138,5 +139,32 @@ describe('csrfFetch', () => {
 
     const [post] = calls('POST', `/v1/workspaces/${workspace.id}/transactions`)
     expect(post.headers.get('Idempotency-Key')).toBe(payload.id)
+  })
+
+  it('is refused as malformed when the Idempotency-Key is not a UUID, like the API', async () => {
+    const workspace = seedMockFamily()
+    const body: CreateTransactionRequest = {
+      id: '0192f3a4-5b6c-7d8e-9f01-23456789abcd',
+      kind: 'EXPENSE',
+      amount: { amount: '12.50', currency: 'BRL' },
+      occurredOn: '2026-11-03',
+      accountId: mockState.accounts[0].id,
+      categoryId: mockState.categories[0].id,
+    }
+
+    const response = await csrfFetch(
+      new Request(`${API_URL}/v1/workspaces/${workspace.id}/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'not-a-uuid' },
+        body: JSON.stringify(body),
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'request.malformed',
+      detail: 'Não conseguimos ler os dados enviados.',
+    })
+    expect(mockState.transactions).toHaveLength(0)
   })
 })

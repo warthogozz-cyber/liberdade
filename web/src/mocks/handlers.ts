@@ -237,11 +237,11 @@ export const handlers = [
     }
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace
+    // The API binds the Idempotency-Key as a UUID, so a missing or unreadable key is a 400.
     const key = request.headers.get('Idempotency-Key')
     const body = (await readJson(request)) as CreateTransactionRequest | undefined
-    if (key === null || typeof body !== 'object' || body === null || !readable(body)) {
-      return malformed()
-    }
+    if (key === null || !UUID.test(key)) return malformed()
+    if (typeof body !== 'object' || body === null || !readable(body)) return malformed()
     const { errors, cents, description } = validateTransaction(body)
     if (errors.length > 0) return invalid(errors)
     if (body.id !== key || !UUID_V7.test(body.id)) {

@@ -14,13 +14,16 @@ const router = createBrowserRouter(routes)
 let signingOut = false
 
 // On a 401, leave the screens first so none fetches `/v1/me` again mid-cleanup, then clear the
-// session. Another 401 while that runs does nothing.
+// session. Another 401 while that runs does nothing; a failed sign-out is logged, not left unhandled.
 const queryClient = createQueryClient(() => {
   if (signingOut) return
   signingOut = true
   void router
     .navigate('/entrar')
     .then(() => clearSession(queryClient))
+    .catch((error: unknown) => {
+      console.error('Could not clear the session after a 401', error)
+    })
     .finally(() => {
       signingOut = false
     })

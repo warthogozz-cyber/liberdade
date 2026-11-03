@@ -8,3 +8,11 @@ minimumReleaseAge: 10080
 peerDependencyRules:
   allowedVersions:
     openapi-typescript>typescript: '6'
+# Supply-chain cutoff of 2026-10-26: msw's transitive packages pinned to the newest versions
+# published on or before it. Remove this block when the cutoff moves.
+overrides:
+  '@inquirer/ansi': 2.0.9
+  '@inquirer/confirm': 6.3.4
+  '@inquirer/core': 12.0.5
+  '@inquirer/figures': 2.0.9
+  '@mswjs/interceptors': 0.45.9

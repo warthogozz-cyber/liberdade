@@ -25,6 +25,10 @@ const clampedTimers: TimeoutProvider<number> = {
   clearInterval: (id) => clearInterval(id),
 }
 
+// The provider is global to TanStack Query, so it goes in once, when this module loads, before any
+// QueryClient (the app's or a test's) starts a timer.
+timeoutManager.setTimeoutProvider(clampedTimers)
+
 /** Retries a failed query up to twice, but never a 4xx: asking again gets the same answer. */
 export function shouldRetry(failureCount: number, error: unknown): boolean {
   if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false
@@ -33,7 +37,6 @@ export function shouldRetry(failureCount: number, error: unknown): boolean {
 
 /** The app's QueryClient: offline first, a 30-day cache, and every 401 sent to `onUnauthorized`. */
 export function createQueryClient(onUnauthorized: () => void): QueryClient {
-  timeoutManager.setTimeoutProvider(clampedTimers)
   const onError = (error: unknown) => {
     if (error instanceof ApiError && error.status === 401) onUnauthorized()
   }
