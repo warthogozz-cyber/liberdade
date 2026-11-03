@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia;
 
+import br.com.liberdadefamilia.support.TestLedger;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -9,9 +10,9 @@ import org.springframework.context.annotation.Import;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
-// TestUsers and TestWorkspaces live here so every IT shares one context (and one container) and can inject them.
+// The test helpers live here so every IT shares one context (and one container) and can inject them.
 @TestConfiguration(proxyBeanMethods = false)
-@Import({TestUsers.class, TestWorkspaces.class})
+@Import({TestUsers.class, TestWorkspaces.class, TestLedger.class})
 public class TestcontainersConfiguration {
 
     @Bean
