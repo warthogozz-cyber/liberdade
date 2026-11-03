@@ -1,10 +1,5 @@
 package br.com.liberdadefamilia.identity.internal;
 
-import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
-
-import jakarta.servlet.Filter;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -13,11 +8,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.session.autoconfigure.DefaultCookieSerializerCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AuthenticationTrustResolver;
-import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
-import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -31,7 +22,7 @@ import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.RedirectStrategy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
-import org.springframework.security.web.authentication.AuthenticationEntryPointFailureHandler;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.csrf.CsrfFilter;
@@ -39,7 +30,6 @@ import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.savedrequest.NullRequestCache;
-import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -101,10 +91,16 @@ class SecurityConfig {
                         .rpId(properties.webauthn().rpId())
                         .allowedOrigins(origin)
                         .disableDefaultRegistrationPage(true)
-                        .withObjectPostProcessor(passkeySignIn(http, problems)))
+                        .withObjectPostProcessor(passkeySignIn(http, problems, resolver)))
                 // Runs on every sign-in, before the session gets a new id (fixation protection).
                 .sessionManagement(session -> session.addSessionAuthenticationStrategy(signedInIdleTimeout()))
-                .addFilterAfter(registrationNeedsSignIn(problems), ExceptionTranslationFilter.class)
+                .addFilterAfter(
+                        new PasskeyRegistrationNeedsSignInFilter(
+                                problems, SecurityContextHolder.getContextHolderStrategy()),
+                        ExceptionTranslationFilter.class)
+                // Spring adds its registration filter at this same position later, while the chain is built; the
+                // sort is stable, so this one runs right before it.
+                .addFilterAfter(new PasskeyRegistrationProblemFilter(resolver), AuthorizationFilter.class)
                 .addFilterBefore(new LoginRateLimitFilter(limiter, resolver, properties), CsrfFilter.class)
                 .requestCache(cache -> cache.requestCache(new NullRequestCache()))
                 .exceptionHandling(exceptions ->
@@ -156,39 +152,19 @@ class SecurityConfig {
 
     /**
      * The passkey sign-in runs the same session strategy as Google's (by default it runs none, so the session would
-     * keep its id and its 30 minutes), and a failed passkey gets the same 401 problem as any other request.
+     * keep its id and its 30 minutes), and a failed passkey gets the same 401 problem as any other request, while a
+     * server fault behind it gets the generic 500.
      */
     private static ObjectPostProcessor<WebAuthnAuthenticationFilter> passkeySignIn(
-            HttpSecurity http, SecurityProblemHandlers problems) {
+            HttpSecurity http, SecurityProblemHandlers problems, HandlerExceptionResolver resolver) {
         return new ObjectPostProcessor<>() {
             @Override
             public <O extends WebAuthnAuthenticationFilter> O postProcess(O filter) {
                 // Read while the chain is built: session management shares its strategy only from then on.
                 filter.setSessionAuthenticationStrategy(http.getSharedObject(SessionAuthenticationStrategy.class));
-                filter.setAuthenticationFailureHandler(new AuthenticationEntryPointFailureHandler(problems));
+                filter.setAuthenticationFailureHandler(new PasskeySignInFailureHandler(problems, resolver));
                 return filter;
             }
-        };
-    }
-
-    /**
-     * Passkey registration options need a signed-in user. Spring answers anyone else with a bare 400; this gives the
-     * same 401 problem as every other endpoint that needs sign-in.
-     */
-    private static Filter registrationNeedsSignIn(SecurityProblemHandlers problems) {
-        RequestMatcher registerOptions = pathPattern(HttpMethod.POST, "/webauthn/register/options");
-        AuthenticationTrustResolver trust = new AuthenticationTrustResolverImpl();
-        return (servletRequest, servletResponse, chain) -> {
-            var request = (HttpServletRequest) servletRequest;
-            if (registerOptions.matches(request)
-                    && !trust.isAuthenticated(SecurityContextHolder.getContext().getAuthentication())) {
-                problems.commence(
-                        request,
-                        (HttpServletResponse) servletResponse,
-                        new InsufficientAuthenticationException("Sign in to register a passkey"));
-                return;
-            }
-            chain.doFilter(servletRequest, servletResponse);
         };
     }
 

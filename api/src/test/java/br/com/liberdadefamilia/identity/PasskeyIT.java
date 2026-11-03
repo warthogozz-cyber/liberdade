@@ -15,6 +15,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -193,12 +195,95 @@ class PasskeyIT {
         assertThat(again).bodyJson().extractingPath("$.user.name").isEqualTo("ana@example.com");
     }
 
+    @Test
+    void registrationWithTamperedAttestationIsRejected() {
+        UUID userId = users.create("Ana Teste", "ana@example.com");
+        var authenticator = new SoftwareAuthenticator("localhost", WEB_ORIGIN);
+        var google = CsrfSession.start(mvc, TestUsers.signedIn(userId, null));
+        String options = body(registerOptions(userId, google));
+
+        var result = register(userId, google, withOtherChallenge(authenticator.register(options, "Celular")));
+
+        assertRejected(result);
+        assertThat(userCredentials.findByUserId(Bytes.fromBase64(JsonPath.read(options, "$.user.id"))))
+                .isEmpty();
+    }
+
+    /** Unreadable JSON, a credential missing its response, and client data that is not JSON. */
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "{\"publicKey\":",
+                "{\"publicKey\":{\"credential\":{\"id\":\"AA\",\"rawId\":\"AA\",\"response\":{},"
+                        + "\"type\":\"public-key\"},\"label\":\"Celular\"}}",
+                "{\"publicKey\":{\"credential\":{\"id\":\"AA\",\"rawId\":\"AA\",\"response\":"
+                        + "{\"attestationObject\":\"AA\",\"clientDataJSON\":\"AA\"},\"type\":\"public-key\"},"
+                        + "\"label\":\"Celular\"}}"
+            })
+    void registrationWithMalformedBodyIsRejected(String malformed) {
+        UUID userId = users.create("Ana Teste", "ana@example.com");
+        var google = CsrfSession.start(mvc, TestUsers.signedIn(userId, null));
+        assertThat(registerOptions(userId, google)).hasStatusOk();
+
+        assertRejected(register(userId, google, malformed));
+    }
+
+    @Test
+    void registrationWithoutOptionsIsRejected() {
+        UUID userId = users.create("Ana Teste", "ana@example.com");
+        var authenticator = new SoftwareAuthenticator("localhost", WEB_ORIGIN);
+        var google = CsrfSession.start(mvc, TestUsers.signedIn(userId, null));
+        String neverIssued = "{\"challenge\":\"" + Bytes.random().toBase64UrlString() + "\",\"user\":{\"id\":\""
+                + Bytes.random().toBase64UrlString() + "\"}}";
+
+        assertRejected(register(userId, google, authenticator.register(neverIssued, "Celular")));
+    }
+
+    @Test
+    void passkeySignInOptionsNeedCsrf() {
+        var result = mvc.post().uri("/webauthn/authenticate/options").exchange();
+
+        assertThat(result).hasStatus(403).hasContentType(PROBLEM_JSON);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("csrf.invalid");
+    }
+
     private MvcTestResult registerOptions(UUID userId, CsrfSession csrf) {
         return mvc.post()
                 .uri("/webauthn/register/options")
                 .with(TestUsers.signedIn(userId, null))
                 .with(csrf)
                 .exchange();
+    }
+
+    private MvcTestResult register(UUID userId, CsrfSession csrf, String content) {
+        return mvc.post()
+                .uri("/webauthn/register")
+                .with(TestUsers.signedIn(userId, null))
+                .with(csrf)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(content)
+                .exchange();
+    }
+
+    private static void assertRejected(MvcTestResult result) {
+        assertThat(result).hasStatus(400).hasContentType(PROBLEM_JSON);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("passkey.rejected");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .isEqualTo("Não foi possível criar a passkey. Tente de novo.");
+    }
+
+    /** The registration with its client data answering a challenge the server never issued. */
+    private static String withOtherChallenge(String registration) {
+        String path = "$.publicKey.credential.response.clientDataJSON";
+        Bytes clientData = Bytes.fromBase64(JsonPath.read(registration, path));
+        String forged = JsonPath.parse(new String(clientData.getBytes(), StandardCharsets.UTF_8))
+                .set("$.challenge", Bytes.random().toBase64UrlString())
+                .jsonString();
+        return JsonPath.parse(registration)
+                .set(path, new Bytes(forged.getBytes(StandardCharsets.UTF_8)).toBase64UrlString())
+                .jsonString();
     }
 
     private static ImmutableCredentialRecord credential(Bytes handle, Instant created) {

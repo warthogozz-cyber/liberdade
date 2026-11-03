@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentMap;
  * Counts sign-in attempts per key in fixed windows of one epoch minute (D10). In memory, so each instance counts on
  * its own. Past {@value #MAX_KEYS} keys, the ones from earlier minutes are dropped.
  */
-public final class LoginRateLimiter {
+final class LoginRateLimiter {
 
     private static final int MAX_KEYS = 10_000;
 
@@ -17,7 +17,7 @@ public final class LoginRateLimiter {
     private final int limitPerMinute;
     private final ConcurrentMap<String, Window> windows = new ConcurrentHashMap<>();
 
-    public LoginRateLimiter(Clock clock, int limitPerMinute) {
+    LoginRateLimiter(Clock clock, int limitPerMinute) {
         this.clock = clock;
         this.limitPerMinute = limitPerMinute;
     }
@@ -27,7 +27,7 @@ public final class LoginRateLimiter {
      *
      * @return empty when the attempt is within the limit; otherwise the seconds until the next minute, from 1 to 60
      */
-    public OptionalLong tryAcquire(String key) {
+    OptionalLong tryAcquire(String key) {
         long epochSecond = clock.instant().getEpochSecond();
         long minute = Math.floorDiv(epochSecond, 60);
         if (windows.size() > MAX_KEYS) {

@@ -1,9 +1,8 @@
-package br.com.liberdadefamilia.identity;
+package br.com.liberdadefamilia.identity.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
-import br.com.liberdadefamilia.identity.internal.LoginRateLimiter;
 import br.com.liberdadefamilia.support.CsrfSession;
 import java.time.Clock;
 import java.time.Instant;

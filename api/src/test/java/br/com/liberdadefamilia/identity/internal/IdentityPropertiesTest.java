@@ -2,10 +2,12 @@ package br.com.liberdadefamilia.identity.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.context.properties.bind.validation.BindValidationException;
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
 
@@ -66,5 +68,29 @@ class IdentityPropertiesTest {
                             .isInstanceOf(BindValidationException.class)
                             .hasMessageContaining("liberdade.webauthn");
                 });
+    }
+
+    @Test
+    void rejectsMissingWebBlock() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(Properties.class)
+                .withPropertyValues("liberdade.webauthn.rp-id=localhost", "liberdade.webauthn.rp-name=Liberdade")
+                .run(context -> assertMissing(context, "web"));
+    }
+
+    @Test
+    void rejectsMissingWebAuthnBlock() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(Properties.class)
+                .withPropertyValues("liberdade.web.origin=http://localhost:5173")
+                .run(context -> assertMissing(context, "webauthn"));
+    }
+
+    private static void assertMissing(AssertableApplicationContext context, String block) {
+        assertThat(context).hasFailed();
+        assertThat(context.getStartupFailure())
+                .rootCause()
+                .isInstanceOf(BindValidationException.class)
+                .hasMessageContaining("field '" + block + "'");
     }
 }
