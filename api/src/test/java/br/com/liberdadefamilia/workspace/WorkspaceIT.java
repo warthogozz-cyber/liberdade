@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.workspace;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
@@ -18,6 +19,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,6 +39,9 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 class WorkspaceIT {
 
     private static final MediaType PROBLEM_JSON = MediaType.parseMediaType("application/problem+json");
+
+    /** Far above a normal run; only a stuck request gets near it. */
+    private static final long TAP_TIMEOUT_SECONDS = 30;
 
     @Autowired
     MockMvcTester mvc;
@@ -158,18 +163,27 @@ class WorkspaceIT {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"name\":\"Família Teste\"}");
             ready.countDown();
-            go.await();
+            if (!go.await(TAP_TIMEOUT_SECONDS, SECONDS)) {
+                throw new TimeoutException("The taps were never released");
+            }
             return request.exchange().getResponse().getStatus();
         };
 
         List<Integer> statuses = new ArrayList<>();
-        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+        // Daemon threads that nobody waits for: a stuck tap fails this test instead of hanging the build.
+        ExecutorService pool =
+                Executors.newFixedThreadPool(2, Thread.ofPlatform().daemon().factory());
+        try {
             Future<Integer> first = pool.submit(tap);
             Future<Integer> second = pool.submit(tap);
-            ready.await();
+            assertThat(ready.await(TAP_TIMEOUT_SECONDS, SECONDS))
+                    .as("both taps ready")
+                    .isTrue();
             go.countDown();
-            statuses.add(first.get());
-            statuses.add(second.get());
+            statuses.add(first.get(TAP_TIMEOUT_SECONDS, SECONDS));
+            statuses.add(second.get(TAP_TIMEOUT_SECONDS, SECONDS));
+        } finally {
+            pool.shutdownNow();
         }
 
         assertThat(statuses).containsExactlyInAnyOrder(201, 409);

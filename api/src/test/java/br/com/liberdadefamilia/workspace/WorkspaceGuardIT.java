@@ -10,6 +10,7 @@ import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -110,6 +111,29 @@ class WorkspaceGuardIT {
     }
 
     @Test
+    void unknownFamilyGets404() {
+        UUID ownerId = users.create("Ana Teste", "ana@example.com");
+        workspaces.createFor(ownerId);
+
+        var result = get(ownerId, "/v1/workspaces/" + UUID.randomUUID() + "/probe/read");
+
+        assertNotFound(result);
+    }
+
+    /** Membership is checked before role: a VIEWER elsewhere gets 404 on a write route, never a telling 403. */
+    @Test
+    void userOfAnotherFamilyGets404OnWrite() {
+        UUID workspaceId = workspaces.createFor(users.create("Ana Teste", "ana@example.com"));
+        UUID otherFamilyId = workspaces.createFor(users.create("Caio Teste", "caio@example.com"));
+        UUID viewerId = users.create("Bia Teste", "bia@example.com");
+        workspaces.addMember(otherFamilyId, viewerId, VIEWER);
+
+        var result = post(viewerId, "/v1/workspaces/" + workspaceId + "/probe/write");
+
+        assertNotFound(result);
+    }
+
+    @Test
     void notAUuidGets404() {
         UUID ownerId = users.create("Ana Teste", "ana@example.com");
         workspaces.createFor(ownerId);
@@ -154,6 +178,34 @@ class WorkspaceGuardIT {
         var result = get(ownerId, "/v1/workspaces/" + workspaceId + "/probe/open");
 
         assertForbidden(result);
+    }
+
+    @Test
+    void guardHandsTheWholeMember() {
+        UUID workspaceId = workspaces.createFor(users.create("Ana Teste", "ana@example.com"));
+        jdbc.sql("update workspaces set timezone = 'America/Manaus' where id = :id")
+                .param("id", workspaceId)
+                .update();
+        UUID viewerId = users.create("Bia Teste", "bia@example.com");
+        UUID membershipId = workspaces.addMember(workspaceId, viewerId, VIEWER);
+        Map<String, Object> row =
+                jdbc.sql("""
+                        select m.workspace_id, m.id, m.user_id, m.role, w.timezone, w.base_currency
+                        from memberships m join workspaces w on w.id = m.workspace_id
+                        where m.id = :id""").param("id", membershipId).query().singleRow();
+
+        var result = get(viewerId, "/v1/workspaces/" + workspaceId + "/probe/member");
+
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().isStrictlyEqualTo("""
+                {"workspaceId":"%s","membershipId":"%s","userId":"%s","role":"%s",
+                 "timezone":"%s","baseCurrency":"%s"}""".formatted(
+                        row.get("workspace_id"),
+                        row.get("id"),
+                        row.get("user_id"),
+                        row.get("role"),
+                        row.get("timezone"),
+                        row.get("base_currency")));
     }
 
     @Test
@@ -205,6 +257,12 @@ class WorkspaceGuardIT {
         @WorkspaceScoped(allow = {OWNER, ADULT})
         String write(WorkspaceMember member) {
             return member.role().name();
+        }
+
+        @GetMapping("/member")
+        @WorkspaceScoped(allow = {OWNER, ADULT, VIEWER})
+        WorkspaceMember member(WorkspaceMember member) {
+            return member;
         }
 
         @GetMapping("/youth")
