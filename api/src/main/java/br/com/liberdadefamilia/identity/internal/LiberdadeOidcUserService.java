@@ -4,13 +4,20 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 /** Turns a Google sign-in into a Liberdade user, creating the user on the first sign-in. */
 public class LiberdadeOidcUserService implements OAuth2UserService<OidcUserRequest, OidcUser> {
+
+    private static final Logger log = LoggerFactory.getLogger(LiberdadeOidcUserService.class);
 
     private static final String FALLBACK_NAME = "Você";
     private static final int MAX_NAME_LENGTH = 200;
@@ -26,7 +33,15 @@ public class LiberdadeOidcUserService implements OAuth2UserService<OidcUserReque
     @Override
     public OidcUser loadUser(OidcUserRequest request) throws OAuth2AuthenticationException {
         OidcUser user = delegate.loadUser(request);
-        UUID userId = accounts.signInWithGoogle(user.getSubject(), displayNameFrom(user), user.getEmail());
+        UUID userId;
+        try {
+            userId = accounts.signInWithGoogle(user.getSubject(), displayNameFrom(user), user.getEmail());
+        } catch (DataAccessException e) {
+            // The message (and its cause) can quote row values such as the subject, name or email: log the type only.
+            // Thrown as a sign-in failure, so the browser goes back to the sign-in page instead of the API's /error.
+            log.error("Sign-in failed while saving the user: {}", e.getClass().getName());
+            throw new OAuth2AuthenticationException(new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR));
+        }
         return new LiberdadeOidcUser(userId, user.getAuthorities(), user.getIdToken(), user.getUserInfo());
     }
 

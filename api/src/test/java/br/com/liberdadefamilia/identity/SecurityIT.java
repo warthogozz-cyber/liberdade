@@ -17,8 +17,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizationRequestRepository;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
+import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -28,6 +31,8 @@ class SecurityIT {
     private static final MediaType PROBLEM_JSON = MediaType.parseMediaType("application/problem+json");
     private static final String WEB_ORIGIN = "http://localhost:5173";
     private static final String SESSION_COOKIE = "__Host-sid";
+    private static final String AUTHORIZATION_REQUEST =
+            HttpSessionOAuth2AuthorizationRequestRepository.class.getName() + ".AUTHORIZATION_REQUEST";
 
     @Autowired
     MockMvcTester mvc;
@@ -69,6 +74,31 @@ class SecurityIT {
     }
 
     @Test
+    void cancellingAtGoogleGoesBackToSignIn() {
+        var start = mvc.get().uri("/oauth2/authorization/google").exchange();
+        Cookie session = start.getResponse().getCookie(SESSION_COOKIE);
+        assertThat(session).isNotNull();
+        String state = UriComponentsBuilder.fromUriString(start.getResponse().getHeader(HttpHeaders.LOCATION))
+                .build()
+                .getQueryParams()
+                .getFirst("state");
+        assertThat(state).isNotBlank();
+        assertThat(authorizationRequestsIn(sessionIdOf(start))).isOne();
+
+        // What Google sends back when the person cancels on its consent screen.
+        var cancelled = mvc.get()
+                .uri("/login/oauth2/code/google")
+                .param("error", "access_denied")
+                .param("state", UriUtils.decode(state, StandardCharsets.UTF_8))
+                .cookie(session)
+                .exchange();
+
+        assertThat(cancelled).hasStatus(302).hasRedirectedUrl(WEB_ORIGIN + "/entrar?erro=login");
+        // The state matched: the pending authorization request was used up, not left behind as with a stray callback.
+        assertThat(authorizationRequestsIn(sessionIdOf(start))).isZero();
+    }
+
+    @Test
     void csrfEndpointGivesToken() {
         var result = mvc.get().uri("/v1/csrf").exchange();
         assertThat(result).hasStatusOk();
@@ -80,14 +110,14 @@ class SecurityIT {
     }
 
     @Test
-    void sessionLasts30DaysIdle() {
+    void anonymousSessionLasts30MinutesIdle() {
         String sessionId = sessionIdOf(mvc.get().uri("/v1/csrf").exchange());
         Integer maxInactiveInterval = jdbc.sql(
                         "select max_inactive_interval from spring_session where session_id = :id")
                 .param("id", sessionId)
                 .query(Integer.class)
                 .single();
-        assertThat(maxInactiveInterval).isEqualTo(2_592_000);
+        assertThat(maxInactiveInterval).isEqualTo(1_800);
     }
 
     @Test
@@ -171,6 +201,17 @@ class SecurityIT {
                 .hasValue("X-Content-Type-Options", "nosniff")
                 .hasValue("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
         assertThat(result.getResponse().getHeader("Strict-Transport-Security")).contains("max-age=31536000");
+    }
+
+    private Long authorizationRequestsIn(String sessionId) {
+        return jdbc.sql("""
+                        select count(*) from spring_session_attributes a
+                        join spring_session s on s.primary_id = a.session_primary_id
+                        where s.session_id = :id and a.attribute_name = :name""")
+                .param("id", sessionId)
+                .param("name", AUTHORIZATION_REQUEST)
+                .query(Long.class)
+                .single();
     }
 
     /** Spring Session writes the session id Base64-encoded in the cookie. */

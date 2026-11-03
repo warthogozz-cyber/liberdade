@@ -9,6 +9,8 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /** Users and the external identities they sign in with. */
@@ -21,9 +23,12 @@ public class UserAccounts {
     private final TransactionTemplate tx;
     private final Clock clock;
 
-    UserAccounts(JdbcClient jdbc, TransactionTemplate tx, Clock clock) {
+    UserAccounts(JdbcClient jdbc, PlatformTransactionManager transactions, Clock clock) {
         this.jdbc = jdbc;
-        this.tx = tx;
+        // Each attempt gets its own transaction, even inside a caller's: a failed insert aborts the
+        // transaction it ran in, so the retry could not run in that one.
+        this.tx = new TransactionTemplate(transactions);
+        this.tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.clock = clock;
     }
 

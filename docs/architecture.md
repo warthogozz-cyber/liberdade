@@ -263,7 +263,7 @@ Referência: **OWASP ASVS 5.0, nível 2**, com checklist revisado a cada release
 | Tema | Medida |
 |---|---|
 | Autenticação | Sem senha: Google OIDC (escopos mínimos, PKCE, `nonce`) e passkeys. O 2FA vem do Google ou da própria passkey. |
-| Sessão | Spring Session JDBC (sobrevive a reinícios). Cookie `__Host-sid`: `HttpOnly`, `Secure`, `SameSite=Lax` (o retorno do Google é uma navegação vinda de outro site e precisa levar o cookie). Novo id a cada login; expira após 30 dias sem uso. |
+| Sessão | Spring Session JDBC (sobrevive a reinícios). Cookie `__Host-sid`: `HttpOnly`, `Secure`, `SameSite=Lax` (o retorno do Google é uma navegação vinda de outro site e precisa levar o cookie). Novo id a cada login; expira após 30 dias sem uso. A sessão aberta antes do login (token de CSRF, ida ao Google) expira após 30 minutos sem uso. |
 | Reautenticação | Excluir conta, mudar papéis e exportar dados exigem login nos últimos 10 min. |
 | CSRF | Token obtido em `GET /v1/csrf`, guardado em memória e enviado em `X-XSRF-TOKEN`; checagem de `Origin`. |
 | CORS | Só a origem do front do mesmo ambiente, com credenciais. |

@@ -18,7 +18,7 @@
 - **Sem senha própria.** O segundo fator vem do Google (2FA da conta) ou da própria passkey
   (aparelho + biometria ou PIN).
 - **Sessão no servidor** (Spring Session JDBC) com cookie `__Host-sid` `HttpOnly`, `Secure`,
-  `SameSite=Lax`; expira após 30 dias sem uso.
+  `SameSite=Lax`; depois do login, expira após 30 dias sem uso. Antes do login, após 30 minutos.
 - **Reautenticação** para ações sensíveis (login nos últimos 10 min).
 - **Recuperação** para quem só tem passkey: Dono ou Adulto gera um link de uso único, válido por
   24 h, auditado e avisado ao membro.

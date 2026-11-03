@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.identity.internal;
 
+import java.time.Duration;
 import java.util.List;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.session.autoconfigure.DefaultCookieSerializerCustomizer;
@@ -15,6 +16,7 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.RedirectStrategy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler;
@@ -37,6 +39,12 @@ class SecurityConfig {
     /** {@code __Host-}: the browser only keeps it when Secure, on path / and without a Domain. */
     static final String SESSION_COOKIE = "__Host-sid";
 
+    /**
+     * How long a signed-in session lasts without use. Every session starts at {@code spring.session.timeout} (30
+     * minutes), so the ones opened before sign-in, by {@code GET /v1/csrf} or the trip to Google, stay short.
+     */
+    static final Duration SIGNED_IN_IDLE_TIMEOUT = Duration.ofDays(30);
+
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
@@ -57,7 +65,7 @@ class SecurityConfig {
                         .authorizationEndpoint(endpoint -> endpoint.authorizationRequestResolver(pkce(clients)))
                         .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService))
                         .authorizedClientRepository(authorizedClients)
-                        .defaultSuccessUrl(origin + "/", true)
+                        .successHandler(signedIn(origin, redirects))
                         // A plain redirect: unlike the default handler, it keeps the exception out of the session.
                         .failureHandler((request, response, exception) ->
                                 redirects.sendRedirect(request, response, origin + "/entrar?erro=login")))
@@ -95,6 +103,14 @@ class SecurityConfig {
     @Bean
     LiberdadeOidcUserService oidcUserService(UserAccounts accounts) {
         return new LiberdadeOidcUserService(new OidcUserService(), accounts);
+    }
+
+    /** Raises the session to {@link #SIGNED_IN_IDLE_TIMEOUT} and sends the browser back to the web app. */
+    private static AuthenticationSuccessHandler signedIn(String origin, RedirectStrategy redirects) {
+        return (request, response, authentication) -> {
+            request.getSession().setMaxInactiveInterval(Math.toIntExact(SIGNED_IN_IDLE_TIMEOUT.toSeconds()));
+            redirects.sendRedirect(request, response, origin + "/");
+        };
     }
 
     private static DefaultOAuth2AuthorizationRequestResolver pkce(ClientRegistrationRepository clients) {
