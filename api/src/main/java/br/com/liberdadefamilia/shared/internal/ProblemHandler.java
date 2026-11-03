@@ -3,8 +3,11 @@ package br.com.liberdadefamilia.shared.internal;
 import br.com.liberdadefamilia.shared.DomainException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.MessageSourceResolvable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
@@ -42,12 +46,38 @@ class ProblemHandler extends ResponseEntityExceptionHandler {
             MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
         ProblemDetail problem = problem(HttpStatus.UNPROCESSABLE_CONTENT.value(), "request.invalid", INVALID_DETAIL);
         List<Map<String, String>> errors = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> Map.of("field", error.getField(), "code", String.valueOf(error.getCode())))
+                .map(error -> fieldError(error.getField(), error.getCode()))
                 .toList();
         problem.setProperty("errors", errors);
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
                 .headers(headers)
                 .body(problem);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(
+            HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        ProblemDetail problem = problem(HttpStatus.UNPROCESSABLE_CONTENT.value(), "request.invalid", INVALID_DETAIL);
+        List<Map<String, String>> errors = ex.getParameterValidationResults().stream()
+                .flatMap(result -> result.getResolvableErrors().stream()
+                        .map(error -> fieldError(result.getMethodParameter().getParameterName(), lastCode(error))))
+                .toList();
+        problem.setProperty("errors", errors);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
+                .headers(headers)
+                .body(problem);
+    }
+
+    /** One item of the {@code errors} array. A missing code becomes {@code invalid}. */
+    static Map<String, String> fieldError(@Nullable String field, @Nullable String code) {
+        return Map.of(
+                "field", Objects.requireNonNullElse(field, ""), "code", Objects.requireNonNullElse(code, "invalid"));
+    }
+
+    /** The bare constraint name, e.g. {@code Min} rather than {@code Min.param.n}. */
+    private static @Nullable String lastCode(MessageSourceResolvable error) {
+        String[] codes = error.getCodes();
+        return codes == null || codes.length == 0 ? null : codes[codes.length - 1];
     }
 
     @ExceptionHandler(DomainException.class)

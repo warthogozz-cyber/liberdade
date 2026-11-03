@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.shared.DomainException;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @ExtendWith(OutputCaptureExtension.class)
@@ -76,6 +78,17 @@ class ProblemHandlerTest {
         assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("Alguns campos precisam de ajuste.");
         assertThat(result).bodyJson().extractingPath("$.errors[0].field").isEqualTo("name");
         assertThat(result).bodyJson().extractingPath("$.errors[0].code").isEqualTo("NotBlank");
+    }
+
+    @Test
+    void methodValidationIs422() {
+        assertThat(mvc.get().uri("/probe/param?n=0")).hasStatus(422).bodyJson().isLenientlyEqualTo("""
+                        {"code":"request.invalid","errors":[{"field":"n","code":"Min"}]}""");
+    }
+
+    @Test
+    void fieldErrorWithoutCodeIsInvalid() {
+        assertThat(ProblemHandler.fieldError("name", null)).containsEntry("code", "invalid");
     }
 
     @Test
@@ -139,6 +152,13 @@ class ProblemHandlerTest {
         @GetMapping("/test/boom")
         String boom() {
             throw new IllegalStateException("secret-internal-detail");
+        }
+
+        // No @Validated on the class, so Spring MVC's built-in method validation throws
+        // HandlerMethodValidationException.
+        @GetMapping("/probe/param")
+        String param(@RequestParam @Min(1) int n) {
+            return "ok";
         }
 
         @PostMapping("/test/validated")
