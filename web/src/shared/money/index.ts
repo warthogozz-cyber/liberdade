@@ -1,1 +1,9 @@
-export { MAX_CENTS, appendDigit, centsToApi, formatBRL, parseCents, removeLastDigit } from './money'
+export {
+  MAX_CENTS,
+  appendDigit,
+  appendDoubleZero,
+  centsToApi,
+  formatBRL,
+  parseCents,
+  removeLastDigit,
+} from './money'

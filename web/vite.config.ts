@@ -22,7 +22,7 @@ export default defineConfig({
         functions: 80,
         branches: 80,
         statements: 80,
-        'src/shared/money/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
+        'src/shared/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
       },
     },
   },
