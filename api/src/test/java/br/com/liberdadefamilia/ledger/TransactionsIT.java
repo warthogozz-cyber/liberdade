@@ -14,6 +14,7 @@ import com.jayway.jsonpath.JsonPath;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -110,6 +112,29 @@ class TransactionsIT {
         assertThat(rowsWithId(id)).isOne();
     }
 
+    /**
+     * A resend repeats what the server already stored, whatever changed since: archiving the account or the category
+     * must not turn it into a 422 that the device would then "correct" into a second expense.
+     */
+    @Test
+    void resendAfterArchivingStillReturnsTheRow() throws Exception {
+        UUID id = TestIds.v7();
+        var first = post(ana, id, expense(id, ana));
+        jdbc.sql("update categories set archived_at = now() where id = :id")
+                .param("id", ana.mercadoId())
+                .update();
+        jdbc.sql("update accounts set archived_at = now() where id = :id")
+                .param("id", ana.walletId())
+                .update();
+
+        var resent = post(ana, id, expense(id, ana));
+
+        assertThat(first).hasStatus(201);
+        assertThat(resent).hasStatus(200).hasContentType(MediaType.APPLICATION_JSON);
+        assertThat(resent).bodyJson().isStrictlyEqualTo(first.getResponse().getContentAsString(StandardCharsets.UTF_8));
+        assertThat(rowsWithId(id)).isOne();
+    }
+
     @Test
     void sameIdOtherContentIs409() {
         UUID id = TestIds.v7();
@@ -140,6 +165,10 @@ class TransactionsIT {
                 .query(UUID.class)
                 .single();
         Map<String, Object> changes = Map.of(
+                "kind",
+                "INCOME",
+                "amount",
+                money("12.34", "USD"),
                 "occurredOn",
                 "2026-11-03",
                 "accountId",
@@ -258,6 +287,26 @@ class TransactionsIT {
         assertThat(padded).hasStatus(201);
         assertThat(padded).bodyJson().extractingPath("$.description").isEqualTo("Feira");
         assertThat(row(paddedId)).containsEntry("description", "Feira");
+    }
+
+    /**
+     * PostgreSQL text cannot hold U+0000, so it is refused up front instead of failing in the database with a 500 the
+     * offline queue would retry forever. Any other character, line breaks and emoji included, stays valid.
+     */
+    @Test
+    void nulInDescriptionIs422() {
+        UUID nulId = TestIds.v7();
+        UUID multilineId = TestIds.v7();
+
+        var nul = post(ana, nulId, describedExpense(nulId, "Fei\u0000ra"));
+        var multiline = post(ana, multilineId, describedExpense(multilineId, "Feira\nde sábado 🍎"));
+
+        assertThat(nul).hasStatus(422).hasContentType(PROBLEM_JSON);
+        assertThat(nul).bodyJson().isLenientlyEqualTo("""
+                {"code":"request.invalid","errors":[{"field":"description","code":"Pattern"}]}""");
+        assertThat(rowsWithId(nulId)).isZero();
+        assertThat(multiline).hasStatus(201);
+        assertThat(row(multilineId)).containsEntry("description", "Feira\nde sábado 🍎");
     }
 
     @Test
@@ -415,6 +464,25 @@ class TransactionsIT {
                 .containsKey("createdAt");
     }
 
+    /**
+     * On the same day the entry stored last comes first, whatever its id (D20). The ids here grow against the creation
+     * times, so only the creation time explains the order.
+     */
+    @Test
+    void sameDayOrdersByCreatedAtThenId() {
+        // Sorted, because two ids from the same millisecond come in random order. For UUIDv7, UUID.compareTo agrees
+        // with PostgreSQL's byte order: the top bit of each half is fixed (timestamp and variant).
+        List<UUID> ids = Stream.generate(TestIds::v7).limit(2).sorted().toList();
+        UUID lower = ids.get(0);
+        UUID higher = ids.get(1);
+        storedExpense(lower, "2026-11-10T15:00:00Z");
+        storedExpense(higher, "2026-11-10T12:00:00Z");
+
+        var result = list(ana.userId(), "2026-11");
+
+        assertThat(ids(result)).containsExactly(lower.toString(), higher.toString());
+    }
+
     @Test
     void viewerCanList() {
         created(ana, "2026-11-02");
@@ -556,6 +624,23 @@ class TransactionsIT {
         body.put("occurredOn", occurredOn);
         assertThat(post(family, id, body)).hasStatus(201);
         return id;
+    }
+
+    /** Ana's default expense on 2026-11-10, written by SQL with the given id and creation time. */
+    private void storedExpense(UUID id, String createdAt) {
+        jdbc.sql("""
+                        insert into transactions
+                            (id, workspace_id, kind, amount, currency, occurred_on,
+                             account_id, category_id, member_id, created_by, created_at)
+                        values (:id, :workspaceId, 'EXPENSE', 12.34, 'BRL', '2026-11-10',
+                                :accountId, :categoryId, :membershipId, :membershipId, :createdAt)""")
+                .param("id", id)
+                .param("workspaceId", ana.workspaceId())
+                .param("accountId", ana.walletId())
+                .param("categoryId", ana.mercadoId())
+                .param("membershipId", ana.membershipId())
+                .param("createdAt", OffsetDateTime.parse(createdAt))
+                .update();
     }
 
     private MvcTestResult post(Family family, UUID idempotencyKey, Map<String, Object> body) {

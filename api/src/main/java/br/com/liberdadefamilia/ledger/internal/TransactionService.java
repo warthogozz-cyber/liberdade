@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.ledger.internal;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.util.Currency;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
@@ -24,7 +25,9 @@ class TransactionService {
     }
 
     /**
-     * Checks the transaction against the family's data, the first failure deciding, and records it for the member.
+     * Records the transaction for the member. A resend of a stored transaction returns it before the checks against
+     * the family's data run, so archiving its account or category since then does not turn the resend into a 422. A
+     * new transaction is checked first, the first failure deciding.
      *
      * @throws TransactionRejectedException when a check fails
      * @throws TransactionIdConflictException when the id is taken by other data or by another family
@@ -35,6 +38,26 @@ class TransactionService {
             throw new TransactionRejectedException(
                     "transaction.invalid-id", "O identificador do lançamento é inválido.");
         }
+        Optional<TransactionView> stored = transactions.find(workspaceId, request.id());
+        if (stored.isPresent()) {
+            return new Recorded(repeated(stored.get(), request), false);
+        }
+
+        checkAgainstFamily(workspaceId, request);
+        Optional<TransactionView> created = transactions.insertIfAbsent(workspaceId, member.membershipId(), request);
+        if (created.isPresent()) {
+            return new Recorded(created.get(), true);
+        }
+        // The id was taken since the lookup: by the other tap of a double tap, or by another family.
+        return new Recorded(
+                repeated(
+                        transactions.find(workspaceId, request.id()).orElseThrow(TransactionIdConflictException::new),
+                        request),
+                false);
+    }
+
+    /** The checks a new transaction must pass, in order, against this family's accounts and categories. */
+    private void checkAgainstFamily(UUID workspaceId, CreateTransactionRequest request) {
         if (request.kind() == TransactionKind.TRANSFER) {
             throw new TransactionRejectedException(
                     "transaction.kind-unsupported", "Transferências ainda não estão disponíveis.");
@@ -54,19 +77,14 @@ class TransactionService {
             throw new TransactionRejectedException(
                     "transaction.currency-mismatch", "A moeda do valor não é a mesma da conta.");
         }
-
-        return transactions
-                .insertIfAbsent(workspaceId, member.membershipId(), request)
-                .map(created -> new Recorded(created, true))
-                .orElseGet(() -> new Recorded(storedCopyOf(workspaceId, request), false));
     }
 
-    /** The stored transaction a resend repeats, looked up in this family only. */
-    private TransactionView storedCopyOf(UUID workspaceId, CreateTransactionRequest request) {
-        return transactions
-                .find(workspaceId, request.id())
-                .filter(stored -> sameContent(stored, request))
-                .orElseThrow(TransactionIdConflictException::new);
+    /** The stored transaction, when the request repeats it; under the same id, any other content is a conflict. */
+    private static TransactionView repeated(TransactionView stored, CreateTransactionRequest request) {
+        if (!sameContent(stored, request)) {
+            throw new TransactionIdConflictException();
+        }
+        return stored;
     }
 
     /** Whether the request carries the stored transaction's data, the amount compared by value. */

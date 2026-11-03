@@ -162,6 +162,29 @@ class CategoriesIT {
     }
 
     @Test
+    void deletedTransactionsDoNotRank() {
+        expense("Pets", LocalDate.of(2026, 11, 10));
+        expense("Pets", LocalDate.of(2026, 11, 10));
+        jdbc.sql("update transactions set deleted_at = now() where workspace_id = :workspaceId")
+                .param("workspaceId", workspaceId)
+                .update();
+
+        var result = categories(userId, "EXPENSE");
+
+        assertThat(names(result)).containsExactlyElementsOf(DEFAULT_EXPENSES);
+    }
+
+    /** The window has a start and no end: an expense dated after the family's today still counts (D31). */
+    @Test
+    void futureDatedExpensesRank() {
+        expense("Lazer", LocalDate.of(2026, 12, 20));
+
+        var result = categories(userId, "EXPENSE");
+
+        assertThat(names(result)).startsWith("Lazer", "Mercado");
+    }
+
+    @Test
     void archivedHidden() {
         jdbc.sql("update categories set archived_at = now() where id = :id")
                 .param("id", ledger.categoryOf(workspaceId, "EXPENSE", "Pets"))
