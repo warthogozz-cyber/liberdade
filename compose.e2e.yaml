@@ -1,0 +1,18 @@
+# Sign-in without a Google account: a mock OIDC provider stands in for Google.
+# Use: docker compose -f compose.yaml -f compose.e2e.yaml up -d --build
+services:
+  mock-oauth2:
+    image: ghcr.io/navikt/mock-oauth2-server:6.1.3
+    environment:
+      SERVER_PORT: "8090"
+      JSON_CONFIG: '{"interactiveLogin":true}'
+    ports:
+      - "127.0.0.1:8090:8090"
+
+  api:
+    environment:
+      SPRING_PROFILES_ACTIVE: e2e
+    depends_on:
+      - mock-oauth2
+    # OIDC discovery fails at startup while the mock is still coming up.
+    restart: on-failure

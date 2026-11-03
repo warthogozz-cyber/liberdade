@@ -31,10 +31,16 @@ repositories {
 
 extra["springModulithVersion"] = "2.1.1"
 
+// Mockito loads as a Java agent: JDK 25 warns about its self-attach, which later JDKs will block.
+val mockitoAgent = configurations.create("mockitoAgent")
+
 dependencies {
+    mockitoAgent("org.mockito:mockito-core") { isTransitive = false }
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
+    implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.flywaydb:flyway-database-postgresql")
@@ -47,6 +53,9 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-security-oauth2-client-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-security-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-session-jdbc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
@@ -84,6 +93,12 @@ val coverageExcludes = listOf("br/com/liberdadefamilia/LiberdadeApplication*")
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    systemProperty("spring.profiles.active", "test")
+    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-javaagent:${mockitoAgent.asPath}") })
+}
+
+tasks.bootTestRun {
+    systemProperty("spring.profiles.active", "dev")
 }
 
 tasks.test {

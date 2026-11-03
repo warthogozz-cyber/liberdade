@@ -13,6 +13,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -83,6 +86,24 @@ class ProblemHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(DomainException.class)
     ResponseEntity<ProblemDetail> handleDomain(DomainException ex) {
         return ResponseEntity.status(ex.status()).body(problem(ex.status(), ex.code(), ex.detail()));
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    ResponseEntity<ProblemDetail> handleUnauthenticated(AuthenticationException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(problem(401, "auth.required", "Entre para continuar."));
+    }
+
+    @ExceptionHandler(CsrfException.class)
+    ResponseEntity<ProblemDetail> handleCsrf(CsrfException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(problem(403, "csrf.invalid", "Sua sessão foi atualizada. Tente de novo."));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<ProblemDetail> handleForbidden(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(problem(403, "auth.forbidden", "Você não tem permissão para isso."));
     }
 
     @ExceptionHandler(Exception.class)
