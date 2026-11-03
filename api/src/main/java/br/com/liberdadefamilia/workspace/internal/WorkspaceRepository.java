@@ -55,7 +55,7 @@ class WorkspaceRepository {
                 .single();
     }
 
-    List<ActiveWorkspace> activeWorkspacesOf(UUID userId) {
+    List<MeWorkspace> activeWorkspacesOf(UUID userId) {
         return jdbc.sql("""
                         select w.id, w.name, m.role, m.id as membership_id, w.timezone, w.base_currency
                         from memberships m
@@ -65,7 +65,7 @@ class WorkspaceRepository {
                           and w.deletion_requested_at is null
                         order by m.created_at, m.id""")
                 .param("userId", userId)
-                .query((rs, row) -> new ActiveWorkspace(
+                .query((rs, row) -> new MeWorkspace(
                         rs.getObject("id", UUID.class),
                         rs.getString("name"),
                         Role.valueOf(rs.getString("role")),
@@ -97,7 +97,4 @@ class WorkspaceRepository {
     }
 
     record NewWorkspace(UUID id, Currency baseCurrency) {}
-
-    /** A family the user is an active member of, as {@code GET /v1/me} lists it. */
-    record ActiveWorkspace(UUID id, String name, Role role, UUID membershipId, String timezone, String currency) {}
 }

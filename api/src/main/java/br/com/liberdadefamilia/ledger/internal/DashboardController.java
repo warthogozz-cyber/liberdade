@@ -4,7 +4,6 @@ import static br.com.liberdadefamilia.workspace.Role.ADULT;
 import static br.com.liberdadefamilia.workspace.Role.OWNER;
 import static br.com.liberdadefamilia.workspace.Role.VIEWER;
 
-import br.com.liberdadefamilia.ledger.internal.AccountRepository.Account;
 import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
@@ -31,17 +30,17 @@ class DashboardController {
 
     @GetMapping("/v1/workspaces/{ws}/dashboard")
     @WorkspaceScoped(allow = {OWNER, ADULT, VIEWER})
-    Dashboard dashboard(@RequestParam YearMonth month, WorkspaceMember member) {
+    DashboardView dashboard(@RequestParam YearMonth month, WorkspaceMember member) {
         Currency base = member.baseCurrency();
         Money expenses = transactions.expenses(
                 member.workspaceId(), base, month.atDay(1), month.plusMonths(1).atDay(1));
         Money balance = accounts.unarchivedWithBalances(member.workspaceId()).stream()
-                .map(Account::balance)
+                .map(AccountView::balance)
                 .filter(money -> money.currency().equals(base))
                 .reduce(Money.zero(base), Money::plus);
-        return new Dashboard(month.toString(), expenses, balance);
+        return new DashboardView(month.toString(), expenses, balance);
     }
 
     /** @param month the month asked for, as {@code yyyy-MM} */
-    record Dashboard(String month, Money expenses, Money balance) {}
+    record DashboardView(String month, Money expenses, Money balance) {}
 }

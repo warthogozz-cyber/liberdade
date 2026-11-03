@@ -2,7 +2,7 @@ package br.com.liberdadefamilia.workspace.internal;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
 import br.com.liberdadefamilia.identity.Passkeys;
-import br.com.liberdadefamilia.workspace.internal.WorkspaceRepository.ActiveWorkspace;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -28,9 +28,9 @@ class MeController {
     }
 
     @GetMapping("/v1/me")
-    Me me(CurrentUser user) {
-        return new Me(
-                new UserView(
+    MeView me(CurrentUser user) {
+        return new MeView(
+                new MeUser(
                         user.id(),
                         user.displayName(),
                         passkeys.latestCreatedAt(user.id()).orElse(null)),
@@ -57,7 +57,10 @@ class MeController {
         return name.substring(0, end);
     }
 
-    record Me(UserView user, List<ActiveWorkspace> workspaces, String suggestedWorkspaceName) {}
+    record MeView(MeUser user, List<MeWorkspace> workspaces, String suggestedWorkspaceName) {}
 
-    record UserView(UUID id, String displayName, @Nullable Instant passkeyCreatedAt) {}
+    record MeUser(
+            UUID id,
+            String displayName,
+            @Nullable @Schema(nullable = true) Instant passkeyCreatedAt) {}
 }

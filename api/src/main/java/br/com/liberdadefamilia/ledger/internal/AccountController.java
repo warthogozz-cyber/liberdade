@@ -4,7 +4,6 @@ import static br.com.liberdadefamilia.workspace.Role.ADULT;
 import static br.com.liberdadefamilia.workspace.Role.OWNER;
 import static br.com.liberdadefamilia.workspace.Role.VIEWER;
 
-import br.com.liberdadefamilia.ledger.internal.AccountRepository.Account;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import java.util.List;
@@ -23,7 +22,7 @@ class AccountController {
 
     @GetMapping("/v1/workspaces/{ws}/accounts")
     @WorkspaceScoped(allow = {OWNER, ADULT, VIEWER})
-    List<Account> accounts(WorkspaceMember member) {
+    List<AccountView> listAccounts(WorkspaceMember member) {
         return accounts.unarchivedWithBalances(member.workspaceId());
     }
 }

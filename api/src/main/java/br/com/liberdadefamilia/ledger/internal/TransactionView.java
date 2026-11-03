@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.shared.Money;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -14,6 +15,6 @@ record TransactionView(
         LocalDate occurredOn,
         UUID accountId,
         @Nullable UUID categoryId,
-        @Nullable String description,
+        @Nullable @Schema(nullable = true) String description,
         UUID memberId,
         Instant createdAt) {}

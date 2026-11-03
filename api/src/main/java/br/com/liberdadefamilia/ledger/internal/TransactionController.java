@@ -7,6 +7,9 @@ import static br.com.liberdadefamilia.workspace.Role.VIEWER;
 import br.com.liberdadefamilia.ledger.internal.TransactionService.Recorded;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import java.time.YearMonth;
 import java.util.List;
@@ -37,7 +40,15 @@ class TransactionController {
 
     @PostMapping("/v1/workspaces/{ws}/transactions")
     @WorkspaceScoped(allow = {OWNER, ADULT})
-    ResponseEntity<TransactionView> create(
+    @ApiResponse(
+            responseCode = "201",
+            description = "Recorded",
+            content = @Content(schema = @Schema(implementation = TransactionView.class)))
+    @ApiResponse(
+            responseCode = "200",
+            description = "A resend: the stored transaction",
+            content = @Content(schema = @Schema(implementation = TransactionView.class)))
+    ResponseEntity<TransactionView> recordTransaction(
             @RequestHeader("Idempotency-Key") UUID idempotencyKey,
             @Valid @RequestBody CreateTransactionRequest request,
             WorkspaceMember member) {
@@ -48,7 +59,7 @@ class TransactionController {
 
     @GetMapping("/v1/workspaces/{ws}/transactions")
     @WorkspaceScoped(allow = {OWNER, ADULT, VIEWER})
-    List<TransactionView> month(@RequestParam YearMonth month, WorkspaceMember member) {
+    List<TransactionView> listTransactions(@RequestParam YearMonth month, WorkspaceMember member) {
         return transactions.between(
                 member.workspaceId(), month.atDay(1), month.plusMonths(1).atDay(1));
     }

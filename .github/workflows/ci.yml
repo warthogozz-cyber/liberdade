@@ -50,6 +50,10 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Check generated API types
+        run: |
+          pnpm --filter web gen:api
+          git diff --exit-code -- web/src/shared/api/schema.ts
       - run: pnpm --filter web lint
       - run: pnpm --filter web format:check
       - run: pnpm --filter web typecheck

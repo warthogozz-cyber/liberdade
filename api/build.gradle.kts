@@ -46,6 +46,8 @@ dependencies {
     // Spring Boot does not manage webauthn4j; this pins the newest patch of the line Spring Security uses.
     implementation("com.webauthn4j:webauthn4j-core:0.31.11.RELEASE")
     implementation("org.flywaydb:flyway-database-postgresql")
+    // The OpenAPI contract only, without the UI (D32).
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.2.0")
     implementation("org.springframework.modulith:spring-modulith-observability-api")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     implementation("org.springframework.security:spring-security-webauthn")

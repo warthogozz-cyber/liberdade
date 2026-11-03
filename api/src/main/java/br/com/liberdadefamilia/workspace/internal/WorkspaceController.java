@@ -2,6 +2,7 @@ package br.com.liberdadefamilia.workspace.internal;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
 import br.com.liberdadefamilia.workspace.Role;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -31,15 +32,15 @@ class WorkspaceController {
 
     @PostMapping("/v1/workspaces")
     @ResponseStatus(HttpStatus.CREATED)
-    CreatedWorkspace create(@Valid @RequestBody CreateWorkspaceRequest request, CurrentUser user) {
+    WorkspaceView createWorkspace(@Valid @RequestBody CreateWorkspaceRequest request, CurrentUser user) {
         UUID id = service.create(user, request.name(), request.zoneOrDefault());
-        return new CreatedWorkspace(id, request.name(), Role.OWNER);
+        return new WorkspaceView(id, request.name(), Role.OWNER);
     }
 
     /** @param timezone the browser's IANA time zone */
     record CreateWorkspaceRequest(
             @NotBlank @Size(max = MAX_NAME_LENGTH) String name,
-            @Nullable String timezone) {
+            @Nullable @Schema(nullable = true) String timezone) {
 
         CreateWorkspaceRequest {
             if (name != null) {
@@ -54,5 +55,5 @@ class WorkspaceController {
         }
     }
 
-    record CreatedWorkspace(UUID id, String name, Role role) {}
+    record WorkspaceView(UUID id, String name, Role role) {}
 }

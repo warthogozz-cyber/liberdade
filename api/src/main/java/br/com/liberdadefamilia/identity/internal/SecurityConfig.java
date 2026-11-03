@@ -72,8 +72,14 @@ class SecurityConfig {
         // Shared rather than a bean: a UserDetailsService bean would also turn on username and password sign-in.
         http.setSharedObject(UserDetailsService.class, new PasskeyUserDetailsService(accounts));
 
+        // The contract route exists only in dev and test (D32); elsewhere it answers 404.
         http.authorizeHttpRequests(requests -> requests.requestMatchers(
-                                "/actuator/health", "/actuator/health/**", "/v1/csrf", "/error")
+                                "/actuator/health",
+                                "/actuator/health/**",
+                                "/v1/csrf",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**",
+                                "/error")
                         .permitAll()
                         .anyRequest()
                         .authenticated())

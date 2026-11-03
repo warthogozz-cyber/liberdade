@@ -4,3 +4,6 @@ allowBuilds:
   esbuild: true
   workerd: true
 minimumReleaseAge: 10080
+peerDependencyRules:
+  allowedVersions:
+    openapi-typescript>typescript: '6'

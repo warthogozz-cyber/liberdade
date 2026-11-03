@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.shared.Money;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -22,6 +23,7 @@ record CreateTransactionRequest(
         @NotNull UUID categoryId,
 
         @Nullable
+        @Schema(nullable = true)
         @Size(max = CreateTransactionRequest.MAX_DESCRIPTION_LENGTH)
         @Pattern(regexp = CreateTransactionRequest.WITHOUT_NUL)
         String description) {

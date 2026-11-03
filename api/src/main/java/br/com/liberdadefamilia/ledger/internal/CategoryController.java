@@ -4,7 +4,6 @@ import static br.com.liberdadefamilia.workspace.Role.ADULT;
 import static br.com.liberdadefamilia.workspace.Role.OWNER;
 import static br.com.liberdadefamilia.workspace.Role.VIEWER;
 
-import br.com.liberdadefamilia.ledger.internal.CategoryRepository.Category;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import java.time.Clock;
@@ -32,7 +31,7 @@ class CategoryController {
     /** "Today" is the family's date, in its time zone, not the server's. */
     @GetMapping("/v1/workspaces/{ws}/categories")
     @WorkspaceScoped(allow = {OWNER, ADULT, VIEWER})
-    List<Category> categories(@RequestParam Kind kind, WorkspaceMember member) {
+    List<CategoryView> listCategories(@RequestParam Kind kind, WorkspaceMember member) {
         LocalDate today = LocalDate.now(clock.withZone(member.timezone()));
         return categories.unarchivedByUse(
                 member.workspaceId(), kind.transactionKind, today.minusDays(USAGE_WINDOW_DAYS - 1));

@@ -34,7 +34,7 @@ class AccountRepository {
      * The accounts that are not archived, by name, each with its initial balance plus income, minus expenses and with
      * transfers out and in. Deleted transactions do not count.
      */
-    List<Account> unarchivedWithBalances(UUID workspaceId) {
+    List<AccountView> unarchivedWithBalances(UUID workspaceId) {
         return jdbc.sql("""
                         select a.id, a.name, a.type, a.currency,
                                a.initial_balance + coalesce(sum(
@@ -56,7 +56,7 @@ class AccountRepository {
                 .param("workspaceId", workspaceId)
                 .query((rs, row) -> {
                     Currency currency = Currency.getInstance(rs.getString("currency"));
-                    return new Account(
+                    return new AccountView(
                             rs.getObject("id", UUID.class),
                             rs.getString("name"),
                             AccountType.valueOf(rs.getString("type")),
@@ -79,7 +79,4 @@ class AccountRepository {
                 .query((rs, row) -> Currency.getInstance(rs.getString("currency")))
                 .optional();
     }
-
-    /** An account as {@code GET /accounts} lists it. */
-    record Account(UUID id, String name, AccountType type, Currency currency, Money balance) {}
 }

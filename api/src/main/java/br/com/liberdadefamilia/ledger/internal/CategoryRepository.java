@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
@@ -34,7 +33,7 @@ class CategoryRepository {
      * The categories of one kind that are not archived, most used first: by the number of transactions on or after
      * {@code usedSince} (D31), then by their default order, then by name. Deleted transactions do not count.
      */
-    List<Category> unarchivedByUse(UUID workspaceId, TransactionKind kind, LocalDate usedSince) {
+    List<CategoryView> unarchivedByUse(UUID workspaceId, TransactionKind kind, LocalDate usedSince) {
         return jdbc.sql("""
                         select c.id, c.name, c.kind, c.icon
                         from categories c
@@ -51,7 +50,7 @@ class CategoryRepository {
                 .param("workspaceId", workspaceId)
                 .param("kind", kind.name())
                 .param("usedSince", usedSince)
-                .query((rs, row) -> new Category(
+                .query((rs, row) -> new CategoryView(
                         rs.getObject("id", UUID.class),
                         rs.getString("name"),
                         TransactionKind.valueOf(rs.getString("kind")),
@@ -72,11 +71,4 @@ class CategoryRepository {
                 .query((rs, row) -> TransactionKind.valueOf(rs.getString("kind")))
                 .optional();
     }
-
-    /** A category as {@code GET /categories} lists it. */
-    record Category(
-            UUID id,
-            String name,
-            TransactionKind kind,
-            @Nullable String icon) {}
 }
