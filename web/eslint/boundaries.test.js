@@ -62,4 +62,16 @@ describe('module boundaries', () => {
   ])('relative imports: %s importing %s yields %i', async (file, spec, expected) => {
     expect(await lint(file, spec)).toBe(expected)
   })
+
+  it.each([
+    ['src/features/transactions/a.ts', '@/mocks/server', 1],
+    ['src/features/transactions/a.test.ts', '@/mocks/server', 0],
+    ['src/features/transactions/a.test.ts', '@/features/planning/b', 1],
+    ['src/shared/api/a.ts', '@/mocks/data', 1],
+    ['src/app/a.tsx', '@/mocks/browser', 1],
+    ['src/main.tsx', '@/mocks/browser', 0],
+    ['src/mocks/handlers.ts', '@/features/auth', 1],
+  ])('mocks and tests: %s importing %s yields %i', async (file, spec, expected) => {
+    expect(await lint(file, spec)).toBe(expected)
+  })
 })

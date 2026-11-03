@@ -24,15 +24,29 @@ function relativeEscape(names) {
   }
 }
 
-const AREAS = ['features', 'app', 'shared']
+const AREAS = ['features', 'app', 'shared', 'mocks']
 
 const FEATURES = ['@/features', '@/features/**']
 const APP = ['@/app', '@/app/**']
 
+const MOCKS = {
+  group: ['@/mocks', '@/mocks/**'],
+  message: 'Only main.tsx and tests may import the MSW mocks.',
+}
+
+function noRestrictedImports(patterns) {
+  return { 'no-restricted-imports': ['error', { patterns }] }
+}
+
 // Flat config does not merge rule options across objects, so every file group
-// carries its own complete list of patterns.
+// carries its own complete list of patterns. A group's tests keep its patterns
+// but may also import the MSW mocks.
 function restrict(files, patterns) {
-  return { files, rules: { 'no-restricted-imports': ['error', { patterns }] } }
+  const tests = files.map((glob) => glob.replace('*.{ts,tsx}', '*.test.{ts,tsx}'))
+  return [
+    { files, ignores: ['**/*.test.{ts,tsx}'], rules: noRestrictedImports([...patterns, MOCKS]) },
+    { files: tests, rules: noRestrictedImports(patterns) },
+  ]
 }
 
 export function boundaryConfigs() {
@@ -75,5 +89,15 @@ export function boundaryConfigs() {
       ),
     ),
     restrict(['src/app/**/*.{ts,tsx}'], [relativeEscape([...AREAS, ...ALL])]),
-  ]
+    restrict(
+      ['src/mocks/**/*.{ts,tsx}'],
+      [
+        {
+          group: [...FEATURES, ...APP],
+          message: 'MSW mocks cannot depend on features or the app layer.',
+        },
+        relativeEscape([...AREAS, ...ALL]),
+      ],
+    ),
+  ].flat()
 }

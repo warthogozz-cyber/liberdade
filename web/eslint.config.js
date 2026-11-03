@@ -7,7 +7,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 import { boundaryConfigs } from './eslint/boundaries.js'
 
 export default defineConfig([
-  globalIgnores(['dist', 'coverage', 'src/shared/api/schema.ts']),
+  globalIgnores(['dist', 'coverage', 'src/shared/api/schema.ts', 'public/mockServiceWorker.js']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

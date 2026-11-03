@@ -4,13 +4,14 @@ import { RouterProvider } from 'react-router/dom'
 import { describe, expect, it } from 'vitest'
 import { AppProviders } from '@/app/providers'
 import { routes } from '@/app/routes'
+import { createTestQueryClient } from '@/shared/testing'
 
 describe('routes', () => {
   it('shows the not-found page with a link home for unknown paths', () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/nao-existe'] })
 
     render(
-      <AppProviders>
+      <AppProviders queryClient={createTestQueryClient()}>
         <RouterProvider router={router} />
       </AppProviders>,
     )
@@ -23,7 +24,7 @@ describe('routes', () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/'] })
 
     render(
-      <AppProviders>
+      <AppProviders queryClient={createTestQueryClient()}>
         <RouterProvider router={router} />
       </AppProviders>,
     )

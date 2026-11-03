@@ -22,6 +22,8 @@ export default defineConfig({
         'src/test-setup.ts',
         'src/vite-env.d.ts',
         'src/shared/api/schema.ts',
+        'src/shared/testing/**',
+        'src/mocks/**',
       ],
       thresholds: {
         lines: 80,

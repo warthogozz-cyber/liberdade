@@ -1,3 +1,4 @@
 dist
 coverage
 src/shared/api/schema.ts
+public/mockServiceWorker.js

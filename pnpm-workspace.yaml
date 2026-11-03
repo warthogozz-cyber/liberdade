@@ -2,6 +2,7 @@ packages:
   - web
 allowBuilds:
   esbuild: true
+  msw: false
   workerd: true
 minimumReleaseAge: 10080
 peerDependencyRules:
