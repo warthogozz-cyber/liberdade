@@ -112,6 +112,8 @@ class InvitationService {
     @Transactional
     InvitationView createRecovery(WorkspaceMember caller, UUID membershipId) {
         UUID workspaceId = caller.workspaceId();
+        // Lock order: the pending links, then the member row, the same as taking a link, so the two cannot deadlock.
+        invitations.lockPendingRecovery(workspaceId, membershipId);
         MemberRow target = members.lock(workspaceId, membershipId).orElseThrow(MemberNotFoundException::new);
         if (target.role() == Role.OWNER && caller.role() != Role.OWNER) {
             throw new InvitationForbiddenException();
@@ -179,7 +181,8 @@ class InvitationService {
     InvitationPreview preview(String token) {
         InvitationRow row =
                 invitations.findByHash(InvitationTokens.hash(token)).orElseThrow(InvitationNotFoundException::new);
-        if (row.isGone(clock.instant()) || (row.kind() == InvitationKind.RECOVERY && !row.targetActive())) {
+        if (row.isGone(clock.instant())
+                || (row.kind() == InvitationKind.RECOVERY && (!row.targetActive() || row.targetRoleChanged()))) {
             throw new InvitationGoneException();
         }
         String nickname = row.kind() == InvitationKind.RECOVERY ? row.targetNickname() : row.nickname();
@@ -188,7 +191,11 @@ class InvitationService {
 
     /**
      * Takes the link, all in one transaction with the link's row locked: of two people taking the same link, the
-     * second finds it used. A person with no session must say who they are, and gets a new account; the session is opened by the caller after the commit.
+     * second finds it used. The link also stops working when whoever made it is no longer an active OWNER or ADULT
+     * (an OWNER, for an OWNER link). An INVITE link adds the caller as a member: a person with no session must say who
+     * they are, and gets a new account. A RECOVERY link adds nobody: it signs in as the target, ignoring any
+     * {@code newUser} and any session the caller had. In both cases the session is opened by the caller after the
+     * commit.
      *
      * @throws InvitationNotFoundException when no link has this token
      * @throws InvitationGoneException when it was used, cancelled or has expired
@@ -201,7 +208,7 @@ class InvitationService {
                 .lockByHash(InvitationTokens.hash(request.token()))
                 .orElseThrow(InvitationNotFoundException::new);
         Instant now = clock.instant();
-        if (row.isGone(now)) {
+        if (row.isGone(now) || !creatorStillMayBringIn(row)) {
             throw new InvitationGoneException();
         }
         if (row.kind() == InvitationKind.RECOVERY) {
@@ -241,6 +248,22 @@ class InvitationService {
     }
 
     /**
+     * Whether whoever made the link may still bring in this role: an active OWNER or ADULT, and an OWNER when the link
+     * is for an OWNER. Read after the link is locked, so it is the state this transaction sees.
+     */
+    private boolean creatorStillMayBringIn(InvitationRow row) {
+        MemberRow creator =
+                members.findByUser(row.workspaceId(), row.createdBy()).orElse(null);
+        if (creator == null || creator.status() != MembershipStatus.ACTIVE) {
+            return false;
+        }
+        if (creator.role() == Role.OWNER) {
+            return true;
+        }
+        return creator.role() == Role.ADULT && row.role() != Role.OWNER;
+    }
+
+    /**
      * Brings the target back in. Whoever holds the link is signed in as the target, replacing any session they had, and
      * no person is created: a {@code newUser} in the request is ignored. The target row is locked, so a member removed
      * at the same moment is either seen as removed here or removed after this commits.
@@ -250,7 +273,10 @@ class InvitationService {
         MemberRow target = targetId == null
                 ? null
                 : members.lock(row.workspaceId(), targetId).orElse(null);
-        if (target == null || target.status() != MembershipStatus.ACTIVE || target.userId() == null) {
+        if (target == null
+                || target.status() != MembershipStatus.ACTIVE
+                || target.userId() == null
+                || target.role() != row.role()) {
             throw new InvitationGoneException();
         }
         members.markRecovered(row.workspaceId(), target.id(), now);

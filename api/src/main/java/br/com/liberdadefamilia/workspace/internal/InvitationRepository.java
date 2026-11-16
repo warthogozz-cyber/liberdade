@@ -24,7 +24,8 @@ class InvitationRepository {
     private static final String SELECT_BY_HASH = """
             select i.id, i.workspace_id, w.name as workspace_name, i.kind, i.role, i.nickname,
                    i.parental_consent_at, i.parental_consent_by, i.expires_at, i.used_at, i.revoked_at, c.nickname as created_by_name,
-                   i.target_membership_id, t.nickname as target_nickname, t.status as target_status
+                   i.target_membership_id, t.nickname as target_nickname, t.status as target_status,
+                   t.role as target_role, i.created_by
             from invitations i
             join workspaces w on w.id = i.workspace_id
             left join memberships c on c.workspace_id = i.workspace_id and c.user_id = i.created_by
@@ -81,6 +82,24 @@ class InvitationRepository {
                 .param("workspaceId", workspaceId)
                 .param("targetMembershipId", targetMembershipId)
                 .update();
+    }
+
+    /**
+     * Locks the recovery links still pending for this member. Taking a link locks the link and then the member, so
+     * making one must take them in that order too.
+     */
+    void lockPendingRecovery(UUID workspaceId, UUID targetMembershipId) {
+        jdbc.sql("""
+                        select id from invitations
+                        where workspace_id = :workspaceId and kind = 'RECOVERY'
+                          and target_membership_id = :targetMembershipId
+                          and revoked_at is null and used_at is null
+                        order by id
+                        for update""")
+                .param("workspaceId", workspaceId)
+                .param("targetMembershipId", targetMembershipId)
+                .query(UUID.class)
+                .list();
     }
 
     /** The invitations that can still be used, oldest first. Recovery links are never listed. */
@@ -179,7 +198,9 @@ class InvitationRepository {
                 rs.getString("created_by_name"),
                 rs.getObject("target_membership_id", UUID.class),
                 rs.getString("target_nickname"),
-                "ACTIVE".equals(rs.getString("target_status")));
+                "ACTIVE".equals(rs.getString("target_status")),
+                rs.getString("target_role") == null ? null : Role.valueOf(rs.getString("target_role")),
+                rs.getObject("created_by", UUID.class));
     }
 
     record InvitationRow(
@@ -197,7 +218,14 @@ class InvitationRepository {
             @Nullable String createdByName,
             @Nullable UUID targetMembershipId,
             @Nullable String targetNickname,
-            boolean targetActive) {
+            boolean targetActive,
+            @Nullable Role targetRole,
+            UUID createdBy) {
+
+        /** A recovery link whose target no longer has the role it was made for: it was made by someone who may not bring in that role now. */
+        boolean targetRoleChanged() {
+            return kind == InvitationKind.RECOVERY && targetRole != role;
+        }
 
         /** Used, cancelled or past its time: what a person who holds the link can no longer do with it. */
         boolean isGone(Instant now) {

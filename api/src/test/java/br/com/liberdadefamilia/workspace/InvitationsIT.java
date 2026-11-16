@@ -530,6 +530,30 @@ class InvitationsIT {
     }
 
     @Test
+    void inviteFromRemovedCreatorIsGone() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        UUID carla = users.create("Carla Teste", "carla@example.com");
+        UUID ws = workspaces.createFor(ana);
+        UUID biaMembership = workspaces.addMember(ws, bia, Role.ADULT, "Bibi");
+        String token = tokenOf(createInvitation(bia, ws, ADULT_BODY));
+        jdbc.sql("update memberships set status = 'REMOVED' where id = :id")
+                .param("id", biaMembership)
+                .update();
+
+        MvcTestResult accepted = accept(token, null, carla);
+
+        assertThat(accepted).hasStatus(410);
+        assertThat(accepted).bodyJson().extractingPath("$.code").isEqualTo("invitation.gone");
+        assertThat(memberships(ws, carla)).isZero();
+        assertThat(jdbc.sql("select used_at is null from invitations where workspace_id = :ws")
+                        .param("ws", ws)
+                        .query(Boolean.class)
+                        .single())
+                .isTrue();
+    }
+
+    @Test
     void revokedIsGone() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         UUID bia = users.create("Bia Teste", "bia@example.com");

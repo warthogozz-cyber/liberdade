@@ -850,6 +850,7 @@ export const handlers = [
       if (target?.status !== 'ACTIVE') return invitationGoneProblem()
       invitation.status = 'USED'
       mockState.signedIn = true
+      mockState.user = { ...mockState.user, displayName: target.displayName ?? mockState.user.displayName }
       return HttpResponse.json({ workspaceId, membershipId: target.id, mustRegisterPasskey: true })
     }
     const signedIn = mockState.signedIn

@@ -597,6 +597,84 @@ class RecoveryIT {
     }
 
     @Test
+    void recoveryTargetPromotedIsGone() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        UUID leo = users.create("Leo Teste", null);
+        UUID ws = workspaces.createFor(ana);
+        workspaces.addMember(ws, bia, Role.ADULT, "Bibi");
+        UUID leoMembership = workspaces.addMember(ws, leo, Role.ADULT, "Leo");
+        String token = tokenOf(createRecovery(bia, ws, leoMembership));
+        // The owner promotes Leo after Bia made the link: Bia must not end up signed in as an owner.
+        jdbc.sql("update memberships set role = 'OWNER' where id = :id")
+                .param("id", leoMembership)
+                .update();
+        long signedInBefore = signedInSessions();
+
+        MvcTestResult preview = preview(token);
+        assertThat(preview).hasStatus(410);
+        assertThat(preview).bodyJson().extractingPath("$.code").isEqualTo("invitation.gone");
+        MvcTestResult accepted = post("/v1/invitations/accept", acceptBody(token, null), CsrfSession.start(mvc));
+
+        assertThat(accepted).hasStatus(410);
+        assertThat(accepted).bodyJson().extractingPath("$.code").isEqualTo("invitation.gone");
+        assertNothingWritten(ws, signedInBefore);
+    }
+
+    @Test
+    void recoveryFromRemovedCreatorIsGone() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        UUID leo = users.create("Leo Teste", null);
+        UUID ws = workspaces.createFor(ana);
+        UUID biaMembership = workspaces.addMember(ws, bia, Role.ADULT, "Bibi");
+        UUID leoMembership = workspaces.addMember(ws, leo, Role.YOUTH, "Leo");
+        String token = tokenOf(createRecovery(bia, ws, leoMembership));
+        jdbc.sql("update memberships set status = 'REMOVED' where id = :id")
+                .param("id", biaMembership)
+                .update();
+        long signedInBefore = signedInSessions();
+
+        MvcTestResult accepted = post("/v1/invitations/accept", acceptBody(token, null), CsrfSession.start(mvc));
+
+        assertThat(accepted).hasStatus(410);
+        assertThat(accepted).bodyJson().extractingPath("$.code").isEqualTo("invitation.gone");
+        assertNothingWritten(ws, signedInBefore);
+    }
+
+    @Test
+    void recoveryFromDemotedCreatorIsGone() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        UUID leo = users.create("Leo Teste", null);
+        UUID ws = workspaces.createFor(ana);
+        UUID biaMembership = workspaces.addMember(ws, bia, Role.ADULT, "Bibi");
+        UUID leoMembership = workspaces.addMember(ws, leo, Role.YOUTH, "Leo");
+        String token = tokenOf(createRecovery(bia, ws, leoMembership));
+        jdbc.sql("update memberships set role = 'VIEWER' where id = :id")
+                .param("id", biaMembership)
+                .update();
+        long signedInBefore = signedInSessions();
+
+        MvcTestResult accepted = post("/v1/invitations/accept", acceptBody(token, null), CsrfSession.start(mvc));
+
+        assertThat(accepted).hasStatus(410);
+        assertThat(accepted).bodyJson().extractingPath("$.code").isEqualTo("invitation.gone");
+        assertNothingWritten(ws, signedInBefore);
+    }
+
+    private void assertNothingWritten(UUID ws, long signedInBefore) {
+        assertThat(recoveredCount(ws)).isZero();
+        assertThat(jdbc.sql("select used_at is null from invitations where workspace_id = :ws")
+                        .param("ws", ws)
+                        .query(Boolean.class)
+                        .single())
+                .isTrue();
+        assertThat(signedInSessions()).isEqualTo(signedInBefore);
+        assertThat(recorded.events()).noneMatch(RecoveryUsed.class::isInstance);
+    }
+
+    @Test
     void recoverySignInHappensAfterTheCommit() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         UUID bia = users.create("Bia Teste", "bia@example.com");
