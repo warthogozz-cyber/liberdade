@@ -61,6 +61,41 @@ describe('ActivityPage', () => {
     ).toBeInTheDocument()
   })
 
+  it('tellsWhoActed', async () => {
+    seedMockFamily()
+    mockState.activity = []
+    add({ action: 'auth.signed_in', byMe: true, metadata: { method: 'PASSKEY' } })
+    add({ action: 'member.removed', actorName: 'Bia Teste', metadata: { reason: 'CONSENT_REVOKED' } })
+    add({ action: 'recovery.used', actorName: null })
+    renderActivity()
+
+    expect(await screen.findByText('Por você')).toBeInTheDocument()
+    expect(screen.getByText('Por Bia Teste')).toBeInTheDocument()
+    expect(screen.getByText('Por Ex-membro')).toBeInTheDocument()
+  })
+
+  it('namesTheNewSignInMethods', async () => {
+    seedMockFamily()
+    mockState.activity = []
+    add({ action: 'auth.signed_in', byMe: true, metadata: { method: 'INVITATION' } })
+    add({ action: 'auth.signed_in', byMe: true, metadata: { method: 'RECOVERY' } })
+    renderActivity()
+
+    expect(await screen.findByText('Entrou pelo convite')).toBeInTheDocument()
+    expect(screen.getByText('Entrou com o link de recuperação')).toBeInTheDocument()
+  })
+
+  it('omitsTheDeviceWhenOneHalfIsMissing', async () => {
+    seedMockFamily()
+    mockState.activity = []
+    add({ action: 'auth.signed_in', byMe: true, metadata: { method: 'PASSKEY', browser: 'Chrome' } })
+    add({ action: 'auth.signed_in', byMe: true, metadata: { method: 'GOOGLE', os: 'Android' } })
+    renderActivity()
+
+    expect(await screen.findByText('Entrou com passkey')).toBeInTheDocument()
+    expect(screen.queryByText(/ no /)).not.toBeInTheDocument()
+  })
+
   it('unknownActionHasAGenericLine', async () => {
     seedMockFamily()
     mockState.activity = []

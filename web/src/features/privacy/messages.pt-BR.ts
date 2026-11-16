@@ -65,6 +65,8 @@ export const privacyMessages = {
   'activity.module.ventures': 'Projetos',
   'activity.auth.signed_in.PASSKEY': 'Entrou com passkey',
   'activity.auth.signed_in.GOOGLE': 'Entrou com Google',
+  'activity.auth.signed_in.INVITATION': 'Entrou pelo convite',
+  'activity.auth.signed_in.RECOVERY': 'Entrou com o link de recuperação',
   'activity.auth.signed_in': 'Entrou na conta',
   'activity.member.joined.me': 'Você entrou na família como {role}',
   'activity.member.joined.other': '{actor} entrou na família como {role}',

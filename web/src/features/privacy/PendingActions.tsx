@@ -1,30 +1,33 @@
 import { useState } from 'react'
 import { useIntl } from 'react-intl'
-import { ApiError, ReauthCancelledError } from '@/shared/api'
+import { useNavigate } from 'react-router'
+import { ApiError, ReauthCancelledError, useMe } from '@/shared/api'
 import { useAccountDeletion, useFamilyDeletion } from '@/shared/api/privacy'
 import { useReauth } from '@/shared/auth'
 import { useOnline } from '@/shared/offline'
+import { notifyOutboxChanged, userItems } from '@/shared/offline/outbox'
 import { primaryButton } from './buttons'
 import { ExportButton } from './ExportButtons'
 import './register'
 
-/**
- * What a pending deletion leaves the person: cancel it, or download the data. Pass a family's id for
- * the family's deletion; without it, the account's.
- */
-export function PendingActions({ workspaceId }: { workspaceId?: string }) {
+interface ViewProps {
+  workspaceId?: string
+  cancel: { mutateAsync: () => Promise<unknown>; isPending: boolean }
+  /** Runs once the cancel went through and `me` was refreshed. */
+  onCancelled?: () => Promise<void> | void
+}
+
+function PendingActionsView({ workspaceId, cancel, onCancelled }: ViewProps) {
   const intl = useIntl()
   const online = useOnline()
   const run = useReauth()
-  const account = useAccountDeletion()
-  const family = useFamilyDeletion(workspaceId ?? '')
-  const cancel = workspaceId === undefined ? account.cancel : family.cancel
   const [error, setError] = useState<string>()
 
   async function cancelDeletion() {
     setError(undefined)
     try {
       await run(() => cancel.mutateAsync())
+      await onCancelled?.()
     } catch (failure) {
       if (failure instanceof ReauthCancelledError) return
       setError(
@@ -52,5 +55,43 @@ export function PendingActions({ workspaceId }: { workspaceId?: string }) {
       )}
       {!online && <p className="text-text-muted">{intl.formatMessage({ id: 'privacy.offline' })}</p>}
     </div>
+  )
+}
+
+function AccountPendingActions() {
+  const navigate = useNavigate()
+  const userId = useMe().data?.user.id
+  const { cancel } = useAccountDeletion()
+  return (
+    <PendingActionsView
+      cancel={cancel}
+      onCancelled={async () => {
+        // Expenses queued during the wait go out now, not after their backoff.
+        if (userId) {
+          await userItems(userId)
+            .filter((item) => item.status === 'pending')
+            .modify({ sendAfter: 0 })
+          notifyOutboxChanged()
+        }
+        void navigate('/inicio', { replace: true })
+      }}
+    />
+  )
+}
+
+function FamilyPendingActions({ workspaceId }: { workspaceId: string }) {
+  const { cancel } = useFamilyDeletion(workspaceId)
+  return <PendingActionsView workspaceId={workspaceId} cancel={cancel} />
+}
+
+/**
+ * What a pending deletion leaves the person: cancel it, or download the data. Pass a family's id for
+ * the family's deletion; without it, the account's.
+ */
+export function PendingActions({ workspaceId }: { workspaceId?: string }) {
+  return workspaceId === undefined ? (
+    <AccountPendingActions />
+  ) : (
+    <FamilyPendingActions workspaceId={workspaceId} />
   )
 }

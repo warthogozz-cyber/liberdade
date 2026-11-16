@@ -47,9 +47,17 @@ describe('ModulesPage', () => {
     expect(mockState.modules[workspace.id]?.planning).toBe(true)
   })
 
-  it('viewerHasNoSwitches', async () => {
+  it('switchIsDescribedByItsLine', async () => {
+    seedMockFamily()
+    renderModules()
+
+    const toggle = await screen.findByRole('switch', { name: 'Planejamento' })
+    expect(toggle).toHaveAccessibleDescription('Orçamentos, metas e a reserva de emergência.')
+  })
+
+  it.each(['VIEWER', 'YOUTH'] as const)('hasNoSwitchesFor%s', async (role) => {
     const workspace = seedMockFamily()
-    workspace.role = 'VIEWER'
+    workspace.role = role
     renderModules()
 
     expect(await screen.findByText('Planejamento')).toBeInTheDocument()

@@ -1,4 +1,5 @@
 import { useIntl } from 'react-intl'
+import { SignOutButton } from '@/features/auth/SignOutButton'
 import { WorkspaceSwitcher } from '@/features/members/WorkspaceSwitcher'
 import type { MeWorkspace } from '@/shared/api'
 import { useDocumentTitle } from '@/shared/ui'
@@ -24,6 +25,7 @@ export function PendingFamilyCard({ workspace }: { workspace: MeWorkspace }) {
       <p className="text-text-muted">{intl.formatMessage({ id: 'privacy.pendingFamilyHint' })}</p>
       {workspace.role === 'OWNER' && <PendingActions workspaceId={workspace.id} />}
       <WorkspaceSwitcher />
+      <SignOutButton />
     </div>
   )
 }

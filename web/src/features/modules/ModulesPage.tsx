@@ -79,7 +79,7 @@ function ModuleList({ workspace }: { workspace: MeWorkspace }) {
             <li key={key} className="flex items-center justify-between gap-3 py-3">
               <div>
                 <p className="font-medium">{name}</p>
-                <p className="text-sm text-text-muted">
+                <p id={`module-${key}`} className="text-sm text-text-muted">
                   {intl.formatMessage({ id: `modules.${key}.description` as 'modules.planning.description' })}
                 </p>
               </div>
@@ -94,6 +94,7 @@ function ModuleList({ workspace }: { workspace: MeWorkspace }) {
                   role="switch"
                   aria-checked={on}
                   aria-label={name}
+                  aria-describedby={`module-${key}`}
                   disabled={!available || !online || setModule.isPending}
                   onClick={() => void toggle(key, !on)}
                   className="flex min-h-12 min-w-12 items-center justify-center rounded-field border border-primary px-3 text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"

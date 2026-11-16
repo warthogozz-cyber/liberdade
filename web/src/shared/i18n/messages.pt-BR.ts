@@ -25,6 +25,8 @@ export const messages = {
   'more.accounts': 'Contas',
   'more.categories': 'Categorias',
   'more.dashboard': 'Painel do mês',
+  'more.modules': 'Módulos',
+  'more.privacy': 'Privacidade',
   'passkey.create': 'Criar passkey neste aparelho',
   'passkey.defaultLabel': 'Este aparelho',
   'passkey.created': 'Passkey criada.',

@@ -12,15 +12,16 @@ export function WorkspaceLayout() {
   const queryClient = useQueryClient()
   const workspaceId = workspace?.id
   const timezone = workspace?.timezone
+  const pending = Boolean(workspace?.deletionScheduledFor)
 
   // Loads what the screens read as soon as the family is known, so it is cached if the signal drops,
   // and saves it to the device at once, so a reload offline right after still finds it.
   useEffect(() => {
-    if (workspaceId === undefined || timezone === undefined) return
+    if (workspaceId === undefined || timezone === undefined || pending) return
     void prefetchWorkspace(queryClient, workspaceId, currentMonth(new Date(), timezone)).then(() =>
       saveQueryCacheNow(queryClient),
     )
-  }, [queryClient, workspaceId, timezone])
+  }, [queryClient, workspaceId, timezone, pending])
 
   if (!workspace) return <Navigate to="/boas-vindas" replace />
   // Every route of the family gives way to the card while its deletion is pending.

@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { client, unwrap } from './client'
 import { API_URL } from './config'
 import { csrfFetch } from './csrf'
-import { ApiError, errorFromResponse } from './errors'
+import { errorFromResponse, fromFetchFailure } from './errors'
 import { queryKeys } from './queryKeys'
 import type { ModuleKey } from './types'
 import type { components } from './schema'
@@ -59,14 +59,14 @@ export function setModuleEnabled(ws: string, key: ModuleKey, enabled: boolean) {
 
 /**
  * POSTs to an export route and returns the zip with the name the API gave it. A failed answer
- * throws its ApiError (`ApiError` status 0 when there was no answer).
+ * throws its ApiError (status 0 when there was no answer).
  */
 export async function postExport(path: string): Promise<{ blob: Blob; disposition: string | null }> {
   let response: Response
   try {
     response = await csrfFetch(new Request(`${API_URL}${path}`, { method: 'POST', credentials: 'include' }))
-  } catch {
-    throw new ApiError(0, 'network')
+  } catch (error) {
+    throw fromFetchFailure(error)
   }
   if (!response.ok) throw await errorFromResponse(response)
   return { blob: await response.blob(), disposition: response.headers.get('Content-Disposition') }

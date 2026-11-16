@@ -28,6 +28,14 @@ export function ActivityPage() {
             return (
               <li key={item.id} className="flex flex-col py-3">
                 <span>{activityPhrase(intl, item)}</span>
+                <span className="text-sm text-text-muted">
+                  {item.byMe
+                    ? intl.formatMessage({ id: 'activity.byMe' })
+                    : intl.formatMessage(
+                        { id: 'activity.by' },
+                        { name: item.actorName ?? intl.formatMessage({ id: 'activity.formerMember' }) },
+                      )}
+                </span>
                 {browser && os && (
                   <span className="text-sm text-text-muted">
                     {intl.formatMessage({ id: 'activity.device' }, { browser, os })}

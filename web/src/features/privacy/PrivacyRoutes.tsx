@@ -1,12 +1,3 @@
-import { useLocation } from 'react-router'
-import { ActivityPage } from './ActivityPage'
-import { PrivacyPage } from './PrivacyPage'
-
-/** `/mais/privacidade` and `/mais/privacidade/atividade`. */
-export function PrivacyRoutes() {
-  return useLocation().pathname.replace(/\/$/, '').endsWith('/atividade') ? (
-    <ActivityPage />
-  ) : (
-    <PrivacyPage />
-  )
-}
+// The privacy centre and its activity page share one lazy chunk; `routes.tsx` gives each its exact path.
+export { ActivityPage } from './ActivityPage'
+export { PrivacyPage } from './PrivacyPage'

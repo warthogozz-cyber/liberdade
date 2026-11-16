@@ -5,8 +5,6 @@ import { PasskeyButton } from '@/features/auth/PasskeyButton'
 import { SignOutButton } from '@/features/auth/SignOutButton'
 import { useCurrentWorkspace, useMe } from '@/shared/api'
 import { useDocumentTitle } from '@/shared/ui'
-import '@/features/modules/register'
-import '@/features/privacy/register'
 
 /** The person, their family, the passkey and sign-out. */
 export function MorePage() {
@@ -50,13 +48,13 @@ export function MorePage() {
         to="/mais/modulos"
         className="flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
-        <FormattedMessage id="modules.title" />
+        <FormattedMessage id="more.modules" />
       </Link>
       <Link
         to="/mais/privacidade"
         className="flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
-        <FormattedMessage id="privacy.title" />
+        <FormattedMessage id="more.privacy" />
       </Link>
       <Link
         to="/painel"
