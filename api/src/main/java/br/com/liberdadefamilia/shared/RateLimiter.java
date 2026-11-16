@@ -39,11 +39,15 @@ public final class RateLimiter {
         return window.count() <= limit;
     }
 
-    /** Seconds until the key's window ends, from 1 while it is blocked; 0 when it is not. */
+    /** Seconds until the key's window ends, from 1 for a key that was blocked; 0 when it was not. */
     public long retryAfterSeconds(String key) {
         Window window = windows.get(key);
-        if (window == null || window.index() != currentIndex() || window.count() <= limit) {
+        if (window == null || window.count() <= limit) {
             return 0;
+        }
+        // The window the key was blocked in may have ended since: the next attempt starts a new one.
+        if (window.index() != currentIndex()) {
+            return 1;
         }
         long remainingMillis = windowMillis - Math.floorMod(clock.millis(), windowMillis);
         return Math.max(1, Math.ceilDiv(remainingMillis, 1000));

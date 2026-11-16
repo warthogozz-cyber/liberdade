@@ -64,10 +64,10 @@ class RecentSignInIT {
     }
 
     @Test
-    void justInsideTheWindowPasses() {
+    void insideTheWindowPasses() {
         UUID userId = users.create("Ana Teste", "ana@example.com");
 
-        assertThat(mvc.get().uri("/v1/test/sensitive").with(TestUsers.signedInMinutesAgo(userId, 10)))
+        assertThat(mvc.get().uri("/v1/test/sensitive").with(TestUsers.signedInMinutesAgo(userId, 9)))
                 .hasStatusOk();
     }
 

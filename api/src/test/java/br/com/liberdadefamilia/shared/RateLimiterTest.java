@@ -59,6 +59,17 @@ class RateLimiterTest {
     }
 
     @Test
+    void retryAfterIsAtLeastOneWhenTheWindowEndsAfterBlocking() {
+        clock.now = Instant.parse("2026-11-02T12:00:59.900Z");
+        spend(3, "a");
+        assertThat(limiter.tryAcquire("a")).isFalse();
+
+        clock.now = Instant.parse("2026-11-02T12:01:00.100Z");
+
+        assertThat(limiter.retryAfterSeconds("a")).isEqualTo(1);
+    }
+
+    @Test
     void retryAfterIsZeroWhenNotBlocked() {
         limiter.tryAcquire("a");
 
