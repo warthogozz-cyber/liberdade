@@ -20,12 +20,11 @@ const AUTH_FILE = 'test-results/.auth/privacy.json'
 let owner: BrowserContext
 
 test.beforeAll(async ({ browser }) => {
-  const context = await browser.newContext(CONTEXT_OPTIONS)
-  const page = await context.newPage()
-  await signInWithGoogle(page, newUser('Ana'))
-  await createFamily(page, 'Ana')
-  await context.storageState({ path: AUTH_FILE })
-  await context.close()
+  await withContext(browser, async (context, page) => {
+    await signInWithGoogle(page, newUser('Ana'))
+    await createFamily(page, 'Ana')
+    await context.storageState({ path: AUTH_FILE })
+  })
 })
 
 test.beforeEach(async ({ browser }) => {

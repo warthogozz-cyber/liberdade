@@ -11,6 +11,7 @@
 // with an empty log, which is the same risk the suite already had.
 import {
   expect,
+  type Browser,
   type BrowserContext,
   type CDPSession,
   type Locator,
@@ -18,8 +19,13 @@ import {
 } from '@playwright/test'
 
 const WINDOW_MS = 60_000
-/** Extra time past the window, so the server's own clock has let the oldest entry go. */
-const WINDOW_MARGIN_MS = 1_000
+/**
+ * Extra time past the window. It covers the server's own clock and, more, the delay between
+ * reserving and the request reaching the server: a reservation is made before the click, and the
+ * request that follows a Google round trip arrives seconds later. Two arrivals must still be a
+ * whole window apart, so the margin is longer than that trip takes.
+ */
+const WINDOW_MARGIN_MS = 6_000
 
 class Budget {
   private readonly spent: number[] = []
@@ -31,6 +37,7 @@ class Budget {
 
   /** Records `cost` attempts, first waiting until they fit in the last minute. */
   async reserve(cost: number): Promise<void> {
+    if (cost > this.limit) throw new Error(`A cost of ${cost} never fits a limit of ${this.limit}`)
     for (;;) {
       const now = Date.now()
       while (this.spent.length > 0 && now - this.spent[0]! >= WINDOW_MS + WINDOW_MARGIN_MS) {
@@ -44,19 +51,11 @@ class Budget {
     }
     const at = Date.now()
     for (let i = 0; i < cost; i += 1) this.spent.push(at)
-    peak = Math.max(peak, this.spent.length)
   }
 }
 
-/** The most attempts the sign-in budget held at once in this run. */
-let peak = 0
 export const signInBudget = new Budget(20)
 export const invitationBudget = new Budget(10)
-/** The sign-in attempts held in one window at the most, for the report. */
-export function signInPeak(): number {
-  return peak
-}
-
 export type E2EUser = { sub: string; claims: Record<string, string> }
 
 /** A new person each time, so each test gets its own family without cleaning the database (D11). */
@@ -147,7 +146,7 @@ export const CONTEXT_OPTIONS = { locale: 'pt-BR', timezoneId: 'America/Fortaleza
 
 /** Runs `body` with a new, signed-out browser context and closes it afterwards. */
 export async function withContext<T>(
-  browser: { newContext: (options: typeof CONTEXT_OPTIONS) => Promise<BrowserContext> },
+  browser: Browser,
   body: (context: BrowserContext, page: Page) => Promise<T>,
 ): Promise<T> {
   const context = await browser.newContext(CONTEXT_OPTIONS)

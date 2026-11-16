@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import {
+  CONTEXT_OPTIONS,
   completeGoogleSignIn,
   createFamily,
   createInvitation,
@@ -23,20 +24,15 @@ const AUTH_FILE = 'test-results/.auth/family.json'
 let owner: BrowserContext
 
 test.beforeAll(async ({ browser }) => {
-  const context = await browser.newContext({ locale: 'pt-BR', timezoneId: 'America/Fortaleza' })
-  const page = await context.newPage()
-  await signInWithGoogle(page, newUser('Ana'))
-  await createFamily(page, 'Ana')
-  await context.storageState({ path: AUTH_FILE })
-  await context.close()
+  await withContext(browser, async (context, page) => {
+    await signInWithGoogle(page, newUser('Ana'))
+    await createFamily(page, 'Ana')
+    await context.storageState({ path: AUTH_FILE })
+  })
 })
 
 test.beforeEach(async ({ browser }) => {
-  owner = await browser.newContext({
-    locale: 'pt-BR',
-    timezoneId: 'America/Fortaleza',
-    storageState: AUTH_FILE,
-  })
+  owner = await browser.newContext({ ...CONTEXT_OPTIONS, storageState: AUTH_FILE })
 })
 
 test.afterEach(async () => {
@@ -50,10 +46,15 @@ async function ownerPage(): Promise<Page> {
 /** Invites a Youth and has them join in a second context; returns that context for the test to use. */
 async function youthJoins(browser: Browser, page: Page, name: string) {
   const link = await createInvitation(page, name, 'Jovem')
-  const context = await browser.newContext({ locale: 'pt-BR', timezoneId: 'America/Fortaleza' })
-  const youth = await context.newPage()
-  await joinAsYouth(youth, link, name)
-  return { context, youth, link }
+  const context = await browser.newContext(CONTEXT_OPTIONS)
+  try {
+    const youth = await context.newPage()
+    await joinAsYouth(youth, link, name)
+    return { context, youth, link }
+  } catch (error) {
+    await context.close()
+    throw error
+  }
 }
 
 test('adultJoinsWithGoogle: Bia joins as an Adult and the Dona sees her in Família', async ({
@@ -125,10 +126,16 @@ test('youthJoinsWithPasskey: Leo gets only his wallet, spends, and the Dona sees
     // The Dona sees the expense credited to Leo.
     await dona.goto('/lancamentos')
     const row = dona.getByRole('main').getByRole('listitem').filter({ hasText: 'Mercado' })
-    await expect(row).toContainText('Leo')
+    // "Carteira de Leo" holds the name too, so the member is read where it stands alone.
+    await expect(row).toContainText('Carteira de Leo · Leo')
     await expect(row).toContainText(money('10,00'))
     await row.getByRole('button').click()
-    await expect(dona.getByRole('dialog')).toContainText('Leo')
+    await expect(
+      dona
+        .getByRole('dialog')
+        .locator('dt', { hasText: 'Lançado por' })
+        .locator('xpath=following-sibling::dd'),
+    ).toHaveText('Leo')
   } finally {
     await context.close()
   }
