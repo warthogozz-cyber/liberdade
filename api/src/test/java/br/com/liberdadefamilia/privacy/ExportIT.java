@@ -77,6 +77,10 @@ class ExportIT {
         assertThat(JsonPath.<List<?>>read(json, "$.memberships")).hasSize(2);
         assertThat(JsonPath.<List<String>>read(json, "$.memberships[*].status"))
                 .containsExactlyInAnyOrder("ACTIVE", "REMOVED");
+        assertThat(JsonPath.<List<String>>read(json, "$.memberships[*].membershipId"))
+                .doesNotContainNull()
+                .hasSize(2);
+        assertThat(JsonPath.<List<String>>read(json, "$.transactions[*].who")).contains("Bibi");
         assertThat(JsonPath.<List<?>>read(json, "$.consents")).isEmpty();
         assertThat(files.get("lancamentos.csv")).isNotEmpty();
         assertThat(text(files.get("atividade.csv"))).contains("quando;acao;quem;navegador;sistema");
@@ -101,6 +105,40 @@ class ExportIT {
         assertThat(csv).contains("Família Teste;");
         assertThat(JsonPath.<List<String>>read(text(files.get("dados.json")), "$.transactions[*].description"))
                 .doesNotContain("So da Dona");
+    }
+
+    @Test
+    void aYouthExportFollowsTheAccountsTheyOwn() {
+        Family f = family();
+        UUID teen = users.create("Davi Teste", "davi@example.com");
+        UUID teenMember = workspaces.addMember(f.ws, teen, Role.YOUTH, "Davi");
+        UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
+        UUID market = ledger.categoryOf(f.ws, "EXPENSE", "Mercado");
+        UUID familyAccount = account(f.ws, "Conta da casa", "CHECKING", "0.00");
+        UUID teenAccount = account(f.ws, "Mesada", "CHECKING", "0.00");
+        jdbc.sql("update accounts set owner_membership_id = :m where id = :id")
+                .param("m", teenMember)
+                .param("id", teenAccount)
+                .update();
+        transaction(
+                f.ws,
+                familyAccount,
+                null,
+                market,
+                "EXPENSE",
+                "3.00",
+                "Casa em nome do Davi",
+                teenMember,
+                anaMember,
+                false);
+        transaction(f.ws, teenAccount, null, market, "EXPENSE", "4.00", "Da mesada", teenMember, anaMember, false);
+
+        Map<String, byte[]> files = unzip(exportMine(teen));
+
+        String csv = text(files.get("lancamentos.csv"));
+        assertThat(csv).contains("Da mesada").doesNotContain("Casa em nome do Davi");
+        assertThat(JsonPath.<List<String>>read(text(files.get("dados.json")), "$.transactions[*].description"))
+                .containsExactly("Da mesada");
     }
 
     @Test

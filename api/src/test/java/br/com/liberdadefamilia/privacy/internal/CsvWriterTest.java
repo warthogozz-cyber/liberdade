@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class CsvWriterTest {
@@ -31,9 +32,20 @@ class CsvWriterTest {
     }
 
     @Test
-    void aNegativeAmountStaysANumber() {
-        assertThat(CsvWriter.cell(CsvWriter.amount(new BigDecimal("-1352.56")))).isEqualTo("-1352,56");
-        assertThat(CsvWriter.cell("-10")).isEqualTo("'-10");
+    void everyValueStartingWithAMinusIsPrefixed() {
+        assertThat(CsvWriter.cell("-12,50")).isEqualTo("'-12,50");
+    }
+
+    @Test
+    void anAmountColumnIsWrittenRawSoANegativeStaysANumber() {
+        byte[] bytes = new CsvWriter()
+                .toBytes(
+                        List.of("nome", "saldo"),
+                        List.of(List.of("-Conta", CsvWriter.amount(new BigDecimal("-1352.56")))),
+                        Set.of(1));
+
+        assertThat(new String(bytes, 3, bytes.length - 3, StandardCharsets.UTF_8))
+                .isEqualTo("nome;saldo\r\n'-Conta;-1352,56\r\n");
     }
 
     @Test

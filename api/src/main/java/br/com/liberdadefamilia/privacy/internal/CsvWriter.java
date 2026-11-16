@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -13,9 +13,6 @@ import org.jspecify.annotations.Nullable;
  * defused with a leading apostrophe.
  */
 final class CsvWriter {
-
-    /** What {@link #amount} writes for a negative value: a number, not a formula, so it stays a number. */
-    private static final Pattern NEGATIVE_AMOUNT = Pattern.compile("-[0-9]+,[0-9]{2}");
 
     private static final String BOM = "\uFEFF";
     private static final String EOL = "\r\n";
@@ -27,9 +24,6 @@ final class CsvWriter {
         }
         String text = value;
         char first = text.charAt(0);
-        if (NEGATIVE_AMOUNT.matcher(text).matches()) {
-            return text;
-        }
         if (first == '=' || first == '+' || first == '-' || first == '@' || first == '\t' || first == '\r') {
             text = "'" + text;
         }
@@ -44,20 +38,28 @@ final class CsvWriter {
     }
 
     byte[] toBytes(List<String> header, List<List<String>> rows) {
+        return toBytes(header, rows, Set.of());
+    }
+
+    /**
+     * The same, where the columns at {@code amountColumns} hold what {@link #amount} wrote: those are numbers, so a
+     * negative one is not a formula and is not prefixed. Every other cell goes through {@link #cell}.
+     */
+    byte[] toBytes(List<String> header, List<List<String>> rows, Set<Integer> amountColumns) {
         StringBuilder out = new StringBuilder(BOM);
-        line(out, header);
+        line(out, header, Set.of());
         for (List<String> row : rows) {
-            line(out, row);
+            line(out, row, amountColumns);
         }
         return out.toString().getBytes(StandardCharsets.UTF_8);
     }
 
-    private static void line(StringBuilder out, List<String> cells) {
+    private static void line(StringBuilder out, List<String> cells, Set<Integer> amountColumns) {
         for (int i = 0; i < cells.size(); i++) {
             if (i > 0) {
                 out.append(';');
             }
-            out.append(cell(cells.get(i)));
+            out.append(amountColumns.contains(i) ? cells.get(i) : cell(cells.get(i)));
         }
         out.append(EOL);
     }

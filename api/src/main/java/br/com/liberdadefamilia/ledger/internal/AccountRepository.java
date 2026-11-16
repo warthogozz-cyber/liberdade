@@ -59,7 +59,12 @@ class AccountRepository {
      * archived ones included, read from the database on every request; for every other role, {@link AccountScope#all()}.
      */
     AccountScope scopeFor(WorkspaceMember member) {
-        if (member.role() != Role.YOUTH) {
+        return scopeOf(member.workspaceId(), member.membershipId(), member.role());
+    }
+
+    /** The same scope for a membership known by its ids, as the data export needs it. */
+    AccountScope scopeOf(UUID workspaceId, UUID membershipId, Role role) {
+        if (role != Role.YOUTH) {
             return AccountScope.all();
         }
         return new AccountScope(jdbc.sql("""
@@ -67,8 +72,8 @@ class AccountRepository {
                         from accounts
                         where workspace_id = :workspaceId
                           and owner_membership_id = :membershipId""")
-                .param("workspaceId", member.workspaceId())
-                .param("membershipId", member.membershipId())
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
                 .query(UUID.class)
                 .set());
     }

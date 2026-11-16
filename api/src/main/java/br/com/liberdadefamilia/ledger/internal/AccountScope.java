@@ -48,4 +48,13 @@ record AccountScope(@Nullable Set<UUID> accountIds) {
     static String sqlIncludes(String column) {
         return "(cast(:scopeIds as uuid[]) is null or " + column + " = any(cast(:scopeIds as uuid[])))";
     }
+
+    /**
+     * The SQL condition that a transaction touches the scope: it leaves or enters an account in it (a transfer from
+     * outside included). This is the one rule of what a youth sees of the ledger; the lists, the lookups and the data
+     * export all use it.
+     */
+    static String sqlTouches(String accountColumn, String toAccountColumn) {
+        return "(" + sqlIncludes(accountColumn) + " or " + sqlIncludes(toAccountColumn) + ")";
+    }
 }

@@ -5,6 +5,7 @@ import br.com.liberdadefamilia.ledger.ExportedCategory;
 import br.com.liberdadefamilia.ledger.ExportedTransaction;
 import br.com.liberdadefamilia.ledger.LedgerExport;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.workspace.Role;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -80,9 +81,11 @@ class LedgerJdbcExport implements LedgerExport {
     }
 
     @Override
-    public List<ExportedTransaction> transactionsOf(UUID workspaceId, UUID membershipId) {
-        return jdbc.sql(TRANSACTIONS + " and (t.member_id = :membershipId or t.created_by = :membershipId)"
-                        + NEWEST_FIRST)
+    public List<ExportedTransaction> transactionsOf(UUID workspaceId, UUID membershipId, Role role) {
+        AccountScope scope = accounts.scopeOf(workspaceId, membershipId, role);
+        return jdbc.sql(TRANSACTIONS + " and (t.member_id = :membershipId or t.created_by = :membershipId) and "
+                        + AccountScope.sqlTouches("t.account_id", "t.to_account_id") + NEWEST_FIRST)
+                .param("scopeIds", scope.sqlArray())
                 .param("workspaceId", workspaceId)
                 .param("membershipId", membershipId)
                 .query(LedgerJdbcExport::transaction)

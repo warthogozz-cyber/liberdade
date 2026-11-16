@@ -107,12 +107,11 @@ const rejected = (code: string, detail: string) => problem(422, code, detail)
 
 const url = (path: string) => `${API_URL}${path}`
 
-/** The API answers 403 `csrf.invalid` to any write without the token. */
 // An empty but valid zip: just the end-of-central-directory record.
 const EMPTY_ZIP = new Uint8Array([0x50, 0x4b, 0x05, 0x06, ...new Array<number>(18).fill(0)])
 
 function zipResponse(prefix: string) {
-  const day = new Date().toISOString().slice(0, 10)
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date())
   return new HttpResponse(EMPTY_ZIP, {
     status: 200,
     headers: {
@@ -123,6 +122,7 @@ function zipResponse(prefix: string) {
   })
 }
 
+/** The API answers 403 `csrf.invalid` to any write without the token. */
 function withoutToken(request: Request) {
   return request.headers.get(CSRF.headerName) !== CSRF.token
 }

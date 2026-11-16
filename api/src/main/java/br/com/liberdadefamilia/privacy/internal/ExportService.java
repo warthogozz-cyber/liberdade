@@ -37,7 +37,9 @@ import java.util.zip.ZipOutputStream;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -60,6 +62,7 @@ class ExportService {
     private record Family(UUID id, String name) {}
 
     private record PersonalMembership(
+            UUID membershipId,
             UUID workspaceId,
             String familyName,
             Role role,
@@ -92,6 +95,7 @@ class ExportService {
             @Nullable String categoryName,
             @Nullable String description,
             UUID memberId,
+            @Nullable String who,
             Instant createdAt) {}
 
     private record Member(UUID id, @Nullable String name, Role role, MembershipStatus status) {}
@@ -144,6 +148,7 @@ class ExportService {
         this.clock = clock;
         this.readOnly = new TransactionTemplate(transactions);
         this.readOnly.setReadOnly(true);
+        this.readOnly.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
     }
 
     /** Everything the person has, across every family they are or were in. */
@@ -181,9 +186,10 @@ class ExportService {
         Map<UUID, Map<UUID, String>> names = new HashMap<>();
         for (MemberSummary m : mine) {
             String family = familyNames.getOrDefault(m.workspaceId(), "");
-            membershipRows.add(new PersonalMembership(m.workspaceId(), family, m.role(), m.nickname(), m.status()));
+            membershipRows.add(new PersonalMembership(
+                    m.membershipId(), m.workspaceId(), family, m.role(), m.nickname(), m.status()));
             names.computeIfAbsent(m.workspaceId(), this::namesOf);
-            for (ExportedTransaction t : ledger.transactionsOf(m.workspaceId(), m.membershipId())) {
+            for (ExportedTransaction t : ledger.transactionsOf(m.workspaceId(), m.membershipId(), m.role())) {
                 transactions.add(new PersonalTransaction(
                         m.workspaceId(),
                         family,
@@ -196,11 +202,13 @@ class ExportService {
                         t.categoryName(),
                         t.description(),
                         t.memberId(),
+                        names.get(m.workspaceId()).get(t.memberId()),
                         t.createdAt()));
             }
         }
         transactions.sort(Comparator.comparing(PersonalTransaction::occurredOn)
                 .thenComparing(PersonalTransaction::createdAt)
+                .thenComparing(PersonalTransaction::id)
                 .reversed());
 
         List<PersonalConsent> consentRows = consents.list(userId).stream()
@@ -296,7 +304,7 @@ class ExportService {
                     t.toAccountName(),
                     t.categoryName(),
                     t.description(),
-                    data.names().getOrDefault(t.workspaceId(), Map.of()).get(t.memberId()),
+                    t.who(),
                     t.createdAt()));
             rows.add(row);
         }
@@ -313,13 +321,12 @@ class ExportService {
                     a.metadata().getOrDefault("os", "")));
         }
 
-        try (Zip zip = new Zip(out)) {
-            zip.entry("dados.json", json.writerWithDefaultPrettyPrinter().writeValueAsBytes(root));
-            zip.entry("lancamentos.csv", csv.toBytes(header, rows));
-            zip.entry(
-                    "atividade.csv",
-                    csv.toBytes(List.of("quando", "acao", "quem", "navegador", "sistema"), activityRows));
-        }
+        Map<String, byte[]> files = new LinkedHashMap<>();
+        files.put("dados.json", json.writerWithDefaultPrettyPrinter().writeValueAsBytes(root));
+        files.put("lancamentos.csv", csv.toBytes(header, rows, Set.of(3)));
+        files.put(
+                "atividade.csv", csv.toBytes(List.of("quando", "acao", "quem", "navegador", "sistema"), activityRows));
+        zip(out, files);
     }
 
     private void writeFamily(OutputStream out, FamilyData data, Instant now) throws IOException {
@@ -376,19 +383,19 @@ class ExportService {
             memberRows.add(List.of(orEmpty(m.name()), Labels.role(m.role()), Labels.status(m.status())));
         }
 
-        try (Zip zip = new Zip(out)) {
-            zip.entry("dados.json", json.writerWithDefaultPrettyPrinter().writeValueAsBytes(root));
-            zip.entry("lancamentos.csv", csv.toBytes(TRANSACTION_HEADER, transactionRows));
-            zip.entry(
-                    "contas.csv",
-                    csv.toBytes(
-                            List.of("nome", "tipo", "saldo_inicial", "saldo", "moeda", "titular", "arquivada_em"),
-                            accountRows));
-            zip.entry(
-                    "categorias.csv",
-                    csv.toBytes(List.of("nome", "tipo", "categoria_pai", "arquivada_em"), categoryRows));
-            zip.entry("membros.csv", csv.toBytes(List.of("apelido", "papel", "situacao"), memberRows));
-        }
+        Map<String, byte[]> files = new LinkedHashMap<>();
+        files.put("dados.json", json.writerWithDefaultPrettyPrinter().writeValueAsBytes(root));
+        files.put("lancamentos.csv", csv.toBytes(TRANSACTION_HEADER, transactionRows, Set.of(2)));
+        files.put(
+                "contas.csv",
+                csv.toBytes(
+                        List.of("nome", "tipo", "saldo_inicial", "saldo", "moeda", "titular", "arquivada_em"),
+                        accountRows,
+                        Set.of(2, 3)));
+        files.put(
+                "categorias.csv", csv.toBytes(List.of("nome", "tipo", "categoria_pai", "arquivada_em"), categoryRows));
+        files.put("membros.csv", csv.toBytes(List.of("apelido", "papel", "situacao"), memberRows));
+        zip(out, files);
     }
 
     private static List<String> transactionCells(
@@ -418,25 +425,17 @@ class ExportService {
         return value == null ? "" : value;
     }
 
-    /** A zip being written to the response; finishing it leaves the response stream for the container to close. */
-    private static final class Zip implements AutoCloseable {
-
-        private final ZipOutputStream zip;
-
-        Zip(OutputStream out) {
-            this.zip = new ZipOutputStream(out);
-        }
-
-        void entry(String name, byte[] bytes) throws IOException {
-            zip.putNextEntry(new ZipEntry(name));
-            zip.write(bytes);
-            zip.closeEntry();
-        }
-
-        @Override
-        public void close() throws IOException {
-            zip.finish();
-            zip.flush();
+    /**
+     * Writes the finished files as a zip. Everything is already in memory, so a failure while building never reaches
+     * the response; the response stream itself is left open for the container to close.
+     */
+    private static void zip(OutputStream out, Map<String, byte[]> files) throws IOException {
+        try (ZipOutputStream zip = new ZipOutputStream(StreamUtils.nonClosing(out))) {
+            for (Map.Entry<String, byte[]> file : files.entrySet()) {
+                zip.putNextEntry(new ZipEntry(file.getKey()));
+                zip.write(file.getValue());
+                zip.closeEntry();
+            }
         }
     }
 

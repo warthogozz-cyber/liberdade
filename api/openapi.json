@@ -193,7 +193,16 @@
                 }
               }
             },
-            "description": "A zip with the person's data."
+            "description": "A zip with the person's data.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "An attachment with the file name of the zip.",
+                "schema": {
+                  "type": "string"
+                },
+                "style": "simple"
+              }
+            }
           }
         },
         "tags": [
@@ -843,7 +852,16 @@
                 }
               }
             },
-            "description": "A zip with the family's data."
+            "description": "A zip with the family's data.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "An attachment with the file name of the zip.",
+                "schema": {
+                  "type": "string"
+                },
+                "style": "simple"
+              }
+            }
           }
         },
         "tags": [

@@ -8,6 +8,7 @@ import br.com.liberdadefamilia.shared.RateLimitedException;
 import br.com.liberdadefamilia.shared.RateLimiter;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
+import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -44,6 +45,11 @@ class ExportController {
     @ApiResponse(
             responseCode = "200",
             description = "A zip with the person's data.",
+            headers =
+                    @Header(
+                            name = "Content-Disposition",
+                            description = "An attachment with the file name of the zip.",
+                            schema = @Schema(type = "string")),
             content = @Content(mediaType = "application/zip", schema = @Schema(type = "string", format = "binary")))
     ResponseEntity<StreamingResponseBody> exportMyData(CurrentUser user) {
         spend(user);
@@ -57,6 +63,11 @@ class ExportController {
     @ApiResponse(
             responseCode = "200",
             description = "A zip with the family's data.",
+            headers =
+                    @Header(
+                            name = "Content-Disposition",
+                            description = "An attachment with the file name of the zip.",
+                            schema = @Schema(type = "string")),
             content = @Content(mediaType = "application/zip", schema = @Schema(type = "string", format = "binary")))
     ResponseEntity<StreamingResponseBody> exportFamilyData(WorkspaceMember member, CurrentUser user) {
         spend(user);

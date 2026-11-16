@@ -990,6 +990,8 @@ export interface operations {
             /** @description A zip with the person's data. */
             200: {
                 headers: {
+                    /** @description An attachment with the file name of the zip. */
+                    "Content-Disposition"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1391,6 +1393,8 @@ export interface operations {
             /** @description A zip with the family's data. */
             200: {
                 headers: {
+                    /** @description An attachment with the file name of the zip. */
+                    "Content-Disposition"?: string;
                     [name: string]: unknown;
                 };
                 content: {

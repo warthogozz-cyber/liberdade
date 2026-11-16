@@ -31,8 +31,7 @@ class TransactionRepository {
             created_at, version""";
 
     /** The transaction touches the scope: it leaves or enters an account in it (a transfer from outside included). */
-    private static final String VISIBLE =
-            "(" + AccountScope.sqlIncludes("account_id") + " or " + AccountScope.sqlIncludes("to_account_id") + ")";
+    private static final String VISIBLE = AccountScope.sqlTouches("account_id", "to_account_id");
 
     /**
      * Under a restricted scope, the caller may change the transaction: they recorded it, and every account it touches
