@@ -33,12 +33,26 @@ export function formatBRL(cents: bigint): string {
   return negative ? `\u2212${formatted}` : formatted
 }
 
+function assertNotNegative(cents: bigint): void {
+  if (cents < 0n) {
+    throw new RangeError('cents must not be negative')
+  }
+}
+
 /** Appends a typed digit; returns the input unchanged if it would exceed MAX_CENTS. */
 export function appendDigit(cents: bigint, digit: number): bigint {
+  assertNotNegative(cents)
   if (!Number.isInteger(digit) || digit < 0 || digit > 9) {
     throw new RangeError('digit must be an integer between 0 and 9')
   }
   const next = cents * 10n + BigInt(digit)
+  return next <= MAX_CENTS ? next : cents
+}
+
+/** Implements the "00" key; returns the input unchanged if it would exceed MAX_CENTS. */
+export function appendDoubleZero(cents: bigint): bigint {
+  assertNotNegative(cents)
+  const next = cents * 100n
   return next <= MAX_CENTS ? next : cents
 }
 

@@ -116,6 +116,12 @@ public record Money(BigDecimal amount, Currency currency) implements Comparable<
         return List.copyOf(result);
     }
 
+    /** Keeps the amount out of logs and exception messages: only the currency is shown. */
+    @Override
+    public String toString() {
+        return "Money[" + currency.getCurrencyCode() + "]";
+    }
+
     private void requireSameCurrency(Money other) {
         if (!currency.equals(other.currency)) {
             throw new CurrencyMismatchException();

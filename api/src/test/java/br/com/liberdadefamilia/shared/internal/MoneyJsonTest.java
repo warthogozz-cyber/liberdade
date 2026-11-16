@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -15,8 +16,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-@WebMvcTest
-@Import({ProblemHandler.class, MoneyJsonTest.MoneyEchoController.class})
+// Only the JSON pieces under test: security and the identity web config stay out of this slice.
+@WebMvcTest(useDefaultFilters = false)
+@Import({ProblemHandler.class, MoneyJacksonComponent.class, MoneyJsonTest.MoneyEchoController.class})
+@AutoConfigureMockMvc(addFilters = false)
 class MoneyJsonTest {
 
     @Autowired

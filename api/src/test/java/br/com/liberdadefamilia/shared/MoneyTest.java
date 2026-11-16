@@ -27,6 +27,11 @@ class MoneyTest {
     }
 
     @Test
+    void toStringHidesAmount() {
+        assertThat(Money.brl("12.34").toString()).isEqualTo("Money[BRL]").doesNotContain("12");
+    }
+
+    @Test
     void equalityIgnoresTrailingZeros() {
         assertThat(Money.brl("10")).isEqualTo(Money.brl("10.00")).hasSameHashCodeAs(Money.brl("10.00"));
     }

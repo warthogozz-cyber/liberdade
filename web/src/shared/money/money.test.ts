@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_CENTS, appendDigit, centsToApi, formatBRL, parseCents, removeLastDigit } from './money'
+import {
+  MAX_CENTS,
+  appendDigit,
+  appendDoubleZero,
+  centsToApi,
+  formatBRL,
+  parseCents,
+  removeLastDigit,
+} from './money'
 
 const NBSP = '\u00A0'
 const MINUS = '\u2212'
@@ -56,6 +64,20 @@ describe('appendDigit', () => {
   it.each([10, -1, 1.5])('throws RangeError for %s', (digit) =>
     expect(() => appendDigit(0n, digit)).toThrow(RangeError),
   )
+  it('throws RangeError for negative cents', () =>
+    expect(() => appendDigit(-1n, 1)).toThrow(RangeError))
+})
+
+describe('appendDoubleZero', () => {
+  it.each([
+    [0n, 0n],
+    [12n, 1200n],
+    [999_999_999n, 99_999_999_900n],
+    [1_000_000_000n, 1_000_000_000n],
+  ])('appends 00 to %s', (cents, expected) => expect(appendDoubleZero(cents)).toBe(expected))
+
+  it('throws RangeError for negative cents', () =>
+    expect(() => appendDoubleZero(-1n)).toThrow(RangeError))
 })
 
 describe('removeLastDigit', () => {

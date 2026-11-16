@@ -6,7 +6,7 @@ cálculo é rigoroso, mas o que aparece na tela é claro e sem jargão.
 
 ## Status
 
-Em construção — Fase 0.
+Em construção — Fase 1 (v0.1 Núcleo).
 
 ## Como rodar
 
@@ -16,19 +16,37 @@ Copie as variáveis de ambiente (o `.env` não é versionado):
 cp .env.example .env
 ```
 
-Suba o banco e a API em contêineres:
+Suba o banco, a API e um login de teste no lugar do Google (caminho recomendado):
 
 ```bash
-docker compose up -d --build --wait
+docker compose -f compose.yaml -f compose.e2e.yaml up -d --build
 ```
+
+O login de teste aceita qualquer nome de usuário e, se você quiser, claims em JSON, como
+`{"name": "Ana Teste", "email": "ana@example.com"}`.
 
 **Ou** rode a API em desenvolvimento (sobe o PostgreSQL via Testcontainers). Os dois usam a porta
 8080, então escolha um. Se a stack do compose estiver no ar, pare a API antes com
-`docker compose stop api`. O `bootTestRun` mantém o terminal ocupado enquanto a API roda:
+`docker compose stop api`. A API em desenvolvimento também usa o login de teste, que precisa estar
+no ar. O `bootTestRun` mantém o terminal ocupado enquanto a API roda:
 
 ```bash
+docker compose -f compose.yaml -f compose.e2e.yaml up -d mock-oauth2
 cd api && ./gradlew bootTestRun
 ```
+
+Para entrar com o Google de verdade (opcional):
+
+1. O mantenedor cria um cliente OAuth no Google com o redirect
+   `http://localhost:8080/login/oauth2/code/google`.
+2. Põe as credenciais em `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`, no `.env`.
+3. Sobe sem o login de teste:
+
+   ```bash
+   docker compose up -d --build --wait
+   ```
+
+Sem essas credenciais, a API não sobe: o client id vazio falha logo no início.
 
 Instale as dependências da web:
 
@@ -53,6 +71,23 @@ Testes da web:
 ```bash
 corepack pnpm --filter web test
 ```
+
+## Testes de ponta a ponta
+
+Os testes de ponta a ponta usam o Playwright, a API no Docker e o login de teste no lugar do Google.
+Suba a stack, instale o navegador do Playwright (uma vez só) e rode a suíte:
+
+```bash
+docker compose -f compose.yaml -f compose.e2e.yaml up -d --build --wait
+corepack pnpm --filter web exec playwright install chromium
+corepack pnpm --filter web e2e
+```
+
+A suíte usa a porta 5173, então pare o `dev` da web antes de rodar.
+
+A API aceita 20 tentativas de login por minuto por IP, e a suíte toda gasta 7. Rodar a suíte várias
+vezes seguidas no mesmo minuto pode bater no limite: o login volta com "Muitas tentativas" (429).
+Nesse caso, espere um minuto e rode de novo.
 
 ## Documentação
 

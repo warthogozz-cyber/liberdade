@@ -31,15 +31,26 @@ repositories {
 
 extra["springModulithVersion"] = "2.1.1"
 
+// Mockito loads as a Java agent: JDK 25 warns about its self-attach, which later JDKs will block.
+val mockitoAgent = configurations.create("mockitoAgent")
+
 dependencies {
+    mockitoAgent("org.mockito:mockito-core") { isTransitive = false }
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
+    implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    // Spring Boot does not manage webauthn4j; this pins the newest patch of the line Spring Security uses.
+    implementation("com.webauthn4j:webauthn4j-core:0.31.11.RELEASE")
     implementation("org.flywaydb:flyway-database-postgresql")
+    // The OpenAPI contract only, without the UI (D32).
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.2.0")
     implementation("org.springframework.modulith:spring-modulith-observability-api")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
+    implementation("org.springframework.security:spring-security-webauthn")
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("org.springframework.modulith:spring-modulith-actuator")
     runtimeOnly("org.springframework.modulith:spring-modulith-observability-core")
@@ -47,6 +58,9 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-security-oauth2-client-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-security-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-session-jdbc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
@@ -84,10 +98,19 @@ val coverageExcludes = listOf("br/com/liberdadefamilia/LiberdadeApplication*")
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    systemProperty("spring.profiles.active", "test")
+    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-javaagent:${mockitoAgent.asPath}") })
+}
+
+tasks.bootTestRun {
+    systemProperty("spring.profiles.active", "dev")
 }
 
 tasks.test {
     finalizedBy(tasks.jacocoTestReport)
+    // OpenApiDriftIT reads the contract and UPDATE_OPENAPI, so a change to either reruns the tests.
+    inputs.file("openapi.json").withPathSensitivity(PathSensitivity.RELATIVE).optional()
+    inputs.property("updateOpenApi", providers.environmentVariable("UPDATE_OPENAPI").orElse(""))
 }
 
 tasks.jacocoTestReport {

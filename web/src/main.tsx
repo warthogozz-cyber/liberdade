@@ -6,12 +6,43 @@ import { createBrowserRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { AppProviders } from '@/app/providers'
 import { routes } from '@/app/routes'
+import { createQueryClient } from '@/shared/api'
+import { clearSession } from '@/shared/offline'
 
 const router = createBrowserRouter(routes)
 
+let signingOut = false
+
+// On a 401, leave the screens first so none fetches `/v1/me` again mid-cleanup, then clear the
+// session. Another 401 while that runs does nothing; a failed sign-out is logged, not left unhandled.
+const queryClient = createQueryClient(() => {
+  if (signingOut) return
+  signingOut = true
+  void router
+    .navigate('/entrar')
+    .then(() => clearSession(queryClient))
+    .catch((error: unknown) => {
+      console.error('Could not clear the session after a 401', error)
+    })
+    .finally(() => {
+      signingOut = false
+    })
+})
+
+// Vite inlines the variable at build time, so this branch and the mocks leave the normal build.
+if (import.meta.env.VITE_API_MOCKS === 'true') {
+  const { worker } = await import('@/mocks/browser')
+  // MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`.
+  await worker.start({ onUnhandledFrame: 'bypass' })
+} else {
+  // With mocks, only MSW's worker runs: the two would fight over the same scope.
+  const { registerSW } = await import('virtual:pwa-register')
+  void registerSW({ immediate: true })
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AppProviders>
+    <AppProviders queryClient={queryClient}>
       <RouterProvider router={router} />
     </AppProviders>
   </StrictMode>,

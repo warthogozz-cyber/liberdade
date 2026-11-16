@@ -44,7 +44,7 @@ class HealthProbesIT {
     @Test
     void envIsNotExposed() {
         var result = mvc.get().uri("/actuator/env");
-        assertThat(result).hasStatus(404).hasContentType(MediaType.parseMediaType("application/problem+json"));
-        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("not-found");
+        assertThat(result).hasStatus(401).hasContentType(MediaType.parseMediaType("application/problem+json"));
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("auth.required");
     }
 }

@@ -50,6 +50,10 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Check generated API types
+        run: |
+          pnpm --filter web gen:api
+          git diff --exit-code -- web/src/shared/api/schema.ts
       - run: pnpm --filter web lint
       - run: pnpm --filter web format:check
       - run: pnpm --filter web typecheck
@@ -62,6 +66,45 @@ jobs:
           name: web-coverage
           path: web/coverage/
           if-no-files-found: error
+
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium
+      - name: Start the API with the test provider
+        run: |
+          cp .env.example .env
+          docker compose -f compose.yaml -f compose.e2e.yaml up -d --build --wait
+      - run: pnpm --filter web e2e
+      - name: Save Compose logs
+        if: ${{ failure() }}
+        run: |
+          mkdir -p web/test-results
+          docker compose -f compose.yaml -f compose.e2e.yaml logs --no-color > web/test-results/compose.log
+      - name: Upload Playwright report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 7
+      - name: Stop Compose
+        if: ${{ always() }}
+        run: docker compose -f compose.yaml -f compose.e2e.yaml down -v
 
   dependency-review:
     if: github.event_name == 'pull_request'
@@ -82,3 +125,7 @@ jobs:
             LGPL-3.0-only, LGPL-3.0-or-later, AGPL-3.0-only, AGPL-3.0-or-later,
             CC-BY-4.0, OFL-1.1, Python-2.0,
             EPL-1.0, EPL-2.0
+          # Declared MIT on npm, with MIT as its only license file. The scan also reports the Unicode
+          # data license for its tables from the Unicode Character Database, which is permissive.
+          # It comes in through workbox-build and runs only at build time.
+          allow-dependencies-licenses: pkg:npm/unicode-match-property-value-ecmascript@2.2.1
