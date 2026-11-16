@@ -20,9 +20,10 @@ function category(name: string, archivedAt: string | null = null): CategoryView 
 
 describe('CategoryPicker', () => {
   it('leaves archived categories out of the chips and out of Mais', () => {
+    // Archived first, so it would take a chip if the filter were gone.
     const categories = [
-      ...['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((name) => category(name)),
       category('Antiga', '2026-11-01T12:00:00Z'),
+      ...['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((name) => category(name)),
     ]
     renderWithProviders(
       <CategoryPicker

@@ -5,7 +5,7 @@ import { Sheet } from '@/shared/ui'
 import { categoryLabel } from './listItems'
 
 interface CategoryPickerProps {
-  /** The expense categories, in the API's order. The archived ones are left out. */
+  /** The categories of the tab's kind, in the API's order. The archived ones are left out. */
   categories: CategoryView[]
   value: string | undefined
   onChange: (categoryId: string) => void

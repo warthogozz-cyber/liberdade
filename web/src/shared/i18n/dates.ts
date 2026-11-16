@@ -26,3 +26,31 @@ export function addDays(date: string, days: number): string {
   const [year, month, day] = date.split('-').map(Number)
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10)
 }
+
+/** The first day a transaction can have, as the API's `TransactionDateRange`. */
+export const MIN_DATE = '2000-01-01'
+
+/** The first month the list and the dashboard can show. */
+export const MIN_MONTH = '2000-01'
+
+/**
+ * The last day a transaction can have: 366 days after today in the family's time zone, as the
+ * API's `TransactionDateRange` works it out (Review Focus 4).
+ */
+export function maxDate(now: Date, timeZone: string): string {
+  return addDays(localDate(now, timeZone), 366)
+}
+
+/** The month (`YYYY-MM`) of `maxDate`, the last one the list and the dashboard can show. */
+export function maxMonth(now: Date, timeZone: string): string {
+  return maxDate(now, timeZone).slice(0, 7)
+}
+
+/** Moves a `YYYY-MM` month by whole months. */
+export function addMonths(month: string, months: number): string {
+  const [year, monthNumber] = month.split('-').map(Number)
+  const index = year * 12 + (monthNumber - 1) + months
+  const nextYear = Math.floor(index / 12)
+  const nextMonth = (index % 12) + 1
+  return `${String(nextYear).padStart(4, '0')}-${String(nextMonth).padStart(2, '0')}`
+}

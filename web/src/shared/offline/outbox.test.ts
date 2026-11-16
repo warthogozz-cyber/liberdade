@@ -102,6 +102,17 @@ describe('discardOutboxItem', () => {
     expect(await db.outbox.toArray()).toEqual([item('t1')])
     expect(listener).not.toHaveBeenCalled()
   })
+
+  it('takes a pending item when the caller holds the lock, and leaves announcing to it', async () => {
+    await db.outbox.add(item('t1', { attempts: 1 }))
+    const listener = listenForChanges()
+
+    expect(await discardOutboxItem('t1', { lockHeld: true })).toBe(true)
+    expect(await discardOutboxItem('t1', { lockHeld: true })).toBe(false)
+
+    expect(await db.outbox.count()).toBe(0)
+    expect(listener).not.toHaveBeenCalled()
+  })
 })
 
 describe('replaceOutboxItem', () => {
@@ -176,30 +187,55 @@ describe('clearOutboxForUser and countOutboxForUser', () => {
 })
 
 describe('pendingTotals', () => {
-  it('adds up the pending expenses, for the month and in all', () => {
+  const brl = (amount: string) => ({ amount, currency: 'BRL' })
+
+  it('pendingTotalsByKind', () => {
     const items = [
-      item('t1', { payload: payload('t1', { occurredOn: '2026-11-03' }) }),
-      item('t2', {
-        payload: payload('t2', {
-          amount: { amount: '5.00', currency: 'BRL' },
-          occurredOn: '2026-10-31',
-        }),
-      }),
+      item('t1', { payload: payload('t1', { kind: 'INCOME', amount: brl('50.00') }) }),
+      item('t2', { payload: payload('t2', { amount: brl('20.00') }) }),
       item('t3', {
-        status: 'needs-attention',
         payload: payload('t3', {
-          amount: { amount: '7.00', currency: 'BRL' },
-          occurredOn: '2026-11-01',
+          kind: 'TRANSFER',
+          amount: brl('30.00'),
+          categoryId: null,
+          toAccountId: 'other-account',
         }),
       }),
     ]
 
-    expect(pendingTotals(items, '2026-11')).toEqual({ monthExpenses: 1234n, allExpenses: 1734n })
+    expect(pendingTotals(items, '2026-11')).toEqual({
+      monthIncome: 5000n,
+      monthExpenses: 2000n,
+      balanceDelta: 3000n,
+    })
   })
 
-  it('leaves income out', () => {
-    const items = [item('t1', { payload: payload('t1', { kind: 'INCOME' }) })]
+  it('counts another month only in the balance', () => {
+    const items = [
+      item('t1', { payload: payload('t1', { occurredOn: '2026-11-03' }) }),
+      item('t2', { payload: payload('t2', { amount: brl('5.00'), occurredOn: '2026-10-31' }) }),
+      item('t3', {
+        payload: payload('t3', { kind: 'INCOME', amount: brl('1.00'), occurredOn: '2026-12-01' }),
+      }),
+    ]
 
-    expect(pendingTotals(items, '2026-11')).toEqual({ monthExpenses: 0n, allExpenses: 0n })
+    expect(pendingTotals(items, '2026-11')).toEqual({
+      monthIncome: 0n,
+      monthExpenses: 1234n,
+      balanceDelta: -1634n,
+    })
+  })
+
+  it('needsAttentionDoesNotCount', () => {
+    const items = [
+      item('t1', { status: 'needs-attention' }),
+      item('t2', { status: 'needs-attention', payload: payload('t2', { kind: 'INCOME' }) }),
+    ]
+
+    expect(pendingTotals(items, '2026-11')).toEqual({
+      monthIncome: 0n,
+      monthExpenses: 0n,
+      balanceDelta: 0n,
+    })
   })
 })

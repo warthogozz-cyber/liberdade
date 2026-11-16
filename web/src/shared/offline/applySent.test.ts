@@ -9,13 +9,16 @@ import {
 
 const ws = 'ws1'
 
-function dashboard(month: string, expenses: string, balance: string): DashboardView {
+type Totals = Partial<Record<'income' | 'expenses' | 'result' | 'balance', string>>
+
+function dashboard(month: string, totals: Totals): DashboardView {
+  const brl = (amount = '0.00') => ({ amount, currency: 'BRL' })
   return {
     month,
-    income: { amount: '0.00', currency: 'BRL' },
-    expenses: { amount: expenses, currency: 'BRL' },
-    result: { amount: '0.00', currency: 'BRL' },
-    balance: { amount: balance, currency: 'BRL' },
+    income: brl(totals.income),
+    expenses: brl(totals.expenses),
+    result: brl(totals.result),
+    balance: brl(totals.balance),
     byCategory: [],
     dailyBalance: [],
   }
@@ -26,11 +29,11 @@ function row(id: string, occurredOn: string, createdAt = '2026-11-03T12:00:00Z')
 }
 
 describe('applySentTransaction', () => {
-  it('adds an expense to its month, takes it from the balance and lists it', () => {
+  it('adds an expense to its month and result, takes it from the balance and lists it', () => {
     const queryClient = createTestQueryClient()
     queryClient.setQueryData(
       queryKeys.dashboard(ws, '2026-11'),
-      dashboard('2026-11', '10.00', '90.00'),
+      dashboard('2026-11', { expenses: '10.00', result: '-10.00', balance: '90.00' }),
     )
     queryClient.setQueryData(queryKeys.transactions(ws, '2026-11'), [
       row('newer', '2026-11-05'),
@@ -42,7 +45,7 @@ describe('applySentTransaction', () => {
     applySentTransaction(queryClient, ws, row('sent', '2026-11-03'))
 
     expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-11'))).toEqual(
-      dashboard('2026-11', '22.34', '77.66'),
+      dashboard('2026-11', { expenses: '22.34', result: '-22.34', balance: '77.66' }),
     )
     expect(listedIds(queryClient, '2026-11')).toEqual([
       'newer',
@@ -84,26 +87,26 @@ describe('applySentTransaction', () => {
     const queryClient = createTestQueryClient()
     queryClient.setQueryData(
       queryKeys.dashboard(ws, '2026-11'),
-      dashboard('2026-11', '10.00', '5.00'),
+      dashboard('2026-11', { expenses: '10.00', balance: '5.00' }),
     )
 
     applySentTransaction(queryClient, ws, row('sent', '2026-10-31'))
 
     expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-11'))).toEqual(
-      dashboard('2026-11', '10.00', '-7.34'),
+      dashboard('2026-11', { expenses: '10.00', balance: '-7.34' }),
     )
     expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
   })
 
-  it('adds an income to every balance and lists it at the end of an older month', () => {
+  it('adds an income to its month, its result and every balance, listed at the end', () => {
     const queryClient = createTestQueryClient()
     queryClient.setQueryData(
       queryKeys.dashboard(ws, '2026-10'),
-      dashboard('2026-10', '3.00', '90.00'),
+      dashboard('2026-10', { expenses: '3.00', result: '-3.00', balance: '90.00' }),
     )
     queryClient.setQueryData(
       queryKeys.dashboard(ws, '2026-11'),
-      dashboard('2026-11', '10.00', '90.00'),
+      dashboard('2026-11', { expenses: '10.00', balance: '90.00' }),
     )
     queryClient.setQueryData(queryKeys.transactions(ws, '2026-10'), [row('newer', '2026-10-31')])
 
@@ -113,10 +116,15 @@ describe('applySentTransaction', () => {
     })
 
     expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-10'))).toEqual(
-      dashboard('2026-10', '3.00', '102.34'),
+      dashboard('2026-10', {
+        income: '12.34',
+        expenses: '3.00',
+        result: '9.34',
+        balance: '102.34',
+      }),
     )
     expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-11'))).toEqual(
-      dashboard('2026-11', '10.00', '102.34'),
+      dashboard('2026-11', { expenses: '10.00', balance: '102.34' }),
     )
     expect(listedIds(queryClient, '2026-10')).toEqual(['newer', 'sent'])
   })
@@ -131,20 +139,27 @@ describe('applySentTransaction', () => {
     expect(queryClient.getQueryData(queryKeys.transactions(ws, '2026-11'))).toEqual(list)
   })
 
-  it('only refetches for any other kind', () => {
+  it('transferJoinsListOnly', () => {
     const queryClient = createTestQueryClient()
-    queryClient.setQueryData(
-      queryKeys.dashboard(ws, '2026-11'),
-      dashboard('2026-11', '10.00', '90.00'),
-    )
-    queryClient.setQueryData(queryKeys.transactions(ws, '2026-11'), [])
+    const before = dashboard('2026-11', {
+      income: '5.00',
+      expenses: '10.00',
+      result: '-5.00',
+      balance: '90.00',
+    })
+    queryClient.setQueryData(queryKeys.dashboard(ws, '2026-11'), before)
+    queryClient.setQueryData(queryKeys.transactions(ws, '2026-11'), [row('newer', '2026-11-05')])
 
-    applySentTransaction(queryClient, ws, { ...row('sent', '2026-11-03'), kind: 'TRANSFER' })
+    applySentTransaction(queryClient, ws, {
+      ...row('sent', '2026-11-03'),
+      kind: 'TRANSFER',
+      categoryId: null,
+      toAccountId: 'other-account',
+    })
 
-    expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-11'))).toEqual(
-      dashboard('2026-11', '10.00', '90.00'),
-    )
-    expect(queryClient.getQueryData(queryKeys.transactions(ws, '2026-11'))).toEqual([])
+    // Both accounts are active, so the family's totals stay as they were (Ruling R16).
+    expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-11'))).toEqual(before)
+    expect(listedIds(queryClient, '2026-11')).toEqual(['newer', 'sent'])
     expect(queryClient.getQueryState(queryKeys.dashboard(ws, '2026-11'))?.isInvalidated).toBe(true)
   })
 
@@ -152,13 +167,13 @@ describe('applySentTransaction', () => {
     const queryClient = createTestQueryClient()
     queryClient.setQueryData(
       queryKeys.dashboard('ws2', '2026-11'),
-      dashboard('2026-11', '10.00', '90.00'),
+      dashboard('2026-11', { expenses: '10.00', balance: '90.00' }),
     )
 
     applySentTransaction(queryClient, ws, row('sent', '2026-11-03'))
 
     expect(queryClient.getQueryData(queryKeys.dashboard('ws2', '2026-11'))).toEqual(
-      dashboard('2026-11', '10.00', '90.00'),
+      dashboard('2026-11', { expenses: '10.00', balance: '90.00' }),
     )
     expect(queryClient.getQueryState(queryKeys.dashboard('ws2', '2026-11'))?.isInvalidated).toBe(
       false,

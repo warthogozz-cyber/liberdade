@@ -57,3 +57,10 @@ export function postTransaction(
     }),
   )
 }
+
+/** Deletes a transaction. A second delete of the same one is a no-op; an unknown id is a 404. */
+export async function deleteTransaction(ws: string, id: string): Promise<void> {
+  await unwrap(
+    client.DELETE('/v1/workspaces/{ws}/transactions/{id}', { params: { path: { ws, id } } }),
+  )
+}

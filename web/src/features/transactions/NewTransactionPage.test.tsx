@@ -2,13 +2,13 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-libra
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import type { ExpenseDate } from '@/features/transactions/ContextSheet'
-import { NewExpensePage } from '@/features/transactions/NewExpensePage'
-import { mockState, seedMockFamily } from '@/mocks/data'
+import { NewTransactionPage } from '@/features/transactions/NewTransactionPage'
+import { mockState, seedMockFamily, type MockAccount } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
-import { API_URL } from '@/shared/api'
+import { API_URL, postTransaction, type MeWorkspace } from '@/shared/api'
 import { localDate } from '@/shared/i18n'
-import { db } from '@/shared/offline'
+import { db, syncOutbox } from '@/shared/offline'
 import { outboxItem, outboxPayload, renderWithProviders } from '@/shared/testing'
 
 afterEach(() => {
@@ -17,13 +17,13 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderNewExpense(route = '/lancar') {
-  return renderWithProviders(<NewExpensePage />, { path: '/lancar', route })
+function renderPage(route = '/lancar') {
+  return renderWithProviders(<NewTransactionPage />, { path: '/lancar', route })
 }
 
 /** Renders the page and waits for the categories. */
 async function openForm(route?: string) {
-  const rendered = renderNewExpense(route)
+  const rendered = renderPage(route)
   await screen.findByRole('radio', { name: '🛒 Mercado' })
   return rendered
 }
@@ -35,6 +35,38 @@ const press = (...keys: string[]) => {
 }
 const category = (name: string) => mockState.categories.find((each) => each.name === name)!
 const toastRegion = () => screen.getByRole('region', { name: 'Notificações' })
+const group = (name: string) => screen.getByRole('group', { name })
+
+/** Adds an account to the mock family, active unless `archivedAt` is given. */
+function addAccount(
+  workspace: MeWorkspace,
+  name: string,
+  type: MockAccount['type'] = 'CHECKING',
+  archivedAt: string | null = null,
+): MockAccount {
+  const account: MockAccount = {
+    id: crypto.randomUUID(),
+    name,
+    type,
+    currency: 'BRL',
+    initialBalance: { amount: '0.00', currency: 'BRL' },
+    ownerMembershipId: workspace.membershipId,
+    archivedAt,
+  }
+  mockState.accounts.push(account)
+  return account
+}
+
+/** Lets the queue's delay pass and sends it, as the app's sync would. Needs a fake Date. */
+async function sendQueue() {
+  vi.setSystemTime(Date.now() + 7000)
+  const result = await syncOutbox({
+    userId: mockState.user.id,
+    send: (item, signal) => postTransaction(item.workspaceId, item.payload, signal),
+    onSent: () => {},
+  })
+  expect(result.status).toBe('done')
+}
 
 /** Types 12,34, picks Mercado and saves, then waits for the home route. */
 async function saveExpense(router: { state: { location: { pathname: string } } }) {
@@ -50,7 +82,7 @@ function openContext() {
   return screen.getByRole('dialog', { name: 'Data e conta' })
 }
 
-describe('NewExpensePage', () => {
+describe('NewTransactionPage', () => {
   it('opens empty, with the six first categories and today in the wallet', async () => {
     seedMockFamily()
     await openForm()
@@ -144,7 +176,7 @@ describe('NewExpensePage', () => {
       },
     })
     expect(items[0].id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7/)
-    expect(await within(toastRegion()).findByText('Gasto salvo')).toBeInTheDocument()
+    expect(await within(toastRegion()).findByText('Gasto salvo.')).toBeInTheDocument()
     expect(within(toastRegion()).getByRole('button', { name: 'Desfazer' })).toBeInTheDocument()
   })
 
@@ -264,29 +296,20 @@ describe('NewExpensePage', () => {
   })
 
   it('remembers the account last used', async () => {
-    seedMockFamily()
-    const accounts = [
-      { ...mockState.accounts[0], balance: { amount: '0.00', currency: 'BRL' } },
-      {
-        id: '0192f3a4-0000-7000-8000-0000000000a2',
-        name: 'Banco',
-        type: 'CHECKING',
-        currency: 'BRL',
-        balance: { amount: '0.00', currency: 'BRL' },
-      },
-    ]
-    server.use(http.get(`${API_URL}/v1/workspaces/:ws/accounts`, () => HttpResponse.json(accounts)))
+    const workspace = seedMockFamily()
+    // Sorted after Carteira, so it is not what the form starts on.
+    const poupanca = addAccount(workspace, 'Poupança', 'SAVINGS')
     const { router } = await openForm()
 
     const sheet = openContext()
-    fireEvent.click(within(sheet).getByRole('radio', { name: 'Banco' }))
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Poupança' }))
     fireEvent.click(within(sheet).getByRole('button', { name: 'Fechar' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     await saveExpense(router)
-    expect((await db.outbox.toArray())[0].payload.accountId).toBe(accounts[1].id)
+    expect((await db.outbox.toArray())[0].payload.accountId).toBe(poupanca.id)
 
     await router.navigate('/lancar')
-    expect(await screen.findByRole('button', { name: 'Hoje · Banco · Eu' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Hoje · Poupança · Eu' })).toBeInTheDocument()
   })
 
   it('takes the expense back with Desfazer', async () => {
@@ -296,7 +319,7 @@ describe('NewExpensePage', () => {
 
     fireEvent.click(await within(toastRegion()).findByRole('button', { name: 'Desfazer' }))
 
-    expect(await within(toastRegion()).findByText('Gasto desfeito')).toBeInTheDocument()
+    expect(await within(toastRegion()).findByText('Lançamento desfeito.')).toBeInTheDocument()
     expect(await db.outbox.count()).toBe(0)
   })
 
@@ -315,19 +338,267 @@ describe('NewExpensePage', () => {
     expect(consoleError).toHaveBeenCalled()
   })
 
-  it('says it is too late when the expense already left the queue', async () => {
+  it('counts a transaction the server does not have as undone', async () => {
     seedMockFamily()
     const { router } = await openForm()
     await saveExpense(router)
-    // The sync sent it in the meantime.
+    // The queue lost it and the API never stored it: the 404 means there is nothing left to undo.
+    await db.outbox.clear()
+
+    fireEvent.click(await within(toastRegion()).findByRole('button', { name: 'Desfazer' }))
+
+    expect(await within(toastRegion()).findByText('Lançamento desfeito.')).toBeInTheDocument()
+  })
+
+  it('undoAfterSendDeletes', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    seedMockFamily()
+    const { router, queryClient } = await openForm()
+    await saveExpense(router)
+    const [queued] = await db.outbox.toArray()
+    await sendQueue()
+    expect(await db.outbox.count()).toBe(0)
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+
+    fireEvent.click(await within(toastRegion()).findByRole('button', { name: 'Desfazer' }))
+
+    expect(await within(toastRegion()).findByText('Lançamento desfeito.')).toBeInTheDocument()
+    expect(mockState.deletedTransactionIds.has(queued.id)).toBe(true)
+    expect(invalidate).toHaveBeenCalled()
+  })
+
+  it('undoAfterSendOffline', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    seedMockFamily()
+    const { router } = await openForm()
+    await saveExpense(router)
+    await sendQueue()
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+
+    fireEvent.click(await within(toastRegion()).findByRole('button', { name: 'Desfazer' }))
+
+    expect(
+      await within(toastRegion()).findByText(
+        'Sem internet agora. Para desfazer, exclua em Lançamentos quando a conexão voltar.',
+      ),
+    ).toBeInTheDocument()
+    expect(mockState.deletedTransactionIds.size).toBe(0)
+  })
+
+  it('says to delete it in Lançamentos when the undo is refused', async () => {
+    seedMockFamily()
+    server.use(
+      http.delete(`${API_URL}/v1/workspaces/:ws/transactions/:id`, () =>
+        problem(500, 'internal.error'),
+      ),
+    )
+    const { router } = await openForm()
+    await saveExpense(router)
     await db.outbox.clear()
 
     fireEvent.click(await within(toastRegion()).findByRole('button', { name: 'Desfazer' }))
 
     expect(
       await within(toastRegion()).findByText(
-        'Este gasto já foi salvo e não dá mais para desfazer.',
+        'Não deu para desfazer. Tente excluir em Lançamentos.',
       ),
+    ).toBeInTheDocument()
+  })
+
+  it('recordsIncome', async () => {
+    const workspace = seedMockFamily()
+    const { router } = await openForm()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Receita' }))
+    fireEvent.click(await screen.findByRole('radio', { name: '💼 Salário' }))
+    press('5', '0', '0', '0', '0', '0')
+    expect(amount()).toHaveTextContent('R$ 5.000,00')
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
+    const items = await db.outbox.toArray()
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({
+      workspaceId: workspace.id,
+      payload: {
+        kind: 'INCOME',
+        amount: { amount: '5000.00', currency: 'BRL' },
+        categoryId: category('Salário').id,
+        accountId: mockState.accounts[0].id,
+        toAccountId: null,
+      },
+    })
+    expect(await within(toastRegion()).findByText('Receita salva.')).toBeInTheDocument()
+    expect(within(toastRegion()).getByRole('button', { name: 'Desfazer' })).toBeInTheDocument()
+  })
+
+  it('recordsTransfer', async () => {
+    const workspace = seedMockFamily()
+    const carteira = mockState.accounts[0]
+    const banco = addAccount(workspace, 'Banco')
+    const { router } = await openForm()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Transferência' }))
+    expect(screen.queryByRole('group', { name: 'Categoria' })).not.toBeInTheDocument()
+    press('5', '0', '0', '0', '0')
+    fireEvent.click(within(group('De')).getByRole('radio', { name: 'Carteira' }))
+    expect(saveButton()).toBeDisabled()
+    fireEvent.click(within(group('Para')).getByRole('radio', { name: 'Banco' }))
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
+    const items = await db.outbox.toArray()
+    expect(items).toHaveLength(1)
+    expect(items[0].payload).toMatchObject({
+      kind: 'TRANSFER',
+      amount: { amount: '500.00', currency: 'BRL' },
+      accountId: carteira.id,
+      toAccountId: banco.id,
+      categoryId: null,
+    })
+    expect(await within(toastRegion()).findByText('Transferência salva.')).toBeInTheDocument()
+  })
+
+  it('transferNeedsTwoAccounts', async () => {
+    seedMockFamily()
+    await openForm()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Transferência' }))
+
+    expect(
+      await screen.findByText('Para transferir, cadastre outra conta.', { exact: false }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Cadastrar conta' })).toHaveAttribute(
+      'href',
+      '/mais/contas',
+    )
+    expect(screen.queryByRole('button', { name: 'Salvar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'De' })).not.toBeInTheDocument()
+  })
+
+  it('sameAccountNotOffered', async () => {
+    const workspace = seedMockFamily()
+    addAccount(workspace, 'Banco')
+    addAccount(workspace, 'Poupança', 'SAVINGS')
+    await openForm()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Transferência' }))
+    fireEvent.click(within(group('De')).getByRole('radio', { name: 'Carteira' }))
+
+    const to = within(group('Para'))
+    expect(to.queryByRole('radio', { name: 'Carteira' })).not.toBeInTheDocument()
+    expect(to.getAllByRole('radio').map((radio) => radio.parentElement?.textContent)).toEqual([
+      'Banco',
+      'Poupança',
+    ])
+
+    // Taking the Para account as De leaves Para to be chosen again.
+    fireEvent.click(to.getByRole('radio', { name: 'Banco' }))
+    fireEvent.click(within(group('De')).getByRole('radio', { name: 'Banco' }))
+    expect(within(group('Para')).queryByRole('radio', { name: 'Banco' })).not.toBeInTheDocument()
+    expect(within(group('Para')).getByRole('radio', { name: 'Carteira' })).not.toBeChecked()
+  })
+
+  it('opensTransferToCard', async () => {
+    const workspace = seedMockFamily()
+    const card = addAccount(workspace, 'Cartão Teste', 'CREDIT_CARD')
+    renderPage(`/lancar?tipo=transferencia&para=${card.id}`)
+
+    const to = await screen.findByRole('group', { name: 'Para' })
+    expect(screen.getByRole('tab', { name: 'Transferência' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(within(to).getByRole('radio', { name: 'Cartão Teste' })).toBeChecked()
+    // De starts on another account, never on the card itself.
+    expect(within(group('De')).getByRole('radio', { name: 'Carteira' })).toBeChecked()
+  })
+
+  it('opens on Receita with ?tipo=receita', async () => {
+    seedMockFamily()
+    renderPage('/lancar?tipo=receita')
+
+    expect(await screen.findByRole('radio', { name: '💼 Salário' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Receita' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel')).toHaveAccessibleName('Receita')
+  })
+
+  it('switchingTabKeepsAmount', async () => {
+    seedMockFamily()
+    await openForm()
+
+    press('8', '7', '9', '0')
+    fireEvent.click(screen.getByRole('radio', { name: '🛒 Mercado' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Receita' }))
+
+    await screen.findByRole('radio', { name: '💼 Salário' })
+    expect(amount()).toHaveTextContent('R$ 87,90')
+    expect(
+      screen.getAllByRole('radio').filter((radio) => (radio as HTMLInputElement).checked),
+    ).toHaveLength(0)
+    expect(saveButton()).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Gasto' }))
+    expect(await screen.findByRole('radio', { name: '🛒 Mercado' })).not.toBeChecked()
+  })
+
+  it('datePickerBounds', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    // Still 16 November in Fortaleza: the last day is worked out in the family time zone.
+    vi.setSystemTime('2026-11-17T02:00:00Z')
+    seedMockFamily()
+    await openForm()
+
+    const sheet = openContext()
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Outra data' }))
+    const input = within(sheet).getByLabelText('Outra data', { selector: 'input[type="date"]' })
+
+    expect(input).toHaveAttribute('min', '2000-01-01')
+    expect(input).toHaveAttribute('max', '2027-11-17')
+  })
+
+  it('keeps Salvar disabled for a date out of range', async () => {
+    seedMockFamily()
+    await openForm()
+    press('1', '0', '0')
+    fireEvent.click(screen.getByRole('radio', { name: '🛒 Mercado' }))
+
+    const sheet = openContext()
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Outra data' }))
+    fireEvent.change(
+      within(sheet).getByLabelText('Outra data', { selector: 'input[type="date"]' }),
+      { target: { value: '1999-12-31' } },
+    )
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    expect(saveButton()).toBeDisabled()
+  })
+
+  it('archivedHidden', async () => {
+    const workspace = seedMockFamily()
+    category('Mercado').archivedAt = '2026-11-01T12:00:00Z'
+    addAccount(workspace, 'Conta Antiga', 'CHECKING', '2026-11-01T12:00:00Z')
+    renderPage()
+
+    expect(await screen.findByRole('radio', { name: '🍽️ Alimentação fora' })).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: '🛒 Mercado' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Mais' }))
+    const all = screen.getByRole('dialog', { name: 'Todas as categorias' })
+    expect(within(all).queryByRole('button', { name: '🛒 Mercado' })).not.toBeInTheDocument()
+    fireEvent.click(within(all).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    const sheet = openContext()
+    expect(within(sheet).getByRole('radio', { name: 'Carteira' })).toBeInTheDocument()
+    expect(within(sheet).queryByRole('radio', { name: 'Conta Antiga' })).not.toBeInTheDocument()
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    // The archived account does not count either: the family has one account to move money from.
+    fireEvent.click(screen.getByRole('tab', { name: 'Transferência' }))
+    expect(
+      screen.getByText('Para transferir, cadastre outra conta.', { exact: false }),
     ).toBeInTheDocument()
   })
 
@@ -369,7 +640,7 @@ describe('NewExpensePage', () => {
       },
     })
     // Desfazer would delete the fix and, with it, the refused expense (Ruling T11-correction-undo).
-    expect(await within(toastRegion()).findByText('Gasto salvo')).toBeInTheDocument()
+    expect(await within(toastRegion()).findByText('Gasto salvo.')).toBeInTheDocument()
     expect(
       within(toastRegion()).queryByRole('button', { name: 'Desfazer' }),
     ).not.toBeInTheDocument()
@@ -407,7 +678,7 @@ describe('NewExpensePage', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     seedMockFamily()
     server.use(http.get(`${API_URL}/v1/workspaces/:ws/categories`, () => HttpResponse.error()))
-    renderNewExpense()
+    renderPage()
 
     expect(
       await screen.findByText('Abra o app com internet uma vez para carregar suas categorias.'),
@@ -418,12 +689,16 @@ describe('NewExpensePage', () => {
 
   it('offers to try again when the categories fail online', async () => {
     seedMockFamily()
+    let failed = false
     server.use(
-      http.get(`${API_URL}/v1/workspaces/:ws/categories`, () => problem(500, 'internal.error'), {
-        once: true,
+      // The form loads both kinds; only the expense list, the open tab's, fails, and only once.
+      http.get(`${API_URL}/v1/workspaces/:ws/categories`, ({ request }) => {
+        if (failed || new URL(request.url).searchParams.get('kind') !== 'EXPENSE') return undefined
+        failed = true
+        return problem(500, 'internal.error')
       }),
     )
-    renderNewExpense()
+    renderPage()
 
     expect(await screen.findByText('Não deu para carregar. Tente de novo.')).toBeInTheDocument()
     expect(

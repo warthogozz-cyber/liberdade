@@ -87,6 +87,34 @@ describe('HomePage', () => {
     )
   })
 
+  it('queuedIncomeRaisesBalance', async () => {
+    const workspace = seedMockFamily()
+    await db.outbox.bulkAdd([
+      queue(workspace, 't1', {
+        payload: outboxPayload('t1', {
+          kind: 'INCOME',
+          amount: { amount: '100.00', currency: 'BRL' },
+          occurredOn: '2026-11-10',
+        }),
+      }),
+      queue(workspace, 't2', {
+        createdAt: 2000,
+        payload: outboxPayload('t2', {
+          kind: 'TRANSFER',
+          amount: { amount: '30.00', currency: 'BRL' },
+          occurredOn: '2026-11-10',
+          categoryId: null,
+          toAccountId: 'other-account',
+        }),
+      }),
+    ])
+    renderHome()
+
+    // The month's expenses stay as they are; only the balance takes the income.
+    expect(await screen.findByText('R$ 190,00')).toBeInTheDocument()
+    expect(screen.getByText('R$ 10,00')).toBeInTheDocument()
+  })
+
   it('shows the dashboard as it is with an empty queue', async () => {
     seedMockFamily()
     renderHome()

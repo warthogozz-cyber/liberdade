@@ -74,7 +74,8 @@ function HomeContent({ userId, hasPasskey, workspace }: HomeContentProps) {
   let totals
   if (dashboard.data) {
     const expenses = parseCents(dashboard.data.expenses.amount) + pending.monthExpenses
-    const balance = parseCents(dashboard.data.balance.amount) - pending.allExpenses
+    // An income queued adds to the balance and an expense takes from it; a transfer changes nothing.
+    const balance = parseCents(dashboard.data.balance.amount) + pending.balanceDelta
     totals = (
       <>
         <dl className="grid gap-4 rounded-card bg-surface p-4">

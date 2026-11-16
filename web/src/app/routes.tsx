@@ -7,7 +7,7 @@ import { WorkspaceLayout } from '@/app/WorkspaceLayout'
 import { SignInPage } from '@/features/auth/SignInPage'
 import { HomePage } from '@/features/dashboard/HomePage'
 import { WelcomePage } from '@/features/onboarding/WelcomePage'
-import { NewExpensePage } from '@/features/transactions/NewExpensePage'
+import { NewTransactionPage } from '@/features/transactions/NewTransactionPage'
 
 // Secondary screens load on demand, so the first load stays small (chunk budget in CI). Copy this
 // shape for a new one: the page exports its component by name. The first-expense path (`/inicio`,
@@ -23,7 +23,7 @@ export const routes: RouteObject[] = [
         element: <WorkspaceLayout />,
         children: [
           // Full screen, without the navigation.
-          { path: '/lancar', element: <NewExpensePage /> },
+          { path: '/lancar', element: <NewTransactionPage /> },
           {
             element: <AppShell />,
             children: [

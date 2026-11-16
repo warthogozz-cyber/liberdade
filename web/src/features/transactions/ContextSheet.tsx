@@ -1,5 +1,6 @@
 import { FormattedMessage, useIntl } from 'react-intl'
 import type { AccountView } from '@/shared/api'
+import { MIN_DATE } from '@/shared/i18n'
 import { Sheet } from '@/shared/ui'
 
 /** Hoje and Ontem stay words until saving, which works out the date then (Review Focus 4). */
@@ -12,24 +13,31 @@ interface ContextSheetProps {
   onDateChange: (date: ExpenseDate) => void
   /** Today in the family's time zone, where "Outra data" starts. */
   today: string
-  accounts: AccountView[]
-  accountId: string | undefined
-  onAccountChange: (accountId: string) => void
+  /** The last day "Outra data" offers, a year ahead in the family's time zone. */
+  max: string
+  /** The account to choose; left out for a transfer, which picks its two accounts on the form. */
+  account?: {
+    accounts: AccountView[]
+    accountId: string | undefined
+    onAccountChange: (accountId: string) => void
+  }
 }
 
 const option =
   'flex min-h-12 cursor-pointer items-center gap-3 rounded-field px-3 has-checked:font-semibold has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary'
 
-/** The expense's date and account. Who spent it is always the user for now (D1). */
+/**
+ * The transaction's date and, unless it is a transfer, its account. Who spent it is always the user
+ * for now (D1).
+ */
 export function ContextSheet({
   open,
   onOpenChange,
   date,
   onDateChange,
   today,
-  accounts,
-  accountId,
-  onAccountChange,
+  max,
+  account,
 }: ContextSheetProps) {
   const intl = useIntl()
   const other = date !== 'today' && date !== 'yesterday'
@@ -39,7 +47,7 @@ export function ContextSheet({
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      title={intl.formatMessage({ id: 'expense.contextSheetTitle' })}
+      title={intl.formatMessage({ id: account ? 'expense.contextSheetTitle' : 'expense.date' })}
     >
       <div className="flex flex-col gap-6">
         <fieldset>
@@ -78,6 +86,8 @@ export function ContextSheet({
               type="date"
               aria-label={otherDate}
               value={date}
+              min={MIN_DATE}
+              max={max}
               required
               onChange={(event) => {
                 // A date input's value is empty or YYYY-MM-DD.
@@ -87,25 +97,29 @@ export function ContextSheet({
             />
           )}
         </fieldset>
-        <fieldset>
-          <legend className="mb-2 font-medium">
-            <FormattedMessage id="expense.account" />
-          </legend>
-          {accounts.map((account) => (
-            <label key={account.id} className={option}>
-              <input
-                type="radio"
-                name="account"
-                checked={account.id === accountId}
-                onChange={() => onAccountChange(account.id)}
-              />
-              {account.name}
-            </label>
-          ))}
-        </fieldset>
-        <p className="text-text-muted">
-          <FormattedMessage id="expense.member" />
-        </p>
+        {account && (
+          <>
+            <fieldset>
+              <legend className="mb-2 font-medium">
+                <FormattedMessage id="expense.account" />
+              </legend>
+              {account.accounts.map(({ id, name }) => (
+                <label key={id} className={option}>
+                  <input
+                    type="radio"
+                    name="account"
+                    checked={id === account.accountId}
+                    onChange={() => account.onAccountChange(id)}
+                  />
+                  {name}
+                </label>
+              ))}
+            </fieldset>
+            <p className="text-text-muted">
+              <FormattedMessage id="expense.member" />
+            </p>
+          </>
+        )}
       </div>
     </Sheet>
   )
