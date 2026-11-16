@@ -95,10 +95,12 @@ describe('RootRedirect', () => {
     saveReauthUser('0192f3a4-0000-7000-8000-0000000000ff')
     localStorage.setItem('liberdade.workspaceId', 'old')
 
-    const { router } = renderWithProviders(<App />, { path: '/*', route: '/' })
+    const { router, queryClient } = renderWithProviders(<App />, { path: '/*', route: '/' })
+    queryClient.setQueryData(['sentinel'], 1)
 
     await waitFor(() => expect(assign).toHaveBeenCalledExactlyOnceWith('/inicio'))
     expect(router.state.location.pathname).not.toBe('/mais/modulos')
+    expect(queryClient.getQueryData(['sentinel'])).toBeUndefined()
     expect(localStorage.getItem('liberdade.workspaceId')).toBeNull()
     expect(sent).toContainEqual({ type: 'signed-in', userId: mockState.user.id })
   })

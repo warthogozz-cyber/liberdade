@@ -6,11 +6,12 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { ApiError } from '@/shared/api'
 import { startGoogleSignIn } from '@/shared/auth'
 import { signInWithPasskey } from '@/shared/auth/passkey'
-import type { messages } from '@/shared/i18n'
 import { clearSession, useOnline } from '@/shared/offline'
 import { useDocumentTitle } from '@/shared/ui'
+import type { signInMessages } from './signIn.messages.pt-BR'
+import './signIn.register'
 
-type MessageId = keyof typeof messages
+type MessageId = keyof typeof signInMessages
 
 /** The messages the API's redirect can ask for with `?erro=` (Review Focus 3). */
 const URL_ERRORS: Record<string, MessageId> = {

@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { getMe, queryKeys, resetCsrf, type MeView } from '@/shared/api'
 import { broadcastSignedIn, clearSession } from '@/shared/offline'
@@ -31,6 +31,17 @@ export function ReauthDialog({ assign, onFinish }: ReauthDialogProps) {
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
   const [failed, setFailed] = useState(false)
+
+  // Back from Google can restore this dialog from the bfcache, still locked from the redirect.
+  useEffect(() => {
+    function onShow(event: PageTransitionEvent) {
+      if (!event.persisted) return
+      busyRef.current = false
+      setBusy(false)
+    }
+    window.addEventListener('pageshow', onShow)
+    return () => window.removeEventListener('pageshow', onShow)
+  }, [])
 
   async function confirmWithPasskey() {
     if (busyRef.current) return

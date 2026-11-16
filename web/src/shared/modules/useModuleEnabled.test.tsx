@@ -11,18 +11,20 @@ import { useModuleEnabled } from './useModuleEnabled'
 describe('useModuleEnabled', () => {
   it('followsApi', async () => {
     const workspace = seedMockFamily()
-    mockState.modules[workspace.id] = { planning: true, ventures: false }
+    mockState.modules[workspace.id] = { planning: true }
     const planning = renderHookWithProviders(() => useModuleEnabled('planning'))
-    const ventures = renderHookWithProviders(() => useModuleEnabled('ventures'))
 
     expect(planning.result.current).toBe(false)
     await waitFor(() => expect(planning.result.current).toBe(true))
+
+    mockState.modules[workspace.id] = { planning: false }
+    const off = renderHookWithProviders(() => useModuleEnabled('planning'))
     await waitFor(() =>
-      expect(ventures.queryClient.getQueryState(['ws', workspace.id, 'modules'])?.status).toBe(
+      expect(off.queryClient.getQueryState(['ws', workspace.id, 'modules'])?.status).toBe(
         'success',
       ),
     )
-    expect(ventures.result.current).toBe(false)
+    expect(off.result.current).toBe(false)
   })
 
   it('is false without a family and when the list cannot be loaded', async () => {

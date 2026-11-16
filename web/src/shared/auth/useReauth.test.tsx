@@ -237,6 +237,21 @@ describe('useReauth', () => {
     expect(takeReauthUser()).toBe(mockState.user.id)
   })
 
+  it('unlocksTheDialogWhenBackRestoresItFromTheBfcache', async () => {
+    const { run } = setup()
+    const result = run(() => Promise.reject(reauthRequired()))
+    const rejected = expect(result).rejects.toBeInstanceOf(ReauthCancelledError)
+    const google = await screen.findByRole('button', { name: 'Entrar com Google' })
+    fireEvent.click(google)
+    expect(google).toBeDisabled()
+
+    fireEvent(window, Object.assign(new Event('pageshow'), { persisted: true }))
+
+    await waitFor(() => expect(google).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await rejected
+  })
+
   it('locksTheDialogWhileAnAttemptRuns', async () => {
     const { run, assign } = setup()
     void run(() => Promise.reject(reauthRequired())).catch(() => {})
