@@ -52,7 +52,24 @@ export default defineConfig({
   },
   // The E2E suite expects this port; a busy port fails instead of moving elsewhere.
   // `check:chunks` reads the manifest to enforce the size budget.
-  build: { manifest: true },
+  build: {
+    manifest: true,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              // The packages every screen needs, kept in one chunk: a lazy import that reaches only some
+              // of them would otherwise split them in several, and each split costs the first load
+              // gzip overhead (T14 measured 1.5 KB).
+              name: 'vendor',
+              test: /node_modules[\\/](react|react-dom|react-router|react-intl|@formatjs|intl-messageformat|@tanstack|scheduler|dexie|dexie-react-hooks|radix-ui|@radix-ui|openapi-fetch|uuid)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
+  },
   server: { port: 5173, strictPort: true },
   preview: { port: 5173, strictPort: true },
   test: {

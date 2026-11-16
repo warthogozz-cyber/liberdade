@@ -1,5 +1,5 @@
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
-import { dehydrate, type QueryClient } from '@tanstack/react-query'
+import { defaultShouldDehydrateQuery, dehydrate, type QueryClient } from '@tanstack/react-query'
 import type {
   PersistedClient,
   PersistQueryClientOptions,
@@ -29,7 +29,12 @@ export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
   // Raise it when a schema.ts change makes the saved cache unreadable.
   buster: '1',
   // Writes made offline wait in the outbox, not in the cache.
-  dehydrateOptions: { shouldDehydrateMutation: () => false },
+  dehydrateOptions: {
+    shouldDehydrateMutation: () => false,
+    // A query can opt out with `meta: { persist: false }`: a copy read to be edited must be fresh.
+    shouldDehydrateQuery: (query) =>
+      defaultShouldDehydrateQuery(query) && query.meta?.persist !== false,
+  },
 }
 
 /**

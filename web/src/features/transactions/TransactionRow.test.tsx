@@ -1,7 +1,7 @@
-import { cleanup, screen } from '@testing-library/react'
+import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { seedMockFamily } from '@/mocks/data'
-import type { MemberView } from '@/shared/api'
+import { mockState, seedMockFamily } from '@/mocks/data'
+import type { AccountView, MemberView } from '@/shared/api'
 import { outboxPayload, renderWithProviders, transactionView } from '@/shared/testing'
 import { TransactionRow } from './TransactionRow'
 
@@ -51,5 +51,42 @@ describe('TransactionRow', () => {
     renderRow(removed({}))
     expect(screen.getByText('Ex-membro')).toBeInTheDocument()
     expect(screen.queryByText(/saiu/)).not.toBeInTheDocument()
+  })
+
+  it('detailNamesTheFamilyAccountForAYouth', () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    const wallet = { ...mockState.accounts[0], name: 'Carteira de Leo' } as unknown as AccountView
+    renderWithProviders(
+      <ul>
+        <TransactionRow
+          item={{
+            ...transactionView(
+              outboxPayload('t1', {
+                kind: 'TRANSFER',
+                categoryId: null,
+                // The allowance leaves an account a Youth cannot see.
+                accountId: '0192f3a4-0000-7000-8000-0000000000a9',
+                toAccountId: wallet.id,
+              }),
+            ),
+            createdAtMs: 0,
+          }}
+          categories={new Map()}
+          accounts={new Map([[wallet.id, wallet]])}
+          workspace={workspace}
+          displayName="Leo Teste"
+          month="2026-11"
+          online
+          onDelete={() => {}}
+        />
+      </ul>,
+    )
+
+    fireEvent.click(screen.getByRole('button'))
+
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Conta da família')).toBeInTheDocument()
+    expect(within(dialog).getByText('Carteira de Leo')).toBeInTheDocument()
   })
 })

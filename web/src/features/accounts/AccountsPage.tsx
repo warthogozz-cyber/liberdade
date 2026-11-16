@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { Link } from 'react-router'
+import { Link, Navigate } from 'react-router'
 import {
   ApiError,
   useAccounts,
@@ -33,6 +33,8 @@ export function AccountsPage() {
   const title = intl.formatMessage({ id: 'accounts.title' })
   useDocumentTitle(title)
   const workspace = useCurrentWorkspace()
+  // A Youth's menu has no such page; one reached by its address goes back to the menu.
+  if (workspace?.role === 'YOUTH') return <Navigate to="/mais" replace />
 
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">

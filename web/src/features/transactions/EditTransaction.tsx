@@ -64,7 +64,14 @@ export function EditTransaction({ id, month, userId, workspace }: EditTransactio
     }
   }, [missing, queryClient, workspace.id, listMonth])
   const found = list.data?.find((each) => each.id === id)
-  const fresh = one.data ?? (one.isError && !gone ? found : undefined)
+  // The copy cached from an earlier visit shows first: wait for this visit's read before opening.
+  const fresh = gone
+    ? undefined
+    : one.isError
+      ? found
+      : one.isFetchedAfterMount
+        ? one.data
+        : undefined
   if (fresh && !opened) setOpened(fresh)
 
   if (!online) {

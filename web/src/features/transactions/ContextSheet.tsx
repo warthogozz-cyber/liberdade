@@ -26,7 +26,7 @@ interface ContextSheetProps {
       workspaceId: string
       selfId: string
       value: string
-      onChange: (memberId: string) => void
+      onChange: (memberId: string, label: string) => void
     }
     accounts: AccountView[]
     accountId: string | undefined

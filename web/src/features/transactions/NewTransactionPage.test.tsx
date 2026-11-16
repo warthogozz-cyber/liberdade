@@ -84,7 +84,7 @@ async function saveExpense(router: { state: { location: { pathname: string } } }
 
 /** Opens the context sheet. */
 function openContext() {
-  fireEvent.click(screen.getByRole('button', { name: /· Eu$/ }))
+  fireEvent.click(screen.getByRole('button', { name: / · .+ · .+$/ }))
   return screen.getByRole('dialog', { name: 'Data e conta' })
 }
 
@@ -587,9 +587,9 @@ describe('NewTransactionPage', () => {
     expect(within(transfer).queryByRole('group', { name: 'Quem' })).not.toBeInTheDocument()
   })
 
-  it('savesChosenMember', async () => {
-    const ANA_ID = '0192f3a4-0000-7000-8000-0000000000a1'
-    vi.useFakeTimers({ toFake: ['Date'] })
+  const ANA_ID = '0192f3a4-0000-7000-8000-0000000000a1'
+
+  function seedFamilyWithAna() {
     const workspace = seedMockFamily()
     mockState.members[workspace.id]!.push({
       id: ANA_ID,
@@ -601,6 +601,36 @@ describe('NewTransactionPage', () => {
       passkeyOnly: false,
       joinedAt: '2026-11-01T12:00:00Z',
     })
+    return workspace
+  }
+
+  /** Opens the context sheet, picks `name` and closes it. */
+  async function pickMember(name: string) {
+    const dialog = openContext()
+    fireEvent.click(await within(dialog).findByRole('radio', { name }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  }
+
+  it('contextLineNamesTheChosenMember', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    seedFamilyWithAna()
+    const router = (await openForm()).router
+
+    await pickMember('Ana')
+    expect(screen.getByRole('button', { name: /· Carteira · Ana$/ })).toBeInTheDocument()
+
+    await pickMember('Você')
+    expect(screen.getByRole('button', { name: /· Carteira · Eu$/ })).toBeInTheDocument()
+    await saveExpense(router)
+
+    const [item] = await db.outbox.toArray()
+    expect(item!.payload).not.toHaveProperty('memberId')
+  })
+
+  it('savesChosenMember', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    seedFamilyWithAna()
     const router = (await openForm()).router
     const dialog = openContext()
     fireEvent.click(await within(dialog).findByRole('radio', { name: 'Ana' }))

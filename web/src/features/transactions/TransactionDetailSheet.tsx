@@ -7,6 +7,7 @@ import { formatBRL, parseCents } from '@/shared/money'
 import { ConfirmDialog, Sheet } from '@/shared/ui'
 import { categoryLabel, type ListItem } from './listItems'
 import { memberLabel } from './memberLabel'
+import './more.register'
 
 interface TransactionDetailSheetProps {
   open: boolean
@@ -70,16 +71,22 @@ export function TransactionDetailSheet({
     item.memberId === workspace.membershipId
       ? `${text('transactions.detail.byMe')} (${firstName(displayName)})`
       : (memberLabel(members?.get(item.memberId), intl) ?? text('transactions.detail.byOther'))
+  // A Youth does not see the family's accounts: the API leaves them out, and so does the list.
+  const unseen =
+    workspace.role === 'YOUTH'
+      ? intl.formatMessage({ id: 'transactions.familyAccount' })
+      : undefined
+  const accountName = (id: string) => accounts.get(id)?.name ?? unseen
   const where: Row[] = transfer
     ? [
-        [text('transactions.detail.from'), accounts.get(item.accountId)?.name],
+        [text('transactions.detail.from'), accountName(item.accountId)],
         [
           text('transactions.detail.to'),
-          item.toAccountId ? accounts.get(item.toAccountId)?.name : undefined,
+          item.toAccountId ? accountName(item.toAccountId) : undefined,
         ],
       ]
     : [
-        [text('transactions.detail.account'), accounts.get(item.accountId)?.name],
+        [text('transactions.detail.account'), accountName(item.accountId)],
         [text('transactions.detail.category'), category ? categoryLabel(category) : undefined],
       ]
   const rows: Row[] = [

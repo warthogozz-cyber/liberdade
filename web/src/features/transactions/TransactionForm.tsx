@@ -161,6 +161,8 @@ export function TransactionForm({
   const [chosenMemberId, setChosenMemberId] = useState<string | undefined>(
     () => fixing?.payload.memberId ?? undefined,
   )
+  // What the context line calls the chosen member; the picker reports it, so no naming loads here.
+  const [chosenLabel, setChosenLabel] = useState<string>()
   const [description, setDescription] = useState(
     () => editing?.description ?? fixing?.payload.description ?? '',
   )
@@ -406,7 +408,14 @@ export function TransactionForm({
               ) : (
                 <FormattedMessage
                   id="expense.context"
-                  values={{ date: dateLabel, account: account?.name ?? '' }}
+                  values={{
+                    date: dateLabel,
+                    account: account?.name ?? '',
+                    who:
+                      chosenMemberId && chosenMemberId !== workspace.membershipId && chosenLabel
+                        ? chosenLabel
+                        : intl.formatMessage({ id: 'transactions.detail.byMe' }),
+                  }}
                 />
               )}
               <span aria-hidden="true">✎</span>
@@ -429,7 +438,10 @@ export function TransactionForm({
                               workspaceId: workspace.id,
                               selfId: workspace.membershipId,
                               value: chosenMemberId ?? editing?.memberId ?? workspace.membershipId,
-                              onChange: setChosenMemberId,
+                              onChange: (memberId, label) => {
+                                setChosenMemberId(memberId)
+                                setChosenLabel(label)
+                              },
                             }
                           : undefined,
                       accounts: activeAccounts,

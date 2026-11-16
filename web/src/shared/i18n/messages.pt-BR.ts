@@ -49,7 +49,7 @@ export const messages = {
   'expense.category': 'Categoria',
   'expense.moreCategories': 'Mais',
   'expense.allCategories': 'Todas as categorias',
-  'expense.context': '{date} · {account} · Eu',
+  'expense.context': '{date} · {account} · {who}',
   'expense.contextSheetTitle': 'Data e conta',
   'expense.date': 'Data',
   'expense.account': 'Conta',

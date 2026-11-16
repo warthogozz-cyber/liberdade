@@ -1,21 +1,16 @@
-import { useId, useState } from 'react'
+import { useId } from 'react'
 import { useIntl } from 'react-intl'
 import { memberName } from '@/features/members/memberName'
-import { useSetAccountOwner } from '@/shared/api/detail'
+import { memberLabel } from '@/features/transactions/memberLabel'
 import { useMembers } from '@/shared/api/family'
-import { useToast } from '@/shared/ui'
-import type { AccountView, MeWorkspace } from '@/shared/api'
+import type { MeWorkspace } from '@/shared/api'
 import './register'
 
 interface OwnerPickerProps {
   workspace: MeWorkspace
-  /**
-   * An account that exists: choosing saves right away, since the owner has its own call. Without
-   * one the choice is only reported to `onChange`, for the account about to be created.
-   */
-  account?: AccountView
-  value?: string | null
-  onChange?: (membershipId: string | null) => void
+  /** The membership who owns the account, or `null` for nobody. */
+  value: string | null
+  onChange: (membershipId: string | null) => void
   disabled?: boolean
 }
 
@@ -23,34 +18,14 @@ const option =
   'flex min-h-12 cursor-pointer items-center gap-3 rounded-field border border-text-muted/30 px-3 has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:disabled]:opacity-50'
 
 /** Who an account belongs to ("Titular"): one of the people in the family, or "Ninguém". */
-export function OwnerPicker({ workspace, account, value, onChange, disabled }: OwnerPickerProps) {
+export function OwnerPicker({ workspace, value, onChange, disabled }: OwnerPickerProps) {
   const intl = useIntl()
-  const toast = useToast()
   const ids = useId()
-  const members = (useMembers(workspace.id).data ?? []).filter((each) => each.status === 'ACTIVE')
-  const setOwner = useSetAccountOwner(workspace.id)
-  const [saved, setSaved] = useState<string | null>(account?.ownerMembershipId ?? null)
-  const current = account ? saved : (value ?? null)
-
-  function choose(membershipId: string | null) {
-    if (!account) {
-      onChange?.(membershipId)
-      return
-    }
-    const before = saved
-    setSaved(membershipId)
-    setOwner.mutate(
-      { id: account.id, membershipId },
-      {
-        onSuccess: () => toast.show({ message: intl.formatMessage({ id: 'accounts.saved' }) }),
-        onError: (error) => {
-          console.error(error)
-          setSaved(before)
-          toast.show({ message: intl.formatMessage({ id: 'common.actionFailed' }) })
-        },
-      },
-    )
-  }
+  const all = useMembers(workspace.id).data ?? []
+  const members = all.filter((each) => each.status === 'ACTIVE')
+  // An owner who has left stays shown, so the form does not look unset; picking anyone else drops them.
+  const left = all.find((each) => each.id === value && each.status !== 'ACTIVE')
+  const choose = onChange
 
   return (
     <fieldset className="flex flex-col gap-2">
@@ -63,18 +38,24 @@ export function OwnerPicker({ workspace, account, value, onChange, disabled }: O
             type="radio"
             name={`${ids}-owner`}
             disabled={disabled}
-            checked={current === null}
+            checked={value === null}
             onChange={() => choose(null)}
           />
           {intl.formatMessage({ id: 'accounts.owner.none' })}
         </label>
+        {left && (
+          <label className={option}>
+            <input type="radio" name={`${ids}-owner`} checked disabled readOnly />
+            {memberLabel(left, intl)}
+          </label>
+        )}
         {members.map((member) => (
           <label key={member.id} className={option}>
             <input
               type="radio"
               name={`${ids}-owner`}
               disabled={disabled}
-              checked={current === member.id}
+              checked={value === member.id}
               onChange={() => choose(member.id)}
             />
             {memberName(member, intl)}

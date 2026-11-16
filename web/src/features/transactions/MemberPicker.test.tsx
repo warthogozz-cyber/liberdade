@@ -74,7 +74,7 @@ describe('MemberPicker', () => {
 
     fireEvent.click(await screen.findByRole('radio', { name: 'Leo' }))
 
-    expect(onChange).toHaveBeenCalledWith('m-leo')
+    expect(onChange).toHaveBeenCalledWith('m-leo', 'Leo')
   })
 
   it('showsOnlyYouDisabledWithoutTheList', () => {

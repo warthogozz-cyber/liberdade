@@ -75,6 +75,20 @@ describe('persistOptions', () => {
     await expect(saveQueryCacheNow(createTestQueryClient())).resolves.toBeUndefined()
   })
 
+  it('leavesOutAQueryThatOptsOutOfPersisting', async () => {
+    const queryClient = createTestQueryClient()
+    await queryClient.prefetchQuery({
+      queryKey: queryKeys.me,
+      queryFn: () => me,
+      meta: { persist: false },
+    })
+    await queryClient.prefetchQuery({ queryKey: ['kept'], queryFn: () => 'kept' })
+
+    const saved = dehydrate(queryClient, persistOptions.dehydrateOptions)
+
+    expect(saved.queries.map((query) => query.queryKey)).toEqual([['kept']])
+  })
+
   it('restores nothing when nothing was saved', async () => {
     expect(await persistOptions.persister.restoreClient()).toBeUndefined()
   })

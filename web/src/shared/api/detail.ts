@@ -38,6 +38,9 @@ export function useTransaction(ws: string, id: string) {
     queryKey: transactionKey(ws, id),
     queryFn: () => getTransaction(ws, id),
     staleTime: 0,
+    // Nothing of it outlives the screen: not in memory, and not on the device either.
+    gcTime: 0,
+    meta: { persist: false },
   })
 }
 
@@ -47,6 +50,12 @@ export function useSetAccountOwner(ws: string) {
   return useMutation({
     mutationFn: ({ id, membershipId }: { id: string; membershipId: string | null }) =>
       setAccountOwner(ws, id, membershipId),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.workspace(ws) }),
+    onSettled: async () => {
+      // Only what shows owners: the accounts, and the dashboard's account list.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.accounts(ws) }),
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.workspace(ws), 'dashboard'] }),
+      ])
+    },
   })
 }

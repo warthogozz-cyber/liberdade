@@ -9,7 +9,8 @@ interface MemberPickerProps {
   selfId: string
   /** The member chosen; `selfId` while nobody else is. */
   value: string
-  onChange: (memberId: string) => void
+  /** The label comes along so the entry never needs the members' naming to show who was chosen. */
+  onChange: (memberId: string, label: string) => void
 }
 
 const option =
@@ -38,7 +39,7 @@ export default function MemberPicker({ workspaceId, selfId, value, onChange }: M
           name="member"
           disabled={!canChoose}
           checked={value === selfId || !canChoose}
-          onChange={() => onChange(selfId)}
+          onChange={() => onChange(selfId, you)}
         />
         {you}
       </label>
@@ -48,7 +49,7 @@ export default function MemberPicker({ workspaceId, selfId, value, onChange }: M
             type="radio"
             name="member"
             checked={member.id === value}
-            onChange={() => onChange(member.id)}
+            onChange={() => onChange(member.id, memberName(member, intl))}
           />
           {memberName(member, intl)}
         </label>

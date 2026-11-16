@@ -5,6 +5,7 @@ import { mockState, seedMockFamily } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL, queryKeys } from '@/shared/api'
+import { transactionKey } from '@/shared/api/detail'
 import {
   createTestQueryClient,
   outboxPayload,
@@ -48,7 +49,39 @@ function renderEdit(queryClient = createTestQueryClient()) {
   })
 }
 
+/** Puts an earlier read of the transaction, at `amount`, in the cache: the copy of a past visit. */
+function seedEarlierRead(workspaceId: string, amount: string) {
+  const queryClient = createTestQueryClient()
+  const body = outboxPayload(EDIT_ID, {
+    accountId: mockState.accounts[0].id,
+    categoryId: mockState.categories.find((each) => each.name === 'Mercado')!.id,
+    amount: { amount, currency: 'BRL' },
+  })
+  queryClient.setQueryData(transactionKey(workspaceId, EDIT_ID), transactionView(body))
+  return queryClient
+}
+
 describe('EditTransaction', () => {
+  it('neverOpensTheCachedCopyBeforeTheServerAnswers', async () => {
+    const { workspace } = setUp('12.00')
+    renderEdit(seedEarlierRead(workspace.id, '10.00'))
+
+    // The earlier read is in the cache, but the form waits for this visit's.
+    expect(screen.queryByRole('status', { name: 'Valor' })).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByRole('status', { name: 'Valor' })).toHaveTextContent('R$ 12,00'),
+    )
+  })
+
+  it('doesNotOpenAnEarlierReadOfADeletedTransaction', async () => {
+    const { workspace } = setUp('12.00')
+    mockState.deletedTransactionIds.add(EDIT_ID)
+    renderEdit(seedEarlierRead(workspace.id, '10.00'))
+
+    expect(await screen.findByText('Este lançamento foi excluído')).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'Valor' })).not.toBeInTheDocument()
+  })
+
   it('loadsFreshCopy', async () => {
     const { queryClient } = setUp('12.00', '10.00')
     renderEdit(queryClient)

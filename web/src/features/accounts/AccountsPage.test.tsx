@@ -380,4 +380,12 @@ describe('AccountsPage', () => {
     // The family's own wallet belongs to the signed-in member, whom the list names too.
     expect(await within(await row('Carteira')).findByText(/^Titular: /)).toBeInTheDocument()
   })
+
+  it('sendsAYouthBackToTheMenu', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    const { router } = renderAccounts()
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/mais'))
+  })
 })
