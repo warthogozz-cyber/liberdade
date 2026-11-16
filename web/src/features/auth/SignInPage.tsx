@@ -5,11 +5,12 @@ import {
 } from '@simplewebauthn/browser'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { useNavigate, useSearchParams } from 'react-router'
 import { ApiError, postJson } from '@/shared/api'
 import type { messages } from '@/shared/i18n'
 import { clearSession, useOnline } from '@/shared/offline'
+import { useDocumentTitle } from '@/shared/ui'
 import { startGoogleSignIn } from './google'
 
 type MessageId = keyof typeof messages
@@ -32,6 +33,7 @@ function isCancelled(error: unknown): boolean {
 }
 
 export function SignInPage() {
+  useDocumentTitle(useIntl().formatMessage({ id: 'signIn.pageTitle' }))
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [params] = useSearchParams()

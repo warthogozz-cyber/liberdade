@@ -50,7 +50,16 @@ export function SignOutButton() {
 
   async function start() {
     if (!userId || !claim()) return
-    const count = await countOutboxForUser(userId)
+    let count: number
+    try {
+      count = await countOutboxForUser(userId)
+    } catch {
+      // Without the count there is no telling whether queued expenses would be lost, so nothing else
+      // runs (T10-signout-count).
+      setFailed(true)
+      release()
+      return
+    }
     if (count > 0) {
       setPending(count)
       release()

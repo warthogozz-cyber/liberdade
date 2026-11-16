@@ -1,14 +1,16 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { Navigate, useNavigate } from 'react-router'
 import { useCreateWorkspace, useMe } from '@/shared/api'
 import { firstName } from '@/shared/i18n'
 import { useOnline } from '@/shared/offline'
+import { useDocumentTitle } from '@/shared/ui'
 
 const MAX_NAME_LENGTH = 60
 
 /** The first screen after sign-in: names the family and creates it. */
 export function WelcomePage() {
+  useDocumentTitle(useIntl().formatMessage({ id: 'welcome.pageTitle' }))
   const me = useMe().data
   const createWorkspace = useCreateWorkspace()
   const navigate = useNavigate()

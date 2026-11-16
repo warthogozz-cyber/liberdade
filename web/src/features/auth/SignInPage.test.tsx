@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SignInPage } from '@/features/auth/SignInPage'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
-import { API_URL } from '@/shared/api'
+import { API_URL, postJson } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
 import { startGoogleSignIn } from './google'
 
@@ -48,6 +48,7 @@ describe('SignInPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Liberdade' })).toBeInTheDocument()
     expect(screen.getByText('As finanças da sua família, simples e em paz.')).toBeInTheDocument()
     expect(screen.getByText('Sem senha. Nunca pedimos a senha do seu banco.')).toBeInTheDocument()
+    expect(document.title).toBe('Entrar · Liberdade')
   })
 
   it('shows the failed sign-in from ?erro=login', () => {
@@ -89,6 +90,28 @@ describe('SignInPage', () => {
     expect(startAuthentication).toHaveBeenCalledWith({
       optionsJSON: expect.objectContaining({ rpId: 'localhost' }) as unknown,
     })
+  })
+
+  it('forgets the previous cache and CSRF token after a passkey sign-in (T10-csrf)', async () => {
+    const tokenRequests: string[] = []
+    const record = ({ request }: { request: Request }) => {
+      if (new URL(request.url).pathname === '/v1/csrf') tokenRequests.push(request.method)
+    }
+    server.events.on('request:start', record)
+    try {
+      const { router, queryClient } = renderSignIn()
+      queryClient.setQueryData(['transactions', 'old'], ['from the previous person'])
+
+      fireEvent.click(passkeyButton())
+
+      await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+      expect(queryClient.getQueryCache().getAll()).toEqual([])
+      expect(tokenRequests).toEqual(['GET'])
+      await postJson('/logout')
+      expect(tokenRequests).toEqual(['GET', 'GET'])
+    } finally {
+      server.events.removeListener('request:start', record)
+    }
   })
 
   it('starts one passkey sign-in for two quick taps', async () => {

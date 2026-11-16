@@ -45,6 +45,7 @@ describe('WelcomePage', () => {
       'Conta "Carteira"',
       'Categorias do dia a dia',
     ])
+    expect(document.title).toBe('Boas-vindas · Liberdade')
   })
 
   it('creates the family with the trimmed name, then opens the new expense', async () => {

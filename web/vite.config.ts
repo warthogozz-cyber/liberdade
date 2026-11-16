@@ -16,6 +16,10 @@ export default defineConfig({
       injectRegister: false,
       workbox: {
         navigateFallback: '/index.html',
+        // The API's browser routes reach the server, never the app shell (T10-fallback-denylist).
+        navigateFallbackDenylist: [/^\/(oauth2|login|logout|webauthn)(\/|$)/],
+        // The fonts too, so the first screen offline keeps Inter (T10-precache-fonts).
+        globPatterns: ['**/*.{js,css,html,woff2}'],
         // MSW's worker ships in `public/` for `dev:mocks`; the app's worker never caches it.
         globIgnores: ['**/mockServiceWorker.js'],
       },

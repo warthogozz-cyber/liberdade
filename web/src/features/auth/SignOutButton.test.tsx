@@ -106,6 +106,36 @@ describe('SignOutButton', () => {
     expect(await countOutboxForUser(mockState.user.id)).toBe(1)
   })
 
+  it('says so and does nothing else when the queue cannot be counted', async () => {
+    const logouts = recordLogouts()
+    vi.spyOn(db.outbox, 'where').mockImplementation(() => {
+      throw new Error('IndexedDB is gone')
+    })
+    const { router } = renderButton()
+
+    fireEvent.click(await signOutButton())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não deu para sair. Tente de novo.')
+    expect(screen.getByRole('button', { name: 'Sair' })).toBeEnabled()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(logouts).toEqual([])
+    expect(router.state.location.pathname).toBe('/mais')
+  })
+
+  it('leaves the screens before it forgets the cache', async () => {
+    const { router, queryClient } = renderButton()
+    const clear = queryClient.clear.bind(queryClient)
+    const pathsAtClear: string[] = []
+    vi.spyOn(queryClient, 'clear').mockImplementation(() => {
+      pathsAtClear.push(router.state.location.pathname)
+      clear()
+    })
+
+    fireEvent.click(await signOutButton())
+
+    await waitFor(() => expect(pathsAtClear).toEqual(['/entrar']))
+  })
+
   it('is disabled offline', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     renderButton()

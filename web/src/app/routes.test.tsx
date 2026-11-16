@@ -75,5 +75,6 @@ describe('routes', () => {
 
     expect(screen.getByRole('heading', { name: 'Página não encontrada.' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Voltar ao início' })).toHaveAttribute('href', '/')
+    expect(document.title).toBe('Página não encontrada · Liberdade')
   })
 })

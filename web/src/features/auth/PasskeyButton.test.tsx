@@ -43,11 +43,14 @@ describe('PasskeyButton', () => {
         bodies.push(await request.clone().json())
       }),
     )
-    renderButton()
+    const { queryClient } = renderButton()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
 
     fireEvent.click(await createButton())
 
     expect(await screen.findByText('Passkey criada.')).toHaveAttribute('role', 'status')
+    // The date of the new passkey comes from a fresh `/v1/me`.
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['me'] })
     expect(bodies).toEqual([{ publicKey: { credential, label: 'Este aparelho' } }])
     expect(startRegistration).toHaveBeenCalledWith({
       optionsJSON: expect.objectContaining({
@@ -57,7 +60,8 @@ describe('PasskeyButton', () => {
   })
 
   it('shows when the last passkey was created, in the family’s time zone', async () => {
-    mockState.user.passkeyCreatedAt = '2026-11-02T13:00:00Z'
+    // Already 3 November in UTC, still 2 November in Fortaleza (UTC-3).
+    mockState.user.passkeyCreatedAt = '2026-11-03T01:00:00Z'
     renderButton()
 
     expect(
