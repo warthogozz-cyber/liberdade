@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.shared.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.shared.DomainException;
+import br.com.liberdadefamilia.shared.RateLimitedException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -53,6 +54,18 @@ class ProblemHandlerTest {
         assertThat(result).hasStatus(409).hasContentType(MediaType.parseMediaType(PROBLEM_JSON));
         assertThat(result).bodyJson().isLenientlyEqualTo("""
                 {"code":"test.conflict","detail":"Conflito de teste.","current":{"version":1,"name":"Atual"}}""");
+    }
+
+    @Test
+    void rateLimitedCarriesRetryAfter() {
+        var result = mvc.get().uri("/test/rate-limited");
+        assertThat(result).hasStatus(429).hasContentType(MediaType.parseMediaType(PROBLEM_JSON));
+        assertThat(result).hasHeader("Retry-After", "42");
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("rate.limited");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .isEqualTo("Muitas tentativas. Tente de novo em instantes.");
     }
 
     @Test
@@ -194,6 +207,11 @@ class ProblemHandlerTest {
         @GetMapping("/test/domain-error-with-properties")
         String domainErrorWithProperties() {
             throw new TestConflictException(Map.of("current", new Current(1, "Atual")));
+        }
+
+        @GetMapping("/test/rate-limited")
+        String rateLimited() {
+            throw new RateLimitedException(42);
         }
 
         @GetMapping("/test/missing-var")

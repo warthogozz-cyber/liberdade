@@ -6,6 +6,7 @@ import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /** Lets controllers take a {@link br.com.liberdadefamilia.identity.CurrentUser} parameter. */
@@ -18,9 +19,16 @@ class IdentityWebConfig implements WebMvcConfigurer {
     }
 
     private final UserAccounts accounts;
+    private final RecentSignInInterceptor recentSignIn;
 
-    IdentityWebConfig(UserAccounts accounts) {
+    IdentityWebConfig(UserAccounts accounts, RecentSignInInterceptor recentSignIn) {
         this.accounts = accounts;
+        this.recentSignIn = recentSignIn;
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(recentSignIn).addPathPatterns("/v1/**");
     }
 
     @Override

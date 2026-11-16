@@ -1,10 +1,12 @@
 package br.com.liberdadefamilia.identity.internal;
 
+import br.com.liberdadefamilia.shared.RateLimiter;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -67,7 +69,7 @@ class SecurityConfig {
             NoOpAuthorizedClientRepository authorizedClients,
             SecurityProblemHandlers problems,
             UserAccounts accounts,
-            LoginRateLimiter limiter,
+            @Qualifier("loginRateLimiter") RateLimiter limiter,
             MinimalSecurityContextRepository contexts,
             PersistentSessionCookieSerializer cookies,
             Clock clock,
@@ -89,7 +91,8 @@ class SecurityConfig {
                         .anyRequest()
                         .authenticated())
                 .oauth2Login(login -> login.loginPage(origin + "/entrar")
-                        .authorizationEndpoint(endpoint -> endpoint.authorizationRequestResolver(pkce(clients)))
+                        .authorizationEndpoint(endpoint -> endpoint.authorizationRequestResolver(
+                                new ReauthAuthorizationRequestResolver(pkce(clients))))
                         .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService))
                         .authorizedClientRepository(authorizedClients)
                         .successHandler((request, response, authentication) ->
@@ -151,8 +154,8 @@ class SecurityConfig {
 
     /** Shared by both sign-ins, so neither stores more than the user id in the session. */
     @Bean
-    MinimalSecurityContextRepository securityContextRepository() {
-        return new MinimalSecurityContextRepository(new HttpSessionSecurityContextRepository());
+    MinimalSecurityContextRepository securityContextRepository(Clock clock, ApplicationEventPublisher events) {
+        return new MinimalSecurityContextRepository(new HttpSessionSecurityContextRepository(), clock, events);
     }
 
     @Bean
@@ -162,15 +165,15 @@ class SecurityConfig {
 
     /** At most 20 sign-in attempts a minute per address (D10). */
     @Bean
-    LoginRateLimiter loginRateLimiter(Clock clock) {
-        return new LoginRateLimiter(clock, 20);
+    RateLimiter loginRateLimiter(Clock clock) {
+        return new RateLimiter(clock, 20, Duration.ofMinutes(1));
     }
 
     /**
      * Raises the session to {@link #SIGNED_IN_IDLE_TIMEOUT} on every sign-in, with Google or with a passkey, and marks
      * the request so the cookie written with the new session id lasts as long.
      */
-    private static SessionAuthenticationStrategy signedInIdleTimeout() {
+    static SessionAuthenticationStrategy signedInIdleTimeout() {
         return (authentication, request, response) -> {
             request.getSession().setMaxInactiveInterval(Math.toIntExact(SIGNED_IN_IDLE_TIMEOUT.toSeconds()));
             request.setAttribute(PersistentSessionCookieSerializer.PERSISTENT, Boolean.TRUE);
@@ -216,7 +219,7 @@ class SecurityConfig {
     private static CorsConfigurationSource cors(String origin) {
         var config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(origin));
-        config.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Content-Type", CSRF_HEADER, "Idempotency-Key"));
         config.setExposedHeaders(List.of("Retry-After"));
         config.setAllowCredentials(true);
