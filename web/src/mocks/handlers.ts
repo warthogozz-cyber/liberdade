@@ -8,7 +8,7 @@ import {
 } from '@/shared/api'
 import { centsToApi, MAX_CENTS, parseCents } from '@/shared/money'
 import type { components } from '@/shared/api/schema'
-import { createFamily, type MockAccount, mockState } from './data'
+import { createFamily, type MockAccount, type MockInvitation, mockState } from './data'
 
 type Schemas = components['schemas']
 
@@ -43,6 +43,72 @@ interface FieldError {
 }
 
 /** A problem answer, shaped like the API's (`application/problem+json`), with any extra properties. */
+/** 43 base64url characters, like the API's tokens (32 random bytes). */
+function newToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '')
+}
+
+const INVITE_ROLES: unknown[] = ['OWNER', 'ADULT', 'YOUTH', 'VIEWER']
+const roleDenied = () => problem(403, 'auth.forbidden', 'Você não tem permissão para isso.')
+const invitationNotFound = () => problem(404, 'invitation.not-found', 'Convite não encontrado.')
+const invitationGoneProblem = () =>
+  problem(410, 'invitation.gone', 'Este convite já foi usado, cancelado ou venceu.')
+
+const MODULE_KEYS: Schemas['ModuleView']['key'][] = [
+  'planning',
+  'indicators',
+  'gamification',
+  'ventures',
+]
+
+/** The four modules in the API's order, off unless the family switched them on. */
+function moduleViews(workspaceId: string): Schemas['ModuleView'][] {
+  const on = mockState.modules[workspaceId] ?? {}
+  return MODULE_KEYS.map((key) => ({ key, enabled: on[key] === true }))
+}
+
+/** A link is gone once used, cancelled or past its date. */
+function invitationGone(invitation: MockInvitation): boolean {
+  return invitation.status !== 'PENDING' || Date.parse(invitation.view.expiresAt) <= Date.now()
+}
+
+/** Puts the family in the signed-in person's `me`, as joining it does, when it is not there yet. */
+function joinWorkspace(
+  invitation: MockInvitation,
+  membershipId: string,
+  role: Schemas['MemberView']['role'],
+): void {
+  if (mockState.workspaces.some((workspace) => workspace.id === invitation.workspaceId)) return
+  mockState.workspaces.push({
+    id: invitation.workspaceId,
+    membershipId,
+    name: invitation.workspaceName ?? '',
+    role,
+    currency: 'BRL',
+    timezone: 'America/Fortaleza',
+    gettingStartedDismissedAt: null,
+    hasTransactions: false,
+    familyInvited: false,
+    recoveredAt: null,
+    deletionScheduledFor: null,
+  })
+}
+
+/** The member a RECOVERY link is for. */
+function recoveryTargetOf(invitation: MockInvitation) {
+  return mockState.members[invitation.workspaceId]?.find(
+    (member) => member.id === invitation.targetMembershipId,
+  )
+}
+
+function lastOwner() {
+  return problem(422, 'member.last-owner', 'A família precisa de pelo menos uma Dona ou Dono.')
+}
+
 export function problem(
   status: number,
   code: string,
@@ -63,18 +129,37 @@ const rejected = (code: string, detail: string) => problem(422, code, detail)
 
 const url = (path: string) => `${API_URL}${path}`
 
+// An empty but valid zip: just the end-of-central-directory record.
+const EMPTY_ZIP = new Uint8Array([0x50, 0x4b, 0x05, 0x06, ...new Array<number>(18).fill(0)])
+
+function zipResponse(prefix: string) {
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date())
+  return new HttpResponse(EMPTY_ZIP, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="${prefix}-${day}.zip"`,
+      'Cache-Control': 'no-store',
+    },
+  })
+}
+
 /** The API answers 403 `csrf.invalid` to any write without the token. */
 function withoutToken(request: Request) {
   return request.headers.get(CSRF.headerName) !== CSRF.token
 }
 
-/** The signed-in user, then their family `ws`, guard every route under a family. */
-function guard(ws: string): MeWorkspace | Response {
+/**
+ * The signed-in user, then their family `ws`, guard every route under a family. A family being deleted is hidden
+ * (404) like the API does, except to its Owners on the two routes that opt in.
+ */
+function guard(ws: string, includePendingDeletion = false): MeWorkspace | Response {
   if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
-  return (
-    mockState.workspaces.find((workspace) => workspace.id === ws) ??
-    problem(404, 'workspace.not-found', 'Família não encontrada.')
-  )
+  const workspace = mockState.workspaces.find((candidate) => candidate.id === ws)
+  const visible =
+    workspace &&
+    (!workspace.deletionScheduledFor || (includePendingDeletion && workspace.role === 'OWNER'))
+  return visible ? workspace : problem(404, 'workspace.not-found', 'Família não encontrada.')
 }
 
 async function readJson(request: Request): Promise<unknown> {
@@ -224,7 +309,7 @@ function readable(body: Partial<CreateTransactionRequest & UpdateTransactionRequ
   const isUuid = (value: unknown) =>
     value == null || (typeof value === 'string' && UUID.test(value))
   return (
-    [body.id, body.accountId, body.toAccountId, body.categoryId].every(isUuid) &&
+    [body.id, body.accountId, body.toAccountId, body.categoryId, body.memberId].every(isUuid) &&
     (body.kind == null || KINDS.includes(body.kind)) &&
     (body.occurredOn == null || DATE.test(body.occurredOn)) &&
     (body.amount?.amount == null || NUMBER.test(String(body.amount.amount))) &&
@@ -267,6 +352,7 @@ function sameContent(stored: TransactionView, request: TransactionView) {
     stored.accountId === request.accountId &&
     stored.toAccountId === request.toAccountId &&
     stored.categoryId === request.categoryId &&
+    stored.memberId === request.memberId &&
     stored.description === request.description
   )
 }
@@ -397,6 +483,14 @@ interface Proposed {
   accountId: string
   toAccountId: string | null
   categoryId: string | null
+  memberId: string
+}
+
+/** Whether the person is an active member of the family. */
+function activeMember(workspace: MeWorkspace, membershipId: string) {
+  return (mockState.members[workspace.id] ?? []).some(
+    (member) => member.id === membershipId && member.status === 'ACTIVE',
+  )
 }
 
 /** An account the transaction may use: active, or the one it already had (D10). */
@@ -457,6 +551,14 @@ function familyRuleFailure(
   const { currency } = proposed.amount
   if (currency !== account.currency || currency !== destination.currency) {
     return rejected('transaction.currency-mismatch', 'A moeda do valor não é a mesma da conta.')
+  }
+  // The member the transaction already has may have left since; anyone else must be in the family.
+  if (
+    proposed.memberId !== workspace.membershipId &&
+    proposed.memberId !== current?.memberId &&
+    !activeMember(workspace, proposed.memberId)
+  ) {
+    return rejected('transaction.member-not-found', 'Essa pessoa não faz parte da família.')
   }
   return undefined
 }
@@ -554,15 +656,457 @@ export const handlers = [
     if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
     return HttpResponse.json({
       user: mockState.user,
-      workspaces: mockState.workspaces.map((workspace) => ({
-        ...workspace,
-        // The family has a transaction once one is stored and not deleted.
-        hasTransactions:
-          workspace.hasTransactions ||
-          mockState.transactions.some((tx) => !mockState.deletedTransactionIds.has(tx.id)),
-      })),
+      workspaces: mockState.workspaces
+        .filter((workspace) => !workspace.deletionScheduledFor || workspace.role === 'OWNER')
+        .map((workspace) => ({
+          ...workspace,
+          // The family has a transaction once one is stored and not deleted.
+          hasTransactions:
+            workspace.hasTransactions ||
+            mockState.transactions.some((tx) => !mockState.deletedTransactionIds.has(tx.id)),
+        })),
       suggestedWorkspaceName: mockState.suggestedWorkspaceName,
     })
+  }),
+
+  http.get(url('/v1/me/activity'), () => {
+    if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
+    return HttpResponse.json(mockState.activity)
+  }),
+
+  http.post(url('/v1/me/export'), ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    if (!mockState.signedIn) return authRequired()
+    return zipResponse('liberdade-meus-dados')
+  }),
+
+  http.post<{ ws: string }>(url('/v1/workspaces/:ws/export'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws), true)
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER') return roleDenied()
+    return zipResponse('liberdade-familia')
+  }),
+
+  http.post(url('/v1/me/deletion'), ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    if (!mockState.signedIn) return authRequired()
+    const scheduled = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    mockState.user = {
+      ...mockState.user,
+      deletionScheduledFor: mockState.user.deletionScheduledFor ?? scheduled,
+    }
+    return HttpResponse.json(
+      { deletionScheduledFor: mockState.user.deletionScheduledFor },
+      { status: 202 },
+    )
+  }),
+
+  http.delete(url('/v1/me/deletion'), ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    if (!mockState.signedIn) return authRequired()
+    mockState.user = { ...mockState.user, deletionScheduledFor: null }
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post<{ ws: string }>(url('/v1/workspaces/:ws/deletion'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER') return roleDenied()
+    const scheduled =
+      workspace.deletionScheduledFor ??
+      new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    workspace.deletionScheduledFor = scheduled
+    return HttpResponse.json({ deletionScheduledFor: scheduled }, { status: 202 })
+  }),
+
+  http.delete<{ ws: string }>(url('/v1/workspaces/:ws/deletion'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws), true)
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER') return roleDenied()
+    workspace.deletionScheduledFor = null
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get(url('/v1/me/consents'), () => {
+    if (!mockState.signedIn) return authRequired()
+    return HttpResponse.json(
+      mockState.consents.map((consent) => {
+        const view: Partial<typeof consent> = { ...consent }
+        delete view.grantedByMe
+        return view
+      }),
+    )
+  }),
+
+  http.delete(url('/v1/me/consents/:id'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    if (!mockState.signedIn) return authRequired()
+    const consent = mockState.consents.find((candidate) => candidate.id === params.id)
+    if (!consent) return problem(404, 'consent.not-found', 'Consentimento não encontrado.')
+    if (!consent.grantedByMe) {
+      return problem(403, 'consent.revoke-forbidden', 'Só quem deu o consentimento pode revogá-lo.')
+    }
+    // Withdrawn or superseded already: nothing left to do.
+    if (consent.revokedAt !== null || consent.supersededAt !== null) {
+      return new HttpResponse(null, { status: 204 })
+    }
+    const now = new Date().toISOString()
+    consent.revokedAt = now
+    consent.canRevoke = false
+    // The youth the consent covers leaves the family, as the API does when the member is still a youth.
+    const youth = (mockState.members[consent.workspaceId] ?? []).find(
+      (member) =>
+        member.nickname === consent.subjectName &&
+        member.role === 'YOUTH' &&
+        member.status === 'ACTIVE',
+    )
+    if (youth) youth.status = 'REMOVED'
+    mockState.activity.unshift(
+      {
+        id: crypto.randomUUID(),
+        action: 'member.removed',
+        occurredAt: now,
+        workspaceId: consent.workspaceId,
+        actorName: mockState.user.displayName,
+        byMe: true,
+        metadata: { reason: 'CONSENT_REVOKED' },
+      },
+      {
+        id: crypto.randomUUID(),
+        action: 'consent.revoked',
+        occurredAt: now,
+        workspaceId: consent.workspaceId,
+        actorName: mockState.user.displayName,
+        byMe: true,
+        metadata: { purpose: 'PARENTAL' },
+      },
+    )
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.patch(url('/v1/workspaces/:ws'), async ({ request, params }) => {
+    if (withoutToken(request)) {
+      return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
+    }
+    if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
+    const workspace = mockState.workspaces.find((candidate) => candidate.id === params.ws)
+    if (!workspace) return problem(404, 'workspace.not-found', 'Família não encontrada.')
+    const body = (await request.json()) as { name?: string }
+    const name = (body.name ?? '').trim()
+    if (name === '') {
+      return problem(422, 'request.invalid', 'Revise os campos.', [
+        { field: 'name', code: 'NotBlank' },
+      ])
+    }
+    workspace.name = name
+    return HttpResponse.json(workspace)
+  }),
+
+  http.get(url('/v1/workspaces/:ws/members'), ({ params }) => {
+    if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
+    const members = mockState.members[String(params.ws)]
+    if (!members) return problem(404, 'workspace.not-found', 'Família não encontrada.')
+    const active = (member: Schemas['MemberView']) => member.status === 'ACTIVE'
+    return HttpResponse.json([...members].sort((a, b) => Number(!active(a)) - Number(!active(b))))
+  }),
+
+  http.patch(url('/v1/workspaces/:ws/members/:id'), async ({ request, params }) => {
+    if (withoutToken(request)) {
+      return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
+    }
+    if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
+    const members = mockState.members[String(params.ws)] ?? []
+    const member = members.find((candidate) => candidate.id === params.id)
+    if (!member) return problem(404, 'member.not-found', 'Pessoa não encontrada.')
+    const body = (await request.json()) as {
+      role?: Schemas['MemberView']['role'] | null
+      nickname?: string | null
+      parentalConsent?: boolean | null
+    }
+    if (body.role == null && body.nickname === undefined) {
+      return problem(422, 'request.invalid', 'Revise os campos.')
+    }
+    if (member.status === 'REMOVED') {
+      return problem(422, 'member.removed', 'Essa pessoa já saiu da família.')
+    }
+    if (body.role != null && body.role !== member.role) {
+      const owners = members.filter((m) => m.role === 'OWNER' && m.status === 'ACTIVE')
+      if (member.role === 'OWNER' && owners.length <= 1) return lastOwner()
+      if (body.role === 'YOUTH' && member.you) {
+        return problem(
+          422,
+          'member.self-youth',
+          'Você não pode mudar o seu próprio papel para Jovem.',
+        )
+      }
+      if (body.role === 'YOUTH' && body.parentalConsent !== true) {
+        return problem(
+          422,
+          'member.parental-consent-required',
+          'Para ser Jovem, é preciso o consentimento do responsável.',
+        )
+      }
+      member.role = body.role
+      const workspace = mockState.workspaces.find((candidate) => candidate.id === params.ws)
+      if (workspace && member.you) workspace.role = body.role
+    }
+    if (body.nickname !== undefined) member.nickname = body.nickname?.trim() || null
+    return HttpResponse.json(member)
+  }),
+
+  http.delete(url('/v1/workspaces/:ws/members/:id'), ({ request, params }) => {
+    if (withoutToken(request)) {
+      return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
+    }
+    if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
+    const members = mockState.members[String(params.ws)] ?? []
+    const member = members.find((candidate) => candidate.id === params.id)
+    if (!member) return problem(404, 'member.not-found', 'Pessoa não encontrada.')
+    if (member.status === 'ACTIVE') {
+      const owners = members.filter((m) => m.role === 'OWNER' && m.status === 'ACTIVE')
+      if (member.role === 'OWNER' && owners.length <= 1) return lastOwner()
+      member.status = 'REMOVED'
+    }
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get(url('/v1/workspaces/:ws/invitations'), ({ params }) => {
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER' && workspace.role !== 'ADULT') return roleDenied()
+    return HttpResponse.json(
+      mockState.invitations
+        .filter(
+          (invitation) =>
+            invitation.workspaceId === workspace.id &&
+            invitation.view.kind === 'INVITE' &&
+            !invitationGone(invitation),
+        )
+        .map((invitation) => ({ ...invitation.view, token: null })),
+    )
+  }),
+
+  http.post(url('/v1/workspaces/:ws/invitations'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER' && workspace.role !== 'ADULT') return roleDenied()
+    const body = (await readJson(request)) as
+      { role?: unknown; nickname?: unknown; parentalConsent?: unknown } | undefined
+    if (typeof body !== 'object' || body === null) return malformed()
+    const nickname = typeof body.nickname === 'string' ? body.nickname.trim() : ''
+    const errors: FieldError[] = []
+    if (!INVITE_ROLES.includes(body.role)) errors.push({ field: 'role', code: 'invalid' })
+    if (nickname === '' || nickname.length > MAX_NAME_LENGTH) {
+      errors.push({ field: 'nickname', code: 'invalid' })
+    }
+    if (errors.length > 0) return invalid(errors)
+    const role = body.role as Schemas['InvitationView']['role']
+    if (role === 'OWNER' && workspace.role !== 'OWNER') {
+      return problem(
+        403,
+        'invitation.role-forbidden',
+        'Só quem é Dona ou Dono pode convidar outra Dona ou Dono.',
+      )
+    }
+    if (role === 'YOUTH' && body.parentalConsent !== true) {
+      return rejected(
+        'invitation.parental-consent-required',
+        'Para convidar um Jovem, é preciso o consentimento do responsável.',
+      )
+    }
+    const creator = mockState.members[workspace.id]?.find(
+      (member) => member.id === workspace.membershipId,
+    )
+    const token = newToken()
+    const view: Schemas['InvitationView'] = {
+      id: crypto.randomUUID(),
+      role,
+      nickname,
+      kind: 'INVITE',
+      expiresAt: new Date(Date.now() + 7 * DAY).toISOString(),
+      createdByName: creator?.nickname ?? creator?.displayName ?? null,
+      token: null,
+    }
+    mockState.invitations.push({ view, token, status: 'PENDING', workspaceId: workspace.id })
+    workspace.familyInvited = true
+    return HttpResponse.json({ ...view, token }, { status: 201 })
+  }),
+
+  http.post(url('/v1/workspaces/:ws/members/:id/recovery'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER' && workspace.role !== 'ADULT') return roleDenied()
+    const members = mockState.members[workspace.id] ?? []
+    const target = members.find((candidate) => candidate.id === params.id)
+    if (!target) return problem(404, 'member.not-found', 'Pessoa não encontrada.')
+    if (target.role === 'OWNER' && workspace.role !== 'OWNER') {
+      return problem(
+        403,
+        'invitation.role-forbidden',
+        'Só quem é Dona ou Dono pode trazer outra Dona ou Dono de volta.',
+      )
+    }
+    if (target.status !== 'ACTIVE') {
+      return rejected('member.removed', 'Esta pessoa já saiu da família.')
+    }
+    if (!target.passkeyOnly) {
+      return rejected(
+        'member.recovery-unavailable',
+        'Esta pessoa entra com o Google; é por lá que ela recupera o acesso.',
+      )
+    }
+    // One pending link per person: a new one replaces the old.
+    for (const previous of mockState.invitations) {
+      if (
+        previous.status === 'PENDING' &&
+        previous.view.kind === 'RECOVERY' &&
+        previous.targetMembershipId === target.id
+      ) {
+        previous.status = 'REVOKED'
+      }
+    }
+    const creator = members.find((member) => member.id === workspace.membershipId)
+    const token = newToken()
+    const view: Schemas['InvitationView'] = {
+      id: crypto.randomUUID(),
+      role: target.role,
+      nickname: null,
+      kind: 'RECOVERY',
+      expiresAt: new Date(Date.now() + DAY).toISOString(),
+      createdByName: creator?.nickname ?? creator?.displayName ?? null,
+      token: null,
+    }
+    mockState.invitations.push({
+      view,
+      token,
+      status: 'PENDING',
+      workspaceId: workspace.id,
+      targetMembershipId: target.id,
+    })
+    return HttpResponse.json({ ...view, token }, { status: 201 })
+  }),
+
+  http.delete(url('/v1/workspaces/:ws/invitations/:id'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER' && workspace.role !== 'ADULT') return roleDenied()
+    const invitation = mockState.invitations.find(
+      (candidate) => candidate.workspaceId === workspace.id && candidate.view.id === params.id,
+    )
+    if (!invitation) return invitationNotFound()
+    // A link already used or cancelled stays as it is.
+    if (invitation.status === 'PENDING') invitation.status = 'REVOKED'
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get(url('/v1/workspaces/:ws/modules'), ({ params }) => {
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    return HttpResponse.json(moduleViews(workspace.id))
+  }),
+
+  http.put(url('/v1/workspaces/:ws/modules/:key'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER' && workspace.role !== 'ADULT') return roleDenied()
+    const key = MODULE_KEYS.find((candidate) => candidate === params.key)
+    if (!key) return problem(404, 'module.not-found', 'Módulo não encontrado.')
+    const body = (await readJson(request)) as { enabled?: unknown } | undefined
+    if (typeof body !== 'object' || body === null) return malformed()
+    if (typeof body.enabled !== 'boolean') return invalid([{ field: 'enabled', code: 'NotNull' }])
+    mockState.modules[workspace.id] = { ...mockState.modules[workspace.id], [key]: body.enabled }
+    return HttpResponse.json({ key, enabled: body.enabled })
+  }),
+
+  http.post(url('/v1/invitations/preview'), async ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const body = (await readJson(request)) as { token?: unknown } | undefined
+    if (typeof body !== 'object' || body === null || typeof body.token !== 'string') {
+      return malformed()
+    }
+    const invitation = mockState.invitations.find((candidate) => candidate.token === body.token)
+    if (!invitation) return invitationNotFound()
+    if (invitationGone(invitation)) return invitationGoneProblem()
+    const recoveryTarget = recoveryTargetOf(invitation)
+    if (invitation.view.kind === 'RECOVERY' && recoveryTarget?.status !== 'ACTIVE') {
+      return invitationGoneProblem()
+    }
+    const workspace = mockState.workspaces.find(
+      (candidate) => candidate.id === invitation.workspaceId,
+    )
+    return HttpResponse.json({
+      workspaceName: workspace?.name ?? invitation.workspaceName ?? '',
+      invitedBy: invitation.view.createdByName,
+      role: invitation.view.role,
+      nickname: recoveryTarget ? recoveryTarget.nickname : invitation.view.nickname,
+      kind: invitation.view.kind,
+    })
+  }),
+
+  http.post(url('/v1/invitations/accept'), async ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const body = (await readJson(request)) as
+      { token?: unknown; newUser?: { displayName?: unknown } } | undefined
+    if (typeof body !== 'object' || body === null || typeof body.token !== 'string') {
+      return malformed()
+    }
+    const invitation = mockState.invitations.find((candidate) => candidate.token === body.token)
+    if (!invitation) return invitationNotFound()
+    if (invitationGone(invitation)) return invitationGoneProblem()
+    const workspaceId = invitation.workspaceId
+    const members = (mockState.members[workspaceId] ??= [])
+    if (invitation.view.kind === 'RECOVERY') {
+      // The target signs in whoever holds the link, and `newUser` plays no part.
+      const target = recoveryTargetOf(invitation)
+      if (target?.status !== 'ACTIVE') return invitationGoneProblem()
+      invitation.status = 'USED'
+      mockState.signedIn = true
+      mockState.user = {
+        ...mockState.user,
+        displayName: target.displayName ?? mockState.user.displayName,
+      }
+      joinWorkspace(invitation, target.id, target.role)
+      return HttpResponse.json({ workspaceId, membershipId: target.id, mustRegisterPasskey: true })
+    }
+    const signedIn = mockState.signedIn
+    let displayName = mockState.user.displayName
+    if (!signedIn) {
+      const named = body.newUser?.displayName
+      if (typeof named !== 'string' || named.trim() === '') {
+        return rejected(
+          'invitation.new-user-required',
+          'Diga como você se chama para entrar na família.',
+        )
+      }
+      displayName = named.trim()
+    } else if (members.some((member) => member.you && member.status === 'ACTIVE')) {
+      return problem(409, 'invitation.already-member', 'Você já faz parte desta família.')
+    }
+    const membershipId = crypto.randomUUID()
+    members.push({
+      id: membershipId,
+      displayName,
+      nickname: invitation.view.nickname,
+      role: invitation.view.role,
+      status: 'ACTIVE',
+      you: true,
+      passkeyOnly: true,
+      joinedAt: new Date().toISOString(),
+    })
+    invitation.status = 'USED'
+    if (!signedIn) {
+      mockState.signedIn = true
+      mockState.user = { ...mockState.user, displayName }
+    }
+    joinWorkspace(invitation, membershipId, invitation.view.role)
+    return HttpResponse.json({ workspaceId, membershipId, mustRegisterPasskey: !signedIn })
   }),
 
   http.post(url('/v1/me/getting-started/dismiss'), ({ request }) => {
@@ -698,6 +1242,27 @@ export const handlers = [
       if (balance !== null) {
         account.initialBalance = money(balance.cents - movementCents(account.id), account.currency)
       }
+      return HttpResponse.json(accountView(account))
+    },
+  ),
+
+  http.put<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/accounts/:id/owner'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as Record<string, unknown> | undefined
+      if (typeof body !== 'object' || body === null) return malformed()
+      const owner = body.membershipId
+      if (owner != null && (typeof owner !== 'string' || !UUID.test(owner))) return malformed()
+      const account = mockState.accounts.find((existing) => existing.id === params.id)
+      if (!account) return accountNotFound()
+      if (typeof owner === 'string' && !activeMember(workspace, owner)) {
+        return rejected('account.owner-not-found', 'Essa pessoa não faz parte da família.')
+      }
+      account.ownerMembershipId = typeof owner === 'string' ? owner : null
       return HttpResponse.json(accountView(account))
     },
   ),
@@ -984,7 +1549,7 @@ export const handlers = [
       toAccountId: body.toAccountId ?? null,
       categoryId: body.categoryId ?? null,
       description,
-      memberId: workspace.membershipId,
+      memberId: body.memberId ?? workspace.membershipId,
       createdAt: new Date().toISOString(),
       version: 0,
     }
@@ -1035,6 +1600,7 @@ export const handlers = [
         toAccountId: body.toAccountId ?? null,
         categoryId: body.categoryId ?? null,
         description,
+        memberId: body.memberId ?? current.memberId,
         version: current.version + 1,
       }
       const failure = familyRuleFailure(workspace, edited, current)
@@ -1043,6 +1609,16 @@ export const handlers = [
       return HttpResponse.json(current)
     },
   ),
+
+  http.get<{ ws: string; id: string }>(url('/v1/workspaces/:ws/transactions/:id'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!UUID.test(params.id)) return malformed()
+    const stored = storedTransaction(params.id)
+    if (!stored) return transactionNotFound()
+    if (stored.deleted) return problem(409, 'transaction.deleted', 'Este lançamento foi excluído.')
+    return HttpResponse.json(stored.transaction)
+  }),
 
   http.delete<{ ws: string; id: string }>(
     url('/v1/workspaces/:ws/transactions/:id'),

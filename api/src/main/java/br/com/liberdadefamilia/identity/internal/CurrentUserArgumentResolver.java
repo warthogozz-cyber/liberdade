@@ -4,6 +4,7 @@ import br.com.liberdadefamilia.identity.CurrentUser;
 import br.com.liberdadefamilia.identity.internal.UserAccounts.UserRecord;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import java.util.Optional;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
@@ -30,22 +31,29 @@ class CurrentUserArgumentResolver implements HandlerMethodArgumentResolver {
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
-        return parameter.getParameterType() == CurrentUser.class;
+        return parameter.nestedIfOptional().getNestedParameterType() == CurrentUser.class;
     }
 
     @Override
-    public CurrentUser resolveArgument(
+    public @Nullable Object resolveArgument(
             MethodParameter parameter,
             @Nullable ModelAndViewContainer mavContainer,
             NativeWebRequest webRequest,
             @Nullable WebDataBinderFactory binderFactory) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean optional = parameter.getParameterType() == Optional.class;
         if (authentication == null || !trust.isAuthenticated(authentication)) {
+            // An Optional<CurrentUser> is for routes that also serve people who are not signed in.
+            if (optional) {
+                return Optional.empty();
+            }
             throw new AuthenticationCredentialsNotFoundException("Not signed in");
         }
         UserRecord user = accounts.findActive(userIdOf(authentication))
-                .orElseThrow(() -> new InsufficientAuthenticationException("User is gone or asked for deletion"));
-        return new CurrentUser(user.id(), user.displayName(), familyNameHintOf(webRequest));
+                .orElseThrow(() -> new InsufficientAuthenticationException("User is gone"));
+        CurrentUser current = new CurrentUser(
+                user.id(), user.displayName(), familyNameHintOf(webRequest), user.deletionRequestedAt());
+        return optional ? Optional.of(current) : current;
     }
 
     private static @Nullable String familyNameHintOf(NativeWebRequest webRequest) {

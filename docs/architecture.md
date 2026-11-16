@@ -60,7 +60,8 @@ flowchart LR
     identity[identity<br/>login, passkeys, sessões]
     workspace[workspace<br/>famílias, membros, papéis,<br/>convites, módulos ligados]
     ledger[ledger<br/>contas, categorias,<br/>lançamentos, saldos, painel]
-    audit[audit<br/>auditoria, consentimentos,<br/>exportar e excluir]
+    audit[audit<br/>trilha de auditoria]
+    privacy[privacy<br/>consentimentos,<br/>exportar e excluir]
   end
   subgraph opcionais[Módulos opcionais]
     planning[planning · v0.2<br/>orçamentos, metas,<br/>reserva, recorrências]
@@ -68,13 +69,15 @@ flowchart LR
     gamification[gamification · v0.3<br/>sequências, conquistas]
     ventures[ventures · v0.4<br/>Novo Projeto]
   end
-  shared[(shared<br/>Money, erros, relógio)]
+  shared[(shared<br/>Money, erros, relógio,<br/>limitador de taxa)]
   workspace --> identity
   ledger --> workspace
   planning --> ledger
   gamification --> ledger
   ventures --> ledger
-  audit -. ouve eventos .-> identity & workspace & ledger
+  audit -. ouve eventos .-> identity & workspace
+  audit --> identity & workspace
+  privacy --> ledger & audit & workspace & identity
 ```
 
 Setas significam "depende de". Regras verificadas por teste:
@@ -83,10 +86,11 @@ Setas significam "depende de". Regras verificadas por teste:
    módulo nunca quebra o núcleo.
 2. Módulos opcionais conversam com o núcleo pela API pública dele ou por eventos de domínio
    (`TransactionRecorded`, `MemberJoined` etc.).
-3. Eventos são publicados em memória com o *event publication registry* do Spring Modulith
-   (outbox no PostgreSQL): se um ouvinte falhar, o evento é reprocessado. Sem Kafka
-   ([ADR-0003](adr/0003-modular-monolith-spring-modulith.md)).
-4. `shared` só tem tipos sem regra de negócio de módulo: `Money`, `Problem` (erros) e `Clock`.
+3. Eventos são publicados em memória e ouvidos de forma síncrona (`@EventListener`), na mesma
+   transação de quem publica: se um ouvinte falhar, a ação inteira volta atrás, e o evento e a ação
+   valem juntos. Sem Kafka ([ADR-0003](adr/0003-modular-monolith-spring-modulith.md)).
+4. `shared` só tem tipos sem regra de negócio de módulo: `Money`, `Problem` (erros), `Clock` e o
+   limitador de taxa genérico (`RateLimiter`, `RateLimitedException`).
 
 ### Módulos ligáveis
 
@@ -94,6 +98,27 @@ Setas significam "depende de". Regras verificadas por teste:
 - Endpoints de um módulo desligado respondem `403` com o código `module.disabled`.
 - Sequências e conquistas são **derivadas do histórico** de lançamentos, não acumuladas por evento.
   Por isso, religar um módulo recalcula tudo e não deixa buraco.
+
+### Família, Jovem e exclusão
+
+- **Sempre um Dono ativo.** Uma família nunca fica sem Dono ativo: pedir a exclusão da conta do
+  último Dono responde `409 account.sole-owner`; rebaixá-lo ou removê-lo, `422 member.last-owner`. Conta como ativo só o Dono cuja conta não
+  tem exclusão pedida. A checagem trava as linhas dos Donos (`FOR UPDATE`, em ordem de id), para
+  que duas ações ao mesmo tempo não deixem a família sem ninguém.
+- **Jovem só com passkey.** Quem entra como Jovem precisa de uma conta só com passkey (sem Google):
+  aceitar um convite de Jovem com Google, ou mudar para Jovem um membro com Google, responde `422`.
+  O convite de Jovem leva o consentimento parental de quem convidou. Quando o membro deixa de ser
+  Jovem, esse consentimento é encerrado como substituído. Um Dono ativo pode revogá-lo mesmo que
+  quem consentiu já tenha saído.
+- **Convites.** O token vai no fragmento da URL (`/convite#<token>`), que não chega ao servidor
+  nem aos logs. O banco guarda só o hash. O convite vale 7 dias e uma vez só; o link de
+  recuperação vale 24 horas.
+- **Exclusão com carência.** Pedir a exclusão da conta ou da família abre 30 dias de carência. Na
+  carência, o `PendingDeletionFilter` deixa a conta só ver o `me`, cancelar o pedido e exportar os
+  dados; o resto responde `403 account.deletion-pending`.
+- **Rotinas noturnas** (`America/Fortaleza`): auditoria antiga às 3h10, convites vencidos às 3h15,
+  lançamentos excluídos às 3h30, contas às 3h45 e famílias às 3h50. Cada conta e cada família é
+  apagada na própria transação: uma falha não desfaz as outras.
 
 ## 5. Estrutura do front
 
@@ -264,12 +289,15 @@ Referência: **OWASP ASVS 5.0, nível 2**, com checklist revisado a cada release
 |---|---|
 | Autenticação | Sem senha: Google OIDC (escopos mínimos, PKCE, `nonce`) e passkeys. O 2FA vem do Google ou da própria passkey. |
 | Sessão | Spring Session JDBC (sobrevive a reinícios). Cookie `__Host-sid`: `HttpOnly`, `Secure`, `SameSite=Lax` (o retorno do Google é uma navegação vinda de outro site e precisa levar o cookie). Novo id a cada login; expira após 30 dias sem uso. A sessão aberta antes do login (token de CSRF, ida ao Google) expira após 30 minutos sem uso. |
-| Reautenticação | Excluir conta, mudar papéis e exportar dados exigem login nos últimos 10 min. |
+| Reautenticação | Exportar dados, excluir conta ou família, mudar papel, remover membro e gerar link de recuperação exigem login nos últimos 10 min. |
 | CSRF | Token obtido em `GET /v1/csrf`, guardado em memória e enviado em `X-XSRF-TOKEN`; checagem de `Origin`. |
-| CORS | Só a origem do front do mesmo ambiente, com credenciais. |
+| CORS | Só a origem do front do mesmo ambiente, com credenciais. Expõe só `Retry-After` e `Content-Disposition` (o nome datado do arquivo exportado). |
+| Exclusão pendente | Na carência de 30 dias, só `GET /v1/me`, `POST`/`DELETE /v1/me/deletion`, `POST /v1/me/export` e `GET /v1/csrf`; o resto responde `403 account.deletion-pending`. |
+| Retorno após login | O caminho de volta só aceita uma lista fixa (`/convite`, `/mais/familia`, `/mais/privacidade`, `/mais/modulos`), nunca URL externa. |
+| Sessão entre abas | Sair numa aba avisa as outras por `BroadcastChannel`, que limpam os dados locais e vão para `/entrar`. |
 | Autorização | Guarda única por rota: membro ativo + papel; nega por padrão; teste da matriz da US-10 por papel. |
 | Isolamento | `workspace_id` em toda tabela, FKs compostas, filtro obrigatório e testes entre famílias ([ADR-0008](adr/0008-workspace-isolation.md)). |
-| Limites | Limite de taxa em memória por IP e por usuário em login, convite e recuperação. |
+| Limites | Limite de taxa em memória: 20 entradas por minuto por IP; 10 consultas ou aceites de convite por minuto por IP; 20 links (convite ou recuperação) por hora por usuário; 10 exportações por hora por usuário. |
 | Entrada | Bean Validation: valor > 0 e ≤ 999.999.999,99; descrição ≤ 140 caracteres. O React escapa a saída. |
 | Cabeçalhos | CSP restrita, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`. |
 | Segredos | SSM Parameter Store (SecureString), lidos no deploy; nunca no repositório. Secret scanning com push protection. |

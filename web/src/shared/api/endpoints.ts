@@ -10,6 +10,7 @@ import type {
   CreateTransactionRequest,
   DashboardView,
   MeView,
+  ModuleView,
   TransactionFilters,
   TransactionView,
   UpdateTransactionRequest,
@@ -160,4 +161,9 @@ export function unarchiveCategory(ws: string, id: string): Promise<CategoryView>
   return unwrap(
     client.POST('/v1/workspaces/{ws}/categories/{id}/unarchive', { params: { path: { ws, id } } }),
   )
+}
+
+/** The family's four modules, switched on or off. Every role may read them. */
+export function listModules(ws: string): Promise<ModuleView[]> {
+  return unwrap(client.GET('/v1/workspaces/{ws}/modules', { params: { path: { ws } } }))
 }

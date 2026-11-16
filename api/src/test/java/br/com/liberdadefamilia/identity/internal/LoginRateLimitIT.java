@@ -3,12 +3,15 @@ package br.com.liberdadefamilia.identity.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
+import br.com.liberdadefamilia.shared.RateLimiter;
 import br.com.liberdadefamilia.support.CsrfSession;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -37,8 +40,10 @@ class LoginRateLimitIT {
 
         @Bean
         @Primary
-        LoginRateLimiter stoppedClockLoginRateLimiter() {
-            return new LoginRateLimiter(Clock.fixed(Instant.parse("2026-11-02T12:00:15Z"), ZoneOffset.UTC), 20);
+        @Qualifier("loginRateLimiter")
+        RateLimiter stoppedClockLoginRateLimiter() {
+            return new RateLimiter(
+                    Clock.fixed(Instant.parse("2026-11-02T12:00:15Z"), ZoneOffset.UTC), 20, Duration.ofMinutes(1));
         }
     }
 
@@ -70,7 +75,7 @@ class LoginRateLimitIT {
         assertThat(limited)
                 .bodyJson()
                 .extractingPath("$.detail")
-                .isEqualTo("Muitas tentativas. Espere um minuto e tente de novo.");
+                .isEqualTo("Muitas tentativas. Tente de novo em instantes.");
         // The same address is limited on the sign-in itself too: one budget for every sign-in endpoint.
         assertThat(mvc.post().uri("/login/webauthn").with(from("10.0.0.21")).with(csrf))
                 .hasStatus(429);

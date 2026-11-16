@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
-import type { AccountView, CategoryView, MeWorkspace } from '@/shared/api'
+import type { AccountView, CategoryView, MeWorkspace, MemberView } from '@/shared/api'
 import { firstName } from '@/shared/i18n'
 import { formatBRL, parseCents } from '@/shared/money'
 import { discardOutboxItem } from '@/shared/offline'
 import { ConfirmDialog, Sheet, useToast } from '@/shared/ui'
 import { categoryLabel, transferRoute, type ListItem } from './listItems'
+import { memberLabel } from './memberLabel'
+import './more.register'
 import { TransactionDetailSheet } from './TransactionDetailSheet'
 
 interface TransactionRowProps {
@@ -15,6 +17,8 @@ interface TransactionRowProps {
   accounts: Map<string, AccountView>
   workspace: MeWorkspace
   displayName: string
+  /** The family's people by id, once loaded: they name who spent what others recorded. */
+  members?: Map<string, MemberView>
   /** The month of the list, which the detail's Editar sends back to. */
   month: string
   online: boolean
@@ -28,6 +32,7 @@ export function TransactionRow({
   accounts,
   workspace,
   displayName,
+  members,
   month,
   online,
   onDelete,
@@ -39,10 +44,15 @@ export function TransactionRow({
   const cents = parseCents(item.amount.amount)
   const income = item.kind === 'INCOME'
   const transfer = item.kind === 'TRANSFER'
-  const mine = item.outbox !== undefined || item.memberId === workspace.membershipId
+  // '' is a queued expense nobody else was chosen for.
+  const mine = item.memberId === '' || item.memberId === workspace.membershipId
+  const familyAccount = intl.formatMessage({ id: 'transactions.familyAccount' })
   const details = transfer
-    ? transferRoute(item, accounts)
-    : [accounts.get(item.accountId)?.name, mine ? firstName(displayName) : undefined]
+    ? transferRoute(item, accounts, workspace.role === 'YOUTH' ? familyAccount : undefined)
+    : [
+        accounts.get(item.accountId)?.name,
+        mine ? firstName(displayName) : memberLabel(members?.get(item.memberId), intl),
+      ]
         .filter(Boolean)
         .join(' · ')
   const outbox = item.outbox
@@ -149,6 +159,7 @@ export function TransactionRow({
           accounts={accounts}
           workspace={workspace}
           displayName={displayName}
+          members={members}
           online={online}
           month={month}
           onDelete={onDelete}

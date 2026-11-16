@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.ledger.internal;
 import static br.com.liberdadefamilia.workspace.Role.ADULT;
 import static br.com.liberdadefamilia.workspace.Role.OWNER;
 import static br.com.liberdadefamilia.workspace.Role.VIEWER;
+import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 
 import br.com.liberdadefamilia.ledger.internal.TransactionService.Recorded;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
@@ -29,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Records, edits, deletes and restores the family's transactions, and lists them by month. A resend of the same
- * transaction answers 200 with the stored one; there is no {@code Location}, since no route reads a single transaction.
+ * transaction answers 200 with the stored one; there is no {@code Location}.
  */
 @RestController
 class TransactionController {
@@ -41,7 +42,7 @@ class TransactionController {
     }
 
     @PostMapping("/v1/workspaces/{ws}/transactions")
-    @WorkspaceScoped(allow = {OWNER, ADULT})
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH})
     @ApiResponse(
             responseCode = "201",
             description = "Recorded",
@@ -60,7 +61,7 @@ class TransactionController {
     }
 
     @PatchMapping("/v1/workspaces/{ws}/transactions/{id}")
-    @WorkspaceScoped(allow = {OWNER, ADULT})
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH})
     @ApiResponse(
             responseCode = "200",
             description = "Edited: the transaction at its new version",
@@ -70,8 +71,14 @@ class TransactionController {
         return service.update(member, id, request);
     }
 
+    @GetMapping("/v1/workspaces/{ws}/transactions/{id}")
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
+    TransactionView getTransaction(@PathVariable UUID id, WorkspaceMember member) {
+        return service.get(member, id);
+    }
+
     @DeleteMapping("/v1/workspaces/{ws}/transactions/{id}")
-    @WorkspaceScoped(allow = {OWNER, ADULT})
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH})
     @ApiResponse(responseCode = "204", description = "Deleted, or already deleted")
     ResponseEntity<Void> deleteTransaction(@PathVariable UUID id, WorkspaceMember member) {
         service.delete(member, id);
@@ -79,7 +86,7 @@ class TransactionController {
     }
 
     @PostMapping("/v1/workspaces/{ws}/transactions/{id}/restore")
-    @WorkspaceScoped(allow = {OWNER, ADULT})
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH})
     @ApiResponse(
             responseCode = "200",
             description = "Restored, or already active: the transaction as it is",
@@ -93,7 +100,7 @@ class TransactionController {
      * @param accountId only what leaves or enters this account
      */
     @GetMapping("/v1/workspaces/{ws}/transactions")
-    @WorkspaceScoped(allow = {OWNER, ADULT, VIEWER})
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
     List<TransactionView> listTransactions(
             @RequestParam YearMonth month,
             @RequestParam(required = false) @Nullable UUID categoryId,

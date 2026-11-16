@@ -9,11 +9,13 @@ import {
   type MeWorkspace,
   type UpdateAccountRequest,
 } from '@/shared/api'
+import { useSetAccountOwner } from '@/shared/api/detail'
 import { centsToApi } from '@/shared/money'
 import { useOnline } from '@/shared/offline'
 import { useToast } from '@/shared/ui'
 import { ACCOUNT_TYPES, accountTypeInfo } from './accountTypes'
 import { BalanceInput } from './BalanceInput'
+import { OwnerPicker } from './OwnerPicker'
 import { signedCents } from './signedCents'
 import './register'
 
@@ -38,13 +40,17 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
   const [type, setType] = useState<AccountType>(account?.type ?? 'CHECKING')
   const [cents, setCents] = useState(0n)
   const [negative, setNegative] = useState(false)
+  const setOwner = useSetAccountOwner(workspace.id)
+  const [ownerId, setOwnerId] = useState<string | null>(account?.ownerMembershipId ?? null)
   const [nameError, setNameError] = useState<string>()
   const [error, setError] = useState<string>()
   const ids = useId()
   const nameErrorId = `${ids}-name-error`
   const hintId = `${ids}-hint`
   const typeLegendId = `${ids}-type-legend`
-  const pending = create.isPending || update.isPending
+  // Only an Owner or an Adult chooses who an account belongs to; the API still answers for it.
+  const canChooseOwner = workspace.role === 'OWNER' || workspace.role === 'ADULT'
+  const pending = create.isPending || update.isPending || setOwner.isPending
 
   const trimmed = name.trim()
   // Only what changed is sent (partial PATCH).
@@ -53,7 +59,10 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
     ...(account && type !== account.type && { type }),
   }
   const changed = Object.keys(changes).length > 0
-  const canSave = online && !pending && trimmed !== '' && (!account || changed)
+  // The owner has its own call: it goes after the account is saved, and only when it changed.
+  const ownerChanged =
+    canChooseOwner && account !== undefined && ownerId !== (account.ownerMembershipId ?? null)
+  const canSave = online && !pending && trimmed !== '' && (!account || changed || ownerChanged)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -62,7 +71,8 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
     setError(undefined)
     try {
       if (account) {
-        await update.mutateAsync({ id: account.id, body: changes })
+        if (changed) await update.mutateAsync({ id: account.id, body: changes })
+        if (ownerChanged) await setOwner.mutateAsync({ id: account.id, membershipId: ownerId })
       } else {
         await create.mutateAsync({
           name: trimmed,
@@ -71,6 +81,7 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
             amount: centsToApi(signedCents(cents, negative)),
             currency: workspace.currency,
           },
+          ...(ownerId && { ownerMembershipId: ownerId }),
         })
       }
     } catch (failure) {
@@ -143,6 +154,14 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
           {intl.formatMessage({ id: accountTypeInfo(type).hintId })}
         </p>
       </fieldset>
+      {canChooseOwner && (
+        <OwnerPicker
+          workspace={workspace}
+          value={ownerId}
+          onChange={setOwnerId}
+          disabled={!online}
+        />
+      )}
       {!account && (
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 font-medium">

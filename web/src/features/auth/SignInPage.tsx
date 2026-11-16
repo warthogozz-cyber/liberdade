@@ -1,19 +1,17 @@
-import {
-  browserSupportsWebAuthn,
-  startAuthentication,
-  type PublicKeyCredentialRequestOptionsJSON,
-} from '@simplewebauthn/browser'
+import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { useNavigate, useSearchParams } from 'react-router'
-import { ApiError, postJson } from '@/shared/api'
-import type { messages } from '@/shared/i18n'
+import { ApiError } from '@/shared/api'
+import { startGoogleSignIn } from '@/shared/auth'
+import { signInWithPasskey } from '@/shared/auth/passkey'
 import { clearSession, useOnline } from '@/shared/offline'
 import { useDocumentTitle } from '@/shared/ui'
-import { startGoogleSignIn } from './google'
+import type { signInMessages } from './signIn.messages.pt-BR'
+import './signIn.register'
 
-type MessageId = keyof typeof messages
+type MessageId = keyof typeof signInMessages
 
 /** The messages the API's redirect can ask for with `?erro=` (Review Focus 3). */
 const URL_ERRORS: Record<string, MessageId> = {
@@ -72,21 +70,19 @@ export function SignInPage() {
   async function signInWithGoogle() {
     if (!claim()) return
     try {
-      await startGoogleSignIn(queryClient)
+      // The new session starts with an empty cache (Review Focus 2).
+      await clearSession(queryClient)
+      startGoogleSignIn()
     } catch {
       setError('signIn.error.login')
       release()
     }
   }
 
-  async function signInWithPasskey() {
+  async function passkeySignIn() {
     if (!claim()) return
     try {
-      const optionsJSON = (await postJson(
-        '/webauthn/authenticate/options',
-      )) as PublicKeyCredentialRequestOptionsJSON
-      const credential = await startAuthentication({ optionsJSON })
-      await postJson('/login/webauthn', credential)
+      await signInWithPasskey()
       // The new session starts with an empty cache and fetches a fresh CSRF token (T10-csrf).
       await clearSession(queryClient)
       await navigate('/')
@@ -129,7 +125,7 @@ export function SignInPage() {
             type="button"
             className={`${button} border border-primary text-primary`}
             disabled={disabled}
-            onClick={() => void signInWithPasskey()}
+            onClick={() => void passkeySignIn()}
           >
             <FormattedMessage id="signIn.passkey" />
           </button>

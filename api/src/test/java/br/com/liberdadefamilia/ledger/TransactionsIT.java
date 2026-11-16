@@ -714,6 +714,197 @@ class TransactionsIT {
         assertThat(rowsWithId(id)).isOne();
     }
 
+    @Test
+    void memberDefaultsToCaller() {
+        UUID id = TestIds.v7();
+
+        var result = post(ana, id, expense(id, ana));
+
+        assertThat(result).hasStatus(201);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.memberId")
+                .isEqualTo(ana.membershipId().toString());
+    }
+
+    @Test
+    void adultRecordsForAnotherMember() {
+        UUID adultId = users.create("Bia Teste", "bia@example.com");
+        UUID adultMembership = workspaces.addMember(ana.workspaceId(), adultId, Role.ADULT);
+        UUID id = TestIds.v7();
+        Map<String, Object> body = expense(id, ana);
+        body.put("memberId", ana.membershipId().toString());
+
+        var result = post(adultId, ana.workspaceId(), id.toString(), body);
+
+        assertThat(result).hasStatus(201);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.memberId")
+                .isEqualTo(ana.membershipId().toString());
+        assertThat(row(id)).containsEntry("member_id", ana.membershipId()).containsEntry("created_by", adultMembership);
+    }
+
+    @Test
+    void inactiveMemberRejected() {
+        UUID removedUser = users.create("Bia Teste", "bia@example.com");
+        UUID removed = workspaces.addMember(ana.workspaceId(), removedUser, Role.ADULT);
+        removeMembership(removed);
+        Family other = family("Cris Teste", "cris@example.com");
+
+        for (UUID memberId : List.of(removed, other.membershipId())) {
+            UUID id = TestIds.v7();
+            Map<String, Object> body = expense(id, ana);
+            body.put("memberId", memberId.toString());
+
+            var result = post(ana, id, body);
+
+            assertThat(result).as(memberId.toString()).hasStatus(422).hasContentType(PROBLEM_JSON);
+            assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("transaction.member-not-found");
+            assertThat(rowsWithId(id)).isZero();
+        }
+    }
+
+    @Test
+    void editKeepsRemovedMember() {
+        UUID removedUser = users.create("Bia Teste", "bia@example.com");
+        UUID removed = workspaces.addMember(ana.workspaceId(), removedUser, Role.ADULT);
+        UUID id = TestIds.v7();
+        Map<String, Object> body = expense(id, ana);
+        body.put("memberId", removed.toString());
+        assertThat(post(ana, id, body)).hasStatus(201);
+        removeMembership(removed);
+        Map<String, Object> edit = expense(id, ana, "20.00");
+        edit.remove("id");
+        edit.put("version", 0);
+
+        var result = patch(id, edit);
+
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().extractingPath("$.memberId").isEqualTo(removed.toString());
+        assertThat(result).bodyJson().extractingPath("$.amount.amount").isEqualTo("20.00");
+
+        Map<String, Object> sameMember = new LinkedHashMap<>(edit);
+        sameMember.put("version", 1);
+        sameMember.put("memberId", removed.toString());
+        assertThat(patch(id, sameMember)).hasStatusOk();
+
+        UUID otherRemovedUser = users.create("Cris Teste", "cris@example.com");
+        UUID otherRemoved = workspaces.addMember(ana.workspaceId(), otherRemovedUser, Role.ADULT);
+        removeMembership(otherRemoved);
+        Family otherFamily = family("Dani Teste", "dani@example.com");
+        for (UUID rejectedId : List.of(UUID.randomUUID(), otherRemoved, otherFamily.membershipId())) {
+            Map<String, Object> otherMember = new LinkedHashMap<>(edit);
+            otherMember.put("version", 2);
+            otherMember.put("memberId", rejectedId.toString());
+            var rejected = patch(id, otherMember);
+            assertThat(rejected).as(rejectedId.toString()).hasStatus(422);
+            assertThat(rejected).bodyJson().extractingPath("$.code").isEqualTo("transaction.member-not-found");
+            assertThat(row(id)).containsEntry("member_id", removed);
+        }
+    }
+
+    @Test
+    void editChangesMemberToAnotherActiveOne() {
+        UUID adultUser = users.create("Bia Teste", "bia@example.com");
+        UUID adult = workspaces.addMember(ana.workspaceId(), adultUser, Role.ADULT);
+        UUID id = created(ana, "2026-11-02");
+        Map<String, Object> edit = expense(id, ana);
+        edit.remove("id");
+        edit.put("version", 0);
+        edit.put("memberId", adult.toString());
+
+        var result = patch(id, edit);
+
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().extractingPath("$.memberId").isEqualTo(adult.toString());
+        assertThat(row(id)).containsEntry("member_id", adult).containsEntry("created_by", ana.membershipId());
+    }
+
+    @Test
+    void retryWithoutMemberIdIsIdempotent() {
+        UUID id = TestIds.v7();
+
+        var first = post(ana, id, expense(id, ana));
+        var second = post(ana, id, expense(id, ana));
+
+        assertThat(first).hasStatus(201);
+        assertThat(second).hasStatus(200);
+        assertThat(rowsWithId(id)).isOne();
+
+        Map<String, Object> other = expense(id, ana);
+        UUID adultUser = users.create("Bia Teste", "bia@example.com");
+        other.put(
+                "memberId",
+                workspaces.addMember(ana.workspaceId(), adultUser, Role.ADULT).toString());
+        var conflict = post(ana, id, other);
+        assertThat(conflict).hasStatus(409);
+        assertThat(conflict).bodyJson().extractingPath("$.code").isEqualTo("transaction.id-conflict");
+    }
+
+    @Test
+    void getById() {
+        UUID id = created(ana, "2026-11-02");
+
+        var single = get(ana.userId(), ana.workspaceId(), id);
+        var listed = list(ana.userId(), "2026-11");
+
+        assertThat(single).hasStatusOk().hasContentType(MediaType.APPLICATION_JSON);
+        Map<String, Object> fromList = JsonPath.read(body(listed), "$[0]");
+        assertThat(single).bodyJson().extractingPath("$").asMap().isEqualTo(fromList);
+        assertThat(fromList).containsKeys("id", "memberId", "version");
+    }
+
+    @Test
+    void getDeletedIs409() {
+        UUID id = created(ana, "2026-11-02");
+        jdbc.sql("update transactions set deleted_at = now() where id = :id")
+                .param("id", id)
+                .update();
+
+        var result = get(ana.userId(), ana.workspaceId(), id);
+
+        assertThat(result).hasStatus(409).hasContentType(PROBLEM_JSON);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("transaction.deleted");
+    }
+
+    @Test
+    void getOtherFamilyIs404() {
+        Family bia = family("Bia Teste", "bia@example.com");
+        UUID id = created(bia, "2026-11-02");
+
+        var other = get(ana.userId(), ana.workspaceId(), id);
+        var missing = get(ana.userId(), ana.workspaceId(), TestIds.v7());
+
+        for (var result : List.of(other, missing)) {
+            assertThat(result).hasStatus(404).hasContentType(PROBLEM_JSON);
+            assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("transaction.not-found");
+        }
+    }
+
+    private void removeMembership(UUID membershipId) {
+        jdbc.sql("update memberships set status = 'REMOVED' where id = :id")
+                .param("id", membershipId)
+                .update();
+    }
+
+    private MvcTestResult get(UUID callerId, UUID workspaceId, UUID id) {
+        return mvc.get()
+                .uri("/v1/workspaces/" + workspaceId + "/transactions/" + id)
+                .with(TestUsers.signedIn(callerId, null))
+                .exchange();
+    }
+
+    private MvcTestResult patch(UUID id, Map<String, Object> body) {
+        return mvc.patch()
+                .uri("/v1/workspaces/" + ana.workspaceId() + "/transactions/" + id)
+                .with(TestUsers.signedIn(ana.userId(), null))
+                .with(CsrfSession.start(mvc, TestUsers.signedIn(ana.userId(), null)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(JSON.writeValueAsString(body))
+                .exchange();
+    }
+
     private record Family(UUID userId, UUID workspaceId, UUID membershipId, UUID walletId, UUID mercadoId) {}
 
     /** A BRL checking account of the family with no starting balance, archived or not. */

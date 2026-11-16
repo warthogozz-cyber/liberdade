@@ -30,6 +30,66 @@
         ]
       }
     },
+    "/v1/invitations/accept": {
+      "post": {
+        "operationId": "acceptInvitation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedInvitation"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "public-invitation-controller"
+        ]
+      }
+    },
+    "/v1/invitations/preview": {
+      "post": {
+        "operationId": "previewInvitation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewInvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationPreview"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "public-invitation-controller"
+        ]
+      }
+    },
     "/v1/me": {
       "get": {
         "operationId": "me",
@@ -47,6 +107,137 @@
         },
         "tags": [
           "me-controller"
+        ]
+      }
+    },
+    "/v1/me/activity": {
+      "get": {
+        "operationId": "listMyActivity",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityItem"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
+    "/v1/me/consents": {
+      "get": {
+        "operationId": "listMyConsents",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConsentView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "consent-controller"
+        ]
+      }
+    },
+    "/v1/me/consents/{id}": {
+      "delete": {
+        "operationId": "revokeConsent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "consent-controller"
+        ]
+      }
+    },
+    "/v1/me/deletion": {
+      "delete": {
+        "operationId": "cancelAccountDeletion",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "account-deletion-controller"
+        ]
+      },
+      "post": {
+        "operationId": "requestAccountDeletion",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionScheduled"
+                }
+              }
+            },
+            "description": "Accepted"
+          }
+        },
+        "tags": [
+          "account-deletion-controller"
+        ]
+      }
+    },
+    "/v1/me/export": {
+      "post": {
+        "operationId": "exportMyData",
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "description": "A zip with the person's data.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "An attachment with the file name of the zip.",
+                "schema": {
+                  "type": "string"
+                },
+                "style": "simple"
+              }
+            }
+          }
+        },
+        "tags": [
+          "export-controller"
         ]
       }
     },
@@ -97,6 +288,48 @@
               }
             },
             "description": "Created"
+          }
+        },
+        "tags": [
+          "workspace-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}": {
+      "patch": {
+        "operationId": "renameWorkspace",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameWorkspaceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeWorkspace"
+                }
+              }
+            },
+            "description": "OK"
           }
         },
         "tags": [
@@ -254,6 +487,57 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "account-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/accounts/{id}/owner": {
+      "put": {
+        "operationId": "setAccountOwner",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountOwnerRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -574,6 +858,462 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/deletion": {
+      "delete": {
+        "operationId": "cancelFamilyDeletion",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "family-deletion-controller"
+        ]
+      },
+      "post": {
+        "operationId": "requestFamilyDeletion",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionScheduled"
+                }
+              }
+            },
+            "description": "Accepted"
+          }
+        },
+        "tags": [
+          "family-deletion-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/export": {
+      "post": {
+        "operationId": "exportFamilyData",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "description": "A zip with the family's data.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "An attachment with the file name of the zip.",
+                "schema": {
+                  "type": "string"
+                },
+                "style": "simple"
+              }
+            }
+          }
+        },
+        "tags": [
+          "export-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/invitations": {
+      "get": {
+        "operationId": "listInvitations",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "invitation-controller"
+        ]
+      },
+      "post": {
+        "operationId": "createInvitation",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationView"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "invitation-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/invitations/{id}": {
+      "delete": {
+        "operationId": "revokeInvitation",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "invitation-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/members": {
+      "get": {
+        "operationId": "listMembers",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MemberView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "member-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/members/{id}": {
+      "delete": {
+        "operationId": "removeMember",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "member-controller"
+        ]
+      },
+      "patch": {
+        "operationId": "updateMember",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMemberRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "member-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/members/{id}/recovery": {
+      "post": {
+        "operationId": "createRecoveryLink",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationView"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "recovery-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/modules": {
+      "get": {
+        "operationId": "listModules",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModuleView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "module-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/modules/{key}": {
+      "put": {
+        "operationId": "setModule",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "planning",
+                "indicators",
+                "gamification",
+                "ventures"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateModuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "module-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/transactions": {
       "get": {
         "operationId": "listTransactions",
@@ -731,6 +1471,45 @@
           "transaction-controller"
         ]
       },
+      "get": {
+        "operationId": "getTransaction",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "transaction-controller"
+        ]
+      },
       "patch": {
         "operationId": "updateTransaction",
         "parameters": [
@@ -825,6 +1604,38 @@
   },
   "components": {
     "schemas": {
+      "AcceptInvitationRequest": {
+        "required": [
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "newUser": {
+            "$ref": "#/components/schemas/NewUser"
+          },
+          "token": {
+            "maxLength": 43,
+            "minLength": 43,
+            "type": "string"
+          }
+        }
+      },
+      "AcceptedInvitation": {
+        "type": "object",
+        "properties": {
+          "membershipId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mustRegisterPasskey": {
+            "type": "boolean"
+          },
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "AccountView": {
         "type": "object",
         "properties": {
@@ -866,6 +1677,40 @@
               "WALLET",
               "INVESTMENT"
             ]
+          }
+        }
+      },
+      "ActivityItem": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actorName": {
+            "type": "string",
+            "nullable": true
+          },
+          "byMe": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },
@@ -914,6 +1759,58 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          }
+        }
+      },
+      "ConsentView": {
+        "type": "object",
+        "properties": {
+          "canRevoke": {
+            "type": "boolean"
+          },
+          "documentVersion": {
+            "type": "string"
+          },
+          "grantedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "grantedByName": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "TERMS",
+              "PRIVACY",
+              "PARENTAL"
+            ]
+          },
+          "revokedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "subjectName": {
+            "type": "string",
+            "nullable": true
+          },
+          "supersededAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspaceName": {
+            "type": "string"
           }
         }
       },
@@ -1000,6 +1897,34 @@
           }
         }
       },
+      "CreateInvitationRequest": {
+        "required": [
+          "nickname",
+          "role"
+        ],
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string"
+          },
+          "parentalConsent": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "ADULT",
+              "YOUTH",
+              "VIEWER"
+            ]
+          }
+        }
+      },
       "CreateTransactionRequest": {
         "required": [
           "accountId",
@@ -1040,6 +1965,11 @@
               "EXPENSE",
               "TRANSFER"
             ]
+          },
+          "memberId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           },
           "occurredOn": {
             "type": "string",
@@ -1141,9 +2071,96 @@
           }
         }
       },
+      "DeletionScheduled": {
+        "type": "object",
+        "properties": {
+          "deletionScheduledFor": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "InvitationPreview": {
+        "type": "object",
+        "properties": {
+          "invitedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INVITE",
+              "RECOVERY"
+            ]
+          },
+          "nickname": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "ADULT",
+              "YOUTH",
+              "VIEWER"
+            ]
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        }
+      },
+      "InvitationView": {
+        "type": "object",
+        "properties": {
+          "createdByName": {
+            "type": "string",
+            "nullable": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INVITE",
+              "RECOVERY"
+            ]
+          },
+          "nickname": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "ADULT",
+              "YOUTH",
+              "VIEWER"
+            ]
+          },
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "MeUser": {
         "type": "object",
         "properties": {
+          "deletionScheduledFor": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "displayName": {
             "type": "string"
           },
@@ -1181,6 +2198,14 @@
           "currency": {
             "type": "string"
           },
+          "deletionScheduledFor": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "familyInvited": {
+            "type": "boolean"
+          },
           "gettingStartedDismissedAt": {
             "type": "string",
             "format": "date-time",
@@ -1200,6 +2225,11 @@
           "name": {
             "type": "string"
           },
+          "recoveredAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "role": {
             "type": "string",
             "enum": [
@@ -1211,6 +2241,66 @@
           },
           "timezone": {
             "type": "string"
+          }
+        }
+      },
+      "MemberView": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "joinedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nickname": {
+            "type": "string",
+            "nullable": true
+          },
+          "passkeyOnly": {
+            "type": "boolean"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "ADULT",
+              "YOUTH",
+              "VIEWER"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "REMOVED"
+            ]
+          },
+          "you": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ModuleView": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string",
+            "enum": [
+              "planning",
+              "indicators",
+              "gamification",
+              "ventures"
+            ]
           }
         }
       },
@@ -1230,6 +2320,48 @@
             "pattern": "^[A-Z]{3}$",
             "type": "string",
             "example": "BRL"
+          }
+        }
+      },
+      "NewUser": {
+        "required": [
+          "displayName"
+        ],
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "maxLength": 200,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string"
+          }
+        },
+        "nullable": true
+      },
+      "PreviewInvitationRequest": {
+        "required": [
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "maxLength": 43,
+            "minLength": 43,
+            "type": "string"
+          }
+        }
+      },
+      "RenameWorkspaceRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 60,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string"
           }
         }
       },
@@ -1284,6 +2416,16 @@
           "version": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "UpdateAccountOwnerRequest": {
+        "type": "object",
+        "properties": {
+          "membershipId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },
@@ -1351,6 +2493,44 @@
           }
         }
       },
+      "UpdateMemberRequest": {
+        "required": [],
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "maxLength": 40,
+            "minLength": 1,
+            "pattern": "[^\\x00]*",
+            "type": "string",
+            "nullable": true
+          },
+          "parentalConsent": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "OWNER",
+              "ADULT",
+              "YOUTH",
+              "VIEWER"
+            ]
+          }
+        }
+      },
+      "UpdateModuleRequest": {
+        "required": [
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
       "UpdateTransactionRequest": {
         "required": [
           "accountId",
@@ -1387,6 +2567,11 @@
               "EXPENSE",
               "TRANSFER"
             ]
+          },
+          "memberId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           },
           "occurredOn": {
             "type": "string",

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   ApiError,
   useAccounts,
   useCategories,
+  queryKeys,
   useTransactions,
   useUpdateTransaction,
   type MeWorkspace,
@@ -12,9 +14,11 @@ import {
   type UpdateTransactionRequest,
 } from '@/shared/api'
 import { currentMonth } from '@/shared/i18n'
+import { useTransaction } from '@/shared/api/detail'
 import { useOnline } from '@/shared/offline'
 import { useToast } from '@/shared/ui'
 import { PageHeader, TransactionForm } from './TransactionForm'
+import './more.register'
 import { DeletedElsewhereDialog, VersionConflictDialog } from './VersionConflictDialog'
 
 type ConflictState =
@@ -29,26 +33,46 @@ interface EditTransactionProps {
 }
 
 /**
- * Opens a saved transaction for editing: it is found in the month's list the page came from (there
- * is no read by id), and kept as opened, so a refresh behind a conflict does not change the form.
- * This module loads only for `?editar=`, so none of it weighs on recording.
+ * Opens a saved transaction for editing from a fresh read by id, kept as opened so a refresh behind
+ * a conflict does not change the form. Only when that read fails for a reason other than the
+ * transaction being gone does the month's list stand in. This module loads only for `?editar=`, so
+ * none of it weighs on recording.
  */
 export function EditTransaction({ id, month, userId, workspace }: EditTransactionProps) {
-  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const online = useOnline()
   const listMonth =
     month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month)
       ? month
       : currentMonth(new Date(), workspace.timezone)
   const list = useTransactions(workspace.id, listMonth)
-  const { refetch } = list
-  // A cached month, even a fresh one, may lack what the server has: ask once for this visit.
-  useEffect(() => {
-    void refetch()
-  }, [refetch])
+  const one = useTransaction(workspace.id, id)
   const [opened, setOpened] = useState<TransactionView>()
+  const gone =
+    one.error instanceof ApiError &&
+    (one.error.status === 404 ||
+      (one.error.status === 409 && one.error.code === 'transaction.deleted'))
+      ? one.error
+      : undefined
+  const missing = gone?.status === 404
+  useEffect(() => {
+    // The list still shows what is gone: ask it again.
+    if (missing) {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.transactions(workspace.id, listMonth),
+      })
+    }
+  }, [missing, queryClient, workspace.id, listMonth])
   const found = list.data?.find((each) => each.id === id)
-  if (found && !opened) setOpened(found)
+  // The copy cached from an earlier visit shows first: wait for this visit's read before opening.
+  const fresh = gone
+    ? undefined
+    : one.isError
+      ? found
+      : one.isFetchedAfterMount
+        ? one.data
+        : undefined
+  if (fresh && !opened) setOpened(fresh)
 
   if (!online) {
     // Editing needs the connection (ADR-0007), so there is no form to fill in.
@@ -72,19 +96,24 @@ export function EditTransaction({ id, month, userId, workspace }: EditTransactio
       />
     )
   }
-  // Only a fetch made for this visit can say the transaction is gone.
-  const settled = list.isSuccess && list.isFetchedAfterMount && !list.isFetching
   return (
     <>
       <PageHeader kind="EXPENSE" editMonth={listMonth} />
-      {settled ? (
-        <DeletedElsewhereDialog
-          open
-          onBack={() => void navigate(`/lancamentos?mes=${listMonth}`)}
-        />
+      {gone ? (
+        <div className="flex flex-col items-start gap-3 rounded-card bg-surface p-4">
+          <p role="alert">
+            <FormattedMessage id={missing ? 'transactions.goneNow' : 'transactions.deletedPlain'} />
+          </p>
+          <Link
+            to={`/lancamentos?mes=${listMonth}`}
+            className="flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            <FormattedMessage id="transactions.backToList" />
+          </Link>
+        </div>
       ) : (
         <p>
-          <FormattedMessage id={list.isError ? 'common.error' : 'common.loading'} />
+          <FormattedMessage id={one.isError ? 'common.error' : 'common.loading'} />
         </p>
       )}
     </>

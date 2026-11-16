@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.workspace.internal;
 
-import br.com.liberdadefamilia.workspace.Role;
+import br.com.liberdadefamilia.workspace.Modules;
+import br.com.liberdadefamilia.workspace.RequiresModule;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,10 +26,11 @@ import org.springframework.web.servlet.HandlerMapping;
  * <ol>
  *   <li>a handler without {@link WorkspaceScoped}: 403;
  *   <li>a {@code {ws}} that is not a UUID: 404;
- *   <li>no ACTIVE membership in that family, or a family that asked for deletion: 404, so nobody learns whether it
- *       exists;
- *   <li>the YOUTH role, even where {@code allow} lists it, until parental consent exists (D13): 403;
- *   <li>a role that {@code allow} does not list: 403.
+ *   <li>no ACTIVE membership in that family, or a family that asked for deletion (unless the route sets
+ *       {@code includePendingDeletion} and the caller is an Owner): 404, so nobody learns whether it exists;
+ *   <li>a role that {@code allow} does not list: 403;
+ *   <li>a handler marked {@link RequiresModule} whose module the family has off: 403 {@code module.disabled}. It
+ *       comes after the role check, so a role that may not use the route never learns whether the module is on.
  * </ol>
  *
  * <p>Otherwise the {@link WorkspaceMember} goes into a request attribute for {@link WorkspaceMemberArgumentResolver}.
@@ -39,10 +41,12 @@ class WorkspaceGuardInterceptor implements HandlerInterceptor {
 
     private final AuthenticationTrustResolver trust = new AuthenticationTrustResolverImpl();
     private final WorkspaceRepository workspaces;
+    private final Modules modules;
     private final SecurityContextHolderStrategy contexts;
 
-    WorkspaceGuardInterceptor(WorkspaceRepository workspaces, SecurityContextHolderStrategy contexts) {
+    WorkspaceGuardInterceptor(WorkspaceRepository workspaces, Modules modules, SecurityContextHolderStrategy contexts) {
         this.workspaces = workspaces;
+        this.modules = modules;
         this.contexts = contexts;
     }
 
@@ -54,10 +58,14 @@ class WorkspaceGuardInterceptor implements HandlerInterceptor {
             throw new AccessDeniedException("Family route without @WorkspaceScoped");
         }
         WorkspaceMember member = workspaces
-                .activeMember(workspaceIdOf(request), currentUserId())
+                .activeMember(workspaceIdOf(request), currentUserId(), scope.includePendingDeletion())
                 .orElseThrow(WorkspaceNotFoundException::new);
-        if (member.role() == Role.YOUTH || !Arrays.asList(scope.allow()).contains(member.role())) {
+        if (!Arrays.asList(scope.allow()).contains(member.role())) {
             throw new AccessDeniedException("Role not allowed on this route");
+        }
+        RequiresModule module = ((HandlerMethod) handler).getMethodAnnotation(RequiresModule.class);
+        if (module != null && !modules.isEnabled(member.workspaceId(), module.value())) {
+            throw new ModuleDisabledException();
         }
         request.setAttribute(MEMBER_ATTRIBUTE, member);
         return true;

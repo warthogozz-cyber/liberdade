@@ -89,14 +89,16 @@ class WorkspaceGuardIT {
     }
 
     @Test
-    void youthIsDeniedEvenWhenAllowed() {
+    void youthIsDeniedOnlyWhereNotAllowed() {
         UUID workspaceId = workspaces.createFor(users.create("Ana Teste", "ana@example.com"));
         UUID youthId = users.create("Caio Teste", "caio@example.com");
         workspaces.addMember(workspaceId, youthId, YOUTH);
 
-        var result = get(youthId, "/v1/workspaces/" + workspaceId + "/probe/youth");
+        var allowed = get(youthId, "/v1/workspaces/" + workspaceId + "/probe/youth");
+        var notListed = post(youthId, "/v1/workspaces/" + workspaceId + "/probe/write");
 
-        assertForbidden(result);
+        assertThat(allowed).hasStatusOk().hasBodyTextEqualTo("YOUTH");
+        assertForbidden(notListed);
     }
 
     @Test

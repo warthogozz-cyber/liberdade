@@ -1,5 +1,7 @@
 package br.com.liberdadefamilia.workspace;
 
+import java.util.Collection;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -8,6 +10,6 @@ import java.util.UUID;
  */
 public interface FamilyActivity {
 
-    /** Whether the family has at least one transaction that is not deleted. */
-    boolean hasTransactions(UUID workspaceId);
+    /** Which of the families have at least one transaction that is not deleted, in one query. */
+    Set<UUID> withTransactions(Collection<UUID> workspaceIds);
 }

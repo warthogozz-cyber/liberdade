@@ -2,16 +2,17 @@ package br.com.liberdadefamilia.workspace.internal;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
 import br.com.liberdadefamilia.workspace.WorkspaceCreated;
+import br.com.liberdadefamilia.workspace.WorkspaceMember;
+import br.com.liberdadefamilia.workspace.WorkspaceRenamed;
 import br.com.liberdadefamilia.workspace.internal.WorkspaceRepository.NewWorkspace;
 import java.time.ZoneId;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Creates families. */
+/** Creates and renames families. */
 @Service
 class WorkspaceService {
 
@@ -27,23 +28,32 @@ class WorkspaceService {
      * Creates the user's family with them as OWNER and publishes {@link WorkspaceCreated}, all in one transaction: if a
      * listener fails, nothing is kept.
      *
-     * @throws WorkspaceAlreadyExistsException when the user already belongs to a family, including when another request
-     *     for the same user commits first and the partial unique index refuses this membership
+     * @throws WorkspaceAlreadyExistsException when the user already owns a family. The user's lock comes first, so when
+     *     another request for the same user is creating one, this one waits and then finds it.
      */
     @Transactional
     UUID create(CurrentUser user, String name, ZoneId timezone) {
-        if (workspaces.hasActiveMembership(user.id())) {
+        workspaces.lockFamilyCreation(user.id());
+        if (workspaces.isActiveOwnerOfAnyFamily(user.id())) {
             throw new WorkspaceAlreadyExistsException();
         }
         NewWorkspace workspace = workspaces.insert(name, timezone);
-        UUID membershipId;
-        try {
-            membershipId = workspaces.insertOwner(workspace.id(), user.id(), firstName(user.displayName()));
-        } catch (DuplicateKeyException anotherRequestWon) {
-            throw new WorkspaceAlreadyExistsException();
-        }
+        UUID membershipId = workspaces.insertOwner(workspace.id(), user.id(), firstName(user.displayName()));
         events.publishEvent(new WorkspaceCreated(workspace.id(), membershipId, workspace.baseCurrency()));
         return workspace.id();
+    }
+
+    /**
+     * Gives the family its new name and publishes {@link WorkspaceRenamed}, and returns the family as the caller sees
+     * it.
+     */
+    @Transactional
+    MeWorkspace rename(WorkspaceMember member, String name) {
+        workspaces.rename(member.workspaceId(), name);
+        events.publishEvent(new WorkspaceRenamed(member.workspaceId(), member.userId()));
+        return workspaces
+                .activeWorkspaceOf(member.userId(), member.workspaceId())
+                .orElseThrow(WorkspaceNotFoundException::new);
     }
 
     /** The first word of the display name (D5), or null when it has none. */

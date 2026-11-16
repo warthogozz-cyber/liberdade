@@ -18,6 +18,9 @@ const workspace: MeWorkspace = {
   timezone: 'America/Fortaleza',
   gettingStartedDismissedAt: null,
   hasTransactions: false,
+  familyInvited: false,
+  recoveredAt: null,
+  deletionScheduledFor: null,
 }
 
 const me: MeView = {
@@ -25,6 +28,7 @@ const me: MeView = {
     id: '0192f3a4-0000-7000-8000-000000000001',
     displayName: 'Ana Teste',
     passkeyCreatedAt: null,
+    deletionScheduledFor: null,
   },
   workspaces: [],
   suggestedWorkspaceName: 'Família Teste',
@@ -69,6 +73,20 @@ describe('persistOptions', () => {
     vi.spyOn(db.kv, 'put').mockRejectedValueOnce(new Error('QuotaExceededError'))
 
     await expect(saveQueryCacheNow(createTestQueryClient())).resolves.toBeUndefined()
+  })
+
+  it('leavesOutAQueryThatOptsOutOfPersisting', async () => {
+    const queryClient = createTestQueryClient()
+    await queryClient.prefetchQuery({
+      queryKey: queryKeys.me,
+      queryFn: () => me,
+      meta: { persist: false },
+    })
+    await queryClient.prefetchQuery({ queryKey: ['kept'], queryFn: () => 'kept' })
+
+    const saved = dehydrate(queryClient, persistOptions.dehydrateOptions)
+
+    expect(saved.queries.map((query) => query.queryKey)).toEqual([['kept']])
   })
 
   it('restores nothing when nothing was saved', async () => {

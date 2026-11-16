@@ -103,6 +103,33 @@ class BalanceCalculatorTest {
     }
 
     @Test
+    void transferFromOutsideScopeCountsInBalanceOnly() {
+        // The youth's dashboard: only the wallet is in the map, and the allowance comes from a family account.
+        var scoped = Map.of(WALLET, Money.brl("0"));
+        var flows = List.of(
+                flow(LocalDate.of(2026, 11, 3), TRANSFER, CHECKING, WALLET, "50"),
+                flow(LocalDate.of(2026, 11, 4), EXPENSE, WALLET, null, "10"));
+
+        var summary = BalanceCalculator.summarize(NOVEMBER, BRL, scoped, flows);
+
+        assertThat(summary.income()).isEqualTo(Money.brl("0.00"));
+        assertThat(summary.expenses()).isEqualTo(Money.brl("10.00"));
+        assertThat(summary.balance()).isEqualTo(Money.brl("40.00"));
+        assertThat(summary.daily().get(1).balance()).isEqualTo(Money.brl("0.00"));
+        assertThat(summary.daily().get(2).balance()).isEqualTo(Money.brl("50.00"));
+        assertThat(summary.daily().get(3).balance()).isEqualTo(Money.brl("40.00"));
+
+        // Between two accounts of the map, a transfer moves money without changing the total.
+        var both = Map.of(WALLET, Money.brl("0"), CHECKING, Money.brl("100"));
+        var inside = BalanceCalculator.summarize(
+                NOVEMBER, BRL, both, List.of(flow(LocalDate.of(2026, 11, 3), TRANSFER, CHECKING, WALLET, "50")));
+
+        assertThat(inside.balance()).isEqualTo(Money.brl("100.00"));
+        assertThat(inside.income()).isEqualTo(Money.brl("0.00"));
+        assertThat(inside.expenses()).isEqualTo(Money.brl("0.00"));
+    }
+
+    @Test
     void dailyCoversWholeMonth() {
         var summary = BalanceCalculator.summarize(YearMonth.of(2028, 2), BRL, Map.of(), List.of());
 

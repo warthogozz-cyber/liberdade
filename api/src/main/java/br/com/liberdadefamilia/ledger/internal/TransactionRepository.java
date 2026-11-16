@@ -30,6 +30,19 @@ class TransactionRepository {
             id, kind, amount, currency, occurred_on, account_id, to_account_id, category_id, description, member_id,
             created_at, version""";
 
+    /** The transaction touches the scope: it leaves or enters an account in it (a transfer from outside included). */
+    private static final String VISIBLE = AccountScope.sqlTouches("account_id", "to_account_id");
+
+    /**
+     * Under a restricted scope, the caller may change the transaction: they recorded it, and every account it touches
+     * is in the scope. Under {@link AccountScope#all()}, always true.
+     */
+    private static final String OWN = """
+            (cast(:scopeIds as uuid[]) is null
+             or (created_by = :caller
+                 and account_id = any(cast(:scopeIds as uuid[]))
+                 and (to_account_id is null or to_account_id = any(cast(:scopeIds as uuid[])))))""";
+
     private final JdbcClient jdbc;
 
     TransactionRepository(JdbcClient jdbc) {
@@ -37,16 +50,17 @@ class TransactionRepository {
     }
 
     /**
-     * Inserts the transaction, recorded by and for the given member, unless its id already exists (in this family or
-     * any other). Returns the new row, or empty when the id was taken.
+     * Inserts the transaction, recorded by one member and for another (or the same), unless its id already exists (in
+     * this family or any other). Returns the new row, or empty when the id was taken.
      */
-    Optional<TransactionView> insertIfAbsent(UUID workspaceId, UUID membershipId, CreateTransactionRequest request) {
+    Optional<TransactionView> insertIfAbsent(
+            UUID workspaceId, UUID createdBy, UUID memberId, CreateTransactionRequest request) {
         return jdbc.sql("""
                         insert into transactions
                             (id, workspace_id, kind, amount, currency, occurred_on,
                              account_id, to_account_id, category_id, description, member_id, created_by)
                         values (:id, :workspaceId, :kind, :amount, :currency, :occurredOn,
-                                :accountId, :toAccountId, :categoryId, :description, :membershipId, :membershipId)
+                                :accountId, :toAccountId, :categoryId, :description, :memberId, :createdBy)
                         on conflict (id) do nothing
                         returning\s""" + COLUMNS)
                 .param("id", request.id())
@@ -59,29 +73,61 @@ class TransactionRepository {
                 .param("toAccountId", request.toAccountId())
                 .param("categoryId", request.categoryId())
                 .param("description", request.description())
-                .param("membershipId", membershipId)
+                .param("memberId", memberId)
+                .param("createdBy", createdBy)
                 .query(TransactionRepository::view)
                 .optional();
     }
 
-    /** A transaction of this family, deleted or not: an id stays taken after deletion. */
-    Optional<StoredTransaction> find(UUID workspaceId, UUID id) {
+    /**
+     * A transaction of this family that touches the scope, deleted or not: an id stays taken after deletion. One out
+     * of the scope is as absent as one that never existed.
+     */
+    Optional<StoredTransaction> find(UUID workspaceId, UUID id, AccountScope scope) {
         return jdbc.sql("select " + COLUMNS + """
-                        , deleted_at is not null as deleted
+                        , created_by, deleted_at is not null as deleted
                          from transactions
                         where workspace_id = :workspaceId
-                          and id = :id""")
+                          and id = :id
+                          and """ + VISIBLE)
                 .param("workspaceId", workspaceId)
                 .param("id", id)
-                .query((rs, row) -> new StoredTransaction(view(rs, row), rs.getBoolean("deleted")))
+                .param("scopeIds", scope.sqlArray())
+                .query(TransactionRepository::stored)
                 .optional();
     }
 
     /**
-     * Replaces the transaction's data, if it is still at the given version and not deleted, and moves it to the next
-     * version. Empty when the version moved on or the transaction was deleted (or never existed).
+     * A transaction of this family, deleted or not, that the caller may change under the scope: under a restricted
+     * one, only what they recorded with every account in the scope.
      */
-    Optional<TransactionView> update(UUID workspaceId, UUID id, UpdateTransactionRequest request) {
+    Optional<StoredTransaction> findOwn(UUID workspaceId, UUID id, AccountScope scope, UUID caller) {
+        return jdbc.sql("select " + COLUMNS + """
+                        , created_by, deleted_at is not null as deleted
+                         from transactions
+                        where workspace_id = :workspaceId
+                          and id = :id
+                          and """ + OWN)
+                .param("workspaceId", workspaceId)
+                .param("id", id)
+                .param("scopeIds", scope.sqlArray())
+                .param("caller", caller)
+                .query(TransactionRepository::stored)
+                .optional();
+    }
+
+    /**
+     * Replaces the transaction's data, if it is still at the given version, not deleted and the caller's to change
+     * under the scope, and moves it to the next version. Empty when the version moved on or the transaction was deleted
+     * (or never existed, or is not the caller's).
+     */
+    Optional<TransactionView> update(
+            UUID workspaceId,
+            UUID id,
+            AccountScope scope,
+            UUID caller,
+            UUID memberId,
+            UpdateTransactionRequest request) {
         return jdbc.sql("""
                         update transactions
                         set kind = :kind,
@@ -92,16 +138,21 @@ class TransactionRepository {
                             to_account_id = :toAccountId,
                             category_id = :categoryId,
                             description = :description,
+                            member_id = :memberId,
                             version = version + 1,
                             updated_at = now()
                         where workspace_id = :workspaceId
                           and id = :id
                           and version = :version
                           and deleted_at is null
+                          and """ + OWN + """
                         returning\s""" + COLUMNS)
                 .param("workspaceId", workspaceId)
                 .param("id", id)
+                .param("scopeIds", scope.sqlArray())
+                .param("caller", caller)
                 .param("version", request.version())
+                .param("memberId", memberId)
                 .param("kind", request.kind().name())
                 .param("amount", request.amount().amount())
                 .param("currency", request.amount().currency().getCurrencyCode())
@@ -114,8 +165,12 @@ class TransactionRepository {
                 .optional();
     }
 
-    /** Marks an active transaction as deleted at {@code now}. Whether one was; false when absent or already deleted. */
-    boolean softDelete(UUID workspaceId, UUID id, Instant now) {
+    /**
+     * Marks an active transaction that the caller may change under the scope as deleted at {@code now}. Whether one
+     * was; false when absent, already deleted or not the caller's. The OWN condition here is the delete's only guard,
+     * not a repetition of a check made elsewhere.
+     */
+    boolean softDelete(UUID workspaceId, UUID id, AccountScope scope, UUID caller, Instant now) {
         return jdbc.sql("""
                         update transactions
                         set deleted_at = :now,
@@ -123,16 +178,23 @@ class TransactionRepository {
                             updated_at = now()
                         where workspace_id = :workspaceId
                           and id = :id
-                          and deleted_at is null""")
+                          and deleted_at is null
+                          and """ + OWN)
                         .param("workspaceId", workspaceId)
                         .param("id", id)
+                        .param("scopeIds", scope.sqlArray())
+                        .param("caller", caller)
                         .param("now", OffsetDateTime.ofInstant(now, ZoneOffset.UTC))
                         .update()
                 == 1;
     }
 
-    /** Brings a deleted transaction back. Empty when it is absent or not deleted. */
-    Optional<TransactionView> restore(UUID workspaceId, UUID id) {
+    /**
+     * Brings back a deleted transaction that the caller may change under the scope. Empty when it is absent, not
+     * deleted or not the caller's. The OWN condition here is the restore's primary guard, not a repetition of a check
+     * made elsewhere.
+     */
+    Optional<TransactionView> restore(UUID workspaceId, UUID id, AccountScope scope, UUID caller) {
         return jdbc.sql("""
                         update transactions
                         set deleted_at = null,
@@ -141,19 +203,28 @@ class TransactionRepository {
                         where workspace_id = :workspaceId
                           and id = :id
                           and deleted_at is not null
+                          and """ + OWN + """
                         returning\s""" + COLUMNS)
                 .param("workspaceId", workspaceId)
                 .param("id", id)
+                .param("scopeIds", scope.sqlArray())
+                .param("caller", caller)
                 .query(TransactionRepository::view)
                 .optional();
     }
 
     /**
      * The transactions on or after {@code from} and before {@code until}, newest first (D20). With a category, only
-     * that category and its subcategories; with an account, the transactions leaving or entering it.
+     * that category and its subcategories; with an account, the transactions leaving or entering it. Only those that
+     * touch the scope.
      */
     List<TransactionView> between(
-            UUID workspaceId, LocalDate from, LocalDate until, @Nullable UUID categoryId, @Nullable UUID accountId) {
+            UUID workspaceId,
+            LocalDate from,
+            LocalDate until,
+            @Nullable UUID categoryId,
+            @Nullable UUID accountId,
+            AccountScope scope) {
         return jdbc.sql("select " + COLUMNS + """
                          from transactions
                         where workspace_id = :workspaceId
@@ -169,21 +240,24 @@ class TransactionRepository {
                           and (cast(:accountId as uuid) is null
                                or account_id = cast(:accountId as uuid)
                                or to_account_id = cast(:accountId as uuid))
+                          and """ + VISIBLE + """
                         order by occurred_on desc, created_at desc, id desc""")
                 .param("workspaceId", workspaceId)
                 .param("from", from)
                 .param("until", until)
                 .param("categoryId", categoryId)
                 .param("accountId", accountId)
+                .param("scopeIds", scope.sqlArray())
                 .query(TransactionRepository::view)
                 .list();
     }
 
     /**
      * What moved up to {@code monthEnd}, summed by day, kind, accounts and currency. What happened before the month
-     * collapses into the day before {@code monthStart}, so that years of history come back as a few flows.
+     * collapses into the day before {@code monthStart}, so that years of history come back as a few flows. Only what
+     * touches the scope: a transfer from an account outside it into one inside counts in the balance alone.
      */
-    List<Flow> flowsUntil(UUID workspaceId, LocalDate monthStart, LocalDate monthEnd) {
+    List<Flow> flowsUntil(UUID workspaceId, LocalDate monthStart, LocalDate monthEnd, AccountScope scope) {
         return jdbc.sql("""
                         select greatest(occurred_on, cast(:monthStart as date) - 1) as day,
                                kind, account_id, to_account_id, currency, sum(amount) as amount
@@ -191,8 +265,10 @@ class TransactionRepository {
                         where workspace_id = :workspaceId
                           and occurred_on <= :monthEnd
                           and deleted_at is null
+                          and """ + VISIBLE + """
                         group by 1, kind, account_id, to_account_id, currency""")
                 .param("workspaceId", workspaceId)
+                .param("scopeIds", scope.sqlArray())
                 .param("monthStart", monthStart)
                 .param("monthEnd", monthEnd)
                 .query((rs, row) -> new Flow(
@@ -206,9 +282,9 @@ class TransactionRepository {
 
     /**
      * The expenses of the month and of the month before, by top-level category: a subcategory counts for its parent
-     * (D9). One line for each category and currency.
+     * (D9). One line for each category and currency. Only the expenses from accounts in the scope.
      */
-    List<CategoryTotal> expensesByTopCategory(UUID workspaceId, YearMonth month) {
+    List<CategoryTotal> expensesByTopCategory(UUID workspaceId, YearMonth month, AccountScope scope) {
         return jdbc.sql("""
                         select coalesce(c.parent_id, c.id) as category_id, t.currency,
                                coalesce(sum(t.amount) filter (where t.occurred_on >= :monthStart), 0) as current,
@@ -222,8 +298,10 @@ class TransactionRepository {
                           and t.deleted_at is null
                           and t.occurred_on >= :previousStart
                           and t.occurred_on < :nextStart
+                          and """ + AccountScope.sqlIncludes("t.account_id") + """
                         group by coalesce(c.parent_id, c.id), t.currency""")
                 .param("workspaceId", workspaceId)
+                .param("scopeIds", scope.sqlArray())
                 .param("monthStart", month.atDay(1))
                 .param("previousStart", month.minusMonths(1).atDay(1))
                 .param("nextStart", month.plusMonths(1).atDay(1))
@@ -266,6 +344,13 @@ class TransactionRepository {
                 rs.getLong("version"));
     }
 
-    /** A transaction as stored, with whether it is deleted (and so restorable, not editable). */
-    record StoredTransaction(TransactionView view, boolean deleted) {}
+    private static StoredTransaction stored(ResultSet rs, int row) throws SQLException {
+        return new StoredTransaction(view(rs, row), rs.getObject("created_by", UUID.class), rs.getBoolean("deleted"));
+    }
+
+    /**
+     * A transaction as stored, with the membership that recorded it and whether it is deleted (and so restorable, not
+     * editable).
+     */
+    record StoredTransaction(TransactionView view, UUID createdBy, boolean deleted) {}
 }

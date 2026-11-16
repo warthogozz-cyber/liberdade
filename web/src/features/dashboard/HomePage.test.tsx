@@ -164,6 +164,28 @@ describe('HomePage', () => {
     expect(screen.queryByRole('heading', { name: 'Primeiros passos' })).not.toBeInTheDocument()
   })
 
+  it('youthSeesTheirWalletReadOnly', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    mockState.accounts[0].name = 'Carteira de Leo'
+    renderHome()
+
+    expect(await screen.findByText('Sua carteira')).toBeInTheDocument()
+    expect(screen.queryByText('Saldo total')).not.toBeInTheDocument()
+    expect(await screen.findByText('Carteira de Leo')).toBeInTheDocument()
+    expect(screen.queryByText(/Cadastre suas contas/)).not.toBeInTheDocument()
+  })
+
+  it('youthHasNoGettingStarted', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    workspace.hasTransactions = true
+    renderHome()
+
+    expect(await screen.findByText('Sua carteira')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Primeiros passos' })).not.toBeInTheDocument()
+  })
+
   it('dropsLegacyKey', async () => {
     const workspace = seedMockFamily()
     workspace.hasTransactions = true
@@ -221,5 +243,34 @@ describe('HomePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
 
     await waitFor(() => expect(screen.getByText('R$ 10,00')).toBeInTheDocument())
+  })
+})
+
+describe('HomePage recovery notice', () => {
+  const NOTICE = /Seu acesso foi recuperado em/
+
+  it('recoveryNoticeWithin7Days', async () => {
+    const workspace = seedMockFamily()
+    workspace.recoveredAt = '2026-11-13T15:00:00Z'
+    const first = renderHome()
+
+    expect(await screen.findByText(NOTICE)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Entendi' }))
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument()
+
+    // Closed once, it does not come back on this device.
+    first.unmount()
+    renderHome()
+    expect(await screen.findByText('R$ 10,00')).toBeInTheDocument()
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument()
+  })
+
+  it('hidesTheNoticeAfter7Days', async () => {
+    const workspace = seedMockFamily()
+    workspace.recoveredAt = '2026-11-07T15:00:00Z'
+    renderHome()
+
+    expect(await screen.findByText('R$ 10,00')).toBeInTheDocument()
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument()
   })
 })

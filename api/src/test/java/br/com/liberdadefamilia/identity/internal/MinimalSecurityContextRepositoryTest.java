@@ -7,7 +7,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import br.com.liberdadefamilia.identity.DeviceLabel;
+import br.com.liberdadefamilia.identity.SignInMethod;
+import br.com.liberdadefamilia.identity.SignedIn;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,10 +37,15 @@ import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenti
 class MinimalSecurityContextRepositoryTest {
 
     private static final UUID USER_ID = UUID.fromString("0190a3f0-0000-7000-8000-000000000005");
+    private static final String CHROME_ON_ANDROID = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
+            + "(KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
     private static final List<GrantedAuthority> AUTHORITIES = List.of(new SimpleGrantedAuthority("OIDC_USER"));
 
     private final SecurityContextRepository delegate = mock(SecurityContextRepository.class);
-    private final MinimalSecurityContextRepository repository = new MinimalSecurityContextRepository(delegate);
+    private final Clock clock = Clock.fixed(Instant.parse("2026-11-02T12:00:00Z"), ZoneOffset.UTC);
+    private final List<Object> events = new ArrayList<>();
+    private final MinimalSecurityContextRepository repository =
+            new MinimalSecurityContextRepository(delegate, clock, events::add);
     private final MockHttpServletRequest request = new MockHttpServletRequest();
     private final MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -79,7 +90,8 @@ class MinimalSecurityContextRepositoryTest {
                 new SecurityContextImpl(google(Map.of("sub", "g-1", "family_name", " "))), request, response);
 
         assertThat(saved().getAuthentication()).isInstanceOf(SessionUserAuthentication.class);
-        assertThat(request.getSession(false)).isNull();
+        assertThat(request.getSession().getAttribute(SessionSignInHints.FAMILY_NAME_HINT))
+                .isNull();
     }
 
     @Test
@@ -87,7 +99,37 @@ class MinimalSecurityContextRepositoryTest {
         repository.saveContext(new SecurityContextImpl(passkey()), request, response);
 
         assertThat(saved().getAuthentication()).isEqualTo(new SessionUserAuthentication(new SessionUser(USER_ID)));
-        assertThat(request.getSession(false)).isNull();
+        assertThat(request.getSession().getAttribute(SessionSignInHints.FAMILY_NAME_HINT))
+                .isNull();
+        assertThat(events).singleElement().isInstanceOfSatisfying(SignedIn.class, signedIn -> {
+            assertThat(signedIn.userId()).isEqualTo(USER_ID);
+            assertThat(signedIn.method()).isEqualTo(SignInMethod.PASSKEY);
+        });
+    }
+
+    @Test
+    void freshSignInRecordsInstant() {
+        request.addHeader("User-Agent", CHROME_ON_ANDROID);
+
+        repository.saveContext(new SecurityContextImpl(google(Map.of("sub", "g-1"))), request, response);
+
+        assertThat(request.getSession().getAttribute(RecentSignInInterceptor.AUTHENTICATED_AT))
+                .isEqualTo(clock.instant());
+        assertThat(events)
+                .containsExactly(new SignedIn(USER_ID, SignInMethod.GOOGLE, new DeviceLabel("Chrome", "Android")));
+    }
+
+    @Test
+    void minimalContextKeepsInstant() {
+        Instant earlier = Instant.parse("2026-11-02T11:00:00Z");
+        request.getSession().setAttribute(RecentSignInInterceptor.AUTHENTICATED_AT, earlier);
+        var context = new SecurityContextImpl(new SessionUserAuthentication(new SessionUser(USER_ID)));
+
+        repository.saveContext(context, request, response);
+
+        assertThat(request.getSession().getAttribute(RecentSignInInterceptor.AUTHENTICATED_AT))
+                .isEqualTo(earlier);
+        assertThat(events).isEmpty();
     }
 
     @Test

@@ -1,13 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import { server } from '@/mocks/server'
 import { postJson, queryKeys, type MeView } from '@/shared/api'
-import { clearSession, db, type OutboxItem } from '@/shared/offline'
+import {
+  clearSession,
+  db,
+  INVITATION_TOKEN_KEY,
+  PENDING_PASSKEY_KEY,
+  REAUTH_USER_KEY,
+  RETURN_PATH_KEY,
+  type OutboxItem,
+} from '@/shared/offline'
 import { createTestQueryClient } from '@/shared/testing'
 
 const userId = '0192f3a4-0000-7000-8000-000000000001'
 
 const me: MeView = {
-  user: { id: userId, displayName: 'Ana Teste', passkeyCreatedAt: null },
+  user: {
+    id: userId,
+    displayName: 'Ana Teste',
+    passkeyCreatedAt: null,
+    deletionScheduledFor: null,
+  },
   workspaces: [],
   suggestedWorkspaceName: 'Família Teste',
 }
@@ -53,5 +66,17 @@ describe('clearSession', () => {
     await postJson('/logout')
     expect(tokenRequests).toHaveLength(2)
     server.events.removeListener('request:start', record)
+  })
+
+  it("forgets what this tab kept for the session, the invitation's token included", async () => {
+    const keys = [RETURN_PATH_KEY, REAUTH_USER_KEY, PENDING_PASSKEY_KEY, INVITATION_TOKEN_KEY]
+    for (const key of keys) sessionStorage.setItem(key, 'kept')
+    sessionStorage.setItem('liberdade.other', 'kept')
+
+    await clearSession(createTestQueryClient())
+
+    for (const key of keys) expect(sessionStorage.getItem(key)).toBeNull()
+    expect(sessionStorage.getItem('liberdade.other')).toBe('kept')
+    sessionStorage.removeItem('liberdade.other')
   })
 })

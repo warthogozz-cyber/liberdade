@@ -14,7 +14,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * The whole transaction as the person left it on the edit screen: a full replacement, not a partial change. {@code
  * version} is the one the screen was opened with; if the transaction changed since, the edit is refused. The
- * description is cleaned as on create.
+ * description is cleaned as on create. A null {@code memberId} keeps the one the transaction has.
  */
 record UpdateTransactionRequest(
         @NotNull Long version,
@@ -24,6 +24,7 @@ record UpdateTransactionRequest(
         @NotNull UUID accountId,
         @Nullable @Schema(nullable = true) UUID toAccountId,
         @Nullable @Schema(nullable = true) UUID categoryId,
+        @Nullable @Schema(nullable = true) UUID memberId,
 
         @Nullable
         @Schema(nullable = true)

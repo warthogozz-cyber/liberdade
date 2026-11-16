@@ -41,9 +41,10 @@ class CategoryRepository {
     /**
      * The categories of one kind. The active ones come first, most used first: by the number of transactions on or
      * after {@code usedSince} (D31), then by their default order, then by name. The archived ones follow, by name.
-     * Deleted transactions do not count.
+     * Deleted transactions do not count, nor do those from accounts out of the scope: the youth's order follows
+     * their own use, and does not reveal the family's.
      */
-    List<CategoryView> allByUse(UUID workspaceId, TransactionKind kind, LocalDate usedSince) {
+    List<CategoryView> allByUse(UUID workspaceId, TransactionKind kind, LocalDate usedSince, AccountScope scope) {
         return jdbc.sql("""
                         select c.id, c.name, c.kind, c.icon, c.color, c.parent_id, c.archived_at
                         from categories c
@@ -52,6 +53,7 @@ class CategoryRepository {
                               and t.category_id = c.id
                               and t.deleted_at is null
                               and t.occurred_on >= :usedSince
+                              and """ + AccountScope.sqlIncludes("t.account_id") + """
                         where c.workspace_id = :workspaceId
                           and c.kind = :kind
                         group by c.id
@@ -62,6 +64,7 @@ class CategoryRepository {
                 .param("workspaceId", workspaceId)
                 .param("kind", kind.name())
                 .param("usedSince", usedSince)
+                .param("scopeIds", scope.sqlArray())
                 .query(CategoryRepository::view)
                 .list();
     }

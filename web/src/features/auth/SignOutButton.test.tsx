@@ -13,6 +13,7 @@ import { outboxItem, renderWithProviders } from '@/shared/testing'
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 function recordLogouts() {
@@ -53,6 +54,31 @@ describe('SignOutButton', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/entrar'))
     expect(logouts).toEqual(['POST'])
     await waitFor(() => expect(queryClient.getQueryData(['me'])).toBeUndefined())
+  })
+
+  it('tells the other tabs after the sign-out, and not when it fails', async () => {
+    const sent: unknown[] = []
+    vi.stubGlobal(
+      'BroadcastChannel',
+      class {
+        postMessage(data: unknown) {
+          sent.push(data)
+        }
+        close() {}
+      },
+    )
+    const { router } = renderButton()
+    fireEvent.click(await signOutButton())
+    await waitFor(() => expect(router.state.location.pathname).toBe('/entrar'))
+    await waitFor(() => expect(sent).toEqual([{ type: 'signed-out' }]))
+    cleanup()
+    sent.length = 0
+
+    server.use(http.post(`${API_URL}/logout`, () => problem(500, 'server.error')))
+    renderButton()
+    fireEvent.click(await signOutButton())
+    await screen.findByRole('alert')
+    expect(sent).toEqual([])
   })
 
   it('warns before signing out with queued expenses', async () => {

@@ -2,7 +2,10 @@ package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.ledger.domain.TransactionKind;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.workspace.MemberJoined;
+import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceCreated;
+import java.util.Currency;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.context.event.EventListener;
@@ -16,6 +19,10 @@ import org.springframework.stereotype.Component;
 class LedgerSeeder {
 
     static final String WALLET_NAME = "Carteira";
+
+    private static final String YOUTH_WALLET_PREFIX = "Carteira de ";
+    private static final int MAX_WALLET_NAMES = 50;
+    private static final Currency DEFAULT_CURRENCY = Currency.getInstance("BRL");
 
     /** The default expense categories, in the order they show before any use. */
     static final List<DefaultCategory> EXPENSES = List.of(
@@ -61,6 +68,30 @@ class LedgerSeeder {
                 event.ownerMembershipId());
         insert(workspaceId, TransactionKind.EXPENSE, EXPENSES);
         insert(workspaceId, TransactionKind.INCOME, INCOMES);
+    }
+
+    /**
+     * A YOUTH gets a wallet of their own, in the family's currency. The name avoids the ones in use: "Carteira de Leo",
+     * then "... 2", "... 3". It listens inside the accepting transaction, so a failure here undoes the joining.
+     */
+    @EventListener
+    void on(MemberJoined event) {
+        if (event.role() != Role.YOUTH) {
+            return;
+        }
+        UUID workspaceId = event.workspaceId();
+        Currency currency = accounts.firstCurrency(workspaceId).orElse(DEFAULT_CURRENCY);
+        String base = YOUTH_WALLET_PREFIX + event.nickname();
+        // The insert answers a taken name with no row, so two people joining at once cannot both take one name.
+        for (int n = 1; n <= MAX_WALLET_NAMES; n++) {
+            String name = n == 1 ? base : base + " " + n;
+            if (accounts.insertIfNameFree(
+                            workspaceId, name, AccountType.CASH, Money.zero(currency), event.membershipId())
+                    .isPresent()) {
+                return;
+            }
+        }
+        throw new IllegalStateException("No free name for a youth wallet");
     }
 
     private void insert(UUID workspaceId, TransactionKind kind, List<DefaultCategory> defaults) {

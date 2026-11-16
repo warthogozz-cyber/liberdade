@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { createFamily, newUser, signInWithGoogle } from './support.ts'
+import { createFamily, newUser, signInWithGoogle, waitForOfflineReady } from './support.ts'
 
 const S1_LIMIT_MS = 60_000
 const SYNC_TIMEOUT_MS = 20_000
@@ -48,9 +48,7 @@ test('records the first expense in airplane mode (S1)', async ({ page, context }
   await signInWithGoogle(page, newUser())
   await createFamily(page)
   // The app shell is cached and the family's data has arrived (Task 11's warm-up).
-  await page.evaluate(async () => {
-    await navigator.serviceWorker.ready
-  })
+  await waitForOfflineReady(page)
   await expect(page.getByRole('radio', { name: '🛒 Mercado' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Hoje · Carteira · Eu' })).toBeVisible()
 

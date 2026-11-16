@@ -3,6 +3,7 @@ export const gettingStartedMessages = {
   'gettingStarted.title': 'Primeiros passos',
   'gettingStarted.close': 'Fechar primeiros passos',
   'gettingStarted.accounts': 'Adicionar suas contas',
+  'gettingStarted.invite': 'Convidar a família',
   'gettingStarted.passkey': 'Criar passkey neste aparelho',
   'gettingStarted.done': 'Feito',
   'gettingStarted.dismissFailed': 'Não deu para fechar agora. Tente de novo.',

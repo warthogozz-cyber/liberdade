@@ -29,18 +29,22 @@ class DashboardService {
         this.transactionService = transactionService;
     }
 
-    /** One transaction, so that the balance, the totals and the ranking come from the same moment. */
+    /**
+     * One transaction, so that the balance, the totals and the ranking come from the same moment. Every number is of
+     * the member's scope (D13): for the youth, the accounts they own.
+     */
     @Transactional(readOnly = true)
     DashboardView monthOf(WorkspaceMember member, YearMonth month) {
         transactionService.checkMonth(member, month);
         Currency base = member.baseCurrency();
-        var initialBalances = accounts.activeInitialBalances(member.workspaceId());
+        AccountScope scope = accounts.scopeFor(member);
+        var initialBalances = accounts.activeInitialBalances(member.workspaceId(), scope);
         initialBalances.values().removeIf(money -> !money.currency().equals(base));
-        var flows = transactions.flowsUntil(member.workspaceId(), month.atDay(1), month.atEndOfMonth()).stream()
+        var flows = transactions.flowsUntil(member.workspaceId(), month.atDay(1), month.atEndOfMonth(), scope).stream()
                 .filter(flow -> flow.amount().currency().equals(base))
                 .toList();
         var summary = BalanceCalculator.summarize(month, base, initialBalances, flows);
-        var categories = transactions.expensesByTopCategory(member.workspaceId(), month).stream()
+        var categories = transactions.expensesByTopCategory(member.workspaceId(), month, scope).stream()
                 .filter(total -> total.current().currency().equals(base))
                 .toList();
         return new DashboardView(

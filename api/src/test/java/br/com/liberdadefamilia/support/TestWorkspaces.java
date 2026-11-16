@@ -60,6 +60,20 @@ public class TestWorkspaces {
                 .single();
     }
 
+    /** Adds an ACTIVE membership with a nickname. */
+    public UUID addMember(UUID workspaceId, UUID userId, Role role, String nickname) {
+        return jdbc.sql("""
+                        insert into memberships (workspace_id, user_id, role, nickname)
+                        values (:workspaceId, :userId, :role, :nickname)
+                        returning id""")
+                .param("workspaceId", workspaceId)
+                .param("userId", userId)
+                .param("role", role.name())
+                .param("nickname", nickname)
+                .query(UUID.class)
+                .single();
+    }
+
     public UUID membershipOf(UUID workspaceId, UUID userId) {
         return jdbc.sql("select id from memberships where workspace_id = :workspaceId and user_id = :userId")
                 .param("workspaceId", workspaceId)

@@ -2,10 +2,12 @@ package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.ledger.internal.AccountRepository.AccountChoice;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.workspace.Memberships;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.time.Clock;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +20,12 @@ import org.springframework.transaction.annotation.Transactional;
 class AccountService {
 
     private final AccountRepository accounts;
+    private final Memberships memberships;
     private final Clock clock;
 
-    AccountService(AccountRepository accounts, Clock clock) {
+    AccountService(AccountRepository accounts, Memberships memberships, Clock clock) {
         this.accounts = accounts;
+        this.memberships = memberships;
         this.clock = clock;
     }
 
@@ -36,12 +40,12 @@ class AccountService {
             throw unsupportedCurrency();
         }
         UUID owner = request.ownerMembershipId();
-        if (owner != null && !accounts.isActiveMembership(workspaceId, owner)) {
+        if (owner != null && !memberships.isActive(workspaceId, owner)) {
             throw new LedgerRejectedException("account.owner-not-found", "Essa pessoa não faz parte da família.");
         }
         UUID id = nameTakenIfDuplicate(
                 () -> accounts.insert(workspaceId, request.name(), request.type(), request.initialBalance(), owner));
-        return view(workspaceId, id);
+        return view(member, id);
     }
 
     /**
@@ -52,7 +56,7 @@ class AccountService {
     @Transactional
     AccountView update(WorkspaceMember member, UUID accountId, UpdateAccountRequest request) {
         UUID workspaceId = member.workspaceId();
-        AccountChoice choice = find(workspaceId, accountId);
+        AccountChoice choice = find(member, accountId);
         Money balance = request.balance();
         for (Money money : new Money[] {request.initialBalance(), balance}) {
             if (money != null && !money.currency().equals(choice.currency())) {
@@ -64,7 +68,24 @@ class AccountService {
         if (balance != null) {
             accounts.setBalance(workspaceId, accountId, balance);
         }
-        return view(workspaceId, accountId);
+        return view(member, accountId);
+    }
+
+    /**
+     * Sets who the account belongs to, or takes the owner away with null. An archived account may still change owner.
+     *
+     * @throws LedgerNotFoundException when the account is not in the family
+     * @throws LedgerRejectedException when the owner is not in the family
+     */
+    @Transactional
+    AccountView setOwner(WorkspaceMember member, UUID accountId, @Nullable UUID ownerMembershipId) {
+        UUID workspaceId = member.workspaceId();
+        find(member, accountId);
+        if (ownerMembershipId != null && !memberships.isActive(workspaceId, ownerMembershipId)) {
+            throw new LedgerRejectedException("account.owner-not-found", "Essa pessoa não faz parte da família.");
+        }
+        accounts.setOwner(workspaceId, accountId, ownerMembershipId);
+        return view(member, accountId);
     }
 
     /**
@@ -76,14 +97,14 @@ class AccountService {
     @Transactional
     AccountView archive(WorkspaceMember member, UUID accountId) {
         UUID workspaceId = member.workspaceId();
-        if (!find(workspaceId, accountId).archived()) {
+        if (!find(member, accountId).archived()) {
             if (accounts.countActive(workspaceId) <= 1) {
                 throw new LedgerRejectedException(
                         "account.last-active", "A família precisa de pelo menos uma conta ativa.");
             }
             accounts.archive(workspaceId, accountId, clock.instant());
         }
-        return view(workspaceId, accountId);
+        return view(member, accountId);
     }
 
     /**
@@ -95,18 +116,21 @@ class AccountService {
     @Transactional
     AccountView unarchive(WorkspaceMember member, UUID accountId) {
         UUID workspaceId = member.workspaceId();
-        if (find(workspaceId, accountId).archived()) {
+        if (find(member, accountId).archived()) {
             nameTakenIfDuplicate(() -> accounts.unarchive(workspaceId, accountId));
         }
-        return view(workspaceId, accountId);
+        return view(member, accountId);
     }
 
-    private AccountChoice find(UUID workspaceId, UUID accountId) {
-        return accounts.choice(workspaceId, accountId).orElseThrow(AccountService::notFound);
+    /** The account, read through the member's scope: only adults reach these routes, and theirs is every account. */
+    private AccountChoice find(WorkspaceMember member, UUID accountId) {
+        return accounts.choice(member.workspaceId(), accountId, accounts.scopeFor(member))
+                .orElseThrow(AccountService::notFound);
     }
 
-    private AccountView view(UUID workspaceId, UUID accountId) {
-        return accounts.findWithBalance(workspaceId, accountId).orElseThrow(AccountService::notFound);
+    private AccountView view(WorkspaceMember member, UUID accountId) {
+        return accounts.findWithBalance(member.workspaceId(), accountId, accounts.scopeFor(member))
+                .orElseThrow(AccountService::notFound);
     }
 
     private static LedgerNotFoundException notFound() {

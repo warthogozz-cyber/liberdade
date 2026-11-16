@@ -1,40 +1,174 @@
-// The API allows 20 sign-in attempts per minute per IP (D10), and every request here comes from
-// 127.0.0.1. Each `signInWithGoogle` counts 1 (the authorization; the callback is not counted) and
-// a passkey sign-in counts 2 (the options and the login). The specs run one after another and each
-// takes several seconds, so a minute holds only a few of them; recount if a spec ever signs in
-// more than once in a loop.
-import { expect, type Locator, type Page } from '@playwright/test'
+// Two per-IP budgets limit how fast the suite may enter, and every request here comes from
+// 127.0.0.1, so `support.ts` keeps a log of what it spent and waits for the window instead of
+// loosening a limit:
+//  - sign-in, 20 per minute (D10, `LoginRateLimitFilter`): only `/oauth2/authorization/**` (a Google
+//    sign-in or a Google re-authentication: 1; the callback is not counted), `/webauthn/authenticate/options`
+//    and `/login/webauthn` (a passkey sign-in: 2). Registering a passkey and accepting an invitation
+//    are not counted here.
+//  - public invitations, 10 per minute (`invitationPublicRateLimiter`): `POST /v1/invitations/preview`
+//    and `POST /v1/invitations/accept` count 1 each.
+// The log lives in one worker's memory (the config runs a single worker); a restarted worker starts
+// with an empty log, which is the same risk the suite already had.
+import {
+  expect,
+  type Browser,
+  type BrowserContext,
+  type CDPSession,
+  type Locator,
+  type Page,
+} from '@playwright/test'
 
+const WINDOW_MS = 60_000
+/**
+ * Extra time past the window. It covers the server's own clock and, more, the delay between
+ * reserving and the request reaching the server: a reservation is made before the click, and the
+ * request that follows a Google round trip arrives seconds later. Two arrivals must still be a
+ * whole window apart, so the margin is longer than that trip takes.
+ */
+const WINDOW_MARGIN_MS = 6_000
+
+class Budget {
+  private readonly spent: number[] = []
+  private readonly limit: number
+
+  constructor(limit: number) {
+    this.limit = limit
+  }
+
+  /** Records `cost` attempts, first waiting until they fit in the last minute. */
+  async reserve(cost: number): Promise<void> {
+    if (cost > this.limit) throw new Error(`A cost of ${cost} never fits a limit of ${this.limit}`)
+    for (;;) {
+      const now = Date.now()
+      while (this.spent.length > 0 && now - this.spent[0]! >= WINDOW_MS + WINDOW_MARGIN_MS) {
+        this.spent.shift()
+      }
+      if (this.spent.length + cost <= this.limit) break
+      const oldest = this.spent[this.spent.length + cost - this.limit - 1]!
+      await new Promise((resolve) =>
+        setTimeout(resolve, oldest + WINDOW_MS + WINDOW_MARGIN_MS - now),
+      )
+    }
+    const at = Date.now()
+    for (let i = 0; i < cost; i += 1) this.spent.push(at)
+  }
+}
+
+export const signInBudget = new Budget(20)
+export const invitationBudget = new Budget(10)
 export type E2EUser = { sub: string; claims: Record<string, string> }
 
 /** A new person each time, so each test gets its own family without cleaning the database (D11). */
-export function newUser(): E2EUser {
+export function newUser(firstName = 'Ana'): E2EUser {
   return {
     sub: 'e2e-' + crypto.randomUUID(),
     claims: {
-      name: 'Ana Teste',
-      given_name: 'Ana',
+      name: `${firstName} Teste`,
+      given_name: firstName,
       family_name: 'Teste',
-      email: 'ana@example.com',
+      email: `${firstName.toLowerCase()}@example.com`,
     },
   }
 }
 
-/** Signs in through the test provider that stands in for Google, landing on the welcome screen. */
-export async function signInWithGoogle(page: Page, user: E2EUser): Promise<void> {
-  await page.goto('/entrar')
-  await page.getByRole('button', { name: 'Entrar com Google' }).click()
+/** Fills the test provider's form and submits it. It expects no page: the caller says where it ends. */
+export async function completeGoogleSignIn(page: Page, user: E2EUser): Promise<void> {
   await page.locator('[name="username"]').fill(user.sub)
   await page.locator('[name="claims"]').fill(JSON.stringify(user.claims))
   await page.getByRole('button', { name: 'Sign-in' }).click()
+}
+
+/** Signs in through the test provider that stands in for Google, landing on the welcome screen. */
+export async function signInWithGoogle(page: Page, user: E2EUser): Promise<void> {
+  await signInBudget.reserve(1)
+  await page.goto('/entrar')
+  await page.getByRole('button', { name: 'Entrar com Google' }).click()
+  await completeGoogleSignIn(page, user)
   await page.waitForURL('**/boas-vindas')
 }
 
 /** Creates the family with the suggested name, landing on the new expense. */
-export async function createFamily(page: Page): Promise<void> {
-  await expect(page.getByRole('heading', { level: 1, name: 'Olá, Ana! 👋' })).toBeVisible()
+export async function createFamily(page: Page, firstName = 'Ana'): Promise<void> {
+  await expect(page.getByRole('heading', { level: 1, name: `Olá, ${firstName}! 👋` })).toBeVisible()
   await page.getByRole('button', { name: 'Começar' }).click()
   await page.waitForURL('**/lancar')
+}
+
+/**
+ * Waits until the service worker controls the page: only then do the screens that load later (lazy
+ * chunks) come from the precache once the test goes offline.
+ */
+export async function waitForOfflineReady(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready
+    if (navigator.serviceWorker.controller) return
+    await new Promise((resolve) => {
+      navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })
+    })
+  })
+}
+
+/** A virtual passkey device on the page's browser context, so WebAuthn works without a person. */
+export async function addVirtualAuthenticator(
+  page: Page,
+): Promise<{ cdp: CDPSession; authenticatorId: string }> {
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('WebAuthn.enable')
+  const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', {
+    options: {
+      protocol: 'ctap2',
+      transport: 'internal',
+      hasResidentKey: true,
+      hasUserVerification: true,
+      isUserVerified: true,
+      automaticPresenceSimulation: true,
+    },
+  })
+  return { cdp, authenticatorId }
+}
+
+/** The signed-in page's own family id, read from the API the way the app does. */
+export async function currentWorkspaceId(page: Page): Promise<string> {
+  const response = await page.request.get('http://localhost:8080/v1/me')
+  expect(response.ok()).toBe(true)
+  const me = (await response.json()) as { workspaces: { id: string }[] }
+  return me.workspaces[0]!.id
+}
+
+/** Switches every module of the page's family on or off through the API, with the page's CSRF token. */
+export async function setModules(page: Page, enabled: boolean): Promise<void> {
+  const api = 'http://localhost:8080'
+  const ws = await currentWorkspaceId(page)
+  const csrf = (await (await page.request.get(`${api}/v1/csrf`)).json()) as {
+    headerName: string
+    token: string
+  }
+  const modules = (await (await page.request.get(`${api}/v1/workspaces/${ws}/modules`)).json()) as {
+    key: string
+  }[]
+  for (const { key } of modules) {
+    const response = await page.request.put(`${api}/v1/workspaces/${ws}/modules/${key}`, {
+      headers: { [csrf.headerName]: csrf.token },
+      data: { enabled },
+    })
+    expect(response.ok(), `PUT module ${key}`).toBe(true)
+  }
+}
+
+/** The same browser settings the config gives every test, for the extra contexts of one test. */
+export const CONTEXT_OPTIONS = { locale: 'pt-BR', timezoneId: 'America/Fortaleza' } as const
+
+/** Runs `body` with a new, signed-out browser context and closes it afterwards. */
+export async function withContext<T>(
+  browser: Browser,
+  body: (context: BrowserContext, page: Page) => Promise<T>,
+): Promise<T> {
+  const context = await browser.newContext(CONTEXT_OPTIONS)
+  try {
+    return await body(context, await context.newPage())
+  } finally {
+    await context.close()
+  }
 }
 
 /** Types an amount on the keypad: the digits of the cents, so "123456" is R$ 1.234,56. */
@@ -80,4 +214,73 @@ export async function waitForQueueToEmpty(page: Page): Promise<void> {
   await page.goto('/lancamentos')
   await expect(page.getByRole('main').getByRole('listitem').first()).toBeVisible()
   await expect(page.getByText('Aguardando sinal')).toHaveCount(0, { timeout: 20_000 })
+}
+
+export type InvitedRole = 'Adulto' | 'Jovem' | 'Leitor'
+
+/** The owner creates an invitation on the invite screen and returns the link it shows. */
+export async function createInvitation(
+  page: Page,
+  nickname: string,
+  role: InvitedRole = 'Adulto',
+): Promise<string> {
+  await page.goto('/mais/familia/convidar')
+  await page.getByLabel('Apelido', { exact: true }).fill(nickname)
+  await page.getByRole('combobox', { name: 'Papel' }).selectOption({ label: role })
+  if (role === 'Jovem') {
+    await page.getByRole('checkbox', { name: /Declaro que sou responsável legal/ }).check()
+  }
+  await page.getByRole('button', { name: 'Criar convite' }).click()
+  const link = page.getByLabel('Link do convite')
+  await expect(link).toBeVisible()
+  return link.inputValue()
+}
+
+/** Opens an invitation link (one preview against the invitation budget) and waits for its heading. */
+export async function openInvitation(page: Page, link: string, heading: string | RegExp) {
+  await invitationBudget.reserve(1)
+  await page.goto(link)
+  await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible()
+}
+
+/**
+ * Accepts a Youth's invitation on a fresh browser context's page: the name, then the passkey. Ends on
+ * Início. The page must not have a virtual authenticator yet.
+ */
+export async function joinAsYouth(page: Page, link: string, name: string): Promise<void> {
+  await addVirtualAuthenticator(page)
+  await openInvitation(page, link, /como Jovem/)
+  await page.getByLabel('Como você se chama?').fill(name)
+  await invitationBudget.reserve(1)
+  await page.getByRole('button', { name: 'Criar passkey neste aparelho' }).click()
+  await page.getByRole('button', { name: 'Criar passkey', exact: true }).click()
+  await expect(page).toHaveURL('/inicio')
+}
+
+/** Stubs only the first call of a route with the API's "sign in again" answer, then lets the rest through. */
+export async function stubFirstReauthRequired(
+  page: Page,
+  url: string | RegExp,
+  method: string,
+): Promise<void> {
+  let stubbed = false
+  await page.route(url, async (route) => {
+    if (stubbed || route.request().method() !== method) return route.fallback()
+    stubbed = true
+    await route.fulfill({
+      status: 403,
+      contentType: 'application/problem+json',
+      headers: {
+        'access-control-allow-origin': 'http://localhost:5173',
+        'access-control-allow-credentials': 'true',
+      },
+      body: JSON.stringify({
+        type: 'about:blank',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Confirme que é você para continuar.',
+        code: 'auth.reauthentication-required',
+      }),
+    })
+  })
 }

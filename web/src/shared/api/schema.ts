@@ -20,6 +20,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/invitations/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["acceptInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invitations/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me": {
         parameters: {
             query?: never;
@@ -30,6 +62,86 @@ export interface paths {
         get: operations["me"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMyActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMyConsents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/consents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revokeConsent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["requestAccountDeletion"];
+        delete: operations["cancelAccountDeletion"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["exportMyData"];
         delete?: never;
         options?: never;
         head?: never;
@@ -66,6 +178,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["renameWorkspace"];
         trace?: never;
     };
     "/v1/workspaces/{ws}/accounts": {
@@ -110,6 +238,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["archiveAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/accounts/{id}/owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setAccountOwner"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -212,6 +356,150 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["requestFamilyDeletion"];
+        delete: operations["cancelFamilyDeletion"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["exportFamilyData"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listInvitations"];
+        put?: never;
+        post: operations["createInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/invitations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revokeInvitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/members/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeMember"];
+        options?: never;
+        head?: never;
+        patch: operations["updateMember"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/members/{id}/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createRecoveryLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listModules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/modules/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setModule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/transactions": {
         parameters: {
             query?: never;
@@ -235,7 +523,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["getTransaction"];
         put?: never;
         post?: never;
         delete: operations["deleteTransaction"];
@@ -264,6 +552,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AcceptInvitationRequest: {
+            newUser?: components["schemas"]["NewUser"];
+            token: string;
+        };
+        AcceptedInvitation: {
+            /** Format: uuid */
+            membershipId: string;
+            mustRegisterPasskey: boolean;
+            /** Format: uuid */
+            workspaceId: string;
+        };
         AccountView: {
             /** Format: date-time */
             archivedAt: string | null;
@@ -279,6 +578,20 @@ export interface components {
             /** @enum {string} */
             type: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT";
         };
+        ActivityItem: {
+            action: string;
+            actorName: string | null;
+            byMe: boolean;
+            /** Format: uuid */
+            id: string;
+            metadata: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: uuid */
+            workspaceId: string | null;
+        };
         CategoryView: {
             /** Format: date-time */
             archivedAt: string | null;
@@ -292,6 +605,25 @@ export interface components {
             name: string;
             /** Format: uuid */
             parentId: string | null;
+        };
+        ConsentView: {
+            canRevoke: boolean;
+            documentVersion: string;
+            /** Format: date-time */
+            grantedAt: string;
+            grantedByName: string | null;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            purpose: "TERMS" | "PRIVACY" | "PARENTAL";
+            /** Format: date-time */
+            revokedAt: string | null;
+            subjectName: string | null;
+            /** Format: date-time */
+            supersededAt: string | null;
+            /** Format: uuid */
+            workspaceId: string;
+            workspaceName: string;
         };
         CreateAccountRequest: {
             initialBalance: components["schemas"]["Money"];
@@ -311,6 +643,12 @@ export interface components {
             /** Format: uuid */
             parentId?: string | null;
         };
+        CreateInvitationRequest: {
+            nickname: string;
+            parentalConsent?: boolean | null;
+            /** @enum {string} */
+            role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
+        };
         CreateTransactionRequest: {
             /** Format: uuid */
             accountId: string;
@@ -322,6 +660,8 @@ export interface components {
             id: string;
             /** @enum {string} */
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            /** Format: uuid */
+            memberId?: string | null;
             /** Format: date */
             occurredOn: string;
             /** Format: uuid */
@@ -355,7 +695,35 @@ export interface components {
             month: string;
             result: components["schemas"]["Money"];
         };
+        DeletionScheduled: {
+            /** Format: date-time */
+            deletionScheduledFor: string;
+        };
+        InvitationPreview: {
+            invitedBy: string | null;
+            /** @enum {string} */
+            kind: "INVITE" | "RECOVERY";
+            nickname: string | null;
+            /** @enum {string} */
+            role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
+            workspaceName: string;
+        };
+        InvitationView: {
+            createdByName: string | null;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "INVITE" | "RECOVERY";
+            nickname: string | null;
+            /** @enum {string} */
+            role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
+            token: string | null;
+        };
         MeUser: {
+            /** Format: date-time */
+            deletionScheduledFor: string | null;
             displayName: string;
             /** Format: uuid */
             id: string;
@@ -370,6 +738,9 @@ export interface components {
         MeWorkspace: {
             currency: string;
             /** Format: date-time */
+            deletionScheduledFor: string | null;
+            familyInvited: boolean;
+            /** Format: date-time */
             gettingStartedDismissedAt: string | null;
             hasTransactions: boolean;
             /** Format: uuid */
@@ -377,15 +748,45 @@ export interface components {
             /** Format: uuid */
             membershipId: string;
             name: string;
+            /** Format: date-time */
+            recoveredAt: string | null;
             /** @enum {string} */
             role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
             timezone: string;
+        };
+        MemberView: {
+            displayName: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            joinedAt: string;
+            nickname: string | null;
+            passkeyOnly: boolean;
+            /** @enum {string} */
+            role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
+            /** @enum {string} */
+            status: "ACTIVE" | "REMOVED";
+            you: boolean;
+        };
+        ModuleView: {
+            enabled: boolean;
+            /** @enum {string} */
+            key: "planning" | "indicators" | "gamification" | "ventures";
         };
         Money: {
             /** @example 12.34 */
             amount: string;
             /** @example BRL */
             currency: string;
+        };
+        NewUser: {
+            displayName: string;
+        } | null;
+        PreviewInvitationRequest: {
+            token: string;
+        };
+        RenameWorkspaceRequest: {
+            name: string;
         };
         TransactionView: {
             /** Format: uuid */
@@ -409,6 +810,10 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        UpdateAccountOwnerRequest: {
+            /** Format: uuid */
+            membershipId: string | null;
+        };
         UpdateAccountRequest: {
             balance?: components["schemas"]["Money"];
             initialBalance?: components["schemas"]["Money"];
@@ -422,6 +827,15 @@ export interface components {
             icon?: string | null;
             name?: string | null;
         };
+        UpdateMemberRequest: {
+            nickname?: string | null;
+            parentalConsent?: boolean | null;
+            /** @enum {string|null} */
+            role?: "OWNER" | "ADULT" | "YOUTH" | "VIEWER" | null;
+        };
+        UpdateModuleRequest: {
+            enabled: boolean;
+        };
         UpdateTransactionRequest: {
             /** Format: uuid */
             accountId: string;
@@ -431,6 +845,8 @@ export interface components {
             description?: string | null;
             /** @enum {string} */
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            /** Format: uuid */
+            memberId?: string | null;
             /** Format: date */
             occurredOn: string;
             /** Format: uuid */
@@ -474,6 +890,54 @@ export interface operations {
             };
         };
     };
+    acceptInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedInvitation"];
+                };
+            };
+        };
+    };
+    previewInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationPreview"];
+                };
+            };
+        };
+    };
     me: {
         parameters: {
             query?: never;
@@ -490,6 +954,126 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeView"];
+                };
+            };
+        };
+    };
+    listMyActivity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityItem"][];
+                };
+            };
+        };
+    };
+    listMyConsents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentView"][];
+                };
+            };
+        };
+    };
+    revokeConsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestAccountDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionScheduled"];
+                };
+            };
+        };
+    };
+    cancelAccountDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exportMyData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A zip with the person's data. */
+            200: {
+                headers: {
+                    /** @description An attachment with the file name of the zip. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
                 };
             };
         };
@@ -534,6 +1118,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceView"];
+                };
+            };
+        };
+    };
+    renameWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameWorkspaceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeWorkspace"];
                 };
             };
         };
@@ -628,6 +1239,34 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountView"];
+                };
+            };
+        };
+    };
+    setAccountOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAccountOwnerRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -817,6 +1456,295 @@ export interface operations {
             };
         };
     };
+    requestFamilyDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionScheduled"];
+                };
+            };
+        };
+    };
+    cancelFamilyDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exportFamilyData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A zip with the family's data. */
+            200: {
+                headers: {
+                    /** @description An attachment with the file name of the zip. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
+                };
+            };
+        };
+    };
+    listInvitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationView"][];
+                };
+            };
+        };
+    };
+    createInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationView"];
+                };
+            };
+        };
+    };
+    revokeInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberView"][];
+                };
+            };
+        };
+    };
+    removeMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberView"];
+                };
+            };
+        };
+    };
+    createRecoveryLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationView"];
+                };
+            };
+        };
+    };
+    listModules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleView"][];
+                };
+            };
+        };
+    };
+    setModule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                key: "planning" | "indicators" | "gamification" | "ventures";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateModuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleView"];
+                };
+            };
+        };
+    };
     listTransactions: {
         parameters: {
             query: {
@@ -873,6 +1801,30 @@ export interface operations {
             };
             /** @description Recorded */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionView"];
+                };
+            };
+        };
+    };
+    getTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

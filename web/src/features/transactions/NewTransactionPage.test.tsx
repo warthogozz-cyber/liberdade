@@ -84,7 +84,7 @@ async function saveExpense(router: { state: { location: { pathname: string } } }
 
 /** Opens the context sheet. */
 function openContext() {
-  fireEvent.click(screen.getByRole('button', { name: /· Eu$/ }))
+  fireEvent.click(screen.getByRole('button', { name: / · .+ · .+$/ }))
   return screen.getByRole('dialog', { name: 'Data e conta' })
 }
 
@@ -271,7 +271,7 @@ describe('NewTransactionPage', () => {
     const { router } = await openForm()
 
     const sheet = openContext()
-    expect(within(sheet).getByText('Quem gastou: Eu')).toBeInTheDocument()
+    expect(await within(sheet).findByRole('group', { name: 'Quem' })).toBeInTheDocument()
     fireEvent.click(within(sheet).getByRole('radio', { name: 'Outra data' }))
     fireEvent.change(
       within(sheet).getByLabelText('Outra data', { selector: 'input[type="date"]' }),
@@ -576,7 +576,7 @@ describe('NewTransactionPage', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Receita' }))
     await screen.findByRole('radio', { name: '💼 Salário' })
     const income = openContext()
-    expect(within(income).queryByText('Quem gastou: Eu')).not.toBeInTheDocument()
+    expect(within(income).queryByRole('group', { name: 'Quem' })).not.toBeInTheDocument()
     fireEvent.click(within(income).getByRole('button', { name: 'Fechar' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
@@ -584,7 +584,84 @@ describe('NewTransactionPage', () => {
     await screen.findByRole('group', { name: 'Para' })
     fireEvent.click(screen.getByRole('button', { name: /· Eu$/ }))
     const transfer = screen.getByRole('dialog', { name: 'Data' })
-    expect(within(transfer).queryByText('Quem gastou: Eu')).not.toBeInTheDocument()
+    expect(within(transfer).queryByRole('group', { name: 'Quem' })).not.toBeInTheDocument()
+  })
+
+  const ANA_ID = '0192f3a4-0000-7000-8000-0000000000a1'
+
+  function seedFamilyWithAna() {
+    const workspace = seedMockFamily()
+    mockState.members[workspace.id]!.push({
+      id: ANA_ID,
+      displayName: 'Ana Teste',
+      nickname: 'Ana',
+      role: 'ADULT',
+      status: 'ACTIVE',
+      you: false,
+      passkeyOnly: false,
+      joinedAt: '2026-11-01T12:00:00Z',
+    })
+    return workspace
+  }
+
+  /** Opens the context sheet, picks `name` and closes it. */
+  async function pickMember(name: string) {
+    const dialog = openContext()
+    fireEvent.click(await within(dialog).findByRole('radio', { name }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  }
+
+  it('contextLineNamesTheChosenMember', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    seedFamilyWithAna()
+    const router = (await openForm()).router
+
+    await pickMember('Ana')
+    expect(screen.getByRole('button', { name: /· Carteira · Ana$/ })).toBeInTheDocument()
+
+    await pickMember('Você')
+    expect(screen.getByRole('button', { name: /· Carteira · Eu$/ })).toBeInTheDocument()
+    await saveExpense(router)
+
+    const [item] = await db.outbox.toArray()
+    expect(item!.payload).not.toHaveProperty('memberId')
+  })
+
+  it('savesChosenMember', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    seedFamilyWithAna()
+    const router = (await openForm()).router
+    const dialog = openContext()
+    fireEvent.click(await within(dialog).findByRole('radio', { name: 'Ana' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    await saveExpense(router)
+
+    const [item] = await db.outbox.toArray()
+    expect(item!.payload.memberId).toBe(ANA_ID)
+    await sendQueue()
+    expect(mockState.transactions.at(-1)!.memberId).toBe(ANA_ID)
+  })
+
+  it('leavesMemberOutWhenItIsYou', async () => {
+    seedMockFamily()
+    const router = (await openForm()).router
+    await saveExpense(router)
+
+    const [item] = await db.outbox.toArray()
+    expect(item!.payload).not.toHaveProperty('memberId')
+  })
+
+  it('youthHasNoMemberPicker', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    await openForm()
+
+    const dialog = openContext()
+    expect(within(dialog).getByRole('group', { name: 'Conta' })).toBeInTheDocument()
+    expect(within(dialog).queryByRole('group', { name: 'Quem' })).not.toBeInTheDocument()
   })
 
   it('datePickerBounds', async () => {

@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.shared.internal;
 
 import br.com.liberdadefamilia.shared.DomainException;
+import br.com.liberdadefamilia.shared.RateLimitedException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -88,6 +89,14 @@ class ProblemHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = problem(ex.status(), ex.code(), ex.detail());
         ex.properties().forEach(problem::setProperty);
         return ResponseEntity.status(ex.status()).body(problem);
+    }
+
+    @ExceptionHandler(RateLimitedException.class)
+    ResponseEntity<ProblemDetail> handleRateLimited(RateLimitedException ex) {
+        ProblemDetail problem = problem(ex.status(), ex.code(), ex.detail());
+        return ResponseEntity.status(ex.status())
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(ex.retryAfterSeconds()))
+                .body(problem);
     }
 
     @ExceptionHandler(AuthenticationException.class)

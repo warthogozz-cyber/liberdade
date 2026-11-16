@@ -2,6 +2,7 @@
 export const dashboardMessages = {
   'dashboard.title': 'Painel do mês',
   'dashboard.balance': 'Saldo total',
+  'dashboard.yourWallet': 'Sua carteira',
   'dashboard.income': 'Receitas',
   'dashboard.expenses': 'Gastos',
   'dashboard.result': 'Resultado do mês',

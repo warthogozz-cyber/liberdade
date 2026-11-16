@@ -301,10 +301,13 @@ describe('TransactionsPage', () => {
   it('offers to try again when the list fails, keeping the queue listed', async () => {
     const workspace = seedMockFamily()
     storeOnServer(workspace, request(MERCADO_ID, 'Mercado', { occurredOn: '2026-11-15' }))
+    // The list keeps failing until the button is pressed. A single failure could be answered by a
+    // refetch of its own (the queue syncing) before the message is looked for.
+    let failing = true
     server.use(
-      http.get(`${API_URL}/v1/workspaces/:ws/transactions`, () => problem(500, 'internal.error'), {
-        once: true,
-      }),
+      http.get(`${API_URL}/v1/workspaces/:ws/transactions`, () =>
+        failing ? problem(500, 'internal.error') : undefined,
+      ),
     )
     await db.outbox.add(
       queue(workspace, PENDING_ID, {
@@ -315,6 +318,7 @@ describe('TransactionsPage', () => {
 
     expect(await screen.findByText('Não deu para carregar. Tente de novo.')).toBeInTheDocument()
     expect(within(await day('Ontem')).getByText('🚌 Transporte')).toBeInTheDocument()
+    failing = false
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
 
     expect(within(await day('Hoje')).getByText('🛒 Mercado')).toBeInTheDocument()
@@ -404,6 +408,26 @@ describe('TransactionsPage, viewing and organizing', () => {
     expect(await today.findByText('↔ Transferência')).toBeInTheDocument()
     expect(today.getByText('R$ 500,00')).toBeInTheDocument()
     expect(today.getByText('Carteira → Banco')).toBeInTheDocument()
+  })
+
+  it('familyAccountLabel', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    mockState.accounts[0].name = 'Carteira de Leo'
+    // The allowance comes from an account the Youth cannot see.
+    storeOnServer(workspace, {
+      id: MERCADO_ID,
+      kind: 'TRANSFER',
+      amount: { amount: '50.00', currency: 'BRL' },
+      occurredOn: '2026-11-15',
+      accountId: '0192f3a4-0000-7000-8000-0000000000a9',
+      toAccountId: mockState.accounts[0].id,
+    })
+    renderAt('/lancamentos')
+
+    expect(
+      await within(await day('Hoje')).findByText('Conta da família → Carteira de Leo'),
+    ).toBeInTheDocument()
   })
 
   it('archivedNamesStay', async () => {

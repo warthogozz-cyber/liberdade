@@ -9,6 +9,7 @@ import {
   signInWithGoogle,
   typeAmount,
   waitForQueueToEmpty,
+  waitForOfflineReady,
 } from './support.ts'
 
 /** A signed-in family with one synced expense of R$ 10,00 in Mercado, on the list. */
@@ -93,9 +94,7 @@ test('offlineDisablesEditing: editing waits for the signal, recording still work
   context,
 }) => {
   await withTenReaisExpense(page)
-  await page.evaluate(async () => {
-    await navigator.serviceWorker.ready
-  })
+  await waitForOfflineReady(page)
   await page.goto('/lancamentos')
   await expect(mercado(page)).toBeVisible()
 

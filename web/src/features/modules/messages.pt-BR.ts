@@ -1,0 +1,18 @@
+/** The modules screen's text. It loads with the route (see `registerMessages`), not with the app. */
+export const modulesMessages = {
+  'modules.title': 'Módulos',
+  'modules.core': 'Núcleo',
+  'modules.core.description': 'Gastos, receitas, contas e painel',
+  'modules.coreAlways': 'Sempre ligado',
+  'modules.comingSoon': 'Em breve',
+  'modules.planning': 'Planejamento',
+  'modules.planning.description': 'Orçamentos, metas e a reserva de emergência.',
+  'modules.indicators': 'Indicadores',
+  'modules.indicators.description': 'Selic, IPCA, dólar e outros números da economia.',
+  'modules.gamification': 'Conquistas',
+  'modules.gamification.description': 'Metas pequenas e marcos, sem pressão para gastar.',
+  'modules.ventures': 'Projetos',
+  'modules.ventures.description': 'Renda extra e pequenos negócios, separados das contas da casa.',
+  'modules.offline': 'Sem conexão. Ligar e desligar módulos volta com o sinal.',
+  'modules.loadFailed': 'Não deu para carregar os módulos. Tente de novo.',
+} as const

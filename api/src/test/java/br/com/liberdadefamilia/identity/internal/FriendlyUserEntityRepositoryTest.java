@@ -129,7 +129,7 @@ class FriendlyUserEntityRepositoryTest {
     }
 
     private void activeUser(@Nullable String email) {
-        when(accounts.findActive(userId)).thenReturn(Optional.of(new UserRecord(userId, "Ana Teste", email)));
+        when(accounts.findActive(userId)).thenReturn(Optional.of(new UserRecord(userId, "Ana Teste", email, null)));
     }
 
     /** Behaves like the JDBC repository: one entity per id and per name, updated in place by id. */

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
 import {
@@ -13,13 +13,19 @@ import { currentMonth } from '@/shared/i18n'
 import { formatBRL, parseCents } from '@/shared/money'
 import { useOnline, useOutbox, usePendingTotals } from '@/shared/offline'
 import { DataAsOf, useDocumentTitle } from '@/shared/ui'
+import { isRecoveryNoticeRecent } from '@/features/members/recoveryWindow'
 import { shouldShowGettingStarted } from './gettingStarted'
+import './register'
 
 // The old card kept its dismissal here. The new one lives on the server, so the key is only cleared.
 const LEGACY_FIRST_STEPS_KEY = 'liberdade:first-steps-dismissed'
 
 const GettingStartedCard = lazy(() =>
   import('./GettingStartedCard').then((m) => ({ default: m.GettingStartedCard })),
+)
+
+const RecoveryNotice = lazy(() =>
+  import('@/features/members/RecoveryNotice').then((m) => ({ default: m.RecoveryNotice })),
 )
 
 /** The home screen: the month's totals with the user's queue in them (D25, wireframe 4). */
@@ -60,6 +66,8 @@ interface HomeContentProps {
 
 function HomeContent({ me, workspace }: HomeContentProps) {
   const userId = me.user.id
+  // When Home opened: the notice's week does not tick over while the screen is up.
+  const [openedAt] = useState(Date.now)
   const intl = useIntl()
   const online = useOnline()
   const month = currentMonth(new Date(), workspace.timezone)
@@ -68,6 +76,7 @@ function HomeContent({ me, workspace }: HomeContentProps) {
   const queue = useOutbox(userId, workspace.id) ?? []
   const attention = queue.filter((item) => item.status === 'needs-attention').length
   const accounts = useAccounts(workspace.id).data
+  const youth = workspace.role === 'YOUTH'
   const monthName = intl.formatDate(`${month}-01T00:00:00Z`, { month: 'long', timeZone: 'UTC' })
 
   // The card needs the accounts to know whether it is done; until they load, its code stays unloaded.
@@ -79,6 +88,8 @@ function HomeContent({ me, workspace }: HomeContentProps) {
       dismissedAt: workspace.gettingStartedDismissedAt,
       accountCount: accounts.length,
       hasPasskey: me.user.passkeyCreatedAt != null,
+      role: workspace.role,
+      familyInvited: workspace.familyInvited,
     })
 
   let totals
@@ -97,11 +108,25 @@ function HomeContent({ me, workspace }: HomeContentProps) {
           </div>
           <div>
             <dt className="text-sm text-text-muted">
-              <FormattedMessage id="home.totalBalance" />
+              <FormattedMessage id={youth ? 'dashboard.yourWallet' : 'home.totalBalance'} />
             </dt>
             <dd className="text-xl font-semibold tabular-nums">{formatBRL(balance)}</dd>
           </div>
         </dl>
+        {youth && accounts && accounts.length > 0 && (
+          <ul className="flex flex-col gap-2 rounded-card bg-surface p-4">
+            {accounts
+              .filter((account) => account.archivedAt === null)
+              .map((account) => (
+                <li key={account.id} className="flex items-baseline justify-between gap-4">
+                  <span className="truncate">{account.name}</span>
+                  <span className="font-medium tabular-nums">
+                    {formatBRL(parseCents(account.balance.amount))}
+                  </span>
+                </li>
+              ))}
+          </ul>
+        )}
         <Link
           to="/painel"
           className="flex min-h-12 items-center font-medium text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -146,10 +171,17 @@ function HomeContent({ me, workspace }: HomeContentProps) {
 
   return (
     <>
+      {isRecoveryNoticeRecent(workspace.recoveredAt, openedAt) && (
+        <Suspense fallback={null}>
+          <RecoveryNotice workspace={workspace} />
+        </Suspense>
+      )}
       {totals}
-      <p className="text-sm text-text-muted">
-        <FormattedMessage id="home.addAccountsHint" />
-      </p>
+      {!youth && (
+        <p className="text-sm text-text-muted">
+          <FormattedMessage id="home.addAccountsHint" />
+        </p>
+      )}
       {attention > 0 && (
         <Link
           to="/lancamentos"

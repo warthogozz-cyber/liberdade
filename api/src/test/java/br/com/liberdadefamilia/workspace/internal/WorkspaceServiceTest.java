@@ -3,38 +3,36 @@ package br.com.liberdadefamilia.workspace.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
-import br.com.liberdadefamilia.workspace.internal.WorkspaceRepository.NewWorkspace;
 import java.time.ZoneId;
-import java.util.Currency;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.dao.DuplicateKeyException;
 
-/**
- * The losing side of a double tap, made deterministic: {@code WorkspaceIT.concurrentCreateMakesOneFamily} reaches it
- * only when both requests pass the first check before either commits.
- */
+/** The order that makes a double tap safe: the user's lock comes before the owner check. */
 class WorkspaceServiceTest {
 
     private final WorkspaceRepository workspaces = mock(WorkspaceRepository.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private final WorkspaceService service = new WorkspaceService(workspaces, events);
-    private final CurrentUser user = new CurrentUser(UUID.randomUUID(), "Ana Teste", null);
+    private final CurrentUser user = new CurrentUser(UUID.randomUUID(), "Ana Teste", null, null);
 
     @Test
-    void membershipRefusedByTheIndexIsAlreadyExists() {
-        when(workspaces.insert(any(), any()))
-                .thenReturn(new NewWorkspace(UUID.randomUUID(), Currency.getInstance("BRL")));
-        when(workspaces.insertOwner(any(), any(), any())).thenThrow(new DuplicateKeyException("one active family"));
+    void locksBeforeOwnerCheck() {
+        when(workspaces.isActiveOwnerOfAnyFamily(any())).thenReturn(true);
 
         assertThatThrownBy(() -> service.create(user, "Família Teste", ZoneId.of("America/Fortaleza")))
                 .isInstanceOf(WorkspaceAlreadyExistsException.class);
+
+        InOrder order = inOrder(workspaces);
+        order.verify(workspaces).lockFamilyCreation(user.id());
+        order.verify(workspaces).isActiveOwnerOfAnyFamily(user.id());
         verifyNoInteractions(events);
     }
 

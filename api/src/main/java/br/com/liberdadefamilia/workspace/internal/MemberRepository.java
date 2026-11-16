@@ -1,0 +1,164 @@
+package br.com.liberdadefamilia.workspace.internal;
+
+import br.com.liberdadefamilia.workspace.MembershipStatus;
+import br.com.liberdadefamilia.workspace.Role;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.jspecify.annotations.Nullable;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Component;
+
+/** The family's members. Every method takes the family id. */
+@Component
+class MemberRepository {
+
+    private static final String SELECT = """
+            select id, user_id, role, status, nickname, created_at
+            from memberships""";
+
+    private final JdbcClient jdbc;
+
+    MemberRepository(JdbcClient jdbc) {
+        this.jdbc = jdbc;
+    }
+
+    List<MemberRow> all(UUID workspaceId) {
+        return jdbc.sql(SELECT + " where workspace_id = :workspaceId")
+                .param("workspaceId", workspaceId)
+                .query((rs, row) -> toRow(rs))
+                .list();
+    }
+
+    Optional<MemberRow> find(UUID workspaceId, UUID membershipId) {
+        return jdbc.sql(SELECT + " where workspace_id = :workspaceId and id = :membershipId")
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .query((rs, row) -> toRow(rs))
+                .optional();
+    }
+
+    /** The member's row, held until the transaction ends so that nothing changes it while a recovery link is made or used. */
+    Optional<MemberRow> lock(UUID workspaceId, UUID membershipId) {
+        return jdbc.sql(SELECT + " where workspace_id = :workspaceId and id = :membershipId for update")
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .query((rs, row) -> toRow(rs))
+                .optional();
+    }
+
+    /** Stamps the moment a recovery link brought the member back in. */
+    void markRecovered(UUID workspaceId, UUID membershipId, Instant now) {
+        jdbc.sql("""
+                        update memberships
+                        set recovered_at = :now, updated_at = now(), version = version + 1
+                        where workspace_id = :workspaceId and id = :membershipId""")
+                .param("now", OffsetDateTime.ofInstant(now, ZoneOffset.UTC))
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .update();
+    }
+
+    /** The row of this person in the family, active or removed. */
+    Optional<MemberRow> findByUser(UUID workspaceId, UUID userId) {
+        return jdbc.sql(SELECT + " where workspace_id = :workspaceId and user_id = :userId")
+                .param("workspaceId", workspaceId)
+                .param("userId", userId)
+                .query((rs, row) -> toRow(rs))
+                .optional();
+    }
+
+    /** A new ACTIVE member. The consent, for a YOUTH, is copied from the invitation. */
+    UUID insert(
+            UUID workspaceId,
+            UUID userId,
+            Role role,
+            String nickname,
+            @Nullable Instant consentAt,
+            @Nullable UUID consentBy) {
+        return jdbc.sql("""
+                        insert into memberships (workspace_id, user_id, role, nickname, parental_consent_at,
+                                                 parental_consent_by)
+                        values (:workspaceId, :userId, :role, :nickname, :consentAt, :consentBy)
+                        returning id""")
+                .param("workspaceId", workspaceId)
+                .param("userId", userId)
+                .param("role", role.name())
+                .param("nickname", nickname)
+                .param("consentAt", consentAt == null ? null : OffsetDateTime.ofInstant(consentAt, ZoneOffset.UTC))
+                .param("consentBy", consentBy)
+                .query(UUID.class)
+                .single();
+    }
+
+    /** Brings a REMOVED member back with the invitation's role and nickname, and its consent (or none). */
+    void reactivate(
+            UUID workspaceId,
+            UUID membershipId,
+            Role role,
+            String nickname,
+            @Nullable Instant consentAt,
+            @Nullable UUID consentBy) {
+        jdbc.sql("""
+                        update memberships
+                        set status = 'ACTIVE', role = :role, nickname = :nickname,
+                            parental_consent_at = :consentAt, parental_consent_by = :consentBy,
+                            updated_at = now(), version = version + 1
+                        where workspace_id = :workspaceId and id = :membershipId""")
+                .param("role", role.name())
+                .param("nickname", nickname)
+                .param("consentAt", consentAt == null ? null : OffsetDateTime.ofInstant(consentAt, ZoneOffset.UTC))
+                .param("consentBy", consentBy)
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .update();
+    }
+
+    /** Applies what is not null. {@code consentBy}, when given, stamps the parental consent now. */
+    void update(
+            UUID workspaceId,
+            UUID membershipId,
+            @Nullable Role role,
+            @Nullable String nickname,
+            @Nullable UUID consentBy) {
+        jdbc.sql("""
+                        update memberships
+                        set role = coalesce(:role, role),
+                            nickname = coalesce(:nickname, nickname),
+                            parental_consent_at = case when :consent then now() else parental_consent_at end,
+                            parental_consent_by = case when :consent then :consentBy else parental_consent_by end,
+                            updated_at = now(),
+                            version = version + 1
+                        where workspace_id = :workspaceId and id = :membershipId""")
+                .param("role", role == null ? null : role.name())
+                .param("nickname", nickname)
+                .param("consent", consentBy != null)
+                .param("consentBy", consentBy)
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .update();
+    }
+
+    private static MemberRow toRow(ResultSet rs) throws SQLException {
+        return new MemberRow(
+                rs.getObject("id", UUID.class),
+                rs.getObject("user_id", UUID.class),
+                rs.getString("nickname"),
+                Role.valueOf(rs.getString("role")),
+                MembershipStatus.valueOf(rs.getString("status")),
+                rs.getObject("created_at", OffsetDateTime.class).toInstant());
+    }
+
+    record MemberRow(
+            UUID id,
+            @Nullable UUID userId,
+            @Nullable String nickname,
+            Role role,
+            MembershipStatus status,
+            Instant joinedAt) {}
+}

@@ -27,8 +27,8 @@ function fromOutbox(item: OutboxItem): ListItem {
     description: item.payload.description ?? null,
     // Not stored yet, so at no version of the API's.
     version: 0,
-    // The API sets the member when it stores the transaction; a queued one is always the user's.
-    memberId: '',
+    // Without a chosen member the API credits the signed-in one; '' stands for that here.
+    memberId: item.payload.memberId ?? '',
     createdAt: new Date(item.createdAt).toISOString(),
     createdAtMs: item.createdAt,
     outbox: item,
@@ -70,12 +70,16 @@ export function categoryLabel({ icon, name }: CategoryView): string {
   return icon ? `${icon} ${name}` : name
 }
 
-/** "Origem → Destino" for a transfer; the names stay for archived accounts. */
+/**
+ * "Origem → Destino" for a transfer; the names stay for archived accounts. `unseen` names an
+ * account the list does not hold, which for a Youth is one of the family's they cannot see.
+ */
 export function transferRoute(
   { accountId, toAccountId }: Pick<TransactionView, 'accountId' | 'toAccountId'>,
   accounts: Map<string, AccountView>,
+  unseen = '',
 ): string {
-  const from = accounts.get(accountId)?.name ?? ''
-  const to = toAccountId ? (accounts.get(toAccountId)?.name ?? '') : ''
+  const from = accounts.get(accountId)?.name ?? unseen
+  const to = toAccountId ? (accounts.get(toAccountId)?.name ?? unseen) : ''
   return `${from} → ${to}`
 }

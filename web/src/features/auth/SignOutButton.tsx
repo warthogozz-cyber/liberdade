@@ -3,14 +3,31 @@ import { useRef, useState } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { useNavigate } from 'react-router'
 import { postJson, useMe } from '@/shared/api'
-import { clearOutboxForUser, clearSession, countOutboxForUser, useOnline } from '@/shared/offline'
+import {
+  broadcastSignedOut,
+  clearOutboxForUser,
+  clearSession,
+  countOutboxForUser,
+  useOnline,
+} from '@/shared/offline'
 import { ConfirmDialog } from '@/shared/ui'
+
+interface SignOutButtonProps {
+  /**
+   * Leaves the screens that read the session, before the cache goes. Defaults to the sign-in page; a
+   * screen that stays must stop rendering anything that reads `me` first, or the cleared cache is
+   * fetched again and its 401 sends the person to the sign-in page.
+   */
+  leave?: () => void | Promise<void>
+  /** Runs once the session is gone from this device. */
+  onSignedOut?: () => void
+}
 
 /**
  * Signs out on the API, then forgets the person's queue and data on this device (D19). With expenses
  * still queued, it asks first, since signing out deletes them.
  */
-export function SignOutButton() {
+export function SignOutButton({ leave, onSignedOut }: SignOutButtonProps = {}) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const online = useOnline()
@@ -40,8 +57,11 @@ export function SignOutButton() {
     try {
       await postJson('/logout')
       await clearOutboxForUser(id)
-      await navigate('/entrar')
+      await (leave ? leave() : navigate('/entrar'))
       await clearSession(queryClient)
+      // The other tabs leave too (D26); sent last, so this tab's own cleanup keeps its order.
+      broadcastSignedOut()
+      onSignedOut?.()
     } catch {
       setFailed(true)
       release()

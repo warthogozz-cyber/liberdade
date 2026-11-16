@@ -1,6 +1,8 @@
 package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.workspace.Role;
+import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -40,7 +42,8 @@ class AccountRepository {
                   and (t.account_id = a.id or t.to_account_id = a.id)
                   and t.deleted_at is null
             where a.workspace_id = :workspaceId
-            """.formatted(MOVEMENT);
+              and %s
+            """.formatted(MOVEMENT, AccountScope.sqlIncludes("a.id"));
 
     private final JdbcClient jdbc;
 
@@ -50,6 +53,30 @@ class AccountRepository {
 
     /** What a new transaction needs to know about an account: its currency, and whether it is archived. */
     record AccountChoice(Currency currency, boolean archived) {}
+
+    /**
+     * The accounts the member may see and record in (D13): for the youth, the accounts whose owner is their membership,
+     * archived ones included, read from the database on every request; for every other role, {@link AccountScope#all()}.
+     */
+    AccountScope scopeFor(WorkspaceMember member) {
+        return scopeOf(member.workspaceId(), member.membershipId(), member.role());
+    }
+
+    /** The same scope for a membership known by its ids, as the data export needs it. */
+    AccountScope scopeOf(UUID workspaceId, UUID membershipId, Role role) {
+        if (role != Role.YOUTH) {
+            return AccountScope.all();
+        }
+        return new AccountScope(jdbc.sql("""
+                        select id
+                        from accounts
+                        where workspace_id = :workspaceId
+                          and owner_membership_id = :membershipId""")
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .query(UUID.class)
+                .set());
+    }
 
     UUID insert(
             UUID workspaceId, String name, AccountType type, Money initialBalance, @Nullable UUID ownerMembershipId) {
@@ -67,48 +94,100 @@ class AccountRepository {
                 .single();
     }
 
-    /** Every account of the family: the active ones first, then the archived, each group by name and id. */
-    List<AccountView> allWithBalances(UUID workspaceId) {
+    /** The currency of the family's first account, which is the one its wallet was born with. */
+    Optional<Currency> firstCurrency(UUID workspaceId) {
+        return jdbc.sql(
+                        "select currency from accounts where workspace_id = :workspaceId order by created_at, id limit 1")
+                .param("workspaceId", workspaceId)
+                .query(String.class)
+                .optional()
+                .map(Currency::getInstance);
+    }
+
+    /**
+     * Inserts the account unless an active one of the family already has the name. A plain insert that fails on the
+     * unique index would abort the surrounding transaction, so the conflict is answered in the statement itself.
+     *
+     * @return the new id, or empty when the name was taken
+     */
+    Optional<UUID> insertIfNameFree(
+            UUID workspaceId, String name, AccountType type, Money initialBalance, @Nullable UUID ownerMembershipId) {
+        return jdbc.sql("""
+                        insert into accounts (workspace_id, name, type, currency, initial_balance, owner_membership_id)
+                        values (:workspaceId, :name, :type, :currency, :initialBalance, :ownerMembershipId)
+                        on conflict do nothing
+                        returning id""")
+                .param("workspaceId", workspaceId)
+                .param("name", name)
+                .param("type", type.name())
+                .param("currency", initialBalance.currency().getCurrencyCode())
+                .param("initialBalance", initialBalance.amount())
+                .param("ownerMembershipId", ownerMembershipId)
+                .query(UUID.class)
+                .optional();
+    }
+
+    /**
+     * Every account of the family in the scope: the active ones first, then the archived, each group by name and id.
+     * The balance counts every transaction of the account, whoever recorded it.
+     */
+    List<AccountView> allWithBalances(UUID workspaceId, AccountScope scope) {
         return jdbc.sql(SELECT_WITH_BALANCE + """
                         group by a.id
                         order by (a.archived_at is not null), a.name, a.id""")
                 .param("workspaceId", workspaceId)
+                .param("scopeIds", scope.sqlArray())
                 .query(AccountRepository::view)
                 .list();
     }
 
-    /** The initial balance of each active account, by id; what the family has is this plus what the flows moved. */
-    Map<UUID, Money> activeInitialBalances(UUID workspaceId) {
+    /**
+     * The initial balance of each active account in the scope, by id; what the member sees the family have is this plus
+     * what the flows moved.
+     */
+    Map<UUID, Money> activeInitialBalances(UUID workspaceId, AccountScope scope) {
         Map<UUID, Money> balances = new HashMap<>();
         jdbc.sql("""
                         select id, currency, initial_balance
                         from accounts
                         where workspace_id = :workspaceId
-                          and archived_at is null""").param("workspaceId", workspaceId).query(rs -> {
-            Currency currency = Currency.getInstance(rs.getString("currency"));
-            balances.put(rs.getObject("id", UUID.class), Money.of(rs.getBigDecimal("initial_balance"), currency));
-        });
+                          and archived_at is null
+                          and """ + AccountScope.sqlIncludes("id"))
+                .param("workspaceId", workspaceId)
+                .param("scopeIds", scope.sqlArray())
+                .query(rs -> {
+                    Currency currency = Currency.getInstance(rs.getString("currency"));
+                    balances.put(
+                            rs.getObject("id", UUID.class), Money.of(rs.getBigDecimal("initial_balance"), currency));
+                });
         return balances;
     }
 
-    Optional<AccountView> findWithBalance(UUID workspaceId, UUID accountId) {
+    /** The account with its balance, when it is in this family and in the scope. */
+    Optional<AccountView> findWithBalance(UUID workspaceId, UUID accountId, AccountScope scope) {
         return jdbc.sql(SELECT_WITH_BALANCE + """
                           and a.id = :accountId
                         group by a.id""")
                 .param("workspaceId", workspaceId)
+                .param("scopeIds", scope.sqlArray())
                 .param("accountId", accountId)
                 .query(AccountRepository::view)
                 .optional();
     }
 
-    /** The currency and archived state of an account of this family. */
-    Optional<AccountChoice> choice(UUID workspaceId, UUID accountId) {
+    /**
+     * The currency and archived state of an account of this family, when it is in the scope: an account out of the
+     * scope is as absent as one that does not exist.
+     */
+    Optional<AccountChoice> choice(UUID workspaceId, UUID accountId, AccountScope scope) {
         return jdbc.sql("""
                         select currency, archived_at is not null as archived
                         from accounts
                         where workspace_id = :workspaceId
-                          and id = :accountId""")
+                          and id = :accountId
+                          and """ + AccountScope.sqlIncludes("id"))
                 .param("workspaceId", workspaceId)
+                .param("scopeIds", scope.sqlArray())
                 .param("accountId", accountId)
                 .query((rs, row) ->
                         new AccountChoice(Currency.getInstance(rs.getString("currency")), rs.getBoolean("archived")))
@@ -136,6 +215,22 @@ class AccountRepository {
                         .param("name", name)
                         .param("type", type == null ? null : type.name())
                         .param("initialBalance", initialBalance == null ? null : initialBalance.amount())
+                        .update()
+                == 1;
+    }
+
+    /** Sets the account's owner, or clears it with null. Whether the account exists in the family. */
+    boolean setOwner(UUID workspaceId, UUID accountId, @Nullable UUID ownerMembershipId) {
+        return jdbc.sql("""
+                        update accounts
+                        set owner_membership_id = :ownerMembershipId,
+                            version = version + 1,
+                            updated_at = now()
+                        where workspace_id = :workspaceId
+                          and id = :accountId""")
+                        .param("workspaceId", workspaceId)
+                        .param("accountId", accountId)
+                        .param("ownerMembershipId", ownerMembershipId)
                         .update()
                 == 1;
     }
@@ -207,21 +302,6 @@ class AccountRepository {
                               for update) active""")
                 .param("workspaceId", workspaceId)
                 .query(Integer.class)
-                .single();
-    }
-
-    /** Whether the membership is an ACTIVE one of this family. */
-    boolean isActiveMembership(UUID workspaceId, UUID membershipId) {
-        return jdbc.sql("""
-                        select exists (
-                            select 1
-                            from memberships
-                            where workspace_id = :workspaceId
-                              and id = :membershipId
-                              and status = 'ACTIVE')""")
-                .param("workspaceId", workspaceId)
-                .param("membershipId", membershipId)
-                .query(Boolean.class)
                 .single();
     }
 

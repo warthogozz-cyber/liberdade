@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
-import type { AccountView, CategoryView, MeWorkspace } from '@/shared/api'
+import type { AccountView, CategoryView, MeWorkspace, MemberView } from '@/shared/api'
 import { firstName, type messages } from '@/shared/i18n'
 import { formatBRL, parseCents } from '@/shared/money'
 import { ConfirmDialog, Sheet } from '@/shared/ui'
 import { categoryLabel, type ListItem } from './listItems'
+import { memberLabel } from './memberLabel'
+import './more.register'
 
 interface TransactionDetailSheetProps {
   open: boolean
@@ -15,6 +17,7 @@ interface TransactionDetailSheetProps {
   accounts: Map<string, AccountView>
   workspace: MeWorkspace
   displayName: string
+  members?: Map<string, MemberView>
   online: boolean
   /** The month of the list, which Editar sends back to. */
   month: string
@@ -41,6 +44,7 @@ export function TransactionDetailSheet({
   accounts,
   workspace,
   displayName,
+  members,
   online,
   month,
   onDelete,
@@ -66,17 +70,23 @@ export function TransactionDetailSheet({
   const by =
     item.memberId === workspace.membershipId
       ? `${text('transactions.detail.byMe')} (${firstName(displayName)})`
-      : text('transactions.detail.byOther')
+      : (memberLabel(members?.get(item.memberId), intl) ?? text('transactions.detail.byOther'))
+  // A Youth does not see the family's accounts: the API leaves them out, and so does the list.
+  const unseen =
+    workspace.role === 'YOUTH'
+      ? intl.formatMessage({ id: 'transactions.familyAccount' })
+      : undefined
+  const accountName = (id: string) => accounts.get(id)?.name ?? unseen
   const where: Row[] = transfer
     ? [
-        [text('transactions.detail.from'), accounts.get(item.accountId)?.name],
+        [text('transactions.detail.from'), accountName(item.accountId)],
         [
           text('transactions.detail.to'),
-          item.toAccountId ? accounts.get(item.toAccountId)?.name : undefined,
+          item.toAccountId ? accountName(item.toAccountId) : undefined,
         ],
       ]
     : [
-        [text('transactions.detail.account'), accounts.get(item.accountId)?.name],
+        [text('transactions.detail.account'), accountName(item.accountId)],
         [text('transactions.detail.category'), category ? categoryLabel(category) : undefined],
       ]
   const rows: Row[] = [

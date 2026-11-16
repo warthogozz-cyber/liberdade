@@ -45,7 +45,8 @@ describe('routes', () => {
 
   it('shows the main navigation on /inicio, with Início as the current page', async () => {
     seedMockFamily()
-    renderApp('/inicio')
+    // A lazy route loads only under a data router.
+    renderWithProviders(null, { routes, route: '/inicio' })
 
     const nav = await screen.findByRole('navigation', { name: 'Navegação principal' })
     const links = within(nav).getAllByRole('link')
@@ -129,7 +130,7 @@ describe('lazy routes', () => {
   }
 
   it('lazyRoutesHaveNoStaticComponent', () => {
-    for (const path of ['/lancamentos', '/mais']) {
+    for (const path of ['/inicio', '/entrar', '/lancamentos', '/mais']) {
       const route = findRoute(routes, path)
       expect(route?.lazy, path).toBeTypeOf('function')
       expect(route?.Component, path).toBeUndefined()
@@ -138,11 +139,9 @@ describe('lazy routes', () => {
   })
 
   it('firstExpensePathStaysStatic', () => {
-    for (const path of ['/inicio', '/lancar']) {
-      const route = findRoute(routes, path)
-      expect(route?.lazy, path).toBeUndefined()
-      expect(route?.Component ?? route?.element, path).toBeDefined()
-    }
+    const route = findRoute(routes, '/lancar')
+    expect(route?.lazy).toBeUndefined()
+    expect(route?.Component ?? route?.element).toBeDefined()
   })
 
   it('lazyRouteRenders', async () => {
