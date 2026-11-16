@@ -20,6 +20,8 @@ export interface MockState {
   transactions: TransactionView[]
   /** Ids of the deleted transactions, left out of every list and sum. */
   deletedTransactionIds: Set<string>
+  /** The family's people by workspace id, in list order; the caller's own row is the one whose id is the membershipId. */
+  members: Record<string, Schemas['MemberView'][]>
 }
 
 // The seed of LedgerSeeder.java: same emojis, names and order.
@@ -62,6 +64,7 @@ function initialState(): MockState {
     categories: [],
     transactions: [],
     deletedTransactionIds: new Set(),
+    members: {},
   }
 }
 
@@ -86,6 +89,18 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
     familyInvited: false,
   }
   mockState.workspaces.push(workspace)
+  mockState.members[workspace.id] = [
+    {
+      id: workspace.membershipId,
+      displayName: mockState.user.displayName,
+      nickname: null,
+      role: 'OWNER',
+      status: 'ACTIVE',
+      you: true,
+      passkeyOnly: true,
+      joinedAt: new Date().toISOString(),
+    },
+  ]
   mockState.accounts.push({
     id: crypto.randomUUID(),
     name: 'Carteira',

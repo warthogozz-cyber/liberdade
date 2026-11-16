@@ -6,7 +6,6 @@ import static br.com.liberdadefamilia.workspace.Role.VIEWER;
 
 import br.com.liberdadefamilia.identity.RecentSignInCheck;
 import br.com.liberdadefamilia.identity.RequiresRecentSignIn;
-import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,7 +41,7 @@ class MemberController {
 
     /**
      * Changing a role needs a recent sign-in; a nickname alone does not. Both are this one route, so the check runs
-     * here, and only when the role differs from the current one.
+     * in the service, inside the locked transaction, and only when the role differs from the one just read.
      */
     @PatchMapping("/v1/workspaces/{ws}/members/{id}")
     @WorkspaceScoped(allow = OWNER)
@@ -51,11 +50,7 @@ class MemberController {
             @Valid @RequestBody UpdateMemberRequest request,
             WorkspaceMember member,
             HttpServletRequest httpRequest) {
-        Role requested = request.role();
-        if (requested != null && requested != service.roleOf(member.workspaceId(), id)) {
-            recentSignIn.require(httpRequest);
-        }
-        return service.update(member, id, request);
+        return service.update(member, id, request, () -> recentSignIn.require(httpRequest));
     }
 
     @DeleteMapping("/v1/workspaces/{ws}/members/{id}")

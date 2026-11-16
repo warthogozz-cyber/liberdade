@@ -54,14 +54,23 @@ class MultipleFamiliesIT {
     }
 
     @Test
-    void anOwnerCannotCreateASecondFamilyButAMemberCan() {
+    void memberOfOneCanCreateOwnFamily() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         UUID bia = users.create("Bia Teste", "bia@example.com");
         UUID anaFamily = workspaces.createFor(ana);
         workspaces.addMember(anaFamily, bia, Role.ADULT);
 
-        assertThat(create(ana)).hasStatus(409);
+        var owner = create(ana);
+        assertThat(owner).hasStatus(409);
+        assertThat(owner).bodyJson().extractingPath("$.code").isEqualTo("workspace.already-exists");
         assertThat(create(bia)).hasStatus(201);
+
+        var me = mvc.get().uri("/v1/me").with(TestUsers.signedIn(bia, null)).exchange();
+        assertThat(me).hasStatusOk();
+        assertThat(me).bodyJson().extractingPath("$.workspaces").asArray().hasSize(2);
+        assertThat(me).bodyJson().extractingPath("$.workspaces[0].id").isEqualTo(anaFamily.toString());
+        assertThat(me).bodyJson().extractingPath("$.workspaces[0].role").isEqualTo("ADULT");
+        assertThat(me).bodyJson().extractingPath("$.workspaces[1].role").isEqualTo("OWNER");
     }
 
     private org.springframework.test.web.servlet.assertj.MvcTestResult create(UUID userId) {

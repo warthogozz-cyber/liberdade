@@ -50,22 +50,17 @@ class MemberService {
     }
 
     /**
-     * @throws MemberNotFoundException when the membership is not in the family
-     */
-    @Transactional(readOnly = true)
-    Role roleOf(UUID workspaceId, UUID membershipId) {
-        return members.find(workspaceId, membershipId).map(MemberRow::role).orElseThrow(MemberNotFoundException::new);
-    }
-
-    /**
      * Applies the change and publishes {@link MemberRoleChanged} when the role moved.
+     *
+     * {@code requireRecentSignIn} runs only when the role really changes, decided here with the owners locked.
      *
      * @throws MemberNotFoundException when the membership is not in the family
      * @throws WorkspaceRejectedException when the member is gone, the last owner would step down, or a YOUTH role
      *     comes without the guardian's consent
      */
     @Transactional
-    MemberView update(WorkspaceMember caller, UUID membershipId, UpdateMemberRequest request) {
+    MemberView update(
+            WorkspaceMember caller, UUID membershipId, UpdateMemberRequest request, Runnable requireRecentSignIn) {
         UUID workspaceId = caller.workspaceId();
         List<UUID> owners = members.lockActiveOwners(workspaceId);
         MemberRow target = members.find(workspaceId, membershipId).orElseThrow(MemberNotFoundException::new);
@@ -74,6 +69,9 @@ class MemberService {
         }
         Role newRole = request.role() == null ? target.role() : request.role();
         boolean roleChanges = newRole != target.role();
+        if (roleChanges) {
+            requireRecentSignIn.run();
+        }
         if (roleChanges && target.role() == Role.OWNER && owners.size() <= 1) {
             throw lastOwner();
         }

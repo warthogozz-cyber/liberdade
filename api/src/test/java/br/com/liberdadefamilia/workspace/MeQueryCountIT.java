@@ -29,6 +29,9 @@ class MeQueryCountIT {
 
     static final AtomicInteger STATEMENTS = new AtomicInteger();
 
+    /** Set around the call under test, on the request thread only: statements of other threads never count. */
+    static final ThreadLocal<Boolean> COUNTING = ThreadLocal.withInitial(() -> false);
+
     @TestConfiguration(proxyBeanMethods = false)
     static class Counting {
 
@@ -55,8 +58,9 @@ class MeQueryCountIT {
         private static Connection wrap(Connection connection) {
             return (Connection) Proxy.newProxyInstance(
                     Connection.class.getClassLoader(), new Class<?>[] {Connection.class}, (p, m, a) -> {
-                        if (m.getName().equals("prepareStatement")
-                                || m.getName().equals("createStatement")) {
+                        if (COUNTING.get()
+                                && (m.getName().equals("prepareStatement")
+                                        || m.getName().equals("createStatement"))) {
                             STATEMENTS.incrementAndGet();
                         }
                         return invoke(connection, m, a);
@@ -97,12 +101,17 @@ class MeQueryCountIT {
     }
 
     private int statementsForMe(UUID userId) {
-        int before = STATEMENTS.get();
-        assertThat(mvc.get()
-                        .uri("/v1/me")
-                        .with(TestUsers.signedIn(userId, null))
-                        .exchange())
-                .hasStatusOk();
-        return STATEMENTS.get() - before;
+        STATEMENTS.set(0);
+        COUNTING.set(true);
+        try {
+            assertThat(mvc.get()
+                            .uri("/v1/me")
+                            .with(TestUsers.signedIn(userId, null))
+                            .exchange())
+                    .hasStatusOk();
+        } finally {
+            COUNTING.set(false);
+        }
+        return STATEMENTS.get();
     }
 }

@@ -43,6 +43,10 @@ interface FieldError {
 }
 
 /** A problem answer, shaped like the API's (`application/problem+json`), with any extra properties. */
+function lastOwner() {
+  return problem(422, 'member.last-owner', 'A família precisa de pelo menos uma Dona ou Dono.')
+}
+
 export function problem(
   status: number,
   code: string,
@@ -573,8 +577,75 @@ export const handlers = [
     const workspace = mockState.workspaces.find((candidate) => candidate.id === params.ws)
     if (!workspace) return problem(404, 'workspace.not-found', 'Família não encontrada.')
     const body = (await request.json()) as { name?: string }
-    workspace.name = (body.name ?? '').trim()
+    const name = (body.name ?? '').trim()
+    if (name === '') {
+      return problem(422, 'request.invalid', 'Revise os campos.', [
+        { field: 'name', code: 'NotBlank' },
+      ])
+    }
+    workspace.name = name
     return HttpResponse.json(workspace)
+  }),
+
+  http.get(url('/v1/workspaces/:ws/members'), ({ params }) => {
+    if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
+    const members = mockState.members[String(params.ws)]
+    if (!members) return problem(404, 'workspace.not-found', 'Família não encontrada.')
+    const active = (member: Schemas['MemberView']) => member.status === 'ACTIVE'
+    return HttpResponse.json([...members].sort((a, b) => Number(!active(a)) - Number(!active(b))))
+  }),
+
+  http.patch(url('/v1/workspaces/:ws/members/:id'), async ({ request, params }) => {
+    if (withoutToken(request)) {
+      return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
+    }
+    if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
+    const members = mockState.members[String(params.ws)] ?? []
+    const member = members.find((candidate) => candidate.id === params.id)
+    if (!member) return problem(404, 'member.not-found', 'Pessoa não encontrada.')
+    const body = (await request.json()) as {
+      role?: Schemas['MemberView']['role'] | null
+      nickname?: string | null
+      parentalConsent?: boolean | null
+    }
+    if (body.role == null && body.nickname === undefined) {
+      return problem(422, 'request.invalid', 'Revise os campos.')
+    }
+    if (member.status === 'REMOVED') {
+      return problem(422, 'member.removed', 'Essa pessoa já saiu da família.')
+    }
+    if (body.role != null && body.role !== member.role) {
+      const owners = members.filter((m) => m.role === 'OWNER' && m.status === 'ACTIVE')
+      if (member.role === 'OWNER' && owners.length <= 1) return lastOwner()
+      if (body.role === 'YOUTH' && body.parentalConsent !== true) {
+        return problem(
+          422,
+          'member.parental-consent-required',
+          'Para ser Jovem, é preciso o consentimento do responsável.',
+        )
+      }
+      member.role = body.role
+      const workspace = mockState.workspaces.find((candidate) => candidate.id === params.ws)
+      if (workspace && member.you) workspace.role = body.role
+    }
+    if (body.nickname !== undefined) member.nickname = body.nickname?.trim() || null
+    return HttpResponse.json(member)
+  }),
+
+  http.delete(url('/v1/workspaces/:ws/members/:id'), ({ request, params }) => {
+    if (withoutToken(request)) {
+      return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
+    }
+    if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
+    const members = mockState.members[String(params.ws)] ?? []
+    const member = members.find((candidate) => candidate.id === params.id)
+    if (!member) return problem(404, 'member.not-found', 'Pessoa não encontrada.')
+    if (member.status === 'ACTIVE') {
+      const owners = members.filter((m) => m.role === 'OWNER' && m.status === 'ACTIVE')
+      if (member.role === 'OWNER' && owners.length <= 1) return lastOwner()
+      member.status = 'REMOVED'
+    }
+    return new HttpResponse(null, { status: 204 })
   }),
 
   http.post(url('/v1/me/getting-started/dismiss'), ({ request }) => {
