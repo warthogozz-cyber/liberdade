@@ -3,7 +3,13 @@ import { useRef, useState } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { useNavigate } from 'react-router'
 import { postJson, useMe } from '@/shared/api'
-import { clearOutboxForUser, clearSession, countOutboxForUser, useOnline } from '@/shared/offline'
+import {
+  broadcastSignedOut,
+  clearOutboxForUser,
+  clearSession,
+  countOutboxForUser,
+  useOnline,
+} from '@/shared/offline'
 import { ConfirmDialog } from '@/shared/ui'
 
 /**
@@ -42,6 +48,8 @@ export function SignOutButton() {
       await clearOutboxForUser(id)
       await navigate('/entrar')
       await clearSession(queryClient)
+      // The other tabs leave too (D26); sent last, so this tab's own cleanup keeps its order.
+      broadcastSignedOut()
     } catch {
       setFailed(true)
       release()

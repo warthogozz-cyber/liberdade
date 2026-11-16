@@ -1,7 +1,7 @@
 import { act, waitFor } from '@testing-library/react'
 import { http } from 'msw'
 import { describe, expect, it } from 'vitest'
-import { mockState, seedMockFamily } from '@/mocks/data'
+import { createFamily, mockState, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import {
   API_URL,
@@ -12,10 +12,12 @@ import {
   useCategories,
   useCreateWorkspace,
   useCurrentWorkspace,
+  selectWorkspace,
   useDashboard,
   useMe,
   queryKeys,
   useTransactions,
+  useWorkspaces,
 } from '@/shared/api'
 import { createTestQueryClient, renderHookWithProviders } from '@/shared/testing'
 
@@ -43,6 +45,63 @@ describe('useCurrentWorkspace', () => {
 
     await waitFor(() => expect(result.current?.name).toBe('Família Teste'))
     expect(result.current).toMatchObject({ role: 'OWNER', currency: 'BRL' })
+  })
+})
+
+describe('selected family', () => {
+  function twoFamilies() {
+    return [
+      createFamily('Família Teste', 'America/Fortaleza'),
+      createFamily('Casa Teste', 'America/Sao_Paulo'),
+    ]
+  }
+
+  it('selectedWorkspaceWins', async () => {
+    const [, second] = twoFamilies()
+    localStorage.setItem('liberdade.workspaceId', second.id)
+    const { result } = renderHookWithProviders(() => ({
+      current: useCurrentWorkspace(),
+      all: useWorkspaces(),
+    }))
+
+    await waitFor(() => expect(result.current.all).toHaveLength(2))
+    expect(result.current.current?.id).toBe(second.id)
+  })
+
+  it('fallsBackToFirst', async () => {
+    const [first] = twoFamilies()
+    localStorage.setItem('liberdade.workspaceId', 'not-a-family-of-mine')
+    const { result } = renderHookWithProviders(() => useCurrentWorkspace())
+
+    await waitFor(() => expect(result.current?.id).toBe(first.id))
+  })
+
+  it('switches at once on selectWorkspace and when another tab chooses', async () => {
+    const [first, second] = twoFamilies()
+    const { result } = renderHookWithProviders(() => useCurrentWorkspace())
+    await waitFor(() => expect(result.current?.id).toBe(first.id))
+
+    act(() => selectWorkspace(second.id))
+    expect(result.current?.id).toBe(second.id)
+    expect(localStorage.getItem('liberdade.workspaceId')).toBe(second.id)
+
+    act(() => {
+      localStorage.setItem('liberdade.workspaceId', first.id)
+      window.dispatchEvent(new StorageEvent('storage', { key: 'liberdade.workspaceId' }))
+      window.dispatchEvent(new StorageEvent('storage', { key: 'other' }))
+    })
+    expect(result.current?.id).toBe(first.id)
+  })
+
+  it('keeps the cache of the other family', async () => {
+    const [first, second] = twoFamilies()
+    const { result, queryClient } = renderHookWithProviders(() => useCurrentWorkspace())
+    await waitFor(() => expect(result.current?.id).toBe(first.id))
+    queryClient.setQueryData(queryKeys.accounts(first.id), ['kept'])
+
+    act(() => selectWorkspace(second.id))
+
+    expect(queryClient.getQueryData(queryKeys.accounts(first.id))).toEqual(['kept'])
   })
 })
 

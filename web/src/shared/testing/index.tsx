@@ -5,6 +5,7 @@ import { IntlProvider } from 'react-intl'
 import { createMemoryRouter, type RouteObject } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { createQueryClient } from '@/shared/api'
+import { ReauthProvider } from '@/shared/auth'
 import { locale, useAppMessages } from '@/shared/i18n'
 import { ToastProvider } from '@/shared/ui'
 
@@ -24,7 +25,9 @@ function wrapperFor(queryClient: QueryClient) {
     return (
       <IntlProvider locale={locale} messages={useAppMessages()}>
         <QueryClientProvider client={queryClient}>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <ReauthProvider>{children}</ReauthProvider>
+          </ToastProvider>
         </QueryClientProvider>
       </IntlProvider>
     )

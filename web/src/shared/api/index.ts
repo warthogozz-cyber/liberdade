@@ -1,11 +1,13 @@
 export { API_URL } from './config'
-export { ApiError } from './errors'
+export { ApiError, REAUTH_REQUIRED, ReauthCancelledError, isReauthRequired } from './errors'
+export { forgetSelectedWorkspace } from './workspaceChoice'
 export { resetCsrf } from './csrf'
 export { postJson } from './client'
 export {
   createWorkspace,
   deleteTransaction,
   getMe,
+  listModules,
   postTransaction,
   restoreTransaction,
   updateTransaction,
@@ -20,7 +22,10 @@ export {
   useCurrentWorkspace,
   useDashboard,
   useMe,
+  useModules,
   useTransactions,
+  useWorkspaces,
+  selectWorkspace,
 } from './hooks'
 export {
   useArchiveAccount,
@@ -50,6 +55,8 @@ export type {
   MeUser,
   MeView,
   MeWorkspace,
+  ModuleKey,
+  ModuleView,
   TransactionFilters,
   TransactionKind,
   TransactionView,

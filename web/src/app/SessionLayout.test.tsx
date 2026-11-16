@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { http } from 'msw'
 import { useRoutes } from 'react-router'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { routes } from '@/app/routes'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
@@ -58,5 +58,76 @@ describe('SessionLayout', () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/inicio')
+  })
+})
+
+/** A BroadcastChannel that delivers to the other open channels of the same name, synchronously. */
+class FakeBroadcastChannel {
+  static open = new Set<FakeBroadcastChannel>()
+  onmessage: ((event: MessageEvent) => void) | null = null
+  name: string
+  constructor(name: string) {
+    this.name = name
+    FakeBroadcastChannel.open.add(this)
+  }
+  postMessage(data: unknown) {
+    for (const other of FakeBroadcastChannel.open) {
+      if (other !== this && other.name === this.name) other.onmessage?.({ data } as MessageEvent)
+    }
+  }
+  close() {
+    FakeBroadcastChannel.open.delete(this)
+  }
+}
+
+describe('SessionLayout across tabs', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    FakeBroadcastChannel.open.clear()
+  })
+
+  async function openHome() {
+    vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel)
+    seedMockFamily()
+    const view = renderWithProviders(<App />, { path: '/*', route: '/inicio' })
+    await screen.findByRole('navigation', { name: 'Navegação principal' })
+    return view
+  }
+
+  it('signedOutElsewhere', async () => {
+    const { router, queryClient } = await openHome()
+    expect(queryClient.getQueryData(['me'])).toBeDefined()
+
+    new FakeBroadcastChannel('liberdade-session').postMessage({ type: 'signed-out' })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/entrar'))
+    await waitFor(() => expect(queryClient.getQueryData(['me'])).toBeUndefined())
+  })
+
+  it('ignores a sign-in of the same person', async () => {
+    const { router, queryClient } = await openHome()
+
+    new FakeBroadcastChannel('liberdade-session').postMessage({
+      type: 'signed-in',
+      userId: mockState.user.id,
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(router.state.location.pathname).toBe('/inicio')
+    expect(queryClient.getQueryData(['me'])).toBeDefined()
+  })
+
+  it('clears the session and reloads at /inicio when another person signed in', async () => {
+    const assign = vi.fn<(url: string) => void>()
+    const { queryClient } = await openHome()
+    vi.stubGlobal('location', { ...window.location, assign })
+
+    new FakeBroadcastChannel('liberdade-session').postMessage({
+      type: 'signed-in',
+      userId: '0192f3a4-0000-7000-8000-0000000000ff',
+    })
+
+    await waitFor(() => expect(assign).toHaveBeenCalledExactlyOnceWith('/inicio'))
+    expect(queryClient.getQueryData(['me'])).toBeUndefined()
   })
 })

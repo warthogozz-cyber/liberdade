@@ -20,5 +20,6 @@ export const queryKeys = {
         ? [{ categoryId: filters.categoryId ?? null, accountId: filters.accountId ?? null }]
         : []),
     ] as const,
+  modules: (ws: string) => [...workspace(ws), 'modules'] as const,
   dashboard: (ws: string, month: string) => [...workspace(ws), 'dashboard', month] as const,
 }

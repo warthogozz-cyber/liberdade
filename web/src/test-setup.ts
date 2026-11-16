@@ -15,7 +15,10 @@ afterEach(async () => {
   resetMockData()
   resetCsrf()
   // The ESLint tests run in Node, without a window.
-  if (typeof window !== 'undefined') localStorage.clear()
+  if (typeof window !== 'undefined') {
+    localStorage.clear()
+    sessionStorage.clear()
+  }
   await Promise.all([db.outbox.clear(), db.kv.clear()])
 })
 

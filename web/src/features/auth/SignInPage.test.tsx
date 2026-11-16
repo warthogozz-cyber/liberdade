@@ -11,9 +11,9 @@ import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL, postJson } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
-import { startGoogleSignIn } from './google'
+import { startGoogleSignIn } from '@/shared/auth/google'
 
-vi.mock('./google')
+vi.mock('@/shared/auth/google')
 vi.mock('@simplewebauthn/browser')
 
 const credential: AuthenticationResponseJSON = {
@@ -65,17 +65,16 @@ describe('SignInPage', () => {
     )
   })
 
-  it('starts the Google sign-in once', () => {
-    const { queryClient } = renderSignIn()
+  it('starts the Google sign-in once', async () => {
+    renderSignIn()
 
     fireEvent.click(screen.getByRole('button', { name: 'Entrar com Google' }))
 
-    expect(startGoogleSignIn).toHaveBeenCalledTimes(1)
-    expect(startGoogleSignIn).toHaveBeenCalledWith(queryClient)
+    await waitFor(() => expect(startGoogleSignIn).toHaveBeenCalledTimes(1))
+    expect(startGoogleSignIn).toHaveBeenCalledWith()
   })
 
   it('frees the buttons when Back restores the page from the bfcache (M1)', () => {
-    vi.mocked(startGoogleSignIn).mockReturnValue(new Promise(() => {}))
     renderSignIn()
     const google = screen.getByRole('button', { name: 'Entrar com Google' })
     fireEvent.click(google)

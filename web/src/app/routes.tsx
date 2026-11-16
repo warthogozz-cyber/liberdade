@@ -4,16 +4,17 @@ import { NotFoundPage } from '@/app/NotFoundPage'
 import { RootRedirect } from '@/app/RootRedirect'
 import { SessionLayout } from '@/app/SessionLayout'
 import { WorkspaceLayout } from '@/app/WorkspaceLayout'
-import { SignInPage } from '@/features/auth/SignInPage'
-import { HomePage } from '@/features/dashboard/HomePage'
 import { WelcomePage } from '@/features/onboarding/WelcomePage'
 import { NewTransactionPage } from '@/features/transactions/NewTransactionPage'
 
 // Secondary screens load on demand, so the first load stays small (chunk budget in CI). Copy this
-// shape for a new one: the page exports its component by name. The first-expense path (`/inicio`,
-// `/lancar`) and the layouts stay static.
+// shape for a new one: the page exports its component by name. `/lancar` (the first-expense path) and the
+// layouts stay static; `/inicio` and `/entrar` load on demand too (D27's fallback).
 export const routes: RouteObject[] = [
-  { path: '/entrar', element: <SignInPage /> },
+  {
+    path: '/entrar',
+    lazy: () => import('@/features/auth/SignInPage').then((m) => ({ Component: m.SignInPage })),
+  },
   {
     element: <SessionLayout />,
     children: [
@@ -27,7 +28,13 @@ export const routes: RouteObject[] = [
           {
             element: <AppShell />,
             children: [
-              { path: '/inicio', element: <HomePage /> },
+              {
+                path: '/inicio',
+                lazy: () =>
+                  import('@/features/dashboard/HomePage').then((m) => ({
+                    Component: m.HomePage,
+                  })),
+              },
               {
                 path: '/lancamentos',
                 lazy: () =>

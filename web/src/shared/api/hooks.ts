@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import {
   queryOptions,
   useMutation,
@@ -11,11 +12,19 @@ import {
   getMe,
   listAccounts,
   listCategories,
+  listModules,
   listTransactions,
 } from './endpoints'
 import { ApiError } from './errors'
 import { queryKeys } from './queryKeys'
 import type { CategoryKind, MeWorkspace, TransactionFilters } from './types'
+import {
+  readSelectedWorkspaceId,
+  selectWorkspace,
+  subscribeToWorkspaceChoice,
+} from './workspaceChoice'
+
+export { selectWorkspace }
 
 // One definition per query, shared by the hooks and `prefetchWorkspace`, so the prefetch fills
 // exactly what the hooks read.
@@ -44,9 +53,34 @@ export function useMe() {
   return useQuery({ queryKey: queryKeys.me, queryFn: getMe })
 }
 
-/** The signed-in user's family, or `undefined` while there is none. A user has one family for now. */
+const NO_WORKSPACES: MeWorkspace[] = []
+
+/** Every family the signed-in user belongs to. */
+export function useWorkspaces(): MeWorkspace[] {
+  return useMe().data?.workspaces ?? NO_WORKSPACES
+}
+
+/**
+ * The family this device chose (`selectWorkspace`), or the first one when the choice is not among
+ * the user's families. `undefined` while there is none.
+ */
 export function useCurrentWorkspace(): MeWorkspace | undefined {
-  return useMe().data?.workspaces[0]
+  const workspaces = useWorkspaces()
+  const chosen = useSyncExternalStore(
+    subscribeToWorkspaceChoice,
+    readSelectedWorkspaceId,
+    () => null,
+  )
+  return workspaces.find((workspace) => workspace.id === chosen) ?? workspaces[0]
+}
+
+/** The family's modules; waits for a family id. */
+export function useModules(ws: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.modules(ws ?? ''),
+    queryFn: () => listModules(ws ?? ''),
+    enabled: ws !== undefined,
+  })
 }
 
 export function useAccounts(ws: string) {

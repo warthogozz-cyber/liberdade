@@ -71,3 +71,19 @@ export async function errorFromResponse(response: Response): Promise<ApiError> {
 export function fromFetchFailure(error: unknown): unknown {
   return error instanceof TypeError ? new ApiError(0, 'network') : error
 }
+
+/** The problem code of a sensitive action that needs a sign-in of the last few minutes (US-01). */
+export const REAUTH_REQUIRED = 'auth.reauthentication-required'
+
+/** Whether the API asked for a fresh sign-in before it would do the action. */
+export function isReauthRequired(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 403 && error.code === REAUTH_REQUIRED
+}
+
+/** The person closed the re-authentication dialog, or the session changed under it: the action did not run again. */
+export class ReauthCancelledError extends Error {
+  constructor() {
+    super('reauthentication cancelled')
+    this.name = 'ReauthCancelledError'
+  }
+}

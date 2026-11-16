@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import type { ReactNode } from 'react'
 import { IntlProvider } from 'react-intl'
+import { ReauthProvider } from '@/shared/auth'
 import { locale, useAppMessages } from '@/shared/i18n'
 import { persistOptions } from '@/shared/offline'
 import { ToastProvider } from '@/shared/ui'
@@ -30,7 +31,9 @@ export function AppProviders({ children, queryClient }: AppProvidersProps) {
         persistOptions={persistOptions}
         onSuccess={() => void queryClient.invalidateQueries()}
       >
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <ReauthProvider>{children}</ReauthProvider>
+        </ToastProvider>
       </PersistQueryClientProvider>
     </IntlProvider>
   )

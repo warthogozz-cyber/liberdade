@@ -1,9 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { FormattedMessage } from 'react-intl'
-import { Navigate, Outlet } from 'react-router'
-import { ApiError, postTransaction, queryKeys, useMe } from '@/shared/api'
-import { applySentTransaction, startOutboxSync } from '@/shared/offline'
+import { Navigate, Outlet, useNavigate } from 'react-router'
+import { ApiError, postTransaction, queryKeys, useMe, type MeView } from '@/shared/api'
+import {
+  applySentTransaction,
+  clearSession,
+  onSessionMessage,
+  startOutboxSync,
+} from '@/shared/offline'
 
 /**
  * Every screen of a signed-in person sits under this layout. It waits for `/v1/me`, sends a 401 to
@@ -11,6 +16,7 @@ import { applySentTransaction, startOutboxSync } from '@/shared/offline'
  */
 export function SessionLayout() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const me = useMe()
   const userId = me.data?.user.id
 
@@ -25,6 +31,22 @@ export function SessionLayout() {
       onUnauthorized: () => void queryClient.invalidateQueries({ queryKey: queryKeys.me }),
     })
   }, [userId, queryClient])
+
+  // Another tab signed out, or signed in as somebody else (D26).
+  useEffect(
+    () =>
+      onSessionMessage((message) => {
+        if (message.type === 'signed-out') {
+          void Promise.resolve(navigate('/entrar')).then(() => clearSession(queryClient))
+          return
+        }
+        const cached = queryClient.getQueryData<MeView>(queryKeys.me)?.user.id
+        if (cached !== undefined && cached !== message.userId) {
+          void clearSession(queryClient).then(() => window.location.assign('/inicio'))
+        }
+      }),
+    [navigate, queryClient],
+  )
 
   if (me.error instanceof ApiError && me.error.status === 401) {
     return <Navigate to="/entrar" replace />

@@ -1,11 +1,8 @@
-import {
-  startRegistration,
-  type PublicKeyCredentialCreationOptionsJSON,
-} from '@simplewebauthn/browser'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { postJson, queryKeys, useCurrentWorkspace, useMe } from '@/shared/api'
+import { queryKeys, useCurrentWorkspace, useMe } from '@/shared/api'
+import { registerPasskey } from '@/shared/auth'
 import { DEFAULT_TIMEZONE } from '@/shared/i18n'
 import { useOnline } from '@/shared/offline'
 
@@ -28,12 +25,7 @@ export function PasskeyButton() {
     setBusy(true)
     setResult(undefined)
     try {
-      const optionsJSON = (await postJson(
-        '/webauthn/register/options',
-      )) as PublicKeyCredentialCreationOptionsJSON
-      const credential = await startRegistration({ optionsJSON })
-      const label = intl.formatMessage({ id: 'passkey.defaultLabel' })
-      await postJson('/webauthn/register', { publicKey: { credential, label } })
+      await registerPasskey(intl.formatMessage({ id: 'passkey.defaultLabel' }))
       setResult('created')
       void queryClient.invalidateQueries({ queryKey: queryKeys.me })
     } catch {
