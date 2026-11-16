@@ -225,10 +225,52 @@ class ConsentsIT {
         assertThat(patch(family.ana, family.ws, leoMembership, "{\"role\":\"ADULT\"}"))
                 .hasStatusOk();
 
+        // The promotion closed the consent, so the revocation has nothing left to act on.
         assertThat(revoke(family.ana, consentId(family.ws))).hasStatus(204);
 
         assertThat(statusOf(leoMembership)).isEqualTo("ACTIVE");
-        assertThat(consentRows(family.ws).getFirst()).containsEntry("revoked", true);
+        assertThat(consentRows(family.ws).getFirst())
+                .containsEntry("revoked", false)
+                .containsEntry("superseded", true);
+        assertThat(revokedAudits(family.ws)).isZero();
+    }
+
+    @Test
+    void promotionClosesTheParentalConsent() {
+        Family family = familyWithYouth();
+        UUID leoMembership = workspaces.membershipOf(family.ws, family.leo);
+
+        assertThat(patch(family.ana, family.ws, leoMembership, "{\"role\":\"ADULT\"}"))
+                .hasStatusOk();
+
+        assertThat(consentRows(family.ws).getFirst())
+                .containsEntry("revoked", false)
+                .containsEntry("superseded", true);
+        assertThat(list(family.ana)).bodyJson().extractingPath("$[0].canRevoke").isEqualTo(false);
+    }
+
+    @Test
+    void removalClosesTheParentalConsent() {
+        Family family = familyWithYouth();
+        UUID leoMembership = workspaces.membershipOf(family.ws, family.leo);
+
+        assertThat(remove(family.ana, family.ws, leoMembership)).hasStatus(204);
+
+        assertThat(consentRows(family.ws).getFirst())
+                .containsEntry("revoked", false)
+                .containsEntry("superseded", true);
+        assertThat(list(family.ana)).bodyJson().extractingPath("$[0].canRevoke").isEqualTo(false);
+    }
+
+    @Test
+    void revocationIsNotSuperseded() {
+        Family family = familyWithYouth();
+
+        assertThat(revoke(family.ana, consentId(family.ws))).hasStatus(204);
+
+        assertThat(consentRows(family.ws).getFirst())
+                .containsEntry("revoked", true)
+                .containsEntry("superseded", false);
     }
 
     @Test
