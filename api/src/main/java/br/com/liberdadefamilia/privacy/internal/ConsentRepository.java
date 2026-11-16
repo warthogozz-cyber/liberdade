@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -74,6 +75,19 @@ class ConsentRepository {
                         where user_id = :userId or granted_by = :userId
                         order by granted_at desc, id desc""")
                 .param("userId", userId)
+                .query(ConsentRepository::map)
+                .list();
+    }
+
+    /** The consents of these families that are neither revoked nor superseded. */
+    List<Row> openIn(Collection<UUID> workspaceIds) {
+        if (workspaceIds.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.sql("select " + COLUMNS + """
+                         from consents
+                        where workspace_id in (:workspaceIds) and revoked_at is null and superseded_at is null""")
+                .param("workspaceIds", workspaceIds)
                 .query(ConsentRepository::map)
                 .list();
     }

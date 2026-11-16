@@ -455,6 +455,69 @@ class ConsentsIT {
     }
 
     @Test
+    void ownerRevokesOnceTheGranterLeft() {
+        Family family = familyWithYouth();
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        workspaces.addMember(family.ws, bia, Role.OWNER, "Bibi");
+        UUID leoMembership = workspaces.membershipOf(family.ws, family.leo);
+        UUID consent = consentId(family.ws);
+        // While Ana is still here, the consent is hers alone to take back.
+        assertThat(list(bia)).bodyJson().extractingPath("$").asArray().isEmpty();
+        assertThat(revoke(bia, consent)).hasStatus(404);
+        jdbc.sql("update memberships set status = 'REMOVED' where workspace_id = :ws and user_id = :user")
+                .param("ws", family.ws)
+                .param("user", family.ana)
+                .update();
+
+        MvcTestResult forBia = list(bia);
+        assertThat(forBia).bodyJson().extractingPath("$").asArray().hasSize(1);
+        assertThat(forBia).bodyJson().extractingPath("$[0].canRevoke").isEqualTo(true);
+        assertThat(revoke(bia, consent)).hasStatus(204);
+
+        assertThat(statusOf(leoMembership)).isEqualTo("REMOVED");
+        assertThat(consentRows(family.ws).getFirst()).containsEntry("revoked", true);
+        assertThat(jdbc.sql("""
+                                select actor_user_id from audit_events
+                                where workspace_id = :ws and action = 'consent.revoked'""").param("ws", family.ws).query(UUID.class).single())
+                .isEqualTo(bia);
+    }
+
+    @Test
+    void ownerRevokesWhenTheGranterAccountIsGone() {
+        Family family = familyWithYouth();
+        UUID leoMembership = workspaces.membershipOf(family.ws, family.leo);
+        // What the foreign key does when the guardian's account goes: granted_by is cleared.
+        jdbc.sql("update consents set granted_by = null where workspace_id = :ws")
+                .param("ws", family.ws)
+                .update();
+
+        assertThat(list(family.ana)).bodyJson().extractingPath("$[0].canRevoke").isEqualTo(true);
+        assertThat(revoke(family.ana, consentId(family.ws))).hasStatus(204);
+
+        assertThat(statusOf(leoMembership)).isEqualTo("REMOVED");
+        assertThat(consentRows(family.ws).getFirst()).containsEntry("revoked", true);
+    }
+
+    @Test
+    void onlyAnOwnerStepsInForTheGranter() {
+        Family family = familyWithYouth();
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        workspaces.addMember(family.ws, bia, Role.ADULT, "Bibi");
+        jdbc.sql("update consents set granted_by = null where workspace_id = :ws")
+                .param("ws", family.ws)
+                .update();
+
+        assertThat(list(bia)).bodyJson().extractingPath("$").asArray().isEmpty();
+        assertThat(revoke(bia, consentId(family.ws))).hasStatus(404);
+        MvcTestResult byYouth = revoke(family.leo, consentId(family.ws));
+        assertThat(byYouth).hasStatus(403);
+        assertThat(byYouth).bodyJson().extractingPath("$.code").isEqualTo("consent.revoke-forbidden");
+
+        assertThat(statusOf(workspaces.membershipOf(family.ws, family.leo))).isEqualTo("ACTIVE");
+        assertThat(consentRows(family.ws).getFirst()).containsEntry("revoked", false);
+    }
+
+    @Test
     void thirdMemberSeesNothing() {
         Family family = familyWithYouth();
         UUID bia = users.create("Bia Teste", "bia@example.com");
