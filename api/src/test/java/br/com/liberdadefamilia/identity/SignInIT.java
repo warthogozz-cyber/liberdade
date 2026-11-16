@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.identity.internal.SessionUserAuthentication;
 import br.com.liberdadefamilia.support.CsrfSession;
+import br.com.liberdadefamilia.support.TestWorkspaces;
 import jakarta.servlet.http.Cookie;
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
@@ -66,6 +67,9 @@ class SignInIT {
 
     @Autowired
     JdbcClient jdbc;
+
+    @Autowired
+    TestWorkspaces workspaces;
 
     @Test
     void signInRaisesTheSessionTo30DaysIdle() throws Exception {
@@ -144,14 +148,23 @@ class SignInIT {
                 .exchange();
 
         assertThat(created).hasStatus(201);
-        assertThat(jdbc.sql("""
-                        select count(*) from spring_session_attributes a
-                        join spring_session s on s.primary_id = a.session_primary_id
-                        where s.session_id = :id and a.attribute_name = 'liberdade.familyNameHint'""")
-                        .param("id", sessionIdOf(session))
-                        .query(Long.class)
-                        .single())
-                .isZero();
+        assertThat(hintCount(sessionIdOf(session))).isZero();
+    }
+
+    /** A returning user already has a family: the first look at /v1/me drops Google's family name from the session. */
+    @Test
+    void returningUserHintIsForgottenOnMe() throws Exception {
+        signIn("cris-login");
+        workspaces.createFor(userIdOf("cris-login"));
+        Cookie session = signedInSession(signIn("cris-login"));
+        assertThat(hintCount(sessionIdOf(session))).isOne();
+
+        assertThat(mvc.get().uri("/v1/me").cookie(session))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.suggestedWorkspaceName")
+                .isEqualTo("Minha família");
+        assertThat(hintCount(sessionIdOf(session))).isZero();
     }
 
     /** The whole trip: to the provider and back, signed in as {@code username}. Answers the callback's response. */
@@ -184,6 +197,13 @@ class SignInIT {
                 .param("subject", subject)
                 .query(UUID.class)
                 .single();
+    }
+
+    private long hintCount(String sessionId) {
+        return jdbc.sql("""
+                        select count(*) from spring_session_attributes a
+                        join spring_session s on s.primary_id = a.session_primary_id
+                        where s.session_id = :id and a.attribute_name = 'liberdade.familyNameHint'""").param("id", sessionId).query(Long.class).single();
     }
 
     private byte[] sessionAttribute(String sessionId, String name) {

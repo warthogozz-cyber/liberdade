@@ -55,6 +55,8 @@ class SessionCookieRefreshFilterTest {
                 .contains("Max-Age=2592000");
         assertThat(session.getAttribute(SessionCookieRefreshFilter.REFRESHED_AT))
                 .isEqualTo(NOW);
+        assertThat(request.getAttribute(PersistentSessionCookieSerializer.PERSISTENT))
+                .isEqualTo(Boolean.TRUE);
         assertThat(chain.getRequest()).isSameAs(request);
     }
 
