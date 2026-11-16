@@ -1,16 +1,44 @@
 package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.shared.Money;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
-/** The family's accounts. A balance is computed from the transactions in the same query that lists the accounts. */
+/** The family's accounts. A balance is computed from the transactions in the same query that reads the account. */
 @Component
 class AccountRepository {
+
+    /**
+     * What one transaction did to account {@code a}: income and transfers in count up, expenses and transfers out
+     * count down. Callers leave deleted transactions out. A balance is the initial balance plus the sum of this.
+     */
+    private static final String MOVEMENT = """
+            case
+                when t.kind = 'INCOME' then t.amount
+                when t.kind = 'EXPENSE' then -t.amount
+                when t.to_account_id = a.id then t.amount
+                else -t.amount
+            end""";
+
+    private static final String SELECT_WITH_BALANCE = """
+            select a.id, a.name, a.type, a.currency, a.initial_balance, a.owner_membership_id, a.archived_at,
+                   a.initial_balance + coalesce(sum(%s), 0) as balance
+            from accounts a
+            left join transactions t
+                   on t.workspace_id = a.workspace_id
+                  and (t.account_id = a.id or t.to_account_id = a.id)
+                  and t.deleted_at is null
+            where a.workspace_id = :workspaceId
+            """.formatted(MOVEMENT);
 
     private final JdbcClient jdbc;
 
@@ -18,65 +46,180 @@ class AccountRepository {
         this.jdbc = jdbc;
     }
 
-    void insert(UUID workspaceId, String name, AccountType type, Currency currency, UUID ownerMembershipId) {
-        jdbc.sql("""
-                        insert into accounts (workspace_id, name, type, currency, owner_membership_id)
-                        values (:workspaceId, :name, :type, :currency, :ownerMembershipId)""")
+    /** What a new transaction needs to know about an account: its currency, and whether it is archived. */
+    record AccountChoice(Currency currency, boolean archived) {}
+
+    UUID insert(
+            UUID workspaceId, String name, AccountType type, Money initialBalance, @Nullable UUID ownerMembershipId) {
+        return jdbc.sql("""
+                        insert into accounts (workspace_id, name, type, currency, initial_balance, owner_membership_id)
+                        values (:workspaceId, :name, :type, :currency, :initialBalance, :ownerMembershipId)
+                        returning id""")
                 .param("workspaceId", workspaceId)
                 .param("name", name)
                 .param("type", type.name())
-                .param("currency", currency.getCurrencyCode())
+                .param("currency", initialBalance.currency().getCurrencyCode())
+                .param("initialBalance", initialBalance.amount())
                 .param("ownerMembershipId", ownerMembershipId)
-                .update();
+                .query(UUID.class)
+                .single();
     }
 
-    /**
-     * The accounts that are not archived, by name, each with its initial balance plus income, minus expenses and with
-     * transfers out and in. Deleted transactions do not count.
-     */
-    List<AccountView> unarchivedWithBalances(UUID workspaceId) {
-        return jdbc.sql("""
-                        select a.id, a.name, a.type, a.currency,
-                               a.initial_balance + coalesce(sum(
-                                   case
-                                       when t.kind = 'INCOME' then t.amount
-                                       when t.kind = 'EXPENSE' then -t.amount
-                                       when t.to_account_id = a.id then t.amount
-                                       else -t.amount
-                                   end), 0) as balance
-                        from accounts a
-                        left join transactions t
-                               on t.workspace_id = a.workspace_id
-                              and (t.account_id = a.id or t.to_account_id = a.id)
-                              and t.deleted_at is null
-                        where a.workspace_id = :workspaceId
-                          and a.archived_at is null
+    /** Every account of the family: the active ones first, then the archived, each group by name and id. */
+    List<AccountView> allWithBalances(UUID workspaceId) {
+        return jdbc.sql(SELECT_WITH_BALANCE + """
                         group by a.id
-                        order by a.name, a.id""")
+                        order by (a.archived_at is not null), a.name, a.id""")
                 .param("workspaceId", workspaceId)
-                .query((rs, row) -> {
-                    Currency currency = Currency.getInstance(rs.getString("currency"));
-                    return new AccountView(
-                            rs.getObject("id", UUID.class),
-                            rs.getString("name"),
-                            AccountType.valueOf(rs.getString("type")),
-                            currency,
-                            Money.of(rs.getBigDecimal("balance"), currency));
-                })
+                .query(AccountRepository::view)
                 .list();
     }
 
-    /** The currency of an account of this family that is not archived. */
-    Optional<Currency> unarchivedCurrency(UUID workspaceId, UUID accountId) {
+    Optional<AccountView> findWithBalance(UUID workspaceId, UUID accountId) {
+        return jdbc.sql(SELECT_WITH_BALANCE + """
+                          and a.id = :accountId
+                        group by a.id""")
+                .param("workspaceId", workspaceId)
+                .param("accountId", accountId)
+                .query(AccountRepository::view)
+                .optional();
+    }
+
+    /** The currency and archived state of an account of this family. */
+    Optional<AccountChoice> choice(UUID workspaceId, UUID accountId) {
         return jdbc.sql("""
-                        select currency
+                        select currency, archived_at is not null as archived
                         from accounts
+                        where workspace_id = :workspaceId
+                          and id = :accountId""")
+                .param("workspaceId", workspaceId)
+                .param("accountId", accountId)
+                .query((rs, row) ->
+                        new AccountChoice(Currency.getInstance(rs.getString("currency")), rs.getBoolean("archived")))
+                .optional();
+    }
+
+    /** Changes what is not null. Whether the account exists in this family. */
+    boolean update(
+            UUID workspaceId,
+            UUID accountId,
+            @Nullable String name,
+            @Nullable AccountType type,
+            @Nullable Money initialBalance) {
+        return jdbc.sql("""
+                        update accounts
+                        set name = coalesce(cast(:name as text), name),
+                            type = coalesce(cast(:type as text), type),
+                            initial_balance = coalesce(cast(:initialBalance as numeric), initial_balance),
+                            version = version + 1,
+                            updated_at = now()
+                        where workspace_id = :workspaceId
+                          and id = :accountId""")
+                        .param("workspaceId", workspaceId)
+                        .param("accountId", accountId)
+                        .param("name", name)
+                        .param("type", type == null ? null : type.name())
+                        .param("initialBalance", initialBalance == null ? null : initialBalance.amount())
+                        .update()
+                == 1;
+    }
+
+    /**
+     * Sets the initial balance so that the balance becomes the given one: the balance minus what the transactions
+     * moved, computed in the same statement that writes it.
+     */
+    boolean setBalance(UUID workspaceId, UUID accountId, Money balance) {
+        return jdbc.sql("""
+                        update accounts a
+                        set initial_balance = :balance - coalesce((
+                                select sum(%s)
+                                from transactions t
+                                where t.workspace_id = a.workspace_id
+                                  and (t.account_id = a.id or t.to_account_id = a.id)
+                                  and t.deleted_at is null), 0),
+                            version = version + 1,
+                            updated_at = now()
+                        where a.workspace_id = :workspaceId
+                          and a.id = :accountId""".formatted(MOVEMENT))
+                        .param("workspaceId", workspaceId)
+                        .param("accountId", accountId)
+                        .param("balance", balance.amount())
+                        .update()
+                == 1;
+    }
+
+    /** Archives the account; false when it was already archived or is not in this family. */
+    boolean archive(UUID workspaceId, UUID accountId, Instant now) {
+        return jdbc.sql("""
+                        update accounts
+                        set archived_at = :now, version = version + 1, updated_at = now()
                         where workspace_id = :workspaceId
                           and id = :accountId
                           and archived_at is null""")
+                        .param("workspaceId", workspaceId)
+                        .param("accountId", accountId)
+                        .param("now", Timestamp.from(now))
+                        .update()
+                == 1;
+    }
+
+    /** Brings the account back; false when it was already active or is not in this family. */
+    boolean unarchive(UUID workspaceId, UUID accountId) {
+        return jdbc.sql("""
+                        update accounts
+                        set archived_at = null, version = version + 1, updated_at = now()
+                        where workspace_id = :workspaceId
+                          and id = :accountId
+                          and archived_at is not null""")
+                        .param("workspaceId", workspaceId)
+                        .param("accountId", accountId)
+                        .update()
+                == 1;
+    }
+
+    /**
+     * How many accounts of the family are active. It locks them, so that two archivals at once cannot both see another
+     * active account and leave the family with none.
+     */
+    int countActive(UUID workspaceId) {
+        return jdbc.sql("""
+                        select count(*)
+                        from (select 1
+                              from accounts
+                              where workspace_id = :workspaceId
+                                and archived_at is null
+                              for update) active""")
                 .param("workspaceId", workspaceId)
-                .param("accountId", accountId)
-                .query((rs, row) -> Currency.getInstance(rs.getString("currency")))
-                .optional();
+                .query(Integer.class)
+                .single();
+    }
+
+    /** Whether the membership is an ACTIVE one of this family. */
+    boolean isActiveMembership(UUID workspaceId, UUID membershipId) {
+        return jdbc.sql("""
+                        select exists (
+                            select 1
+                            from memberships
+                            where workspace_id = :workspaceId
+                              and id = :membershipId
+                              and status = 'ACTIVE')""")
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .query(Boolean.class)
+                .single();
+    }
+
+    private static AccountView view(ResultSet rs, int row) throws SQLException {
+        Currency currency = Currency.getInstance(rs.getString("currency"));
+        Timestamp archivedAt = rs.getTimestamp("archived_at");
+        return new AccountView(
+                rs.getObject("id", UUID.class),
+                rs.getString("name"),
+                AccountType.valueOf(rs.getString("type")),
+                currency,
+                Money.of(rs.getBigDecimal("initial_balance"), currency),
+                Money.of(rs.getBigDecimal("balance"), currency),
+                rs.getObject("owner_membership_id", UUID.class),
+                archivedAt == null ? null : archivedAt.toInstant());
     }
 }

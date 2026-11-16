@@ -113,6 +113,179 @@
         "tags": [
           "account-controller"
         ]
+      },
+      "post": {
+        "operationId": "createAccount",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "account-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/accounts/{id}": {
+      "patch": {
+        "operationId": "updateAccount",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "account-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/accounts/{id}/archive": {
+      "post": {
+        "operationId": "archiveAccount",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "account-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/accounts/{id}/unarchive": {
+      "post": {
+        "operationId": "unarchiveAccount",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "account-controller"
+        ]
       }
     },
     "/v1/workspaces/{ws}/categories": {
@@ -314,6 +487,11 @@
       "AccountView": {
         "type": "object",
         "properties": {
+          "archivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "balance": {
             "$ref": "#/components/schemas/Money"
           },
@@ -326,8 +504,16 @@
             "type": "string",
             "format": "uuid"
           },
+          "initialBalance": {
+            "$ref": "#/components/schemas/Money"
+          },
           "name": {
             "type": "string"
+          },
+          "ownerMembershipId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           },
           "type": {
             "type": "string",
@@ -363,6 +549,41 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "CreateAccountRequest": {
+        "required": [
+          "initialBalance",
+          "name",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "initialBalance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string"
+          },
+          "ownerMembershipId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CHECKING",
+              "SAVINGS",
+              "CASH",
+              "CREDIT_CARD",
+              "WALLET",
+              "INVESTMENT"
+            ]
           }
         }
       },
@@ -581,6 +802,36 @@
           "occurredOn": {
             "type": "string",
             "format": "date"
+          }
+        }
+      },
+      "UpdateAccountRequest": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "initialBalance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "pattern": "[^\\x00]*",
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "CHECKING",
+              "SAVINGS",
+              "CASH",
+              "CREDIT_CARD",
+              "WALLET",
+              "INVESTMENT"
+            ]
           }
         }
       },

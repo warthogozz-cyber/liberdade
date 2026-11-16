@@ -29,14 +29,13 @@ class TransactionService {
      * the family's data run, so archiving its account or category since then does not turn the resend into a 422. A
      * new transaction is checked first, the first failure deciding.
      *
-     * @throws TransactionRejectedException when a check fails
+     * @throws LedgerRejectedException when a check fails
      * @throws TransactionIdConflictException when the id is taken by other data or by another family
      */
     Recorded record(WorkspaceMember member, UUID idempotencyKey, CreateTransactionRequest request) {
         UUID workspaceId = member.workspaceId();
         if (!request.id().equals(idempotencyKey) || request.id().version() != 7) {
-            throw new TransactionRejectedException(
-                    "transaction.invalid-id", "O identificador do lançamento é inválido.");
+            throw new LedgerRejectedException("transaction.invalid-id", "O identificador do lançamento é inválido.");
         }
         Optional<TransactionView> stored = transactions.find(workspaceId, request.id());
         if (stored.isPresent()) {
@@ -59,22 +58,24 @@ class TransactionService {
     /** The checks a new transaction must pass, in order, against this family's accounts and categories. */
     private void checkAgainstFamily(UUID workspaceId, CreateTransactionRequest request) {
         if (request.kind() == TransactionKind.TRANSFER) {
-            throw new TransactionRejectedException(
+            throw new LedgerRejectedException(
                     "transaction.kind-unsupported", "Transferências ainda não estão disponíveis.");
         }
-        Currency accountCurrency = accounts.unarchivedCurrency(workspaceId, request.accountId())
-                .orElseThrow(() -> new TransactionRejectedException(
+        Currency accountCurrency = accounts.choice(workspaceId, request.accountId())
+                .filter(choice -> !choice.archived())
+                .map(AccountRepository.AccountChoice::currency)
+                .orElseThrow(() -> new LedgerRejectedException(
                         "transaction.account-not-found", "Conta não encontrada nesta família."));
         TransactionKind categoryKind = categories
                 .unarchivedKind(workspaceId, request.categoryId())
-                .orElseThrow(() -> new TransactionRejectedException(
+                .orElseThrow(() -> new LedgerRejectedException(
                         "transaction.category-not-found", "Categoria não encontrada nesta família."));
         if (categoryKind != request.kind()) {
-            throw new TransactionRejectedException(
+            throw new LedgerRejectedException(
                     "transaction.category-kind-mismatch", "Esta categoria não combina com o tipo do lançamento.");
         }
         if (!request.amount().currency().equals(accountCurrency)) {
-            throw new TransactionRejectedException(
+            throw new LedgerRejectedException(
                     "transaction.currency-mismatch", "A moeda do valor não é a mesma da conta.");
         }
     }

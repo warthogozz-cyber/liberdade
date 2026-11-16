@@ -137,7 +137,7 @@ class DashboardIT {
      * currency.
      */
     @Test
-    void accountsByNameWithoutArchived() {
+    void accountsActiveByNameThenArchived() {
         account("Poupança", "SAVINGS", "BRL", "100.00", true);
         account("Banco", "CHECKING", "BRL", "25.00", false);
         account("Viagem", "CASH", "USD", "40.00", false);
@@ -148,7 +148,8 @@ class DashboardIT {
         assertThat(accounts).bodyJson().isLenientlyEqualTo("""
                 [{"name":"Banco","type":"CHECKING","balance":{"amount":"25.00","currency":"BRL"}},
                  {"name":"Carteira","type":"CASH","balance":{"amount":"0.00","currency":"BRL"}},
-                 {"name":"Viagem","type":"CASH","currency":"USD","balance":{"amount":"40.00","currency":"USD"}}]""");
+                 {"name":"Viagem","type":"CASH","currency":"USD","balance":{"amount":"40.00","currency":"USD"}},
+                 {"name":"Poupança","type":"SAVINGS","balance":{"amount":"100.00","currency":"BRL"}}]""");
         assertThat(dashboard)
                 .bodyJson()
                 .extractingPath("$.balance")

@@ -61,7 +61,55 @@ export interface paths {
         };
         get: operations["listAccounts"];
         put?: never;
+        post: operations["createAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateAccount"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/accounts/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/accounts/{id}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["unarchiveAccount"];
         delete?: never;
         options?: never;
         head?: never;
@@ -121,12 +169,17 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         AccountView: {
+            /** Format: date-time */
+            archivedAt: string | null;
             balance: components["schemas"]["Money"];
             /** @example BRL */
             currency: string;
             /** Format: uuid */
             id: string;
+            initialBalance: components["schemas"]["Money"];
             name: string;
+            /** Format: uuid */
+            ownerMembershipId: string | null;
             /** @enum {string} */
             type: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT";
         };
@@ -137,6 +190,14 @@ export interface components {
             /** @enum {string} */
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
             name: string;
+        };
+        CreateAccountRequest: {
+            initialBalance: components["schemas"]["Money"];
+            name: string;
+            /** Format: uuid */
+            ownerMembershipId?: string | null;
+            /** @enum {string} */
+            type: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT";
         };
         CreateTransactionRequest: {
             /** Format: uuid */
@@ -211,6 +272,13 @@ export interface components {
             memberId: string;
             /** Format: date */
             occurredOn: string;
+        };
+        UpdateAccountRequest: {
+            balance: components["schemas"]["Money"];
+            initialBalance: components["schemas"]["Money"];
+            name: string | null;
+            /** @enum {string|null} */
+            type: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT" | null;
         };
         WorkspaceView: {
             /** Format: uuid */
@@ -311,6 +379,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccountView"][];
+                };
+            };
+        };
+    };
+    createAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountView"];
+                };
+            };
+        };
+    };
+    updateAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountView"];
+                };
+            };
+        };
+    };
+    archiveAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountView"];
+                };
+            };
+        };
+    };
+    unarchiveAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountView"];
                 };
             };
         };

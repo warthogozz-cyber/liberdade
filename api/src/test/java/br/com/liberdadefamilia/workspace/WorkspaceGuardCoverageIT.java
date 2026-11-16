@@ -39,7 +39,7 @@ class WorkspaceGuardCoverageIT {
                                 .anyMatch(pattern -> pattern.startsWith(FAMILY_PREFIX)))
                         .toList();
 
-        assertThat(familyRoutes).as("routes under %s", FAMILY_PREFIX).hasSizeGreaterThanOrEqualTo(5);
+        assertThat(familyRoutes).as("routes under %s", FAMILY_PREFIX).hasSizeGreaterThanOrEqualTo(9);
         assertThat(familyRoutes)
                 .as("routes under %s without @WorkspaceScoped", FAMILY_PREFIX)
                 .allSatisfy(handler -> assertThat(handler.getValue().hasMethodAnnotation(WorkspaceScoped.class))

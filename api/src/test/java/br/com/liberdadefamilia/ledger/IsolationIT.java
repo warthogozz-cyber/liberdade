@@ -106,6 +106,51 @@ class IsolationIT {
                 .isZero();
     }
 
+    @Test
+    void patchAccount() {
+        assertForeignAccountUntouched("PATCH", "", "{\"name\":\"Invadida\"}");
+    }
+
+    @Test
+    void archiveAccount() {
+        assertForeignAccountUntouched("POST", "/archive", null);
+    }
+
+    @Test
+    void unarchiveAccount() {
+        jdbc.sql("update accounts set archived_at = now() where id = :id")
+                .param("id", ledger.walletOf(anaWorkspace))
+                .update();
+
+        assertForeignAccountUntouched("POST", "/unarchive", null);
+    }
+
+    /** Bia names Ana's account under her own family: the account is not found and nothing of it changes. */
+    private void assertForeignAccountUntouched(String method, String suffix, String body) {
+        UUID anaAccount = ledger.walletOf(anaWorkspace);
+        String before = accountRow(anaAccount);
+        var request = method.equals("PATCH") ? mvc.patch() : mvc.post();
+        request.uri("/v1/workspaces/" + biaWorkspace + "/accounts/" + anaAccount + suffix)
+                .with(TestUsers.signedIn(biaId, null))
+                .with(CsrfSession.start(mvc, TestUsers.signedIn(biaId, null)));
+        if (body != null) {
+            request.contentType(MediaType.APPLICATION_JSON).content(body);
+        }
+
+        var result = request.exchange();
+
+        assertThat(result).hasStatus(404).hasContentType(PROBLEM_JSON);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("account.not-found");
+        assertThat(accountRow(anaAccount)).isEqualTo(before);
+    }
+
+    private String accountRow(UUID accountId) {
+        return jdbc.sql("select cast(a as text) from accounts a where id = :id")
+                .param("id", accountId)
+                .query(String.class)
+                .single();
+    }
+
     private MvcTestResult get(String route) {
         return mvc.get()
                 .uri("/v1/workspaces/" + anaWorkspace + route)

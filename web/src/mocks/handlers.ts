@@ -7,7 +7,7 @@ import {
   type TransactionView,
 } from '@/shared/api'
 import { centsToApi, MAX_CENTS, parseCents } from '@/shared/money'
-import { createFamily, mockState } from './data'
+import { createFamily, type MockAccount, mockState } from './data'
 
 const CSRF = { headerName: 'X-XSRF-TOKEN', token: 'mock-csrf' }
 const MAX_NAME_LENGTH = 60
@@ -21,6 +21,15 @@ const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/
 const NUMBER = /^-?\d+(\.\d+)?$/
 const DECIMAL = /^\d+(\.\d+)?$/
 const KINDS: unknown[] = ['INCOME', 'EXPENSE', 'TRANSFER']
+const ACCOUNT_TYPES: unknown[] = [
+  'CHECKING',
+  'SAVINGS',
+  'CASH',
+  'CREDIT_CARD',
+  'WALLET',
+  'INVESTMENT',
+]
+const ACCOUNT_AMOUNT = /^-?\d+(\.\d{1,2})?$/
 const CHALLENGE = 'bW9jay1jaGFsbGVuZ2U'
 const csrfInvalid = () => problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
 const authRequired = () => problem(401, 'auth.required', 'Entre para continuar.')
@@ -76,10 +85,68 @@ function signedCents({ kind, amount }: TransactionView): bigint {
   return kind === 'INCOME' ? cents : kind === 'EXPENSE' ? -cents : 0n
 }
 
-function balanceCents(accountId: string): bigint {
+function movementCents(accountId: string): bigint {
   return mockState.transactions
     .filter((transaction) => transaction.accountId === accountId)
     .reduce((sum, transaction) => sum + signedCents(transaction), 0n)
+}
+
+/** The initial balance plus what the transactions moved, as the API computes it. */
+function balanceCents(account: MockAccount): bigint {
+  return parseCents(account.initialBalance.amount) + movementCents(account.id)
+}
+
+/** An account as the API lists it, with its computed balance. */
+function accountView(account: MockAccount) {
+  return { ...account, balance: money(balanceCents(account), account.currency) }
+}
+
+/** Active accounts first, then the archived, each by name and id, as the API lists them. */
+function activeFirst(a: MockAccount, b: MockAccount) {
+  return (
+    Number(a.archivedAt !== null) - Number(b.archivedAt !== null) ||
+    a.name.localeCompare(b.name) ||
+    a.id.localeCompare(b.id)
+  )
+}
+
+const accountNotFound = () => problem(404, 'account.not-found', 'Conta não encontrada.')
+const nameTaken = () => problem(409, 'account.name-taken', 'Já existe uma conta com esse nome.')
+const currencyUnsupported = () =>
+  rejected('account.currency-unsupported', 'Por enquanto, as contas usam a moeda da família.')
+
+function nameInUse(name: string, exceptId?: string) {
+  return mockState.accounts.some(
+    (account) => account.archivedAt === null && account.name === name && account.id !== exceptId,
+  )
+}
+
+/** Whether the cents are within 999,999,999.99 in absolute value; negative and zero pass, as `@BalanceAmount`. */
+function withinBalanceLimit(cents: bigint): boolean {
+  return cents >= -MAX_CENTS && cents <= MAX_CENTS
+}
+
+interface ReadMoney {
+  cents: bigint
+  currency: string
+}
+
+/**
+ * Reads a money field of an account body. `undefined` is a body the API cannot read (a 400): not an object, an
+ * amount that is not a string with a plain decimal of at most 2 places, or a currency that is not text.
+ * `null` is a missing value.
+ */
+function readMoney(value: unknown): ReadMoney | null | undefined {
+  if (value == null) return null
+  if (typeof value !== 'object') return undefined
+  const { amount, currency } = value as { amount?: unknown; currency?: unknown }
+  if (typeof amount !== 'string' || typeof currency !== 'string') return undefined
+  if (!ACCOUNT_AMOUNT.test(amount)) return undefined
+  return { cents: parseCents(amount), currency }
+}
+
+function validName(name: string): boolean {
+  return name.length >= 1 && name.length <= MAX_NAME_LENGTH && !name.includes('\u0000')
 }
 
 /** Above zero, at most 999,999,999.99 and with at most 2 decimal places, as the API checks it. */
@@ -249,13 +316,144 @@ export const handlers = [
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/accounts'), ({ params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace
-    return HttpResponse.json(
-      mockState.accounts.map((account) => ({
-        ...account,
-        balance: money(balanceCents(account.id), account.currency),
-      })),
-    )
+    return HttpResponse.json([...mockState.accounts].sort(activeFirst).map(accountView))
   }),
+
+  http.post<{ ws: string }>(url('/v1/workspaces/:ws/accounts'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    const body = (await readJson(request)) as Record<string, unknown> | undefined
+    if (typeof body !== 'object' || body === null) return malformed()
+    const initial = readMoney(body.initialBalance)
+    const owner = body.ownerMembershipId
+    if (
+      initial === undefined ||
+      (body.type != null && !ACCOUNT_TYPES.includes(body.type)) ||
+      (body.name != null && typeof body.name !== 'string') ||
+      (owner != null && (typeof owner !== 'string' || !UUID.test(owner)))
+    ) {
+      return malformed()
+    }
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    const errors: FieldError[] = []
+    if (name === '') errors.push({ field: 'name', code: 'NotBlank' })
+    else if (!validName(name)) errors.push({ field: 'name', code: 'Size' })
+    if (body.type == null) errors.push({ field: 'type', code: 'NotNull' })
+    if (initial === null) errors.push({ field: 'initialBalance', code: 'NotNull' })
+    else if (!withinBalanceLimit(initial.cents)) {
+      errors.push({ field: 'initialBalance', code: 'BalanceAmount' })
+    }
+    if (errors.length > 0 || initial === null) return invalid(errors)
+    if (initial.currency !== workspace.currency) return currencyUnsupported()
+    if (typeof owner === 'string' && owner !== workspace.membershipId) {
+      return rejected('account.owner-not-found', 'Essa pessoa não faz parte da família.')
+    }
+    if (nameInUse(name)) return nameTaken()
+    const account: MockAccount = {
+      id: crypto.randomUUID(),
+      name,
+      type: body.type as MockAccount['type'],
+      currency: workspace.currency,
+      initialBalance: money(initial.cents, workspace.currency),
+      ownerMembershipId: typeof owner === 'string' ? owner : null,
+      archivedAt: null,
+    }
+    mockState.accounts.push(account)
+    return HttpResponse.json(accountView(account), { status: 201 })
+  }),
+
+  http.patch<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/accounts/:id'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as Record<string, unknown> | undefined
+      if (typeof body !== 'object' || body === null) return malformed()
+      const initial = readMoney(body.initialBalance)
+      const balance = readMoney(body.balance)
+      if (
+        initial === undefined ||
+        balance === undefined ||
+        (body.type != null && !ACCOUNT_TYPES.includes(body.type)) ||
+        (body.name != null && typeof body.name !== 'string')
+      ) {
+        return malformed()
+      }
+      const name = typeof body.name === 'string' ? body.name.trim() : null
+      const errors: FieldError[] = []
+      if (name !== null && !validName(name)) errors.push({ field: 'name', code: 'Size' })
+      if (initial !== null && !withinBalanceLimit(initial.cents)) {
+        errors.push({ field: 'initialBalance', code: 'BalanceAmount' })
+      }
+      if (balance !== null && !withinBalanceLimit(balance.cents)) {
+        errors.push({ field: 'balance', code: 'BalanceAmount' })
+      }
+      if (initial !== null && balance !== null) {
+        errors.push({ field: 'oneBalanceAtMost', code: 'AssertTrue' })
+      }
+      if (name === null && body.type == null && initial === null && balance === null) {
+        errors.push({ field: 'notEmpty', code: 'AssertTrue' })
+      }
+      if (errors.length > 0) return invalid(errors)
+      const account = mockState.accounts.find((existing) => existing.id === params.id)
+      if (!account) return accountNotFound()
+      if (
+        [initial, balance].some((value) => value !== null && value.currency !== account.currency)
+      ) {
+        return currencyUnsupported()
+      }
+      // Only active accounts hold a name: renaming an archived one never clashes.
+      if (name !== null && account.archivedAt === null && nameInUse(name, account.id)) {
+        return nameTaken()
+      }
+      if (name !== null) account.name = name
+      if (body.type != null) account.type = body.type as MockAccount['type']
+      if (initial !== null) account.initialBalance = money(initial.cents, account.currency)
+      if (balance !== null) {
+        account.initialBalance = money(balance.cents - movementCents(account.id), account.currency)
+      }
+      return HttpResponse.json(accountView(account))
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/accounts/:id/archive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const account = mockState.accounts.find((existing) => existing.id === params.id)
+      if (!account) return accountNotFound()
+      if (account.archivedAt === null) {
+        if (mockState.accounts.filter((existing) => existing.archivedAt === null).length <= 1) {
+          return rejected('account.last-active', 'A família precisa de pelo menos uma conta ativa.')
+        }
+        account.archivedAt = new Date().toISOString()
+      }
+      return HttpResponse.json(accountView(account))
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/accounts/:id/unarchive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const account = mockState.accounts.find((existing) => existing.id === params.id)
+      if (!account) return accountNotFound()
+      if (account.archivedAt !== null) {
+        if (nameInUse(account.name)) return nameTaken()
+        account.archivedAt = null
+      }
+      return HttpResponse.json(accountView(account))
+    },
+  ),
 
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/categories'), ({ request, params }) => {
     const workspace = guard(params.ws)
@@ -323,7 +521,9 @@ export const handlers = [
     if (body.kind === 'TRANSFER') {
       return rejected('transaction.kind-unsupported', 'Transferências ainda não estão disponíveis.')
     }
-    const account = mockState.accounts.find((existing) => existing.id === body.accountId)
+    const account = mockState.accounts.find(
+      (existing) => existing.id === body.accountId && existing.archivedAt === null,
+    )
     if (!account) {
       return rejected('transaction.account-not-found', 'Conta não encontrada nesta família.')
     }
@@ -355,7 +555,9 @@ export const handlers = [
           transaction.kind === 'EXPENSE' && transaction.occurredOn.startsWith(`${month}-`),
       )
       .reduce((sum, transaction) => sum + parseCents(transaction.amount.amount), 0n)
-    const balance = mockState.accounts.reduce((sum, account) => sum + balanceCents(account.id), 0n)
+    const balance = mockState.accounts
+      .filter((account) => account.archivedAt === null)
+      .reduce((sum, account) => sum + balanceCents(account), 0n)
     return HttpResponse.json({
       month,
       expenses: money(expenses, workspace.currency),

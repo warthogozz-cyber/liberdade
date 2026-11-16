@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.ledger.internal;
 
+import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.workspace.WorkspaceCreated;
 import java.util.List;
 import java.util.UUID;
@@ -51,7 +52,12 @@ class LedgerSeeder {
     @EventListener
     void on(WorkspaceCreated event) {
         UUID workspaceId = event.workspaceId();
-        accounts.insert(workspaceId, WALLET_NAME, AccountType.CASH, event.baseCurrency(), event.ownerMembershipId());
+        accounts.insert(
+                workspaceId,
+                WALLET_NAME,
+                AccountType.CASH,
+                Money.zero(event.baseCurrency()),
+                event.ownerMembershipId());
         insert(workspaceId, TransactionKind.EXPENSE, EXPENSES);
         insert(workspaceId, TransactionKind.INCOME, INCOMES);
     }

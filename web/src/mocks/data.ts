@@ -84,6 +84,9 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
     name: 'Carteira',
     type: 'CASH',
     currency: workspace.currency,
+    initialBalance: { amount: '0.00', currency: workspace.currency },
+    ownerMembershipId: workspace.membershipId,
+    archivedAt: null,
   })
   mockState.categories.push(
     ...EXPENSE_CATEGORIES.map(([icon, categoryName]) => ({

@@ -34,7 +34,8 @@ class DashboardController {
         Currency base = member.baseCurrency();
         Money expenses = transactions.expenses(
                 member.workspaceId(), base, month.atDay(1), month.plusMonths(1).atDay(1));
-        Money balance = accounts.unarchivedWithBalances(member.workspaceId()).stream()
+        Money balance = accounts.allWithBalances(member.workspaceId()).stream()
+                .filter(account -> account.archivedAt() == null)
                 .map(AccountView::balance)
                 .filter(money -> money.currency().equals(base))
                 .reduce(Money.zero(base), Money::plus);
