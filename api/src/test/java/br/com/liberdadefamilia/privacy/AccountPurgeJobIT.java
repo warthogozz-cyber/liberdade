@@ -21,9 +21,12 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -37,6 +40,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, AccountPurgeJobIT.Config.class})
+@ExtendWith(OutputCaptureExtension.class)
 class AccountPurgeJobIT {
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -181,7 +185,7 @@ class AccountPurgeJobIT {
     }
 
     @Test
-    void cancelledBetweenTheListAndThePurgeChangesNothing() {
+    void cancelledBetweenTheListAndThePurgeChangesNothing(CapturedOutput output) {
         Gone gone = leaver();
         requestDeletion(gone.bia);
         RequestPostProcessor session = TestUsers.signedIn(gone.bia, null);
@@ -201,6 +205,8 @@ class AccountPurgeJobIT {
                 .isEqualTo(1);
         assertThat(count("select count(*) from memberships where id = :id and status <> 'REMOVED'", gone.membership))
                 .isEqualTo(1);
+        // Nobody was purged, and the log says so.
+        assertThat(output.getOut()).contains("Purged 0 accounts past their deletion grace");
     }
 
     @Test

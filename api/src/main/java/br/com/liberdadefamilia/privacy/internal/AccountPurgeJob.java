@@ -41,15 +41,18 @@ public class AccountPurgeJob {
         Instant now = clock.instant();
         for (UUID id : deletion.dueForPurge(now)) {
             try {
-                tx.executeWithoutResult(status -> {
+                Boolean done = tx.execute(status -> {
                     // A cancellation that landed after the list was read wins: nothing changes for this person.
                     if (!deletion.lockIfDue(id, now)) {
-                        return;
+                        return false;
                     }
                     memberships.detachUser(id);
                     deletion.purge(id);
+                    return true;
                 });
-                purged++;
+                if (Boolean.TRUE.equals(done)) {
+                    purged++;
+                }
             } catch (RuntimeException failure) {
                 // The id only: the exception message could carry a value.
                 log.error(
