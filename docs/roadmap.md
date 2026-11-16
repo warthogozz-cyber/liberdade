@@ -4,7 +4,7 @@
 >
 > Cada fase termina em algo usável pela família. Tamanhos são relativos (P, M, G) e o plano de
 > implementação de cada fase transforma isso em tarefas. Valores em BRL com dólar PTAX de venda de
-> R$ 5,42 (30/10/2026).
+> R$ 5,42 (30/10/2026), salvo onde outra data é indicada.
 
 ## Visão geral
 
@@ -46,9 +46,11 @@ exportar e excluir conta, auditoria.
 - a AWS foi ligada (último passo da v0.1), com staging e produção no ar;
 - a família usa por 2 semanas.
 
-**Custo a partir daqui:** ≈ R$ 311/mês (AWS ≈ R$ 304 + domínio e DNS ≈ R$ 7), ou ≈ R$ 220/mês com
-instâncias reservadas por 1 ano. Os créditos de conta nova da AWS (até US$ 200 ≈ R$ 1.084) cobrem
-cerca de 3,5 meses ([ADR-0004](adr/0004-hosting-aws-sa-east-1-lean.md)).
+**Custo a partir daqui:** ≈ R$ 329/mês (AWS ≈ R$ 326 + domínio ≈ R$ 3; DNS no Cloudflare, grátis),
+ou ≈ R$ 228/mês com instâncias reservadas por 1 ano. Os créditos de conta nova da AWS (até
+US$ 200 ≈ R$ 1.146) cobrem cerca de 3,5 meses. Preços de 16/11/2026 com PTAX de R$ 5,7324
+([ADR-0014](adr/0014-dns-cloudflare-and-costs.md), que atualiza a
+[ADR-0004](adr/0004-hosting-aws-sa-east-1-lean.md)).
 
 ### v0.2 Planejamento (M)
 
@@ -74,9 +76,9 @@ planejado e 3 modelos prontos.
 **Sai quando:** o exemplo da seção 7.7 do PRD passa como teste e um projeto real da família é
 acompanhado por 1 mês.
 
-**Payback do app:** o primeiro mês em que ele ajudar a família a evitar pelo menos R$ 311 em gastos
-(≈ 3% de uma renda de R$ 10 mil). ROI mensal = (economia − 311) ÷ 311; por exemplo, R$ 500
-economizados dão ≈ 61%.
+**Payback do app:** o primeiro mês em que ele ajudar a família a evitar pelo menos R$ 329 em gastos
+(≈ 3% de uma renda de R$ 10 mil). ROI mensal = (economia − 329) ÷ 329; por exemplo, R$ 500
+economizados dão ≈ 52%.
 
 ## Fases seguintes (cada uma com spec próprio)
 

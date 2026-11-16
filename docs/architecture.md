@@ -152,7 +152,7 @@ trafega como texto decimal: `{"amount": "1234.56", "currency": "BRL"}`.
 | Recurso | Operações |
 |---|---|
 | Sessão | `GET /oauth2/authorization/google`, endpoints WebAuthn do Spring Security, `POST /logout`, `GET /v1/csrf` |
-| Eu | `GET /v1/me`, `POST /v1/me/export`, `POST /v1/me/deletion`, `DELETE /v1/me/deletion`, `GET /v1/me/activity`, `GET /v1/me/consents`, `DELETE /v1/me/consents/{id}`, `POST /v1/me/getting-started/dismiss`; no Plano 5, `GET /v1/me/passkeys` e `DELETE /v1/me/passkeys/{id}` |
+| Eu | `GET /v1/me`, `POST /v1/me/export`, `POST /v1/me/deletion`, `DELETE /v1/me/deletion`, `GET /v1/me/activity`, `GET /v1/me/consents`, `DELETE /v1/me/consents/{id}`, `POST /v1/me/getting-started/dismiss`; no Plano 5, `GET /v1/me/documents`, `POST /v1/me/documents/accept`, `GET /v1/me/passkeys` e `DELETE /v1/me/passkeys/{id}` (reautenticação de 10 min; `422 passkey.last-method` se for o último jeito de entrar) |
 | Famílias | `POST /v1/workspaces`, `PATCH /v1/workspaces/{ws}` (nome; a família vem no `GET /v1/me`), `POST .../export`, `POST .../deletion`, `DELETE .../deletion` |
 | Membros | `GET /v1/workspaces/{ws}/members`, `PATCH .../members/{id}` (papel e apelido), `DELETE .../members/{id}`, `POST .../members/{id}/recovery` (link de recuperação) |
 | Convites | `GET /v1/workspaces/{ws}/invitations`, `POST .../invitations` (com `parentalConsent` quando o papel é Jovem), `DELETE .../invitations/{id}`, `POST /v1/invitations/preview` e `POST /v1/invitations/accept` (anônimas, com o token no corpo, nunca na URL) |
@@ -161,6 +161,10 @@ trafega como texto decimal: `{"amount": "1234.56", "currency": "BRL"}`.
 | Categorias | `GET`, `POST`, `PATCH .../categories/{id}`, `POST .../categories/{id}/archive`, `POST .../categories/{id}/unarchive` |
 | Lançamentos | `GET .../transactions?month=2026-11&accountId=&categoryId=`, `GET .../transactions/{id}`, `POST` (com `Idempotency-Key`), `PATCH .../transactions/{id}` (com `version`), `DELETE .../transactions/{id}`, `POST .../transactions/{id}/restore` |
 | Painel | `GET /v1/workspaces/{ws}/dashboard?month=2026-11` |
+
+As páginas `/privacidade` e `/termos` são públicas e ficam só no front, com a versão e a data no
+topo (`privacy-2026-11` e `terms-2026-11` na v0.1). Quando falta aceitar a versão atual, o web
+mostra "Antes de começar" antes de qualquer tela da família; é regra do web, não da API.
 
 Toda rota sob `/v1/workspaces/{ws}` verifica se o usuário é membro ativo de `{ws}` e se o papel
 permite a ação (matriz da US-10), negando por padrão.
@@ -246,13 +250,13 @@ flowchart TB
   ci -->|merge na main| ghcr[(GHCR<br/>imagem ARM64)]
   ci -->|merge na main| pagesStg[Cloudflare Pages<br/>staging.liberdadefamilia.com.br]
   ci -->|tag vX.Y.Z + aprovação manual| pagesProd[Cloudflare Pages<br/>app.liberdadefamilia.com.br]
-  ghcr -->|SSM Run Command| ec2
+  ghcr -->|SSM Run Command + deploy.sh| ec2
   subgraph aws[AWS sa-east-1]
     subgraph pub[Sub-rede pública]
-      ec2[EC2 t4g.small · Docker<br/>Caddy + API prod + API staging]
+      ec2[EC2 t4g.small · Docker<br/>Caddy + api-production + api-staging]
     end
     subgraph priv[Sub-redes privadas]
-      rds[(RDS PostgreSQL 18<br/>liberdade_prod · liberdade_staging)]
+      rds[(RDS PostgreSQL 18<br/>liberdade_production · liberdade_staging)]
     end
     ssm[SSM Parameter Store]
     cw[CloudWatch Logs]
@@ -267,8 +271,22 @@ flowchart TB
 | Local | `localhost:5173` | `localhost:8080` | PostgreSQL 18 em Docker |
 | Preview (PR) | `<hash>.<projeto>.pages.dev` | API simulada no navegador (MSW) | — |
 | Staging | `staging.liberdadefamilia.com.br` | `api-staging.liberdadefamilia.com.br` | `liberdade_staging` |
-| Produção | `app.liberdadefamilia.com.br` | `api.liberdadefamilia.com.br` | `liberdade_prod` |
+| Produção | `app.liberdadefamilia.com.br` | `api.liberdadefamilia.com.br` | `liberdade_production` |
 
+- **Nomes:** os ambientes se chamam `staging` e `production` em todo lugar (GitHub Environments,
+  caminhos do SSM `/liberdade/<ambiente>/<NOME>`, serviços do Compose, grupos de log e bancos).
+- **DNS no Cloudflare** (plano gratuito, [ADR-0014](adr/0014-dns-cloudflare-and-costs.md)); o
+  registro continua no Registro.br. `api` e `api-staging` são registros A só DNS para o IP elástico,
+  e o Caddy emite o certificado pelo desafio HTTP-01. O domínio de topo redireciona para o `app`.
+- **Front:** um projeto do Pages por ambiente (`liberdade` para previews, `liberdade-staging` e
+  `liberdade-production`). O build gera `dist/_headers` com a CSP e os cabeçalhos de segurança, e
+  o `vite preview` serve os mesmos cabeçalhos, para o E2E rodar sob a CSP real.
+- **Deploy da API:** imagem com tag `sha-<commit>`. O workflow assume o papel `liberdade-deploy` por
+  OIDC e manda um comando do SSM que baixa `deploy/` no mesmo commit e roda `deploy.sh`: grava o
+  arquivo de ambiente lido do SSM (tmpfs, modo 0600), troca só o serviço do ambiente, recarrega o
+  Caddy e espera o healthcheck por até 180 s; se a API não ficar saudável, volta para a tag
+  anterior. Staging sobe a cada merge na `main`; produção sobe com a release do release-please e
+  aprovação manual. Os jobs só rodam com a variável de repositório `DEPLOY_ENABLED=true`.
 - **Previews de PR usam dados de exemplo**, não o staging. O domínio `pages.dev` é outro site, e
   o cookie de sessão (`SameSite=Lax`) não iria junto nas chamadas. Para testar com login real,
   usa-se o staging.
@@ -277,7 +295,8 @@ flowchart TB
   staging pode afetar a produção. Aceitável para uso familiar.
 - **Infraestrutura como código** com OpenTofu (MPL-2.0) em `infra/`, para recriar tudo do zero.
 - **Migrações** com Flyway, só para frente, no padrão expandir/contrair.
-- **Rollback:** reimplantar a tag anterior; migrações são compatíveis com a versão anterior.
+- **Rollback:** `workflow_dispatch` do deploy com uma tag ou SHA anterior; migrações são compatíveis
+  com a versão anterior (runbook `docs/runbooks/rollback.md`, escrito no Plano 5).
 - **Caminho para escalar:** trocar a EC2 por ECS Fargate + ALB e ligar Multi-AZ no RDS, sem mudar
   código.
 
@@ -299,7 +318,8 @@ Referência: **OWASP ASVS 5.0, nível 2**, com checklist revisado a cada release
 | Isolamento | `workspace_id` em toda tabela, FKs compostas, filtro obrigatório e testes entre famílias ([ADR-0008](adr/0008-workspace-isolation.md)). |
 | Limites | Limite de taxa em memória: 20 entradas por minuto por IP; 10 consultas ou aceites de convite por minuto por IP; 20 links (convite ou recuperação) por hora por usuário; 10 exportações por hora por usuário. |
 | Entrada | Bean Validation: valor > 0 e ≤ 999.999.999,99; descrição ≤ 140 caracteres. O React escapa a saída. |
-| Cabeçalhos | CSP restrita, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`. |
+| Cabeçalhos | Front (Pages, `_headers`): CSP `default-src 'self'`, com `connect-src` só para a origem da API, `frame-ancestors 'none'` e `object-src 'none'`; HSTS de 1 ano; `X-Content-Type-Options: nosniff`; `Referrer-Policy: no-referrer`; `Permissions-Policy` sem câmera, microfone, localização e pagamento. API: cabeçalhos do Spring Security; o Caddy só remove o `Server`. |
+| Proxy | O perfil `prod` confia só na rede do Compose (`172.30.0.0/24`) para o `X-Forwarded-For`, então os limites por IP contam o IP de quem acessa e ninguém falsifica o cabeçalho. |
 | Segredos | SSM Parameter Store (SecureString), lidos no deploy; nunca no repositório. Secret scanning com push protection. |
 | Infra | EC2 sem SSH (SSM Session Manager), IMDSv2 obrigatório, só 80/443 abertos. RDS em sub-rede privada, acessível só pela EC2, com TLS obrigatório. EBS e RDS criptografados com KMS. GitHub → AWS por OIDC, sem chave fixa. |
 | Cadeia de suprimentos | Dependabot, CodeQL, actions fixadas por SHA, `GITHUB_TOKEN` com permissões mínimas. |
@@ -310,8 +330,13 @@ Referência: **OWASP ASVS 5.0, nível 2**, com checklist revisado a cada release
 
 - **Saúde:** Spring Boot Actuator (`/actuator/health/liveness` e `/readiness`), usado pelo smoke
   test do deploy.
-- **Logs:** driver `awslogs` do Docker → CloudWatch Logs (nível gratuito).
-- **Alarmes:** status check da EC2, CPU e espaço livre do RDS (alarmes do nível gratuito).
+- **Logs:** driver `awslogs` do Docker → CloudWatch Logs (nível gratuito), grupos
+  `/liberdade/production`, `/liberdade/staging` e `/liberdade/caddy`, retenção de 30 dias, JSON no
+  formato ECS. O Caddy não grava log de acesso, então nenhum IP vai para os logs.
+- **Alarmes** (e-mail por SNS, nível gratuito): falha de status da EC2 com recuperação automática,
+  CPU da EC2 acima de 80% por 15 min, espaço livre do RDS abaixo de 2 GB e créditos de CPU do RDS
+  abaixo de 30.
+- **Orçamento:** US$ 60 por mês (≈ R$ 344), com aviso em 80% do gasto real e em 100% do previsto.
 - **Disponibilidade:** workflow agendado no GitHub Actions chama o `/health` de produção a cada
   15 min e abre uma issue se falhar (grátis em repositório público). O GitHub pausa workflows
   agendados após 60 dias sem atividade no repositório; por isso o workflow abre uma issue quando
