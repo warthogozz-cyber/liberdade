@@ -125,7 +125,55 @@ export interface paths {
         };
         get: operations["listCategories"];
         put?: never;
+        post: operations["createCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateCategory"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/categories/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/categories/{id}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["unarchiveCategory"];
         delete?: never;
         options?: never;
         head?: never;
@@ -184,12 +232,18 @@ export interface components {
             type: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT";
         };
         CategoryView: {
+            /** Format: date-time */
+            archivedAt: string | null;
+            /** @enum {string|null} */
+            color: "TEAL" | "BLUE" | "INDIGO" | "PURPLE" | "PINK" | "RED" | "ORANGE" | "GREEN" | null;
             icon: string | null;
             /** Format: uuid */
             id: string;
             /** @enum {string} */
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
             name: string;
+            /** Format: uuid */
+            parentId: string | null;
         };
         CreateAccountRequest: {
             initialBalance: components["schemas"]["Money"];
@@ -198,6 +252,16 @@ export interface components {
             ownerMembershipId?: string | null;
             /** @enum {string} */
             type: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT";
+        };
+        CreateCategoryRequest: {
+            /** @enum {string|null} */
+            color?: "TEAL" | "BLUE" | "INDIGO" | "PURPLE" | "PINK" | "RED" | "ORANGE" | "GREEN" | null;
+            icon?: string | null;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            name: string;
+            /** Format: uuid */
+            parentId?: string | null;
         };
         CreateTransactionRequest: {
             /** Format: uuid */
@@ -279,6 +343,12 @@ export interface components {
             name?: string | null;
             /** @enum {string|null} */
             type?: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT" | null;
+        };
+        UpdateCategoryRequest: {
+            /** @enum {string|null} */
+            color?: "TEAL" | "BLUE" | "INDIGO" | "PURPLE" | "PINK" | "RED" | "ORANGE" | "GREEN" | null;
+            icon?: string | null;
+            name?: string | null;
         };
         WorkspaceView: {
             /** Format: uuid */
@@ -507,6 +577,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryView"][];
+                };
+            };
+        };
+    };
+    createCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryView"];
+                };
+            };
+        };
+    };
+    updateCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryView"];
+                };
+            };
+        };
+    };
+    archiveCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryView"];
+                };
+            };
+        };
+    };
+    unarchiveCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryView"];
                 };
             };
         };

@@ -67,7 +67,9 @@ class TransactionService {
                 .orElseThrow(() -> new LedgerRejectedException(
                         "transaction.account-not-found", "Conta não encontrada nesta família."));
         TransactionKind categoryKind = categories
-                .unarchivedKind(workspaceId, request.categoryId())
+                .choice(workspaceId, request.categoryId())
+                .filter(choice -> !choice.archived())
+                .map(CategoryRepository.CategoryChoice::kind)
                 .orElseThrow(() -> new LedgerRejectedException(
                         "transaction.category-not-found", "Categoria não encontrada nesta família."));
         if (categoryKind != request.kind()) {

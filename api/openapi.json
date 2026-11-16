@@ -333,6 +333,179 @@
         "tags": [
           "category-controller"
         ]
+      },
+      "post": {
+        "operationId": "createCategory",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "category-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/categories/{id}": {
+      "patch": {
+        "operationId": "updateCategory",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "category-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/categories/{id}/archive": {
+      "post": {
+        "operationId": "archiveCategory",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "category-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/categories/{id}/unarchive": {
+      "post": {
+        "operationId": "unarchiveCategory",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "category-controller"
+        ]
       }
     },
     "/v1/workspaces/{ws}/dashboard": {
@@ -531,6 +704,25 @@
       "CategoryView": {
         "type": "object",
         "properties": {
+          "archivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "TEAL",
+              "BLUE",
+              "INDIGO",
+              "PURPLE",
+              "PINK",
+              "RED",
+              "ORANGE",
+              "GREEN"
+            ]
+          },
           "icon": {
             "type": "string",
             "nullable": true
@@ -549,6 +741,11 @@
           },
           "name": {
             "type": "string"
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },
@@ -584,6 +781,54 @@
               "WALLET",
               "INVESTMENT"
             ]
+          }
+        }
+      },
+      "CreateCategoryRequest": {
+        "required": [
+          "kind",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "color": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "TEAL",
+              "BLUE",
+              "INDIGO",
+              "PURPLE",
+              "PINK",
+              "RED",
+              "ORANGE",
+              "GREEN"
+            ]
+          },
+          "icon": {
+            "maxLength": 16,
+            "minLength": 1,
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string"
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },
@@ -833,6 +1078,39 @@
               "WALLET",
               "INVESTMENT"
             ]
+          }
+        }
+      },
+      "UpdateCategoryRequest": {
+        "required": [],
+        "type": "object",
+        "properties": {
+          "color": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "TEAL",
+              "BLUE",
+              "INDIGO",
+              "PURPLE",
+              "PINK",
+              "RED",
+              "ORANGE",
+              "GREEN"
+            ]
+          },
+          "icon": {
+            "maxLength": 16,
+            "minLength": 1,
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 1,
+            "pattern": "[^\\x00]*",
+            "type": "string",
+            "nullable": true
           }
         }
       },

@@ -93,12 +93,18 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
       id: crypto.randomUUID(),
       kind: 'EXPENSE' as const,
       icon,
+      color: null,
+      parentId: null,
+      archivedAt: null,
       name: categoryName,
     })),
     ...INCOME_CATEGORIES.map(([icon, categoryName]) => ({
       id: crypto.randomUUID(),
       kind: 'INCOME' as const,
       icon,
+      color: null,
+      parentId: null,
+      archivedAt: null,
       name: categoryName,
     })),
   )

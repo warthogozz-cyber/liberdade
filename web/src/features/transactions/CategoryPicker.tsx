@@ -5,7 +5,7 @@ import { Sheet } from '@/shared/ui'
 import { categoryLabel } from './listItems'
 
 interface CategoryPickerProps {
-  /** The expense categories, in the API's order. */
+  /** The expense categories, in the API's order. The archived ones are left out. */
   categories: CategoryView[]
   value: string | undefined
   onChange: (categoryId: string) => void
@@ -23,13 +23,14 @@ const chip =
  * opens every category in a sheet.
  */
 export function CategoryPicker({
-  categories,
+  categories: all,
   value,
   onChange,
   onSheetChange,
 }: CategoryPickerProps) {
   const intl = useIntl()
   const [open, setOpen] = useState(false)
+  const categories = all.filter((category) => category.archivedAt === null)
   const first = categories.slice(0, CHIPS)
   const chosen = categories.find((category) => category.id === value)
   const chips = chosen && !first.includes(chosen) ? [...first, chosen] : first

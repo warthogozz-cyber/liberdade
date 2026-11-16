@@ -151,6 +151,68 @@ class IsolationIT {
                 .single();
     }
 
+    @Test
+    void patchCategory() {
+        assertForeignCategoryUntouched("PATCH", "", "{\"name\":\"Invadida\"}");
+    }
+
+    @Test
+    void archiveCategory() {
+        assertForeignCategoryUntouched("POST", "/archive", null);
+    }
+
+    @Test
+    void unarchiveCategory() {
+        jdbc.sql("update categories set archived_at = now() where id = :id")
+                .param("id", ledger.categoryOf(anaWorkspace, "EXPENSE", "Pets"))
+                .update();
+
+        assertForeignCategoryUntouched("POST", "/unarchive", null);
+    }
+
+    @Test
+    void newCategoryUnderForeignParent() {
+        UUID anaCategory = ledger.categoryOf(anaWorkspace, "EXPENSE", "Mercado");
+        String body = "{\"name\":\"Feira\",\"kind\":\"EXPENSE\",\"parentId\":\"%s\"}".formatted(anaCategory);
+
+        var result = mvc.post()
+                .uri("/v1/workspaces/" + biaWorkspace + "/categories")
+                .with(TestUsers.signedIn(biaId, null))
+                .with(CsrfSession.start(mvc, TestUsers.signedIn(biaId, null)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(422).hasContentType(PROBLEM_JSON);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("category.parent-invalid");
+    }
+
+    /** Bia names Ana's category under her own family: it is not found and nothing of it changes. */
+    private void assertForeignCategoryUntouched(String method, String suffix, String body) {
+        UUID anaCategory = ledger.categoryOf(anaWorkspace, "EXPENSE", "Pets");
+        String before = categoryRow(anaCategory);
+        var request = method.equals("PATCH") ? mvc.patch() : mvc.post();
+        request.uri("/v1/workspaces/" + biaWorkspace + "/categories/" + anaCategory + suffix)
+                .with(TestUsers.signedIn(biaId, null))
+                .with(CsrfSession.start(mvc, TestUsers.signedIn(biaId, null)));
+        if (body != null) {
+            request.contentType(MediaType.APPLICATION_JSON).content(body);
+        }
+
+        var result = request.exchange();
+
+        assertThat(result).hasStatus(404).hasContentType(PROBLEM_JSON);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("category.not-found");
+        assertThat(categoryRow(anaCategory)).isEqualTo(before);
+    }
+
+    private String categoryRow(UUID categoryId) {
+        return jdbc.sql("select cast(c as text) from categories c where id = :id")
+                .param("id", categoryId)
+                .query(String.class)
+                .single();
+    }
+
     private MvcTestResult get(String route) {
         return mvc.get()
                 .uri("/v1/workspaces/" + anaWorkspace + route)

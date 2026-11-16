@@ -7,7 +7,10 @@ import {
   type TransactionView,
 } from '@/shared/api'
 import { centsToApi, MAX_CENTS, parseCents } from '@/shared/money'
+import type { components } from '@/shared/api/schema'
 import { createFamily, type MockAccount, mockState } from './data'
+
+type Schemas = components['schemas']
 
 const CSRF = { headerName: 'X-XSRF-TOKEN', token: 'mock-csrf' }
 const MAX_NAME_LENGTH = 60
@@ -107,6 +110,41 @@ function activeFirst(a: MockAccount, b: MockAccount) {
     Number(a.archivedAt !== null) - Number(b.archivedAt !== null) ||
     a.name.localeCompare(b.name) ||
     a.id.localeCompare(b.id)
+  )
+}
+
+type CategoryKindName = Schemas['CategoryView']['kind']
+type CategoryColor = NonNullable<Schemas['CategoryView']['color']>
+const MAX_CATEGORY_NAME_LENGTH = 40
+const MAX_ICON_LENGTH = 16
+const CATEGORY_COLORS: unknown[] = [
+  'TEAL',
+  'BLUE',
+  'INDIGO',
+  'PURPLE',
+  'PINK',
+  'RED',
+  'ORANGE',
+  'GREEN',
+]
+const categoryNotFound = () => problem(404, 'category.not-found', 'Categoria não encontrada.')
+const categoryNameTaken = () =>
+  problem(409, 'category.name-taken', 'Já existe uma categoria com esse nome aqui.')
+
+/** Two active categories of a kind never share a name under one parent (D30). */
+function categoryNameInUse(
+  name: string,
+  kind: CategoryKindName,
+  parentId: string | null,
+  exceptId?: string,
+) {
+  return mockState.categories.some(
+    (category) =>
+      category.archivedAt === null &&
+      category.kind === kind &&
+      category.parentId === parentId &&
+      category.name === name &&
+      category.id !== exceptId,
   )
 }
 
@@ -460,18 +498,189 @@ export const handlers = [
     if (workspace instanceof Response) return workspace
     const kind = new URL(request.url).searchParams.get('kind')
     if (kind !== 'EXPENSE' && kind !== 'INCOME') return malformed()
-    // Most used in the last 90 days first; ties keep the seed order (the sort is stable).
+    // Active ones first, most used in the last 90 days first; ties keep the seed order (the sort is
+    // stable). Then the archived ones, by name and id.
     const since = new Date(Date.now() - 89 * DAY).toISOString().slice(0, 10)
     const uses = (categoryId: string) =>
       mockState.transactions.filter(
         (transaction) => transaction.categoryId === categoryId && transaction.occurredOn >= since,
       ).length
-    return HttpResponse.json(
-      mockState.categories
-        .filter((category) => category.kind === kind)
-        .sort((a, b) => uses(b.id) - uses(a.id)),
-    )
+    const ofKind = mockState.categories.filter((category) => category.kind === kind)
+    const active = ofKind
+      .filter((category) => category.archivedAt === null)
+      .sort((a, b) => uses(b.id) - uses(a.id))
+    const archived = ofKind
+      .filter((category) => category.archivedAt !== null)
+      .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+    return HttpResponse.json([...active, ...archived])
   }),
+
+  http.post<{ ws: string }>(url('/v1/workspaces/:ws/categories'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    const body = (await readJson(request)) as Record<string, unknown> | undefined
+    if (typeof body !== 'object' || body === null) return malformed()
+    const { icon, color, parentId } = body
+    if (
+      (body.name != null && typeof body.name !== 'string') ||
+      (body.kind != null && !KINDS.includes(body.kind)) ||
+      (icon != null && typeof icon !== 'string') ||
+      (color != null && !CATEGORY_COLORS.includes(color)) ||
+      (parentId != null && (typeof parentId !== 'string' || !UUID.test(parentId)))
+    ) {
+      return malformed()
+    }
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    const errors: FieldError[] = []
+    if (name === '') errors.push({ field: 'name', code: 'NotBlank' })
+    else if (name.length > MAX_CATEGORY_NAME_LENGTH) errors.push({ field: 'name', code: 'Size' })
+    if (body.kind == null) errors.push({ field: 'kind', code: 'NotNull' })
+    if (typeof icon === 'string' && (icon === '' || icon.length > MAX_ICON_LENGTH)) {
+      errors.push({ field: 'icon', code: 'Size' })
+    }
+    if (errors.length > 0) return invalid(errors)
+    if (body.kind === 'TRANSFER') {
+      return rejected('category.kind-invalid', 'Categorias são de receita ou de gasto.')
+    }
+    const parent = typeof parentId === 'string' ? parentId : null
+    if (parent !== null) {
+      const found = mockState.categories.find((existing) => existing.id === parent)
+      if (
+        !found ||
+        found.archivedAt !== null ||
+        found.parentId !== null ||
+        found.kind !== body.kind
+      ) {
+        return rejected(
+          'category.parent-invalid',
+          'Escolha uma categoria principal ativa, do mesmo tipo.',
+        )
+      }
+    }
+    if (categoryNameInUse(name, body.kind as CategoryKindName, parent)) return categoryNameTaken()
+    const category: Schemas['CategoryView'] = {
+      id: crypto.randomUUID(),
+      name,
+      kind: body.kind as CategoryKindName,
+      icon: typeof icon === 'string' ? icon : null,
+      color: typeof color === 'string' ? (color as CategoryColor) : null,
+      parentId: parent,
+      archivedAt: null,
+    }
+    mockState.categories.push(category)
+    return HttpResponse.json(category, { status: 201 })
+  }),
+
+  http.patch<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/categories/:id'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as Record<string, unknown> | undefined
+      if (typeof body !== 'object' || body === null) return malformed()
+      const { icon, color } = body
+      if (
+        (body.name != null && typeof body.name !== 'string') ||
+        (icon != null && typeof icon !== 'string') ||
+        (color != null && !CATEGORY_COLORS.includes(color))
+      ) {
+        return malformed()
+      }
+      const name = typeof body.name === 'string' ? body.name.trim() : null
+      const errors: FieldError[] = []
+      if (name !== null && (name === '' || name.length > MAX_CATEGORY_NAME_LENGTH)) {
+        errors.push({ field: 'name', code: 'Size' })
+      }
+      if (typeof icon === 'string' && (icon === '' || icon.length > MAX_ICON_LENGTH)) {
+        errors.push({ field: 'icon', code: 'Size' })
+      }
+      if (name === null && icon == null && color == null) {
+        errors.push({ field: 'notEmpty', code: 'AssertTrue' })
+      }
+      if (errors.length > 0) return invalid(errors)
+      const category = mockState.categories.find((existing) => existing.id === params.id)
+      if (!category) return categoryNotFound()
+      // Only active categories hold a name: renaming an archived one never clashes.
+      if (
+        name !== null &&
+        category.archivedAt === null &&
+        categoryNameInUse(name, category.kind, category.parentId, category.id)
+      ) {
+        return categoryNameTaken()
+      }
+      if (name !== null) category.name = name
+      if (typeof icon === 'string') category.icon = icon
+      if (typeof color === 'string') category.color = color as CategoryColor
+      return HttpResponse.json(category)
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/categories/:id/archive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const category = mockState.categories.find((existing) => existing.id === params.id)
+      if (!category) return categoryNotFound()
+      if (category.archivedAt === null) {
+        const activeTopLevel = mockState.categories.filter(
+          (existing) =>
+            existing.kind === category.kind &&
+            existing.parentId === null &&
+            existing.archivedAt === null,
+        )
+        if (category.parentId === null && activeTopLevel.length <= 1) {
+          return rejected(
+            'category.last-active',
+            'É preciso manter pelo menos uma categoria ativa desse tipo.',
+          )
+        }
+        const now = new Date().toISOString()
+        for (const each of mockState.categories) {
+          if (
+            (each.id === category.id || each.parentId === category.id) &&
+            each.archivedAt === null
+          ) {
+            each.archivedAt = now
+          }
+        }
+      }
+      return HttpResponse.json(category)
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/categories/:id/unarchive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const category = mockState.categories.find((existing) => existing.id === params.id)
+      if (!category) return categoryNotFound()
+      if (category.archivedAt !== null) {
+        const parent = mockState.categories.find((existing) => existing.id === category.parentId)
+        if (parent && parent.archivedAt !== null) {
+          return rejected('category.parent-archived', 'Reative a categoria principal primeiro.')
+        }
+        const group = mockState.categories.filter(
+          (each) =>
+            each.id === category.id ||
+            (each.parentId === category.id && each.archivedAt === category.archivedAt),
+        )
+        if (group.some((each) => categoryNameInUse(each.name, each.kind, each.parentId, each.id))) {
+          return categoryNameTaken()
+        }
+        for (const each of group) each.archivedAt = null
+      }
+      return HttpResponse.json(category)
+    },
+  ),
 
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/transactions'), ({ request, params }) => {
     const workspace = guard(params.ws)
