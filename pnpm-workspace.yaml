@@ -39,3 +39,6 @@ overrides:
   glob: 14.0.2
   'glob>minimatch': 11.0.1
   '@isaacs/nonrecursive-glob-match': 1.0.1
+  # The same approved minimatch for eslint's copies: GHSA-g3hv-75wg-m249 (high) affects every
+  # minimatch from 7.0.0 to 11.0.0 and is fixed only in 11. Lint-time only; no new package.
+  'minimatch@>=7.0.0 <11.0.1': 11.0.1
