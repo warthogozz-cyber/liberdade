@@ -38,6 +38,8 @@ export interface MockState {
   modules: Record<string, Partial<Record<Schemas['ModuleView']['key'], boolean>>>
   /** The signed-in person's own history, newest first (LGPD audit trail). */
   activity: Schemas['ActivityItem'][]
+  /** The consents the signed-in person gave or received, newest first. */
+  consents: Schemas['ConsentView'][]
 }
 
 // The seed of LedgerSeeder.java: same emojis, names and order.
@@ -102,6 +104,24 @@ function initialActivity(): Schemas['ActivityItem'][] {
   ]
 }
 
+/** Ana vouched for a youth: she can take the consent back. */
+function initialConsents(): Schemas['ConsentView'][] {
+  return [
+    {
+      id: '0192f3a4-0000-7000-8000-0000000000d1',
+      purpose: 'PARENTAL',
+      documentVersion: 'parental-2026-11',
+      workspaceId: MOCK_WORKSPACE_ID,
+      workspaceName: 'Família Teste',
+      subjectName: 'Leo',
+      grantedByName: 'Ana Teste',
+      grantedAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+      revokedAt: null,
+      canRevoke: true,
+    },
+  ]
+}
+
 function initialState(): MockState {
   return {
     signedIn: true,
@@ -120,6 +140,7 @@ function initialState(): MockState {
     invitations: [],
     modules: {},
     activity: initialActivity(),
+    consents: initialConsents(),
   }
 }
 

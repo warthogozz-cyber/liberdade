@@ -84,6 +84,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMyConsents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/consents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revokeConsent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/getting-started/dismiss": {
         parameters: {
             query?: never;
@@ -510,6 +542,23 @@ export interface components {
             /** Format: uuid */
             parentId: string | null;
         };
+        ConsentView: {
+            canRevoke: boolean;
+            documentVersion: string;
+            /** Format: date-time */
+            grantedAt: string;
+            grantedByName: string | null;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            purpose: "TERMS" | "PRIVACY" | "PARENTAL";
+            /** Format: date-time */
+            revokedAt: string | null;
+            subjectName: string | null;
+            /** Format: uuid */
+            workspaceId: string;
+            workspaceName: string;
+        };
         CreateAccountRequest: {
             initialBalance: components["schemas"]["Money"];
             name: string;
@@ -852,6 +901,46 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ActivityItem"][];
                 };
+            };
+        };
+    };
+    listMyConsents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentView"][];
+                };
+            };
+        };
+    };
+    revokeConsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

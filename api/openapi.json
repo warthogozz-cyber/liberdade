@@ -133,6 +133,53 @@
         ]
       }
     },
+    "/v1/me/consents": {
+      "get": {
+        "operationId": "listMyConsents",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConsentView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "consent-controller"
+        ]
+      }
+    },
+    "/v1/me/consents/{id}": {
+      "delete": {
+        "operationId": "revokeConsent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "consent-controller"
+        ]
+      }
+    },
     "/v1/me/getting-started/dismiss": {
       "post": {
         "operationId": "dismiss",
@@ -1554,6 +1601,53 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          }
+        }
+      },
+      "ConsentView": {
+        "type": "object",
+        "properties": {
+          "canRevoke": {
+            "type": "boolean"
+          },
+          "documentVersion": {
+            "type": "string"
+          },
+          "grantedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "grantedByName": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "TERMS",
+              "PRIVACY",
+              "PARENTAL"
+            ]
+          },
+          "revokedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "subjectName": {
+            "type": "string",
+            "nullable": true
+          },
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspaceName": {
+            "type": "string"
           }
         }
       },

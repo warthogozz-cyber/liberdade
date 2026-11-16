@@ -631,6 +631,27 @@ export const handlers = [
     return HttpResponse.json(mockState.activity)
   }),
 
+  http.get(url('/v1/me/consents'), () => {
+    if (!mockState.signedIn) return authRequired()
+    return HttpResponse.json(mockState.consents)
+  }),
+
+  http.delete(url('/v1/me/consents/:id'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    if (!mockState.signedIn) return authRequired()
+    const consent = mockState.consents.find((candidate) => candidate.id === params.id)
+    if (!consent) return problem(404, 'consent.not-found', 'Consentimento não encontrado.')
+    if (!consent.canRevoke && consent.revokedAt === null) {
+      return problem(403, 'consent.revoke-forbidden', 'Só quem deu o consentimento pode revogá-lo.')
+    }
+    // Revoking again changes nothing.
+    if (consent.revokedAt === null) {
+      consent.revokedAt = new Date().toISOString()
+      consent.canRevoke = false
+    }
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.patch(url('/v1/workspaces/:ws'), async ({ request, params }) => {
     if (withoutToken(request)) {
       return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
