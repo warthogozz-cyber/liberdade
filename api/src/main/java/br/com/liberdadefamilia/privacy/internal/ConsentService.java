@@ -70,6 +70,7 @@ class ConsentService {
                     row.grantedBy() == null ? null : nicknameOf(members, row.workspaceId(), row.grantedBy()),
                     row.grantedAt(),
                     row.revokedAt(),
+                    row.supersededAt(),
                     canRevoke(row, userId, members.get(key(row.workspaceId(), userId)))));
         }
         return views;
@@ -83,7 +84,8 @@ class ConsentService {
         if (!userId.equals(consent.grantedBy())) {
             throw forbidden();
         }
-        if (consent.revokedAt() != null) {
+        // Withdrawn already, or replaced by a newer consent that now covers the stay: nothing left to do.
+        if (!consent.open()) {
             return;
         }
         Optional<MemberSummary> guardian =
@@ -97,11 +99,9 @@ class ConsentService {
         MemberSummary youth = memberships.membersOf(List.of(consent.workspaceId()), List.of(consent.userId())).stream()
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("A consent without its membership"));
-        // A member promoted since the consent was given is no longer the youth it covered.
-        if (youth.status() == MembershipStatus.ACTIVE && youth.role() == Role.YOUTH) {
-            memberships.remove(
-                    consent.workspaceId(), youth.membershipId(), userId, MemberRemoved.Reason.CONSENT_REVOKED);
-        }
+        // Only a member still YOUTH goes; the check is part of the update, so a promotion in between wins.
+        memberships.removeIfRole(
+                consent.workspaceId(), youth.membershipId(), Role.YOUTH, userId, MemberRemoved.Reason.CONSENT_REVOKED);
         trail.record(new AuditEntry(
                 consent.workspaceId(),
                 userId,
@@ -112,7 +112,7 @@ class ConsentService {
     }
 
     private static boolean canRevoke(ConsentRepository.Row row, UUID me, @Nullable MemberSummary myMembership) {
-        return me.equals(row.grantedBy()) && row.revokedAt() == null && isActiveGuardian(myMembership);
+        return me.equals(row.grantedBy()) && row.open() && isActiveGuardian(myMembership);
     }
 
     private static boolean isActiveGuardian(@Nullable MemberSummary member) {

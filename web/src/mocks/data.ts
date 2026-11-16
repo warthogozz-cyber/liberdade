@@ -16,6 +16,9 @@ export interface MockInvitation {
   targetMembershipId?: string
 }
 
+/** A consent as the API lists it, plus whether the signed-in person is the one who gave it. */
+export type MockConsent = Schemas['ConsentView'] & { grantedByMe: boolean }
+
 export interface MockState {
   /** `false` makes every `/v1` route but `/v1/csrf` answer 401 `auth.required`. */
   signedIn: boolean
@@ -39,7 +42,7 @@ export interface MockState {
   /** The signed-in person's own history, newest first (LGPD audit trail). */
   activity: Schemas['ActivityItem'][]
   /** The consents the signed-in person gave or received, newest first. */
-  consents: Schemas['ConsentView'][]
+  consents: MockConsent[]
 }
 
 // The seed of LedgerSeeder.java: same emojis, names and order.
@@ -105,7 +108,7 @@ function initialActivity(): Schemas['ActivityItem'][] {
 }
 
 /** Ana vouched for a youth: she can take the consent back. */
-function initialConsents(): Schemas['ConsentView'][] {
+function initialConsents(): MockConsent[] {
   return [
     {
       id: '0192f3a4-0000-7000-8000-0000000000d1',
@@ -114,10 +117,13 @@ function initialConsents(): Schemas['ConsentView'][] {
       workspaceId: MOCK_WORKSPACE_ID,
       workspaceName: 'Família Teste',
       subjectName: 'Leo',
-      grantedByName: 'Ana Teste',
+      // The family nickname, as the API returns it; Ana has none here.
+      grantedByName: null,
       grantedAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
       revokedAt: null,
+      supersededAt: null,
       canRevoke: true,
+      grantedByMe: true,
     },
   ]
 }

@@ -59,6 +59,7 @@ class ConsentListener {
     }
 
     private void grant(UUID workspaceId, UUID membershipId, UUID userId, UUID grantedBy) {
+        consents.supersedeOpen(userId, workspaceId, ConsentPurpose.PARENTAL);
         consents.insert(userId, workspaceId, ConsentPurpose.PARENTAL, PARENTAL_DOCUMENT_VERSION, grantedBy);
         trail.record(new AuditEntry(
                 workspaceId, grantedBy, "consent.granted", "MEMBERSHIP", membershipId, PARENTAL_METADATA));

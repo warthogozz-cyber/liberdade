@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.privacy.internal;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
+import br.com.liberdadefamilia.identity.RequiresRecentSignIn;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,7 @@ class ConsentController {
         return service.list(user.id());
     }
 
+    @RequiresRecentSignIn
     @DeleteMapping("/v1/me/consents/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void revokeConsent(@PathVariable UUID id, CurrentUser user) {

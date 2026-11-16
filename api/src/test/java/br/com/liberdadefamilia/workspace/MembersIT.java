@@ -236,6 +236,28 @@ class MembersIT {
     }
 
     @Test
+    void ownerCannotMakeThemselvesYouth() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        UUID ws = workspaces.createFor(ana);
+        workspaces.addMember(ws, bia, Role.OWNER);
+
+        MvcTestResult result =
+                patch(ana, ws, workspaces.membershipOf(ws, ana), "{\"role\":\"YOUTH\",\"parentalConsent\":true}", 0);
+
+        assertThat(result).hasStatus(422);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("member.self-youth");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .isEqualTo("Você não pode mudar o seu próprio papel para Jovem.");
+        assertThat(memberships.find(ws, workspaces.membershipOf(ws, ana)))
+                .get()
+                .extracting(MemberSummary::role)
+                .isEqualTo(Role.OWNER);
+    }
+
+    @Test
     void concurrentRemovalsKeepAnOwner() throws Exception {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         UUID bia = users.create("Bia Teste", "bia@example.com");

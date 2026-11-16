@@ -555,6 +555,8 @@ export interface components {
             /** Format: date-time */
             revokedAt: string | null;
             subjectName: string | null;
+            /** Format: date-time */
+            supersededAt: string | null;
             /** Format: uuid */
             workspaceId: string;
             workspaceName: string;

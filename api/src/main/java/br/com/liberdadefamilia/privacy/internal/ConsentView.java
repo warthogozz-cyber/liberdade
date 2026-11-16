@@ -19,4 +19,5 @@ record ConsentView(
         @Nullable @Schema(nullable = true) String grantedByName,
         Instant grantedAt,
         @Nullable @Schema(nullable = true) Instant revokedAt,
+        @Nullable @Schema(nullable = true) Instant supersededAt,
         boolean canRevoke) {}

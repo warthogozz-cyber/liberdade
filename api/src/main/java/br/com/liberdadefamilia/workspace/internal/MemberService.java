@@ -77,6 +77,10 @@ class MemberService {
         }
         UUID consentBy = null;
         if (roleChanges && newRole == Role.YOUTH) {
+            if (membershipId.equals(caller.membershipId())) {
+                throw new WorkspaceRejectedException(
+                        "member.self-youth", "Você não pode mudar o seu próprio papel para Jovem.");
+            }
             if (!Boolean.TRUE.equals(request.parentalConsent())) {
                 throw new WorkspaceRejectedException(
                         "member.parental-consent-required",

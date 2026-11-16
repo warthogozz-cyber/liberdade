@@ -1642,6 +1642,11 @@
             "type": "string",
             "nullable": true
           },
+          "supersededAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "workspaceId": {
             "type": "string",
             "format": "uuid"

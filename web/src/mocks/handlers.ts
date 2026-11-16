@@ -633,7 +633,13 @@ export const handlers = [
 
   http.get(url('/v1/me/consents'), () => {
     if (!mockState.signedIn) return authRequired()
-    return HttpResponse.json(mockState.consents)
+    return HttpResponse.json(
+      mockState.consents.map((consent) => {
+        const view: Partial<typeof consent> = { ...consent }
+        delete view.grantedByMe
+        return view
+      }),
+    )
   }),
 
   http.delete(url('/v1/me/consents/:id'), ({ request, params }) => {
@@ -641,14 +647,42 @@ export const handlers = [
     if (!mockState.signedIn) return authRequired()
     const consent = mockState.consents.find((candidate) => candidate.id === params.id)
     if (!consent) return problem(404, 'consent.not-found', 'Consentimento não encontrado.')
-    if (!consent.canRevoke && consent.revokedAt === null) {
+    if (!consent.grantedByMe) {
       return problem(403, 'consent.revoke-forbidden', 'Só quem deu o consentimento pode revogá-lo.')
     }
-    // Revoking again changes nothing.
-    if (consent.revokedAt === null) {
-      consent.revokedAt = new Date().toISOString()
-      consent.canRevoke = false
+    // Withdrawn or superseded already: nothing left to do.
+    if (consent.revokedAt !== null || consent.supersededAt !== null) {
+      return new HttpResponse(null, { status: 204 })
     }
+    const now = new Date().toISOString()
+    consent.revokedAt = now
+    consent.canRevoke = false
+    // The youth the consent covers leaves the family, as the API does when the member is still a youth.
+    const youth = (mockState.members[consent.workspaceId] ?? []).find(
+      (member) =>
+        member.nickname === consent.subjectName && member.role === 'YOUTH' && member.status === 'ACTIVE',
+    )
+    if (youth) youth.status = 'REMOVED'
+    mockState.activity.unshift(
+      {
+        id: crypto.randomUUID(),
+        action: 'member.removed',
+        occurredAt: now,
+        workspaceId: consent.workspaceId,
+        actorName: mockState.user.displayName,
+        byMe: true,
+        metadata: { reason: 'CONSENT_REVOKED' },
+      },
+      {
+        id: crypto.randomUUID(),
+        action: 'consent.revoked',
+        occurredAt: now,
+        workspaceId: consent.workspaceId,
+        actorName: mockState.user.displayName,
+        byMe: true,
+        metadata: { purpose: 'PARENTAL' },
+      },
+    )
     return new HttpResponse(null, { status: 204 })
   }),
 
@@ -700,6 +734,13 @@ export const handlers = [
     if (body.role != null && body.role !== member.role) {
       const owners = members.filter((m) => m.role === 'OWNER' && m.status === 'ACTIVE')
       if (member.role === 'OWNER' && owners.length <= 1) return lastOwner()
+      if (body.role === 'YOUTH' && member.you) {
+        return problem(
+          422,
+          'member.self-youth',
+          'Você não pode mudar o seu próprio papel para Jovem.',
+        )
+      }
       if (body.role === 'YOUTH' && body.parentalConsent !== true) {
         return problem(
           422,

@@ -36,6 +36,19 @@ public interface Memberships {
      */
     void remove(UUID workspaceId, UUID membershipId, @Nullable UUID actorUserId, MemberRemoved.Reason reason);
 
+    /**
+     * Ends the membership only if it is ACTIVE and still has the expected role, in one atomic update, and publishes
+     * {@link MemberRemoved} only when it did. A role changed in the meantime wins: nothing happens.
+     *
+     * @return whether the membership was ended
+     */
+    boolean removeIfRole(
+            UUID workspaceId,
+            UUID membershipId,
+            Role expected,
+            @Nullable UUID actorUserId,
+            MemberRemoved.Reason reason);
+
     /** Ends every ACTIVE membership of the person, with the reason {@code ACCOUNT_DELETED}. */
     void detachUser(UUID userId);
 }

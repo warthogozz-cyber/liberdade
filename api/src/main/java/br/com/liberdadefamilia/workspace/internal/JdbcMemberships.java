@@ -137,6 +137,29 @@ class JdbcMemberships implements Memberships {
 
     @Override
     @Transactional
+    public boolean removeIfRole(
+            UUID workspaceId,
+            UUID membershipId,
+            Role expected,
+            @Nullable UUID actorUserId,
+            MemberRemoved.Reason reason) {
+        int ended = jdbc.sql("""
+                        update memberships
+                        set status = 'REMOVED', updated_at = now(), version = version + 1
+                        where workspace_id = :workspaceId and id = :membershipId
+                          and status = 'ACTIVE' and role = :expected""")
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .param("expected", expected.name())
+                .update();
+        if (ended == 1) {
+            events.publishEvent(new MemberRemoved(workspaceId, membershipId, actorUserId, reason));
+        }
+        return ended == 1;
+    }
+
+    @Override
+    @Transactional
     public void detachUser(UUID userId) {
         List<MemberSummary> ended = jdbc.sql("""
                         update memberships
