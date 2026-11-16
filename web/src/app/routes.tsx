@@ -36,6 +36,13 @@ export const routes: RouteObject[] = [
                   })),
               },
               {
+                path: '/painel',
+                lazy: () =>
+                  import('@/features/dashboard/DashboardPage').then((m) => ({
+                    Component: m.DashboardPage,
+                  })),
+              },
+              {
                 path: '/mais',
                 lazy: () => import('@/app/MorePage').then((m) => ({ Component: m.MorePage })),
               },

@@ -87,6 +87,16 @@ describe('HomePage', () => {
     )
   })
 
+  it('linksToDashboard', async () => {
+    seedMockFamily()
+    renderHome()
+
+    expect(await screen.findByRole('link', { name: 'Ver painel do mês' })).toHaveAttribute(
+      'href',
+      '/painel',
+    )
+  })
+
   it('queuedIncomeRaisesBalance', async () => {
     const workspace = seedMockFamily()
     await db.outbox.bulkAdd([

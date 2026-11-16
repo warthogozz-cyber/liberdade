@@ -92,6 +92,12 @@ function HomeContent({ userId, hasPasskey, workspace }: HomeContentProps) {
             <dd className="text-xl font-semibold tabular-nums">{formatBRL(balance)}</dd>
           </div>
         </dl>
+        <Link
+          to="/painel"
+          className="flex min-h-12 items-center font-medium text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <FormattedMessage id="home.openDashboard" />
+        </Link>
         {!online && (
           <p className="text-sm text-text-muted">
             <DataAsOf updatedAt={dashboard.dataUpdatedAt} timeZone={workspace.timezone} />

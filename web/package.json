@@ -26,6 +26,7 @@
     "@tanstack/react-query-persist-client": "^5.105.0",
     "dexie": "4.4.7",
     "dexie-react-hooks": "^4.4.0",
+    "echarts": "6.1.0",
     "openapi-fetch": "^0.17.0",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",
