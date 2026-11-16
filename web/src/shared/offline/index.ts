@@ -21,5 +21,6 @@ export {
   type SyncDeps,
   type SyncResult,
 } from './sync'
+export { undoRecorded, type UndoResult } from './undo'
 export { useOnline } from './useOnline'
 export { useOutbox, usePendingTotals } from './useOutbox'

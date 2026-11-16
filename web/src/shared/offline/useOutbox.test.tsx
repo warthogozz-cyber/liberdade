@@ -63,7 +63,7 @@ describe('useOutbox', () => {
 })
 
 describe('usePendingTotals', () => {
-  it('adds up the user’s pending expenses in the family', async () => {
+  it('adds up the user’s pending items in the family', async () => {
     await db.outbox.bulkAdd([
       item('t1'),
       item('t2', {
@@ -78,9 +78,13 @@ describe('usePendingTotals', () => {
 
     const { result, unmount } = renderHook(() => usePendingTotals('a', 'ws1', '2026-11'))
 
-    expect(result.current).toEqual({ monthExpenses: 0n, allExpenses: 0n })
+    expect(result.current).toEqual({ monthIncome: 0n, monthExpenses: 0n, balanceDelta: 0n })
     await waitFor(() =>
-      expect(result.current).toEqual({ monthExpenses: 1234n, allExpenses: 1734n }),
+      expect(result.current).toEqual({
+        monthIncome: 0n,
+        monthExpenses: 1234n,
+        balanceDelta: -1734n,
+      }),
     )
     unmount()
   })

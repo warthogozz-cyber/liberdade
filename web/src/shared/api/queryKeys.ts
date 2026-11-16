@@ -1,4 +1,4 @@
-import type { CategoryKind } from './types'
+import type { CategoryKind, TransactionFilters } from './types'
 
 /** Everything a family owns sits under this key, so one invalidation reaches all of it. */
 function workspace(ws: string) {
@@ -10,6 +10,15 @@ export const queryKeys = {
   workspace,
   accounts: (ws: string) => [...workspace(ws), 'accounts'] as const,
   categories: (ws: string, kind: CategoryKind) => [...workspace(ws), 'categories', kind] as const,
-  transactions: (ws: string, month: string) => [...workspace(ws), 'transactions', month] as const,
+  /** Filters take part in the key only when one is set, so the unfiltered month keeps its own. */
+  transactions: (ws: string, month: string, filters?: TransactionFilters) =>
+    [
+      ...workspace(ws),
+      'transactions',
+      month,
+      ...(filters?.categoryId || filters?.accountId
+        ? [{ categoryId: filters.categoryId ?? null, accountId: filters.accountId ?? null }]
+        : []),
+    ] as const,
   dashboard: (ws: string, month: string) => [...workspace(ws), 'dashboard', month] as const,
 }

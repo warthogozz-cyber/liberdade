@@ -16,6 +16,8 @@ const workspace: MeWorkspace = {
   currency: 'BRL',
   role: 'OWNER',
   timezone: 'America/Fortaleza',
+  gettingStartedDismissedAt: null,
+  hasTransactions: false,
 }
 
 const me: MeView = {

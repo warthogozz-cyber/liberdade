@@ -6,15 +6,28 @@ export class ApiError extends Error {
   readonly status: number
   readonly code: string
   readonly detail?: string
+  /**
+   * The problem's properties beyond `type`, `title`, `status`, `detail`, `code` and `instance`, such as
+   * the `current` transaction of a version conflict. Empty when there are none.
+   */
+  readonly extra: Readonly<Record<string, unknown>>
 
-  constructor(status: number, code: string, detail?: string) {
+  constructor(
+    status: number,
+    code: string,
+    detail?: string,
+    extra: Readonly<Record<string, unknown>> = {},
+  ) {
     super(detail ?? code)
     this.name = 'ApiError'
     this.status = status
     this.code = code
     this.detail = detail
+    this.extra = extra
   }
 }
+
+const STANDARD_PROPERTIES = new Set(['type', 'title', 'status', 'detail', 'code', 'instance'])
 
 interface Problem {
   code: string
@@ -28,7 +41,15 @@ function isProblem(body: unknown): body is Problem {
 /** The ApiError for a failed answer, from its parsed body. */
 export function errorFromBody(status: number, body: unknown): ApiError {
   if (!isProblem(body)) return new ApiError(status, 'http')
-  return new ApiError(status, body.code, typeof body.detail === 'string' ? body.detail : undefined)
+  const extra = Object.fromEntries(
+    Object.entries(body).filter(([key]) => !STANDARD_PROPERTIES.has(key)),
+  )
+  return new ApiError(
+    status,
+    body.code,
+    typeof body.detail === 'string' ? body.detail : undefined,
+    extra,
+  )
 }
 
 /** Parses an answer's text as JSON when it is JSON. An empty text is `undefined`. */

@@ -80,7 +80,7 @@ class OpenApiContractIT {
 
         contract.extractingPath(TRANSACTIONS + ".get.parameters[*].name")
                 .asArray()
-                .containsExactly("ws", "month");
+                .containsExactly("ws", "month", "categoryId", "accountId");
         contract.extractingPath(TRANSACTIONS + ".post.parameters[*].name")
                 .asArray()
                 .containsExactly("ws", "Idempotency-Key");
@@ -134,8 +134,14 @@ class OpenApiContractIT {
                 .isEqualTo(true);
         contract.extractingPath(SCHEMAS + ".CategoryView.properties.icon.nullable")
                 .isEqualTo(true);
+        // A transfer has a destination and no category; anything else has a category and no destination.
+        contract.extractingPath(SCHEMAS + ".TransactionView.properties.categoryId.nullable")
+                .isEqualTo(true);
+        contract.extractingPath(SCHEMAS + ".TransactionView.properties.toAccountId.nullable")
+                .isEqualTo(true);
         for (String field : List.of(
-                "TransactionView.properties.categoryId",
+                "TransactionView.properties.accountId",
+                "TransactionView.properties.version",
                 "TransactionView.properties.amount",
                 "MeUser.properties.displayName")) {
             contract.hasPath(SCHEMAS + "." + field);

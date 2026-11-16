@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/getting-started/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["dismiss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces": {
         parameters: {
             query?: never;
@@ -61,7 +77,55 @@ export interface paths {
         };
         get: operations["listAccounts"];
         put?: never;
+        post: operations["createAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateAccount"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/accounts/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/accounts/{id}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["unarchiveAccount"];
         delete?: never;
         options?: never;
         head?: never;
@@ -77,7 +141,55 @@ export interface paths {
         };
         get: operations["listCategories"];
         put?: never;
+        post: operations["createCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateCategory"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/categories/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/categories/{id}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["unarchiveCategory"];
         delete?: never;
         options?: never;
         head?: never;
@@ -116,34 +228,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/transactions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteTransaction"];
+        options?: never;
+        head?: never;
+        patch: operations["updateTransaction"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/transactions/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["restoreTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         AccountView: {
+            /** Format: date-time */
+            archivedAt: string | null;
             balance: components["schemas"]["Money"];
             /** @example BRL */
             currency: string;
             /** Format: uuid */
             id: string;
+            initialBalance: components["schemas"]["Money"];
             name: string;
+            /** Format: uuid */
+            ownerMembershipId: string | null;
             /** @enum {string} */
             type: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT";
         };
         CategoryView: {
+            /** Format: date-time */
+            archivedAt: string | null;
+            /** @enum {string|null} */
+            color: "TEAL" | "BLUE" | "INDIGO" | "PURPLE" | "PINK" | "RED" | "ORANGE" | "GREEN" | null;
             icon: string | null;
             /** Format: uuid */
             id: string;
             /** @enum {string} */
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
             name: string;
+            /** Format: uuid */
+            parentId: string | null;
+        };
+        CreateAccountRequest: {
+            initialBalance: components["schemas"]["Money"];
+            name: string;
+            /** Format: uuid */
+            ownerMembershipId?: string | null;
+            /** @enum {string} */
+            type: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT";
+        };
+        CreateCategoryRequest: {
+            /** @enum {string|null} */
+            color?: "TEAL" | "BLUE" | "INDIGO" | "PURPLE" | "PINK" | "RED" | "ORANGE" | "GREEN" | null;
+            icon?: string | null;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            name: string;
+            /** Format: uuid */
+            parentId?: string | null;
         };
         CreateTransactionRequest: {
             /** Format: uuid */
             accountId: string;
             amount: components["schemas"]["Money"];
             /** Format: uuid */
-            categoryId: string;
+            categoryId?: string | null;
             description?: string | null;
             /** Format: uuid */
             id: string;
@@ -151,6 +324,8 @@ export interface components {
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
             /** Format: date */
             occurredOn: string;
+            /** Format: uuid */
+            toAccountId?: string | null;
         };
         CreateWorkspaceRequest: {
             name: string;
@@ -160,10 +335,25 @@ export interface components {
             headerName: string;
             token: string;
         };
+        DashboardCategory: {
+            /** Format: uuid */
+            categoryId: string | null;
+            current: components["schemas"]["Money"];
+            previous: components["schemas"]["Money"];
+        };
+        DashboardDay: {
+            balance: components["schemas"]["Money"];
+            /** Format: date */
+            day: string;
+        };
         DashboardView: {
             balance: components["schemas"]["Money"];
+            byCategory: components["schemas"]["DashboardCategory"][];
+            dailyBalance: components["schemas"]["DashboardDay"][];
             expenses: components["schemas"]["Money"];
+            income: components["schemas"]["Money"];
             month: string;
+            result: components["schemas"]["Money"];
         };
         MeUser: {
             displayName: string;
@@ -179,6 +369,9 @@ export interface components {
         };
         MeWorkspace: {
             currency: string;
+            /** Format: date-time */
+            gettingStartedDismissedAt: string | null;
+            hasTransactions: boolean;
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -199,7 +392,7 @@ export interface components {
             accountId: string;
             amount: components["schemas"]["Money"];
             /** Format: uuid */
-            categoryId: string;
+            categoryId: string | null;
             /** Format: date-time */
             createdAt: string;
             description: string | null;
@@ -211,6 +404,39 @@ export interface components {
             memberId: string;
             /** Format: date */
             occurredOn: string;
+            /** Format: uuid */
+            toAccountId: string | null;
+            /** Format: int64 */
+            version: number;
+        };
+        UpdateAccountRequest: {
+            balance?: components["schemas"]["Money"];
+            initialBalance?: components["schemas"]["Money"];
+            name?: string | null;
+            /** @enum {string|null} */
+            type?: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT" | null;
+        };
+        UpdateCategoryRequest: {
+            /** @enum {string|null} */
+            color?: "TEAL" | "BLUE" | "INDIGO" | "PURPLE" | "PINK" | "RED" | "ORANGE" | "GREEN" | null;
+            icon?: string | null;
+            name?: string | null;
+        };
+        UpdateTransactionRequest: {
+            /** Format: uuid */
+            accountId: string;
+            amount: components["schemas"]["Money"];
+            /** Format: uuid */
+            categoryId?: string | null;
+            description?: string | null;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            /** Format: date */
+            occurredOn: string;
+            /** Format: uuid */
+            toAccountId?: string | null;
+            /** Format: int64 */
+            version: number;
         };
         WorkspaceView: {
             /** Format: uuid */
@@ -268,6 +494,26 @@ export interface operations {
             };
         };
     };
+    dismiss: {
+        parameters: {
+            query: {
+                workspaceId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     createWorkspace: {
         parameters: {
             query?: never;
@@ -315,6 +561,109 @@ export interface operations {
             };
         };
     };
+    createAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountView"];
+                };
+            };
+        };
+    };
+    updateAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountView"];
+                };
+            };
+        };
+    };
+    archiveAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountView"];
+                };
+            };
+        };
+    };
+    unarchiveAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountView"];
+                };
+            };
+        };
+    };
     listCategories: {
         parameters: {
             query: {
@@ -336,6 +685,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryView"][];
+                };
+            };
+        };
+    };
+    createCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryView"];
+                };
+            };
+        };
+    };
+    updateCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryView"];
+                };
+            };
+        };
+    };
+    archiveCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryView"];
+                };
+            };
+        };
+    };
+    unarchiveCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryView"];
                 };
             };
         };
@@ -369,6 +821,8 @@ export interface operations {
         parameters: {
             query: {
                 month: string;
+                categoryId?: string | null;
+                accountId?: string | null;
             };
             header?: never;
             path: {
@@ -419,6 +873,80 @@ export interface operations {
             };
             /** @description Recorded */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionView"];
+                };
+            };
+        };
+    };
+    deleteTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted, or already deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTransactionRequest"];
+            };
+        };
+        responses: {
+            /** @description Edited: the transaction at its new version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionView"];
+                };
+            };
+        };
+    };
+    restoreTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored, or already active: the transaction as it is */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

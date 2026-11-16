@@ -32,12 +32,12 @@ export function useOutbox(
   return snapshot.items
 }
 
-/** The user's pending expenses in cents (D25); zero while the queue loads. */
+/** What the user's pending items add to the totals, in cents (D25); zero while the queue loads. */
 export function usePendingTotals(
   userId: string | undefined,
   workspaceId: string | undefined,
   month: string,
-): { monthExpenses: bigint; allExpenses: bigint } {
+): ReturnType<typeof pendingTotals> {
   const items = useOutbox(userId, workspaceId)
   return useMemo(() => pendingTotals(items ?? NO_ITEMS, month), [items, month])
 }

@@ -10,7 +10,8 @@ export const SEND_DELAY_MS = 6000
 /** Fired on `window` when this tab changes the queue, to wake the sync. */
 export const OUTBOX_EVENT = 'liberdade:outbox'
 
-function notify(): void {
+/** Wakes the sync. Callers holding the outbox lock call it once they let go. */
+export function notifyOutboxChanged(): void {
   window.dispatchEvent(new Event(OUTBOX_EVENT))
 }
 
@@ -38,7 +39,7 @@ export async function enqueueTransaction(
     status: 'pending',
   }
   await db.outbox.add(item)
-  notify()
+  notifyOutboxChanged()
   return item
 }
 
@@ -58,25 +59,31 @@ export async function cancelOutboxItem(id: string): Promise<boolean> {
     }),
   )
   // Announced once the lock is free, so the sync it wakes is not turned away as busy.
-  if (deleted) notify()
+  if (deleted) notifyOutboxChanged()
   return deleted
 }
 
 /**
- * Drops an item the API refused. Only an item that needs attention can go: the sync never touches
- * those, so this needs no lock. An item already gone is left at that (a double tap).
+ * Drops an item from the queue. Without the outbox lock, only an item the API refused can go: the
+ * sync never touches those. With `lockHeld`, the caller holds the lock, so no send is in flight and
+ * any item can go; announcing it is then left to the caller, once the lock is free. An item already
+ * gone is left at that (a double tap). `true` means this call took the item out.
  */
-export async function discardOutboxItem(id: string): Promise<void> {
+export async function discardOutboxItem(
+  id: string,
+  { lockHeld = false }: { lockHeld?: boolean } = {},
+): Promise<boolean> {
   const discarded = await db.transaction('rw', db.outbox, async () => {
     const item = await db.outbox.get(id)
     if (!item) return false
-    if (item.status !== 'needs-attention') {
+    if (!lockHeld && item.status !== 'needs-attention') {
       throw new Error('Only an outbox item that needs attention can be discarded')
     }
     await db.outbox.delete(id)
     return true
   })
-  if (discarded) notify()
+  if (discarded && !lockHeld) notifyOutboxChanged()
+  return discarded
 }
 
 /**
@@ -110,14 +117,14 @@ export async function replaceOutboxItem(
     await db.outbox.add(fixed)
     return fixed
   })
-  notify()
+  notifyOutboxChanged()
   return item
 }
 
 /** Empties the user's queue, both states, once sign-out went through (D19). */
 export async function clearOutboxForUser(userId: string): Promise<void> {
   await userItems(userId).delete()
-  notify()
+  notifyOutboxChanged()
 }
 
 /** How many of the user's items are still queued, both states (D19). */
@@ -126,20 +133,29 @@ export function countOutboxForUser(userId: string): Promise<number> {
 }
 
 /**
- * The pending expenses in cents (D25): `monthExpenses` only those dated in `month` (`YYYY-MM`),
- * `allExpenses` all of them. Items that need attention count for neither.
+ * What the pending items add to the totals, in cents (D25). `monthIncome` and `monthExpenses` count
+ * only items dated in `month` (`YYYY-MM`); `balanceDelta` counts every date: an income adds, an
+ * expense takes away, and a transfer moves money between two active accounts, so it changes
+ * nothing. Items that need attention count for none.
  */
 export function pendingTotals(
   items: OutboxItem[],
   month: string,
-): { monthExpenses: bigint; allExpenses: bigint } {
+): { monthIncome: bigint; monthExpenses: bigint; balanceDelta: bigint } {
+  let monthIncome = 0n
   let monthExpenses = 0n
-  let allExpenses = 0n
+  let balanceDelta = 0n
   for (const { status, payload } of items) {
-    if (status !== 'pending' || payload.kind !== 'EXPENSE') continue
+    if (status !== 'pending' || payload.kind === 'TRANSFER') continue
     const cents = parseCents(payload.amount.amount)
-    allExpenses += cents
-    if (payload.occurredOn.startsWith(`${month}-`)) monthExpenses += cents
+    const inMonth = payload.occurredOn.startsWith(`${month}-`)
+    if (payload.kind === 'INCOME') {
+      balanceDelta += cents
+      if (inMonth) monthIncome += cents
+    } else {
+      balanceDelta -= cents
+      if (inMonth) monthExpenses += cents
+    }
   }
-  return { monthExpenses, allExpenses }
+  return { monthIncome, monthExpenses, balanceDelta }
 }

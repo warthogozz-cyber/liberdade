@@ -50,6 +50,30 @@
         ]
       }
     },
+    "/v1/me/getting-started/dismiss": {
+      "post": {
+        "operationId": "dismiss",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "getting-started-controller"
+        ]
+      }
+    },
     "/v1/workspaces": {
       "post": {
         "operationId": "createWorkspace",
@@ -113,6 +137,179 @@
         "tags": [
           "account-controller"
         ]
+      },
+      "post": {
+        "operationId": "createAccount",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "account-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/accounts/{id}": {
+      "patch": {
+        "operationId": "updateAccount",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "account-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/accounts/{id}/archive": {
+      "post": {
+        "operationId": "archiveAccount",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "account-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/accounts/{id}/unarchive": {
+      "post": {
+        "operationId": "unarchiveAccount",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "account-controller"
+        ]
       }
     },
     "/v1/workspaces/{ws}/categories": {
@@ -151,6 +348,179 @@
                   "items": {
                     "$ref": "#/components/schemas/CategoryView"
                   }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "category-controller"
+        ]
+      },
+      "post": {
+        "operationId": "createCategory",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "category-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/categories/{id}": {
+      "patch": {
+        "operationId": "updateCategory",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "category-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/categories/{id}/archive": {
+      "post": {
+        "operationId": "archiveCategory",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "category-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/categories/{id}/unarchive": {
+      "post": {
+        "operationId": "unarchiveCategory",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryView"
                 }
               }
             },
@@ -226,6 +596,26 @@
               "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
               "type": "string",
               "example": "2026-11"
+            }
+          },
+          {
+            "in": "query",
+            "name": "categoryId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "nullable": true
+            }
+          },
+          {
+            "in": "query",
+            "name": "accountId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "nullable": true
             }
           }
         ],
@@ -307,6 +697,130 @@
           "transaction-controller"
         ]
       }
+    },
+    "/v1/workspaces/{ws}/transactions/{id}": {
+      "delete": {
+        "operationId": "deleteTransaction",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted, or already deleted"
+          }
+        },
+        "tags": [
+          "transaction-controller"
+        ]
+      },
+      "patch": {
+        "operationId": "updateTransaction",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTransactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionView"
+                }
+              }
+            },
+            "description": "Edited: the transaction at its new version"
+          }
+        },
+        "tags": [
+          "transaction-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/transactions/{id}/restore": {
+      "post": {
+        "operationId": "restoreTransaction",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionView"
+                }
+              }
+            },
+            "description": "Restored, or already active: the transaction as it is"
+          }
+        },
+        "tags": [
+          "transaction-controller"
+        ]
+      }
     }
   },
   "components": {
@@ -314,6 +828,11 @@
       "AccountView": {
         "type": "object",
         "properties": {
+          "archivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "balance": {
             "$ref": "#/components/schemas/Money"
           },
@@ -326,8 +845,16 @@
             "type": "string",
             "format": "uuid"
           },
+          "initialBalance": {
+            "$ref": "#/components/schemas/Money"
+          },
           "name": {
             "type": "string"
+          },
+          "ownerMembershipId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           },
           "type": {
             "type": "string",
@@ -345,6 +872,25 @@
       "CategoryView": {
         "type": "object",
         "properties": {
+          "archivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "TEAL",
+              "BLUE",
+              "INDIGO",
+              "PURPLE",
+              "PINK",
+              "RED",
+              "ORANGE",
+              "GREEN"
+            ]
+          },
           "icon": {
             "type": "string",
             "nullable": true
@@ -363,6 +909,94 @@
           },
           "name": {
             "type": "string"
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "CreateAccountRequest": {
+        "required": [
+          "initialBalance",
+          "name",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "initialBalance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string"
+          },
+          "ownerMembershipId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CHECKING",
+              "SAVINGS",
+              "CASH",
+              "CREDIT_CARD",
+              "WALLET",
+              "INVESTMENT"
+            ]
+          }
+        }
+      },
+      "CreateCategoryRequest": {
+        "required": [
+          "kind",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "color": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "TEAL",
+              "BLUE",
+              "INDIGO",
+              "PURPLE",
+              "PINK",
+              "RED",
+              "ORANGE",
+              "GREEN"
+            ]
+          },
+          "icon": {
+            "maxLength": 16,
+            "minLength": 1,
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string"
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },
@@ -370,7 +1004,6 @@
         "required": [
           "accountId",
           "amount",
-          "categoryId",
           "id",
           "kind",
           "occurredOn"
@@ -386,7 +1019,8 @@
           },
           "categoryId": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "nullable": true
           },
           "description": {
             "maxLength": 140,
@@ -410,6 +1044,11 @@
           "occurredOn": {
             "type": "string",
             "format": "date"
+          },
+          "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },
@@ -442,17 +1081,63 @@
           }
         }
       },
+      "DashboardCategory": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "current": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "DashboardDay": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "day": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
       "DashboardView": {
         "type": "object",
         "properties": {
           "balance": {
             "$ref": "#/components/schemas/Money"
           },
+          "byCategory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardCategory"
+            }
+          },
+          "dailyBalance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardDay"
+            }
+          },
           "expenses": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "income": {
             "$ref": "#/components/schemas/Money"
           },
           "month": {
             "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/Money"
           }
         }
       },
@@ -495,6 +1180,14 @@
         "properties": {
           "currency": {
             "type": "string"
+          },
+          "gettingStartedDismissedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "hasTransactions": {
+            "type": "boolean"
           },
           "id": {
             "type": "string",
@@ -552,7 +1245,8 @@
           },
           "categoryId": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "nullable": true
           },
           "createdAt": {
             "type": "string",
@@ -581,6 +1275,131 @@
           "occurredOn": {
             "type": "string",
             "format": "date"
+          },
+          "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "UpdateAccountRequest": {
+        "required": [],
+        "type": "object",
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "initialBalance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "pattern": "[^\\x00]*",
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "CHECKING",
+              "SAVINGS",
+              "CASH",
+              "CREDIT_CARD",
+              "WALLET",
+              "INVESTMENT"
+            ]
+          }
+        }
+      },
+      "UpdateCategoryRequest": {
+        "required": [],
+        "type": "object",
+        "properties": {
+          "color": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "TEAL",
+              "BLUE",
+              "INDIGO",
+              "PURPLE",
+              "PINK",
+              "RED",
+              "ORANGE",
+              "GREEN"
+            ]
+          },
+          "icon": {
+            "maxLength": 16,
+            "minLength": 1,
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 1,
+            "pattern": "[^\\x00]*",
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateTransactionRequest": {
+        "required": [
+          "accountId",
+          "amount",
+          "kind",
+          "occurredOn",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "description": {
+            "maxLength": 140,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

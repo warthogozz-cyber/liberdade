@@ -1,8 +1,21 @@
 package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.shared.Money;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.Instant;
 import java.util.Currency;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
-/** An account as {@code GET /accounts} lists it. */
-record AccountView(UUID id, String name, AccountType type, Currency currency, Money balance) {}
+/** An account as the API shows it; {@code balance} is computed from the transactions. */
+record AccountView(
+        UUID id,
+        String name,
+        AccountType type,
+        Currency currency,
+        Money initialBalance,
+        Money balance,
+
+        @Nullable @Schema(nullable = true) UUID ownerMembershipId,
+
+        @Nullable @Schema(nullable = true) Instant archivedAt) {}

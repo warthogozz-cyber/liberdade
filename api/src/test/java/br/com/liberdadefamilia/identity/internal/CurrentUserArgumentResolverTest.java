@@ -7,9 +7,7 @@ import static org.mockito.Mockito.when;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
 import br.com.liberdadefamilia.identity.internal.UserAccounts.UserRecord;
-import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -21,20 +19,17 @@ import org.springframework.security.authentication.AuthenticationCredentialsNotF
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.web.context.request.ServletWebRequest;
 
 class CurrentUserArgumentResolverTest {
 
     private static final UUID USER_ID = UUID.fromString("0190a3f0-0000-7000-8000-000000000001");
-    private static final List<GrantedAuthority> AUTHORITIES = List.of(new SimpleGrantedAuthority("OIDC_USER"));
 
     private final UserAccounts accounts = mock(UserAccounts.class);
     private final CurrentUserArgumentResolver resolver = new CurrentUserArgumentResolver(accounts);
+    private final MockHttpServletRequest request = new MockHttpServletRequest();
 
     @AfterEach
     void clearContext() {
@@ -51,19 +46,15 @@ class CurrentUserArgumentResolverTest {
     }
 
     private Object resolve() throws Exception {
-        return resolver.resolveArgument(parameter(0), null, new ServletWebRequest(new MockHttpServletRequest()), null);
+        return resolver.resolveArgument(parameter(0), null, new ServletWebRequest(request), null);
     }
 
     private static void signIn(Authentication authentication) {
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 
-    private static Authentication google(UUID userId, String familyName) {
-        Instant now = Instant.now();
-        var idToken =
-                new OidcIdToken("id-token", now, now.plusSeconds(60), Map.of("sub", "g-1", "family_name", familyName));
-        return new OAuth2AuthenticationToken(
-                new LiberdadeOidcUser(userId, AUTHORITIES, idToken, null), AUTHORITIES, "google");
+    private static Authentication sessionUser(UUID userId) {
+        return new SessionUserAuthentication(new SessionUser(userId));
     }
 
     private static Authentication passkey(String name) {
@@ -106,18 +97,29 @@ class CurrentUserArgumentResolverTest {
     @Test
     void userWhoAskedForDeletionFails() {
         when(accounts.findActive(USER_ID)).thenReturn(Optional.empty());
-        signIn(google(USER_ID, "Teste"));
+        signIn(sessionUser(USER_ID));
 
         assertThatThrownBy(this::resolve).isInstanceOf(InsufficientAuthenticationException.class);
     }
 
     @Test
-    void googleUserGivesFamilyNameHint() throws Exception {
+    void sessionWithHintGivesFamilyNameHint() throws Exception {
         when(accounts.findActive(USER_ID))
                 .thenReturn(Optional.of(new UserRecord(USER_ID, "Ana Teste", "ana@example.com")));
-        signIn(google(USER_ID, "Teste"));
+        signIn(sessionUser(USER_ID));
+        request.getSession().setAttribute(SessionSignInHints.FAMILY_NAME_HINT, "Teste");
 
         assertThat(resolve()).isEqualTo(new CurrentUser(USER_ID, "Ana Teste", "Teste"));
+    }
+
+    @Test
+    void sessionWithoutHintHasNoFamilyNameHint() throws Exception {
+        when(accounts.findActive(USER_ID))
+                .thenReturn(Optional.of(new UserRecord(USER_ID, "Ana Teste", "ana@example.com")));
+        signIn(sessionUser(USER_ID));
+        request.getSession();
+
+        assertThat(resolve()).isEqualTo(new CurrentUser(USER_ID, "Ana Teste", null));
     }
 
     @Test

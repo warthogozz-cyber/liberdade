@@ -27,6 +27,31 @@ describe('ApiError', () => {
     })
   })
 
+  it('keepsExtraProperties', async () => {
+    const current = { id: 'a', version: 3, amount: { amount: '90.00', currency: 'BRL' } }
+    server.use(
+      http.get(`${API_URL}/v1/me`, () =>
+        problem(409, 'transaction.version-conflict', 'Mudou.', undefined, { current }),
+      ),
+    )
+
+    const error = (await getMe().catch((caught: unknown) => caught)) as ApiError
+
+    expect(error.extra.current).toEqual(current)
+    expect(error.extra).not.toHaveProperty('code')
+    expect(error.extra).not.toHaveProperty('detail')
+    expect(error.extra).not.toHaveProperty('status')
+    expect(error.detail).toBe('Mudou.')
+  })
+
+  it('has no extra properties when the problem has none', async () => {
+    server.use(http.get(`${API_URL}/v1/me`, () => problem(422, 'request.invalid', 'Ajuste.')))
+
+    const error = (await getMe().catch((caught: unknown) => caught)) as ApiError
+
+    expect(error.extra).toEqual({})
+  })
+
   it('turns a fetch rejected with a TypeError into a network error', async () => {
     server.use(http.get(`${API_URL}/v1/me`, () => HttpResponse.error()))
 

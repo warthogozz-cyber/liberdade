@@ -85,7 +85,9 @@ class ProblemHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(DomainException.class)
     ResponseEntity<ProblemDetail> handleDomain(DomainException ex) {
-        return ResponseEntity.status(ex.status()).body(problem(ex.status(), ex.code(), ex.detail()));
+        ProblemDetail problem = problem(ex.status(), ex.code(), ex.detail());
+        ex.properties().forEach(problem::setProperty);
+        return ResponseEntity.status(ex.status()).body(problem);
     }
 
     @ExceptionHandler(AuthenticationException.class)

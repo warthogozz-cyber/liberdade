@@ -1,6 +1,5 @@
 import type { RouteObject } from 'react-router'
 import { AppShell } from '@/app/AppShell'
-import { MorePage } from '@/app/MorePage'
 import { NotFoundPage } from '@/app/NotFoundPage'
 import { RootRedirect } from '@/app/RootRedirect'
 import { SessionLayout } from '@/app/SessionLayout'
@@ -8,9 +7,11 @@ import { WorkspaceLayout } from '@/app/WorkspaceLayout'
 import { SignInPage } from '@/features/auth/SignInPage'
 import { HomePage } from '@/features/dashboard/HomePage'
 import { WelcomePage } from '@/features/onboarding/WelcomePage'
-import { NewExpensePage } from '@/features/transactions/NewExpensePage'
-import { TransactionsPage } from '@/features/transactions/TransactionsPage'
+import { NewTransactionPage } from '@/features/transactions/NewTransactionPage'
 
+// Secondary screens load on demand, so the first load stays small (chunk budget in CI). Copy this
+// shape for a new one: the page exports its component by name. The first-expense path (`/inicio`,
+// `/lancar`) and the layouts stay static.
 export const routes: RouteObject[] = [
   { path: '/entrar', element: <SignInPage /> },
   {
@@ -22,13 +23,43 @@ export const routes: RouteObject[] = [
         element: <WorkspaceLayout />,
         children: [
           // Full screen, without the navigation.
-          { path: '/lancar', element: <NewExpensePage /> },
+          { path: '/lancar', element: <NewTransactionPage /> },
           {
             element: <AppShell />,
             children: [
               { path: '/inicio', element: <HomePage /> },
-              { path: '/lancamentos', element: <TransactionsPage /> },
-              { path: '/mais', element: <MorePage /> },
+              {
+                path: '/lancamentos',
+                lazy: () =>
+                  import('@/features/transactions/TransactionsPage').then((m) => ({
+                    Component: m.TransactionsPage,
+                  })),
+              },
+              {
+                path: '/painel',
+                lazy: () =>
+                  import('@/features/dashboard/DashboardPage').then((m) => ({
+                    Component: m.DashboardPage,
+                  })),
+              },
+              {
+                path: '/mais',
+                lazy: () => import('@/app/MorePage').then((m) => ({ Component: m.MorePage })),
+              },
+              {
+                path: '/mais/contas',
+                lazy: () =>
+                  import('@/features/accounts/AccountsPage').then((m) => ({
+                    Component: m.AccountsPage,
+                  })),
+              },
+              {
+                path: '/mais/categorias',
+                lazy: () =>
+                  import('@/features/categories/CategoriesPage').then((m) => ({
+                    Component: m.CategoriesPage,
+                  })),
+              },
             ],
           },
         ],

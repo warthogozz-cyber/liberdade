@@ -7,6 +7,7 @@ import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestUsers;
 import jakarta.servlet.http.Cookie;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -120,6 +121,13 @@ class SecurityIT {
     }
 
     @Test
+    void anonymousCookieHasNoMaxAge() {
+        var result = mvc.get().uri("/v1/csrf").exchange();
+
+        assertThat(sessionSetCookie(result)).doesNotContain("Max-Age");
+    }
+
+    @Test
     void postWithoutCsrfIs403() {
         var result = mvc.post().uri("/logout").exchange();
         assertThat(result).hasStatus(403).hasContentType(PROBLEM_JSON);
@@ -137,6 +145,21 @@ class SecurityIT {
                         .with(TestUsers.signedIn(userId, "Teste"))
                         .with(csrf))
                 .hasStatus(204);
+    }
+
+    @Test
+    void logoutExpiresCookie() {
+        UUID userId = users.create("Ana Teste", "ana@example.com");
+        var csrf = CsrfSession.start(mvc, TestUsers.signedIn(userId, null));
+
+        var logout = mvc.post()
+                .uri("/logout")
+                .with(TestUsers.signedIn(userId, null))
+                .with(csrf)
+                .exchange();
+
+        assertThat(logout).hasStatus(204);
+        assertThat(sessionSetCookie(logout)).startsWith(SESSION_COOKIE + "=;").contains("Max-Age=0");
     }
 
     @Test
@@ -173,6 +196,23 @@ class SecurityIT {
                 .hasStatus(403);
     }
 
+    /** The web edits with PATCH and deletes with DELETE, so the preflight for both must pass. */
+    @Test
+    void corsAllowsPatchAndDelete() {
+        for (String method : List.of("PATCH", "DELETE")) {
+            var preflight = mvc.options()
+                    .uri("/v1/me")
+                    .header(HttpHeaders.ORIGIN, WEB_ORIGIN)
+                    .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, method)
+                    .exchange();
+
+            assertThat(preflight).as(method).hasStatusOk();
+            assertThat(preflight.getResponse().getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS))
+                    .as(method)
+                    .contains(method);
+        }
+    }
+
     @Test
     void securityHeaders() {
         var result = mvc.get().uri("/actuator/health").secure(true).exchange();
@@ -195,6 +235,13 @@ class SecurityIT {
                 .param("name", AUTHORIZATION_REQUEST)
                 .query(Long.class)
                 .single();
+    }
+
+    private static String sessionSetCookie(MvcTestResult result) {
+        return result.getResponse().getHeaders(HttpHeaders.SET_COOKIE).stream()
+                .filter(header -> header.startsWith(SESSION_COOKIE + "="))
+                .findFirst()
+                .orElseThrow();
     }
 
     private static String sessionIdOf(MvcTestResult result) {

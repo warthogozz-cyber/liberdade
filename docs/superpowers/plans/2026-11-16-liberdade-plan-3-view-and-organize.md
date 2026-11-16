@@ -118,7 +118,7 @@ o Chromium do Playwright instalado.
 | Orçamento de tamanho de chunk no CI, com `lazy()` em `/mais` e `/lancamentos` | Task 6 |
 | Principal mínimo na sessão, sem id_token, e-mail e nome (LGPD) | Task 1 |
 | Limite para datas futuras | Task 4 (API) e Task 7 (web) |
-| `Max-Age` do cookie de sessão, medido no iOS | Task 1 (código) e Task 13 (medição) |
+| `Max-Age` do cookie de sessão, medido no iOS | Task 1 (código) e Task 13 (runbook). A medição passou para o staging do Plano 5, porque o preview dos PRs roda sem a API |
 | "Desfazer" de um gasto que já saiu da fila (D34 do Plano 2) | Task 7 |
 | Plano 2 "Concluído" no README dos planos | PR 1 (conferido: já está) |
 

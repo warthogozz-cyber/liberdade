@@ -5,7 +5,6 @@ import java.time.Duration;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.session.autoconfigure.DefaultCookieSerializerCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -25,12 +24,14 @@ import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.savedrequest.NullRequestCache;
 import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
+import org.springframework.session.jdbc.PostgreSqlJdbcIndexedSessionRepositoryCustomizer;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -38,7 +39,8 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
  * One filter chain for the whole API: Google sign-in with PKCE, passkeys, a limit on sign-in attempts, a server-side
- * session, CSRF tokens sent in a header, CORS for the web app only, and problem responses instead of login redirects.
+ * session that keeps only the user id, behind a cookie that lasts 30 days once signed in, CSRF tokens sent in a
+ * header, CORS for the web app only, and problem responses instead of login redirects.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(IdentityProperties.class)
@@ -66,6 +68,9 @@ class SecurityConfig {
             SecurityProblemHandlers problems,
             UserAccounts accounts,
             LoginRateLimiter limiter,
+            MinimalSecurityContextRepository contexts,
+            PersistentSessionCookieSerializer cookies,
+            Clock clock,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
         String origin = properties.web().origin();
         RedirectStrategy redirects = new DefaultRedirectStrategy();
@@ -97,13 +102,17 @@ class SecurityConfig {
                         .rpId(properties.webauthn().rpId())
                         .allowedOrigins(origin)
                         .disableDefaultRegistrationPage(true)
-                        .withObjectPostProcessor(passkeySignIn(http, problems, resolver)))
+                        .withObjectPostProcessor(passkeySignIn(http, contexts, problems, resolver)))
+                // Google's sign-in picks it up from here; the passkey's gets it in passkeySignIn.
+                .securityContext(context -> context.securityContextRepository(contexts))
                 // Runs on every sign-in, before the session gets a new id (fixation protection).
                 .sessionManagement(session -> session.addSessionAuthenticationStrategy(signedInIdleTimeout()))
                 .addFilterAfter(
                         new PasskeyRegistrationNeedsSignInFilter(
                                 problems, SecurityContextHolder.getContextHolderStrategy()),
                         ExceptionTranslationFilter.class)
+                // Added before the problem filter below, so that one still runs right before the registration filter.
+                .addFilterAfter(new SessionCookieRefreshFilter(clock, cookies), AuthorizationFilter.class)
                 // Spring adds its registration filter at this same position later, while the chain is built; the
                 // sort is stable, so this one runs right before it.
                 .addFilterAfter(new PasskeyRegistrationProblemFilter(resolver), AuthorizationFilter.class)
@@ -124,19 +133,26 @@ class SecurityConfig {
         return http.build();
     }
 
+    /** The session cookie; Boot backs off its own serializer when it finds this bean. */
+    @Bean
+    PersistentSessionCookieSerializer cookieSerializer() {
+        return new PersistentSessionCookieSerializer();
+    }
+
     /**
-     * The session cookie. Set here rather than with {@code server.servlet.session.cookie.*}, which Boot ignores
-     * whenever it sees a servlet context it did not start (a WAR, or MockMvc in tests).
+     * Saves new session attributes with {@code ON CONFLICT DO UPDATE}. Two requests of one session can add the same
+     * attribute at once (the cookie refresh mark on the first requests after sign-in, a double tap); the plain insert
+     * would fail the second with a duplicate key.
      */
     @Bean
-    DefaultCookieSerializerCustomizer sessionCookie() {
-        return cookie -> {
-            cookie.setCookieName(SESSION_COOKIE);
-            cookie.setCookiePath("/");
-            cookie.setUseSecureCookie(true);
-            cookie.setUseHttpOnlyCookie(true);
-            cookie.setSameSite("Lax");
-        };
+    PostgreSqlJdbcIndexedSessionRepositoryCustomizer sessionAttributeUpsert() {
+        return new PostgreSqlJdbcIndexedSessionRepositoryCustomizer();
+    }
+
+    /** Shared by both sign-ins, so neither stores more than the user id in the session. */
+    @Bean
+    MinimalSecurityContextRepository securityContextRepository() {
+        return new MinimalSecurityContextRepository(new HttpSessionSecurityContextRepository());
     }
 
     @Bean
@@ -150,24 +166,34 @@ class SecurityConfig {
         return new LoginRateLimiter(clock, 20);
     }
 
-    /** Raises the session to {@link #SIGNED_IN_IDLE_TIMEOUT} on every sign-in, with Google or with a passkey. */
+    /**
+     * Raises the session to {@link #SIGNED_IN_IDLE_TIMEOUT} on every sign-in, with Google or with a passkey, and marks
+     * the request so the cookie written with the new session id lasts as long.
+     */
     private static SessionAuthenticationStrategy signedInIdleTimeout() {
-        return (authentication, request, response) ->
-                request.getSession().setMaxInactiveInterval(Math.toIntExact(SIGNED_IN_IDLE_TIMEOUT.toSeconds()));
+        return (authentication, request, response) -> {
+            request.getSession().setMaxInactiveInterval(Math.toIntExact(SIGNED_IN_IDLE_TIMEOUT.toSeconds()));
+            request.setAttribute(PersistentSessionCookieSerializer.PERSISTENT, Boolean.TRUE);
+        };
     }
 
     /**
      * The passkey sign-in runs the same session strategy as Google's (by default it runs none, so the session would
-     * keep its id and its 30 minutes), and a failed passkey gets the same 401 problem as any other request, while a
-     * server fault behind it gets the generic 500.
+     * keep its id and its 30 minutes) and stores the same minimal context (its filter builds its own repository and
+     * ignores the shared one), and a failed passkey gets the same 401 problem as any other request, while a server
+     * fault behind it gets the generic 500.
      */
     private static ObjectPostProcessor<WebAuthnAuthenticationFilter> passkeySignIn(
-            HttpSecurity http, SecurityProblemHandlers problems, HandlerExceptionResolver resolver) {
+            HttpSecurity http,
+            MinimalSecurityContextRepository contexts,
+            SecurityProblemHandlers problems,
+            HandlerExceptionResolver resolver) {
         return new ObjectPostProcessor<>() {
             @Override
             public <O extends WebAuthnAuthenticationFilter> O postProcess(O filter) {
                 // Read while the chain is built: session management shares its strategy only from then on.
                 filter.setSessionAuthenticationStrategy(http.getSharedObject(SessionAuthenticationStrategy.class));
+                filter.setSecurityContextRepository(contexts);
                 filter.setAuthenticationFailureHandler(new PasskeySignInFailureHandler(problems, resolver));
                 return filter;
             }
@@ -190,7 +216,7 @@ class SecurityConfig {
     private static CorsConfigurationSource cors(String origin) {
         var config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(origin));
-        config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Content-Type", CSRF_HEADER, "Idempotency-Key"));
         config.setExposedHeaders(List.of("Retry-After"));
         config.setAllowCredentials(true);

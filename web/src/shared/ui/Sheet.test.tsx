@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { IntlProvider } from 'react-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { locale, messages } from '@/shared/i18n'
+import { appMessages, locale } from '@/shared/i18n'
 import { Sheet } from '@/shared/ui'
 
 // Unmounting closes the sheet before the next test.
@@ -10,7 +10,7 @@ afterEach(cleanup)
 function renderSheet() {
   const onOpenChange = vi.fn<(open: boolean) => void>()
   render(
-    <IntlProvider locale={locale} messages={messages}>
+    <IntlProvider locale={locale} messages={appMessages()}>
       <Sheet open onOpenChange={onOpenChange} title="Data e conta">
         <p>Quem gastou: Eu</p>
       </Sheet>

@@ -14,9 +14,22 @@ describe('generated API types', () => {
 
   it('marks only the nullable fields as null', () => {
     expectTypeOf<Schemas['TransactionView']['description']>().toEqualTypeOf<string | null>()
-    expectTypeOf<Schemas['TransactionView']['categoryId']>().toEqualTypeOf<string>()
+    expectTypeOf<Schemas['TransactionView']['categoryId']>().toEqualTypeOf<string | null>()
+    expectTypeOf<Schemas['TransactionView']['toAccountId']>().toEqualTypeOf<string | null>()
+    expectTypeOf<Schemas['TransactionView']['accountId']>().toEqualTypeOf<string>()
+    expectTypeOf<Schemas['TransactionView']['version']>().toEqualTypeOf<number>()
     expectTypeOf<Schemas['CategoryView']['icon']>().toEqualTypeOf<string | null>()
     expectTypeOf<Me['user']['passkeyCreatedAt']>().toEqualTypeOf<string | null>()
+  })
+
+  it('edits with every field but the destination, the category and the description', () => {
+    type Update = Schemas['UpdateTransactionRequest']
+    expectTypeOf<Update['version']>().toEqualTypeOf<number>()
+    expectTypeOf<Update['accountId']>().toEqualTypeOf<string>()
+    expectTypeOf<Update['occurredOn']>().toEqualTypeOf<string>()
+    expectTypeOf<Update['toAccountId']>().toEqualTypeOf<string | null | undefined>()
+    expectTypeOf<Update['categoryId']>().toEqualTypeOf<string | null | undefined>()
+    expectTypeOf<Update['description']>().toEqualTypeOf<string | null | undefined>()
   })
 
   it('takes the family id in the path', () => {

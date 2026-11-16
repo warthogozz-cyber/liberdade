@@ -6,6 +6,7 @@ import br.com.liberdadefamilia.shared.DomainException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +45,14 @@ class ProblemHandlerTest {
         assertThat(result).hasStatus(409).hasContentType(MediaType.parseMediaType(PROBLEM_JSON));
         assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("test.conflict");
         assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("Conflito de teste.");
+    }
+
+    @Test
+    void copiesDomainProperties() {
+        var result = mvc.get().uri("/test/domain-error-with-properties");
+        assertThat(result).hasStatus(409).hasContentType(MediaType.parseMediaType(PROBLEM_JSON));
+        assertThat(result).bodyJson().isLenientlyEqualTo("""
+                {"code":"test.conflict","detail":"Conflito de teste.","current":{"version":1,"name":"Atual"}}""");
     }
 
     @Test
@@ -164,7 +173,13 @@ class ProblemHandlerTest {
         TestConflictException() {
             super(409, "test.conflict", "Conflito de teste.");
         }
+
+        TestConflictException(Map<String, Object> properties) {
+            super(409, "test.conflict", "Conflito de teste.", properties);
+        }
     }
+
+    record Current(long version, String name) {}
 
     record NameForm(@NotBlank String name) {}
 
@@ -174,6 +189,11 @@ class ProblemHandlerTest {
         @GetMapping("/test/domain-error")
         String domainError() {
             throw new TestConflictException();
+        }
+
+        @GetMapping("/test/domain-error-with-properties")
+        String domainErrorWithProperties() {
+            throw new TestConflictException(Map.of("current", new Current(1, "Atual")));
         }
 
         @GetMapping("/test/missing-var")

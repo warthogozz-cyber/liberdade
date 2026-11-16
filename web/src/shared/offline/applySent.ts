@@ -1,5 +1,11 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { queryKeys, type ApiMoney, type DashboardView, type TransactionView } from '@/shared/api'
+import {
+  queryKeys,
+  type ApiMoney,
+  type DashboardView,
+  type MeView,
+  type TransactionView,
+} from '@/shared/api'
 import { centsToApi, parseCents } from '@/shared/money'
 
 /**
@@ -26,37 +32,57 @@ function shift(money: ApiMoney, cents: bigint): ApiMoney {
 }
 
 /**
- * Puts a sent transaction into the cache before the refetch, so the home screen does not flicker:
- * an expense adds to its month's expenses and leaves every cached balance, an income adds to every
- * cached balance, and either joins its month's list when that list is cached. Nothing new is cached.
- * Then the family's queries are refetched.
+ * Puts a sent transaction into the cache before the refetch, so the home screen does not flicker
+ * (Ruling R16). An income adds to its month's income and result and to every cached balance; an
+ * expense adds to its month's expenses, and takes from its month's result and those balances;
+ * a transfer moves money between two active accounts, so it changes no total. Each joins its month's
+ * list when that list is cached. Nothing new is cached, and the category ranking and the daily
+ * balance wait for the refetch. The cached `me` learns that the family has a transaction. Then the family's queries are refetched.
  */
 export function applySentTransaction(
   queryClient: QueryClient,
   workspaceId: string,
   view: TransactionView,
 ): void {
-  if (view.kind === 'EXPENSE' || view.kind === 'INCOME') {
-    const month = view.occurredOn.slice(0, 7)
+  const month = view.occurredOn.slice(0, 7)
+  if (view.kind !== 'TRANSFER') {
     const cents = parseCents(view.amount.amount)
+    const signed = view.kind === 'INCOME' ? cents : -cents
     queryClient.setQueriesData<DashboardView>(
       { queryKey: [...queryKeys.workspace(workspaceId), 'dashboard'] },
+      // A month's balance is its closing balance, so earlier months do not feel a later transaction.
+      (dashboard) =>
+        dashboard && dashboard.month >= month
+          ? { ...dashboard, balance: shift(dashboard.balance, signed) }
+          : dashboard,
+    )
+    queryClient.setQueryData<DashboardView>(
+      queryKeys.dashboard(workspaceId, month),
       (dashboard) =>
         dashboard && {
           ...dashboard,
-          balance: shift(dashboard.balance, view.kind === 'EXPENSE' ? -cents : cents),
+          ...(view.kind === 'INCOME'
+            ? { income: shift(dashboard.income, cents) }
+            : { expenses: shift(dashboard.expenses, cents) }),
+          result: shift(dashboard.result, signed),
         },
     )
-    if (view.kind === 'EXPENSE') {
-      queryClient.setQueryData<DashboardView>(
-        queryKeys.dashboard(workspaceId, month),
-        (dashboard) => dashboard && { ...dashboard, expenses: shift(dashboard.expenses, cents) },
-      )
-    }
-    queryClient.setQueryData<TransactionView[]>(
-      queryKeys.transactions(workspaceId, month),
-      (list) => list && withRow(list, view),
-    )
   }
+  // `me` lives outside the family's key, so nothing else would tell the getting-started card that
+  // the first transaction is on the server once the queue empties.
+  queryClient.setQueryData<MeView>(
+    queryKeys.me,
+    (me) =>
+      me && {
+        ...me,
+        workspaces: me.workspaces.map((each) =>
+          each.id === workspaceId ? { ...each, hasTransactions: true } : each,
+        ),
+      },
+  )
+  queryClient.setQueryData<TransactionView[]>(
+    queryKeys.transactions(workspaceId, month),
+    (list) => list && withRow(list, view),
+  )
   void queryClient.invalidateQueries({ queryKey: queryKeys.workspace(workspaceId) })
 }

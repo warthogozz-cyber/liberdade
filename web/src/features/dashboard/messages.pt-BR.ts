@@ -1,0 +1,20 @@
+/** The month dashboard's text. It loads with the route (see `registerMessages`), not with the app. */
+export const dashboardMessages = {
+  'dashboard.title': 'Painel do mês',
+  'dashboard.balance': 'Saldo total',
+  'dashboard.income': 'Receitas',
+  'dashboard.expenses': 'Gastos',
+  'dashboard.result': 'Resultado do mês',
+  'dashboard.byCategory': 'Gastos por categoria',
+  'dashboard.vsPrevious': 'vs. {month}',
+  'dashboard.dailyBalance': 'Saldo no mês',
+  'dashboard.others': 'Outras',
+  'dashboard.showTable': 'Ver tabela',
+  'dashboard.table.category': 'Categoria',
+  'dashboard.table.amount': 'Valor',
+  'dashboard.table.share': 'Parte',
+  'dashboard.table.day': 'Dia',
+  'dashboard.table.balance': 'Saldo',
+  'dashboard.noExpenses': 'Nenhum gasto neste mês ainda.',
+  'dashboard.pendingNote': 'Inclui lançamentos que ainda não foram enviados.',
+} as const

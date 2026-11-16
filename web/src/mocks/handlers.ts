@@ -7,7 +7,10 @@ import {
   type TransactionView,
 } from '@/shared/api'
 import { centsToApi, MAX_CENTS, parseCents } from '@/shared/money'
-import { createFamily, mockState } from './data'
+import type { components } from '@/shared/api/schema'
+import { createFamily, type MockAccount, mockState } from './data'
+
+type Schemas = components['schemas']
 
 const CSRF = { headerName: 'X-XSRF-TOKEN', token: 'mock-csrf' }
 const MAX_NAME_LENGTH = 60
@@ -21,6 +24,15 @@ const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/
 const NUMBER = /^-?\d+(\.\d+)?$/
 const DECIMAL = /^\d+(\.\d+)?$/
 const KINDS: unknown[] = ['INCOME', 'EXPENSE', 'TRANSFER']
+const ACCOUNT_TYPES: unknown[] = [
+  'CHECKING',
+  'SAVINGS',
+  'CASH',
+  'CREDIT_CARD',
+  'WALLET',
+  'INVESTMENT',
+]
+const ACCOUNT_AMOUNT = /^-?\d+(\.\d{1,2})?$/
 const CHALLENGE = 'bW9jay1jaGFsbGVuZ2U'
 const csrfInvalid = () => problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
 const authRequired = () => problem(401, 'auth.required', 'Entre para continuar.')
@@ -30,10 +42,16 @@ interface FieldError {
   code: string
 }
 
-/** A problem answer, shaped like the API's (`application/problem+json`). */
-export function problem(status: number, code: string, detail?: string, errors?: FieldError[]) {
+/** A problem answer, shaped like the API's (`application/problem+json`), with any extra properties. */
+export function problem(
+  status: number,
+  code: string,
+  detail?: string,
+  errors?: FieldError[],
+  properties: Record<string, unknown> = {},
+) {
   return HttpResponse.json(
-    { status, detail, code, ...(errors && { errors }) },
+    { ...properties, status, detail, code, ...(errors && { errors }) },
     { status, headers: { 'Content-Type': 'application/problem+json' } },
   )
 }
@@ -71,15 +89,122 @@ function money(cents: bigint, currency: string): ApiMoney {
   return { amount: centsToApi(cents), currency }
 }
 
-function signedCents({ kind, amount }: TransactionView): bigint {
-  const cents = parseCents(amount.amount)
-  return kind === 'INCOME' ? cents : kind === 'EXPENSE' ? -cents : 0n
+/** The transactions not deleted: the only ones lists and sums see. */
+function activeTransactions(): TransactionView[] {
+  return mockState.transactions.filter(
+    (transaction) => !mockState.deletedTransactionIds.has(transaction.id),
+  )
 }
 
-function balanceCents(accountId: string): bigint {
-  return mockState.transactions
-    .filter((transaction) => transaction.accountId === accountId)
-    .reduce((sum, transaction) => sum + signedCents(transaction), 0n)
+/** What the transaction moved in the account: income in, expenses out, a transfer out of one and into the other. */
+function signedCents(transaction: TransactionView, accountId: string): bigint {
+  const cents = parseCents(transaction.amount.amount)
+  if (transaction.kind === 'INCOME') return transaction.accountId === accountId ? cents : 0n
+  if (transaction.kind === 'EXPENSE') return transaction.accountId === accountId ? -cents : 0n
+  return (
+    (transaction.toAccountId === accountId ? cents : 0n) -
+    (transaction.accountId === accountId ? cents : 0n)
+  )
+}
+
+function movementCents(accountId: string): bigint {
+  return activeTransactions().reduce(
+    (sum, transaction) => sum + signedCents(transaction, accountId),
+    0n,
+  )
+}
+
+/** The initial balance plus what the transactions moved, as the API computes it. */
+function balanceCents(account: MockAccount): bigint {
+  return parseCents(account.initialBalance.amount) + movementCents(account.id)
+}
+
+/** An account as the API lists it, with its computed balance. */
+function accountView(account: MockAccount) {
+  return { ...account, balance: money(balanceCents(account), account.currency) }
+}
+
+/** Active accounts first, then the archived, each by name and id, as the API lists them. */
+function activeFirst(a: MockAccount, b: MockAccount) {
+  return (
+    Number(a.archivedAt !== null) - Number(b.archivedAt !== null) ||
+    a.name.localeCompare(b.name) ||
+    a.id.localeCompare(b.id)
+  )
+}
+
+type CategoryKindName = Schemas['CategoryView']['kind']
+type CategoryColor = NonNullable<Schemas['CategoryView']['color']>
+const MAX_CATEGORY_NAME_LENGTH = 40
+const MAX_ICON_LENGTH = 16
+const CATEGORY_COLORS: unknown[] = [
+  'TEAL',
+  'BLUE',
+  'INDIGO',
+  'PURPLE',
+  'PINK',
+  'RED',
+  'ORANGE',
+  'GREEN',
+]
+const categoryNotFound = () => problem(404, 'category.not-found', 'Categoria não encontrada.')
+const categoryNameTaken = () =>
+  problem(409, 'category.name-taken', 'Já existe uma categoria com esse nome aqui.')
+
+/** Two active categories of a kind never share a name under one parent (D30). */
+function categoryNameInUse(
+  name: string,
+  kind: CategoryKindName,
+  parentId: string | null,
+  exceptId?: string,
+) {
+  return mockState.categories.some(
+    (category) =>
+      category.archivedAt === null &&
+      category.kind === kind &&
+      category.parentId === parentId &&
+      category.name === name &&
+      category.id !== exceptId,
+  )
+}
+
+const accountNotFound = () => problem(404, 'account.not-found', 'Conta não encontrada.')
+const nameTaken = () => problem(409, 'account.name-taken', 'Já existe uma conta com esse nome.')
+const currencyUnsupported = () =>
+  rejected('account.currency-unsupported', 'Por enquanto, as contas usam a moeda da família.')
+
+function nameInUse(name: string, exceptId?: string) {
+  return mockState.accounts.some(
+    (account) => account.archivedAt === null && account.name === name && account.id !== exceptId,
+  )
+}
+
+/** Whether the cents are within 999,999,999.99 in absolute value; negative and zero pass, as `@BalanceAmount`. */
+function withinBalanceLimit(cents: bigint): boolean {
+  return cents >= -MAX_CENTS && cents <= MAX_CENTS
+}
+
+interface ReadMoney {
+  cents: bigint
+  currency: string
+}
+
+/**
+ * Reads a money field of an account body. `undefined` is a body the API cannot read (a 400): not an object, an
+ * amount that is not a string with a plain decimal of at most 2 places, or a currency that is not text.
+ * `null` is a missing value.
+ */
+function readMoney(value: unknown): ReadMoney | null | undefined {
+  if (value == null) return null
+  if (typeof value !== 'object') return undefined
+  const { amount, currency } = value as { amount?: unknown; currency?: unknown }
+  if (typeof amount !== 'string' || typeof currency !== 'string') return undefined
+  if (!ACCOUNT_AMOUNT.test(amount)) return undefined
+  return { cents: parseCents(amount), currency }
+}
+
+function validName(name: string): boolean {
+  return name.length >= 1 && name.length <= MAX_NAME_LENGTH && !name.includes('\u0000')
 }
 
 /** Above zero, at most 999,999,999.99 and with at most 2 decimal places, as the API checks it. */
@@ -92,26 +217,35 @@ function validCents(amount: string): bigint | undefined {
   return cents > 0n && cents <= MAX_CENTS ? cents : undefined
 }
 
-/** What the API cannot even read is a 400, not a 422: a bad UUID, date, kind or number. */
-function readable(body: CreateTransactionRequest) {
+type UpdateTransactionRequest = Schemas['UpdateTransactionRequest']
+
+/** What the API cannot even read is a 400, not a 422: a bad UUID, date, kind, number or version. */
+function readable(body: Partial<CreateTransactionRequest & UpdateTransactionRequest>) {
   const isUuid = (value: unknown) =>
     value == null || (typeof value === 'string' && UUID.test(value))
   return (
-    [body.id, body.accountId, body.categoryId].every(isUuid) &&
+    [body.id, body.accountId, body.toAccountId, body.categoryId].every(isUuid) &&
     (body.kind == null || KINDS.includes(body.kind)) &&
     (body.occurredOn == null || DATE.test(body.occurredOn)) &&
-    (body.amount?.amount == null || NUMBER.test(String(body.amount.amount)))
+    (body.amount?.amount == null || NUMBER.test(String(body.amount.amount))) &&
+    (body.version == null || Number.isInteger(body.version))
   )
 }
 
-const REQUIRED = ['id', 'kind', 'amount', 'occurredOn', 'accountId', 'categoryId'] as const
+const CREATE_REQUIRED = ['id', 'kind', 'amount', 'occurredOn', 'accountId'] as const
+const UPDATE_REQUIRED = ['version', 'kind', 'amount', 'occurredOn', 'accountId'] as const
 
-/** The body checks of `CreateTransactionRequest`; the description comes back stripped. */
-function validateTransaction(body: CreateTransactionRequest) {
-  const errors: FieldError[] = REQUIRED.filter((field) => body[field] == null).map((field) => ({
-    field,
-    code: 'NotNull',
-  }))
+/** The body checks of a new or edited transaction; the description comes back stripped. */
+function validateTransaction(
+  body: Partial<CreateTransactionRequest & UpdateTransactionRequest>,
+  required: readonly (keyof CreateTransactionRequest | keyof UpdateTransactionRequest)[],
+) {
+  const errors: FieldError[] = required
+    .filter((field) => body[field] == null)
+    .map((field) => ({
+      field,
+      code: 'NotNull',
+    }))
   const cents = body.amount == null ? undefined : validCents(String(body.amount.amount))
   if (body.amount != null && cents === undefined) {
     errors.push({ field: 'amount', code: 'TransactionAmount' })
@@ -131,9 +265,206 @@ function sameContent(stored: TransactionView, request: TransactionView) {
     stored.amount.amount === request.amount.amount &&
     stored.occurredOn === request.occurredOn &&
     stored.accountId === request.accountId &&
+    stored.toAccountId === request.toAccountId &&
     stored.categoryId === request.categoryId &&
     stored.description === request.description
   )
+}
+
+const MIN_DATE = '2000-01-01'
+const DAYS_AHEAD = 366
+const transactionNotFound = () =>
+  problem(404, 'transaction.not-found', 'Lançamento não encontrado.')
+
+/** The family's date now, in its own time zone, as `YYYY-MM-DD`. */
+function familyToday(workspace: MeWorkspace): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: workspace.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+}
+
+/** The last day a transaction may fall on: 366 days after the family's today. */
+function lastDay(workspace: MeWorkspace): string {
+  const today = Date.parse(`${familyToday(workspace)}T00:00:00Z`)
+  return new Date(today + DAYS_AHEAD * DAY).toISOString().slice(0, 10)
+}
+
+/** The panel shows the biggest six categories and gathers the rest in "Outras" (D8). */
+const CATEGORY_LIMIT = 6
+
+/** A category's top-level id: a subcategory counts for its parent (D9). */
+function topCategoryId(categoryId: string): string {
+  const category = mockState.categories.find((each) => each.id === categoryId)
+  return category?.parentId ?? categoryId
+}
+
+/** The month's spending by top-level category, this month and last, ranked as the API ranks it. */
+function categoriesFor(month: string, currency: string) {
+  const [year, number] = month.split('-').map(Number)
+  const previousMonth = new Date(Date.UTC(year, number - 2, 1)).toISOString().slice(0, 7)
+  const totals = new Map<string, { current: bigint; previous: bigint }>()
+  for (const transaction of activeTransactions()) {
+    if (transaction.kind !== 'EXPENSE' || transaction.categoryId === null) continue
+    const current = transaction.occurredOn.startsWith(`${month}-`)
+    if (!current && !transaction.occurredOn.startsWith(`${previousMonth}-`)) continue
+    const id = topCategoryId(transaction.categoryId)
+    const total = totals.get(id) ?? { current: 0n, previous: 0n }
+    const cents = parseCents(transaction.amount.amount)
+    if (current) total.current += cents
+    else total.previous += cents
+    totals.set(id, total)
+  }
+  const ranked = [...totals.entries()]
+    .filter(([, total]) => total.current !== 0n || total.previous !== 0n)
+    .sort(([idA, a], [idB, b]) => {
+      if (a.current !== b.current) return a.current > b.current ? -1 : 1
+      if (a.previous !== b.previous) return a.previous > b.previous ? -1 : 1
+      return idA.localeCompare(idB)
+    })
+  const line = (categoryId: string | null, total: { current: bigint; previous: bigint }) => ({
+    categoryId,
+    current: money(total.current, currency),
+    previous: money(total.previous, currency),
+  })
+  const lines = ranked.slice(0, CATEGORY_LIMIT).map(([id, total]) => line(id, total))
+  const rest = ranked.slice(CATEGORY_LIMIT)
+  if (rest.length > 0) {
+    lines.push(
+      line(null, {
+        current: rest.reduce((sum, [, total]) => sum + total.current, 0n),
+        previous: rest.reduce((sum, [, total]) => sum + total.previous, 0n),
+      }),
+    )
+  }
+  return lines
+}
+
+/** The month at a glance, computed as the API does: the balance of the active accounts at each day's end. */
+function dashboardFor(month: string, currency: string) {
+  const [year, number] = month.split('-').map(Number)
+  const days = new Date(Date.UTC(year, number, 0)).getUTCDate()
+  const transactions = activeTransactions().filter(
+    (transaction) => transaction.occurredOn <= `${month}-${String(days).padStart(2, '0')}`,
+  )
+  const active = mockState.accounts.filter((account) => account.archivedAt === null)
+  let income = 0n
+  let expenses = 0n
+  const moved = new Array<bigint>(days).fill(0n)
+  let balance = active.reduce((sum, account) => sum + parseCents(account.initialBalance.amount), 0n)
+  for (const transaction of transactions) {
+    const effect = active.reduce((sum, account) => sum + signedCents(transaction, account.id), 0n)
+    if (transaction.occurredOn < `${month}-01`) {
+      balance += effect
+      continue
+    }
+    moved[Number(transaction.occurredOn.slice(8, 10)) - 1] += effect
+    if (transaction.kind === 'INCOME') income += parseCents(transaction.amount.amount)
+    if (transaction.kind === 'EXPENSE') expenses += parseCents(transaction.amount.amount)
+  }
+  const dailyBalance = moved.map((effect, index) => {
+    balance += effect
+    return {
+      day: `${month}-${String(index + 1).padStart(2, '0')}`,
+      balance: money(balance, currency),
+    }
+  })
+  return {
+    month,
+    income: money(income, currency),
+    expenses: money(expenses, currency),
+    result: money(income - expenses, currency),
+    balance: money(balance, currency),
+    byCategory: categoriesFor(month, currency),
+    dailyBalance,
+  }
+}
+
+/** The list and the dashboard show January 2000 up to the month of the last day; others are a 422. */
+function monthOutOfRange(workspace: MeWorkspace, month: string): Response | undefined {
+  if (month < MIN_DATE.slice(0, 7) || month > lastDay(workspace).slice(0, 7)) {
+    return rejected('month.out-of-range', 'Escolha um mês entre janeiro de 2000 e o próximo ano.')
+  }
+  return undefined
+}
+
+interface Proposed {
+  kind: TransactionView['kind']
+  amount: ApiMoney
+  occurredOn: string
+  accountId: string
+  toAccountId: string | null
+  categoryId: string | null
+}
+
+/** An account the transaction may use: active, or the one it already had (D10). */
+function usableAccount(accountId: string, keptId: string | null | undefined) {
+  return mockState.accounts.find(
+    (account) => account.id === accountId && (account.archivedAt === null || account.id === keptId),
+  )
+}
+
+/**
+ * The family rules of the API, in its order, the first failure deciding. On an edit, `current` is
+ * the stored transaction: what was archived since may stay, but cannot be chosen anew.
+ */
+function familyRuleFailure(
+  workspace: MeWorkspace,
+  proposed: Proposed,
+  current?: TransactionView,
+): Response | undefined {
+  if (proposed.occurredOn < MIN_DATE || proposed.occurredOn > lastDay(workspace)) {
+    return rejected('transaction.date-out-of-range', 'Escolha uma data entre 2000 e o próximo ano.')
+  }
+  const { toAccountId, categoryId } = proposed
+  const transfer = proposed.kind === 'TRANSFER'
+  const shapeFits = transfer
+    ? toAccountId !== null && toAccountId !== proposed.accountId && categoryId === null
+    : toAccountId === null
+  if (!shapeFits) {
+    return rejected(
+      'transaction.transfer-invalid',
+      'Uma transferência precisa de duas contas diferentes e não leva categoria.',
+    )
+  }
+  if (!transfer && categoryId === null) {
+    return rejected('transaction.category-required', 'Escolha uma categoria.')
+  }
+  const account = usableAccount(proposed.accountId, current?.accountId)
+  const destination =
+    toAccountId === null ? account : usableAccount(toAccountId, current?.toAccountId)
+  if (!account || !destination) {
+    return rejected('transaction.account-not-found', 'Conta não encontrada nesta família.')
+  }
+  if (categoryId !== null) {
+    const category = mockState.categories.find(
+      (existing) =>
+        existing.id === categoryId &&
+        (existing.archivedAt === null || existing.id === current?.categoryId),
+    )
+    if (!category) {
+      return rejected('transaction.category-not-found', 'Categoria não encontrada nesta família.')
+    }
+    if (category.kind !== proposed.kind) {
+      return rejected(
+        'transaction.category-kind-mismatch',
+        'Esta categoria não combina com o tipo do lançamento.',
+      )
+    }
+  }
+  const { currency } = proposed.amount
+  if (currency !== account.currency || currency !== destination.currency) {
+    return rejected('transaction.currency-mismatch', 'A moeda do valor não é a mesma da conta.')
+  }
+  return undefined
+}
+
+/** The transaction with its id, as stored; with whether it is deleted. */
+function storedTransaction(id: string) {
+  const transaction = mockState.transactions.find((existing) => existing.id === id)
+  return transaction && { transaction, deleted: mockState.deletedTransactionIds.has(id) }
 }
 
 /** Newest first: by date, then by creation, then by id, as the API lists them. */
@@ -223,9 +554,28 @@ export const handlers = [
     if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
     return HttpResponse.json({
       user: mockState.user,
-      workspaces: mockState.workspaces,
+      workspaces: mockState.workspaces.map((workspace) => ({
+        ...workspace,
+        // The family has a transaction once one is stored and not deleted.
+        hasTransactions:
+          workspace.hasTransactions ||
+          mockState.transactions.some((tx) => !mockState.deletedTransactionIds.has(tx.id)),
+      })),
       suggestedWorkspaceName: mockState.suggestedWorkspaceName,
     })
+  }),
+
+  http.post(url('/v1/me/getting-started/dismiss'), ({ request }) => {
+    if (withoutToken(request)) {
+      return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
+    }
+    if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
+    const id = new URL(request.url).searchParams.get('workspaceId')
+    const workspace = mockState.workspaces.find((candidate) => candidate.id === id)
+    if (!workspace) return problem(404, 'workspace.not-found', 'Família não encontrada.')
+    // A repeat keeps the first date.
+    workspace.gettingStartedDismissedAt ??= new Date().toISOString()
+    return new HttpResponse(null, { status: 204 })
   }),
 
   http.post(url('/v1/workspaces'), async ({ request }) => {
@@ -249,40 +599,362 @@ export const handlers = [
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/accounts'), ({ params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace
-    return HttpResponse.json(
-      mockState.accounts.map((account) => ({
-        ...account,
-        balance: money(balanceCents(account.id), account.currency),
-      })),
-    )
+    return HttpResponse.json([...mockState.accounts].sort(activeFirst).map(accountView))
   }),
+
+  http.post<{ ws: string }>(url('/v1/workspaces/:ws/accounts'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    const body = (await readJson(request)) as Record<string, unknown> | undefined
+    if (typeof body !== 'object' || body === null) return malformed()
+    const initial = readMoney(body.initialBalance)
+    const owner = body.ownerMembershipId
+    if (
+      initial === undefined ||
+      (body.type != null && !ACCOUNT_TYPES.includes(body.type)) ||
+      (body.name != null && typeof body.name !== 'string') ||
+      (owner != null && (typeof owner !== 'string' || !UUID.test(owner)))
+    ) {
+      return malformed()
+    }
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    const errors: FieldError[] = []
+    if (name === '') errors.push({ field: 'name', code: 'NotBlank' })
+    else if (!validName(name)) errors.push({ field: 'name', code: 'Size' })
+    if (body.type == null) errors.push({ field: 'type', code: 'NotNull' })
+    if (initial === null) errors.push({ field: 'initialBalance', code: 'NotNull' })
+    else if (!withinBalanceLimit(initial.cents)) {
+      errors.push({ field: 'initialBalance', code: 'BalanceAmount' })
+    }
+    if (errors.length > 0 || initial === null) return invalid(errors)
+    if (initial.currency !== workspace.currency) return currencyUnsupported()
+    if (typeof owner === 'string' && owner !== workspace.membershipId) {
+      return rejected('account.owner-not-found', 'Essa pessoa não faz parte da família.')
+    }
+    if (nameInUse(name)) return nameTaken()
+    const account: MockAccount = {
+      id: crypto.randomUUID(),
+      name,
+      type: body.type as MockAccount['type'],
+      currency: workspace.currency,
+      initialBalance: money(initial.cents, workspace.currency),
+      ownerMembershipId: typeof owner === 'string' ? owner : null,
+      archivedAt: null,
+    }
+    mockState.accounts.push(account)
+    return HttpResponse.json(accountView(account), { status: 201 })
+  }),
+
+  http.patch<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/accounts/:id'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as Record<string, unknown> | undefined
+      if (typeof body !== 'object' || body === null) return malformed()
+      const initial = readMoney(body.initialBalance)
+      const balance = readMoney(body.balance)
+      if (
+        initial === undefined ||
+        balance === undefined ||
+        (body.type != null && !ACCOUNT_TYPES.includes(body.type)) ||
+        (body.name != null && typeof body.name !== 'string')
+      ) {
+        return malformed()
+      }
+      const name = typeof body.name === 'string' ? body.name.trim() : null
+      const errors: FieldError[] = []
+      if (name !== null && !validName(name)) errors.push({ field: 'name', code: 'Size' })
+      if (initial !== null && !withinBalanceLimit(initial.cents)) {
+        errors.push({ field: 'initialBalance', code: 'BalanceAmount' })
+      }
+      if (balance !== null && !withinBalanceLimit(balance.cents)) {
+        errors.push({ field: 'balance', code: 'BalanceAmount' })
+      }
+      if (initial !== null && balance !== null) {
+        errors.push({ field: 'oneBalanceAtMost', code: 'AssertTrue' })
+      }
+      if (name === null && body.type == null && initial === null && balance === null) {
+        errors.push({ field: 'notEmpty', code: 'AssertTrue' })
+      }
+      if (errors.length > 0) return invalid(errors)
+      const account = mockState.accounts.find((existing) => existing.id === params.id)
+      if (!account) return accountNotFound()
+      if (
+        [initial, balance].some((value) => value !== null && value.currency !== account.currency)
+      ) {
+        return currencyUnsupported()
+      }
+      // Only active accounts hold a name: renaming an archived one never clashes.
+      if (name !== null && account.archivedAt === null && nameInUse(name, account.id)) {
+        return nameTaken()
+      }
+      if (name !== null) account.name = name
+      if (body.type != null) account.type = body.type as MockAccount['type']
+      if (initial !== null) account.initialBalance = money(initial.cents, account.currency)
+      if (balance !== null) {
+        account.initialBalance = money(balance.cents - movementCents(account.id), account.currency)
+      }
+      return HttpResponse.json(accountView(account))
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/accounts/:id/archive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const account = mockState.accounts.find((existing) => existing.id === params.id)
+      if (!account) return accountNotFound()
+      if (account.archivedAt === null) {
+        if (mockState.accounts.filter((existing) => existing.archivedAt === null).length <= 1) {
+          return rejected('account.last-active', 'A família precisa de pelo menos uma conta ativa.')
+        }
+        account.archivedAt = new Date().toISOString()
+      }
+      return HttpResponse.json(accountView(account))
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/accounts/:id/unarchive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const account = mockState.accounts.find((existing) => existing.id === params.id)
+      if (!account) return accountNotFound()
+      if (account.archivedAt !== null) {
+        if (nameInUse(account.name)) return nameTaken()
+        account.archivedAt = null
+      }
+      return HttpResponse.json(accountView(account))
+    },
+  ),
 
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/categories'), ({ request, params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace
     const kind = new URL(request.url).searchParams.get('kind')
     if (kind !== 'EXPENSE' && kind !== 'INCOME') return malformed()
-    // Most used in the last 90 days first; ties keep the seed order (the sort is stable).
+    // Active ones first, most used in the last 90 days first; ties keep the seed order (the sort is
+    // stable). Then the archived ones, by name and id.
     const since = new Date(Date.now() - 89 * DAY).toISOString().slice(0, 10)
     const uses = (categoryId: string) =>
-      mockState.transactions.filter(
+      activeTransactions().filter(
         (transaction) => transaction.categoryId === categoryId && transaction.occurredOn >= since,
       ).length
-    return HttpResponse.json(
-      mockState.categories
-        .filter((category) => category.kind === kind)
-        .sort((a, b) => uses(b.id) - uses(a.id)),
-    )
+    const ofKind = mockState.categories.filter((category) => category.kind === kind)
+    const active = ofKind
+      .filter((category) => category.archivedAt === null)
+      .sort((a, b) => uses(b.id) - uses(a.id))
+    const archived = ofKind
+      .filter((category) => category.archivedAt !== null)
+      .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+    return HttpResponse.json([...active, ...archived])
   }),
+
+  http.post<{ ws: string }>(url('/v1/workspaces/:ws/categories'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    const body = (await readJson(request)) as Record<string, unknown> | undefined
+    if (typeof body !== 'object' || body === null) return malformed()
+    const { icon, color, parentId } = body
+    if (
+      (body.name != null && typeof body.name !== 'string') ||
+      (body.kind != null && !KINDS.includes(body.kind)) ||
+      (icon != null && typeof icon !== 'string') ||
+      (color != null && !CATEGORY_COLORS.includes(color)) ||
+      (parentId != null && (typeof parentId !== 'string' || !UUID.test(parentId)))
+    ) {
+      return malformed()
+    }
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    const errors: FieldError[] = []
+    if (name === '') errors.push({ field: 'name', code: 'NotBlank' })
+    else if (name.length > MAX_CATEGORY_NAME_LENGTH) errors.push({ field: 'name', code: 'Size' })
+    if (body.kind == null) errors.push({ field: 'kind', code: 'NotNull' })
+    if (typeof icon === 'string' && (icon === '' || icon.length > MAX_ICON_LENGTH)) {
+      errors.push({ field: 'icon', code: 'Size' })
+    }
+    if (errors.length > 0) return invalid(errors)
+    if (body.kind === 'TRANSFER') {
+      return rejected('category.kind-invalid', 'Categorias são de receita ou de gasto.')
+    }
+    const parent = typeof parentId === 'string' ? parentId : null
+    if (parent !== null) {
+      const found = mockState.categories.find((existing) => existing.id === parent)
+      if (
+        !found ||
+        found.archivedAt !== null ||
+        found.parentId !== null ||
+        found.kind !== body.kind
+      ) {
+        return rejected(
+          'category.parent-invalid',
+          'Escolha uma categoria principal ativa, do mesmo tipo.',
+        )
+      }
+    }
+    if (categoryNameInUse(name, body.kind as CategoryKindName, parent)) return categoryNameTaken()
+    const category: Schemas['CategoryView'] = {
+      id: crypto.randomUUID(),
+      name,
+      kind: body.kind as CategoryKindName,
+      icon: typeof icon === 'string' ? icon : null,
+      color: typeof color === 'string' ? (color as CategoryColor) : null,
+      parentId: parent,
+      archivedAt: null,
+    }
+    mockState.categories.push(category)
+    return HttpResponse.json(category, { status: 201 })
+  }),
+
+  http.patch<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/categories/:id'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as Record<string, unknown> | undefined
+      if (typeof body !== 'object' || body === null) return malformed()
+      const { icon, color } = body
+      if (
+        (body.name != null && typeof body.name !== 'string') ||
+        (icon != null && typeof icon !== 'string') ||
+        (color != null && !CATEGORY_COLORS.includes(color))
+      ) {
+        return malformed()
+      }
+      const name = typeof body.name === 'string' ? body.name.trim() : null
+      const errors: FieldError[] = []
+      if (name !== null && (name === '' || name.length > MAX_CATEGORY_NAME_LENGTH)) {
+        errors.push({ field: 'name', code: 'Size' })
+      }
+      if (typeof icon === 'string' && (icon === '' || icon.length > MAX_ICON_LENGTH)) {
+        errors.push({ field: 'icon', code: 'Size' })
+      }
+      if (name === null && icon == null && color == null) {
+        errors.push({ field: 'notEmpty', code: 'AssertTrue' })
+      }
+      if (errors.length > 0) return invalid(errors)
+      const category = mockState.categories.find((existing) => existing.id === params.id)
+      if (!category) return categoryNotFound()
+      // Only active categories hold a name: renaming an archived one never clashes.
+      if (
+        name !== null &&
+        category.archivedAt === null &&
+        categoryNameInUse(name, category.kind, category.parentId, category.id)
+      ) {
+        return categoryNameTaken()
+      }
+      if (name !== null) category.name = name
+      if (typeof icon === 'string') category.icon = icon
+      if (typeof color === 'string') category.color = color as CategoryColor
+      return HttpResponse.json(category)
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/categories/:id/archive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const category = mockState.categories.find((existing) => existing.id === params.id)
+      if (!category) return categoryNotFound()
+      if (category.archivedAt === null) {
+        const activeTopLevel = mockState.categories.filter(
+          (existing) =>
+            existing.kind === category.kind &&
+            existing.parentId === null &&
+            existing.archivedAt === null,
+        )
+        if (category.parentId === null && activeTopLevel.length <= 1) {
+          return rejected(
+            'category.last-active',
+            'É preciso manter pelo menos uma categoria ativa desse tipo.',
+          )
+        }
+        const now = new Date().toISOString()
+        for (const each of mockState.categories) {
+          if (
+            (each.id === category.id || each.parentId === category.id) &&
+            each.archivedAt === null
+          ) {
+            each.archivedAt = now
+          }
+        }
+      }
+      return HttpResponse.json(category)
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/categories/:id/unarchive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const category = mockState.categories.find((existing) => existing.id === params.id)
+      if (!category) return categoryNotFound()
+      if (category.archivedAt !== null) {
+        const parent = mockState.categories.find((existing) => existing.id === category.parentId)
+        if (parent && parent.archivedAt !== null) {
+          return rejected('category.parent-archived', 'Reative a categoria principal primeiro.')
+        }
+        const group = mockState.categories.filter(
+          (each) =>
+            each.id === category.id ||
+            (each.parentId === category.id && each.archivedAt === category.archivedAt),
+        )
+        if (group.some((each) => categoryNameInUse(each.name, each.kind, each.parentId, each.id))) {
+          return categoryNameTaken()
+        }
+        for (const each of group) each.archivedAt = null
+      }
+      return HttpResponse.json(category)
+    },
+  ),
 
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/transactions'), ({ request, params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace
-    const month = new URL(request.url).searchParams.get('month') ?? ''
+    const search = new URL(request.url).searchParams
+    const month = search.get('month') ?? ''
+    const categoryId = search.get('categoryId')
+    const accountId = search.get('accountId')
     if (!MONTH.test(month)) return malformed()
+    if ([categoryId, accountId].some((id) => id !== null && !UUID.test(id))) return malformed()
+    const outOfRange = monthOutOfRange(workspace, month)
+    if (outOfRange) return outOfRange
+    // A category takes its subcategories along; an account, what leaves it and what enters it.
+    const inCategory = new Set(
+      mockState.categories
+        .filter((category) => category.id === categoryId || category.parentId === categoryId)
+        .map((category) => category.id),
+    )
     return HttpResponse.json(
-      mockState.transactions
-        .filter((transaction) => transaction.occurredOn.startsWith(`${month}-`))
+      activeTransactions()
+        .filter(
+          (transaction) =>
+            transaction.occurredOn.startsWith(`${month}-`) &&
+            (categoryId === null ||
+              (transaction.categoryId !== null && inCategory.has(transaction.categoryId))) &&
+            (accountId === null ||
+              transaction.accountId === accountId ||
+              transaction.toAccountId === accountId),
+        )
         .sort(newestFirst),
     )
   }),
@@ -298,7 +970,7 @@ export const handlers = [
     const body = (await readJson(request)) as CreateTransactionRequest | undefined
     if (key === null || !UUID.test(key)) return malformed()
     if (typeof body !== 'object' || body === null || !readable(body)) return malformed()
-    const { errors, cents, description } = validateTransaction(body)
+    const { errors, cents, description } = validateTransaction(body, CREATE_REQUIRED)
     if (errors.length > 0) return invalid(errors)
     if (body.id !== key || !UUID_V7.test(body.id)) {
       return rejected('transaction.invalid-id', 'O identificador do lançamento é inválido.')
@@ -309,57 +981,112 @@ export const handlers = [
       amount: money(cents, body.amount.currency),
       occurredOn: body.occurredOn,
       accountId: body.accountId,
-      categoryId: body.categoryId,
+      toAccountId: body.toAccountId ?? null,
+      categoryId: body.categoryId ?? null,
       description,
       memberId: workspace.membershipId,
       createdAt: new Date().toISOString(),
+      version: 0,
     }
+    // A deleted transaction keeps its id: a resend of it still answers the stored one.
     const stored = mockState.transactions.find((existing) => existing.id === body.id)
     if (stored) {
       return sameContent(stored, transaction)
         ? HttpResponse.json(stored, { status: 200 })
         : problem(409, 'transaction.id-conflict', 'Este lançamento já existe com outros dados.')
     }
-    if (body.kind === 'TRANSFER') {
-      return rejected('transaction.kind-unsupported', 'Transferências ainda não estão disponíveis.')
-    }
-    const account = mockState.accounts.find((existing) => existing.id === body.accountId)
-    if (!account) {
-      return rejected('transaction.account-not-found', 'Conta não encontrada nesta família.')
-    }
-    const category = mockState.categories.find((existing) => existing.id === body.categoryId)
-    if (!category) {
-      return rejected('transaction.category-not-found', 'Categoria não encontrada nesta família.')
-    }
-    if (category.kind !== body.kind) {
-      return rejected(
-        'transaction.category-kind-mismatch',
-        'Esta categoria não combina com o tipo do lançamento.',
-      )
-    }
-    if (body.amount.currency !== account.currency) {
-      return rejected('transaction.currency-mismatch', 'A moeda do valor não é a mesma da conta.')
-    }
+    const failure = familyRuleFailure(workspace, transaction)
+    if (failure) return failure
     mockState.transactions.push(transaction)
     return HttpResponse.json(transaction, { status: 201 })
   }),
+
+  http.patch<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/transactions/:id'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as UpdateTransactionRequest | undefined
+      if (typeof body !== 'object' || body === null || !readable(body)) return malformed()
+      const { errors, cents, description } = validateTransaction(body, UPDATE_REQUIRED)
+      if (errors.length > 0) return invalid(errors)
+      const stored = storedTransaction(params.id)
+      if (!stored) return transactionNotFound()
+      const { transaction: current, deleted } = stored
+      if (deleted) return problem(409, 'transaction.deleted', 'Este lançamento foi excluído.')
+      // A stale version wins over an invalid payload: the person first needs to see what changed.
+      if (current.version !== body.version) {
+        return problem(
+          409,
+          'transaction.version-conflict',
+          'Este lançamento mudou desde que você abriu.',
+          undefined,
+          { current },
+        )
+      }
+      const edited: TransactionView = {
+        ...current,
+        kind: body.kind,
+        amount: money(cents, body.amount.currency),
+        occurredOn: body.occurredOn,
+        accountId: body.accountId,
+        toAccountId: body.toAccountId ?? null,
+        categoryId: body.categoryId ?? null,
+        description,
+        version: current.version + 1,
+      }
+      const failure = familyRuleFailure(workspace, edited, current)
+      if (failure) return failure
+      Object.assign(current, edited)
+      return HttpResponse.json(current)
+    },
+  ),
+
+  http.delete<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/transactions/:id'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const stored = storedTransaction(params.id)
+      if (!stored) return transactionNotFound()
+      // Deleting it again changes nothing.
+      if (!stored.deleted) {
+        mockState.deletedTransactionIds.add(params.id)
+        stored.transaction.version += 1
+      }
+      return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/transactions/:id/restore'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const stored = storedTransaction(params.id)
+      if (!stored) return transactionNotFound()
+      // An active one comes back unchanged, so a repeated "Desfazer" is harmless.
+      if (stored.deleted) {
+        mockState.deletedTransactionIds.delete(params.id)
+        stored.transaction.version += 1
+      }
+      return HttpResponse.json(stored.transaction)
+    },
+  ),
 
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/dashboard'), ({ request, params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace
     const month = new URL(request.url).searchParams.get('month') ?? ''
     if (!MONTH.test(month)) return malformed()
-    const expenses = mockState.transactions
-      .filter(
-        (transaction) =>
-          transaction.kind === 'EXPENSE' && transaction.occurredOn.startsWith(`${month}-`),
-      )
-      .reduce((sum, transaction) => sum + parseCents(transaction.amount.amount), 0n)
-    const balance = mockState.accounts.reduce((sum, account) => sum + balanceCents(account.id), 0n)
-    return HttpResponse.json({
-      month,
-      expenses: money(expenses, workspace.currency),
-      balance: money(balance, workspace.currency),
-    })
+    const outOfRange = monthOutOfRange(workspace, month)
+    if (outOfRange) return outOfRange
+    return HttpResponse.json(dashboardFor(month, workspace.currency))
   }),
 ]

@@ -1,4 +1,4 @@
-import type { CategoryView, TransactionView } from '@/shared/api'
+import type { AccountView, CategoryView, TransactionView } from '@/shared/api'
 import type { OutboxItem } from '@/shared/offline'
 
 /** A row of the list: a transaction from the API, or a queued one with its `outbox` item. */
@@ -22,7 +22,11 @@ function newestFirst(a: ListItem, b: ListItem): number {
 function fromOutbox(item: OutboxItem): ListItem {
   return {
     ...item.payload,
+    toAccountId: item.payload.toAccountId ?? null,
+    categoryId: item.payload.categoryId ?? null,
     description: item.payload.description ?? null,
+    // Not stored yet, so at no version of the API's.
+    version: 0,
     // The API sets the member when it stores the transaction; a queued one is always the user's.
     memberId: '',
     createdAt: new Date(item.createdAt).toISOString(),
@@ -64,4 +68,14 @@ export function groupByDay(items: ListItem[]): DayGroup[] {
 /** A category as the screens show it: "{icon} {name}". */
 export function categoryLabel({ icon, name }: CategoryView): string {
   return icon ? `${icon} ${name}` : name
+}
+
+/** "Origem → Destino" for a transfer; the names stay for archived accounts. */
+export function transferRoute(
+  { accountId, toAccountId }: Pick<TransactionView, 'accountId' | 'toAccountId'>,
+  accounts: Map<string, AccountView>,
+): string {
+  const from = accounts.get(accountId)?.name ?? ''
+  const to = toAccountId ? (accounts.get(toAccountId)?.name ?? '') : ''
+  return `${from} → ${to}`
 }

@@ -1,5 +1,5 @@
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
-import { useRoutes } from 'react-router'
+import { useRoutes, type RouteObject } from 'react-router'
 import { afterEach, describe, expect, it } from 'vitest'
 import { routes } from '@/app/routes'
 import { mockState, seedMockFamily } from '@/mocks/data'
@@ -63,6 +63,24 @@ describe('routes', () => {
     await waitFor(() => expect(document.title).toBe('Início · Liberdade'))
   })
 
+  it('links the accounts from Mais', async () => {
+    seedMockFamily()
+    renderWithProviders(null, { routes, route: '/mais' })
+
+    expect(await screen.findByRole('link', { name: 'Contas' })).toHaveAttribute(
+      'href',
+      '/mais/contas',
+    )
+  })
+
+  it('opens the accounts on /mais/contas', async () => {
+    seedMockFamily()
+    renderWithProviders(null, { routes, route: '/mais/contas' })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Contas' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Carteira/ })).toBeInTheDocument()
+  })
+
   it("saves the family's data to the device once it has loaded, for a reload offline (I1)", async () => {
     const family = seedMockFamily()
     renderApp('/inicio')
@@ -97,5 +115,40 @@ describe('routes', () => {
     expect(screen.getByRole('heading', { name: 'Página não encontrada.' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Voltar ao início' })).toHaveAttribute('href', '/')
     expect(document.title).toBe('Página não encontrada · Liberdade')
+  })
+})
+
+describe('lazy routes', () => {
+  function findRoute(list: RouteObject[], path: string): RouteObject | undefined {
+    for (const route of list) {
+      if (route.path === path) return route
+      const found = route.children && findRoute(route.children, path)
+      if (found) return found
+    }
+    return undefined
+  }
+
+  it('lazyRoutesHaveNoStaticComponent', () => {
+    for (const path of ['/lancamentos', '/mais']) {
+      const route = findRoute(routes, path)
+      expect(route?.lazy, path).toBeTypeOf('function')
+      expect(route?.Component, path).toBeUndefined()
+      expect(route?.element, path).toBeUndefined()
+    }
+  })
+
+  it('firstExpensePathStaysStatic', () => {
+    for (const path of ['/inicio', '/lancar']) {
+      const route = findRoute(routes, path)
+      expect(route?.lazy, path).toBeUndefined()
+      expect(route?.Component ?? route?.element, path).toBeDefined()
+    }
+  })
+
+  it('lazyRouteRenders', async () => {
+    seedMockFamily()
+    renderWithProviders(null, { routes, route: '/lancamentos' })
+
+    expect(await screen.findByRole('heading', { name: 'Lançamentos' })).toBeInTheDocument()
   })
 })

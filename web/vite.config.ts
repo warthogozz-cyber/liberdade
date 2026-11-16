@@ -51,12 +51,14 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   // The E2E suite expects this port; a busy port fails instead of moving elsewhere.
+  // `check:chunks` reads the manifest to enforce the size budget.
+  build: { manifest: true },
   server: { port: 5173, strictPort: true },
   preview: { port: 5173, strictPort: true },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}', 'eslint/**/*.test.js'],
+    include: ['src/**/*.test.{ts,tsx}', 'eslint/**/*.test.js', 'scripts/**/*.test.mjs'],
     coverage: {
       provider: 'v8',
       include: ['src/**'],

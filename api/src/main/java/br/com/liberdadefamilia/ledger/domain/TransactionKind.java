@@ -1,7 +1,7 @@
-package br.com.liberdadefamilia.ledger.internal;
+package br.com.liberdadefamilia.ledger.domain;
 
 /** Money coming in, going out, or moving between two of the family's accounts. */
-enum TransactionKind {
+public enum TransactionKind {
     INCOME,
     EXPENSE,
     TRANSFER

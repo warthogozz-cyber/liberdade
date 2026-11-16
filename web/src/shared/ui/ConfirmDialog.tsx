@@ -7,6 +7,8 @@ interface ConfirmDialogProps {
   body: ReactNode
   confirmLabel: ReactNode
   cancelLabel: ReactNode
+  /** Disables the confirm button, for a call that is still running. */
+  confirmDisabled?: boolean
   onConfirm: () => void
   /** Called for the cancel button and for Escape. */
   onCancel: () => void
@@ -22,6 +24,7 @@ export function ConfirmDialog({
   body,
   confirmLabel,
   cancelLabel,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -48,7 +51,8 @@ export function ConfirmDialog({
               {cancelLabel}
             </AlertDialog.Cancel>
             <AlertDialog.Action
-              className={`${button} bg-primary text-on-primary`}
+              className={`${button} bg-primary text-on-primary disabled:opacity-50`}
+              disabled={confirmDisabled}
               onClick={confirm}
             >
               {confirmLabel}
