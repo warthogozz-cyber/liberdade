@@ -87,6 +87,7 @@ erDiagram
     text status "ACTIVE REMOVED"
     timestamptz parental_consent_at
     uuid parental_consent_by FK
+    timestamptz getting_started_dismissed_at "fechou os primeiros passos"
     bigint version
   }
   invitations {
@@ -190,6 +191,8 @@ Spring Security, por isso fogem das convenções acima. O diagrama mostra só as
 | `transactions` | `amount > 0`; `TRANSFER` ⇔ `to_account_id IS NOT NULL` e `category_id IS NULL`; `to_account_id <> account_id`; moeda igual à das contas |
 | `transactions` | Reenvio com id já existente: mesma família e mesmo conteúdo → devolve o registro (`200`); qualquer outro caso → `409 transaction.id-conflict`, sem revelar nada do registro existente |
 | `transactions` | Índices `(workspace_id, occurred_on)`, `(workspace_id, account_id, occurred_on)` e `(workspace_id, category_id, occurred_on)` |
+| `accounts` | Nome único entre as contas ativas da família: índice único parcial em `(workspace_id, name)` com `archived_at IS NULL` |
+| `categories` | `color` nula ou uma das 8 cores do design system (`TEAL`, `BLUE`, `INDIGO`, `PURPLE`, `PINK`, `RED`, `ORANGE`, `GREEN`) |
 | `categories` | `UNIQUE (workspace_id, kind, parent_id, name)` entre as não arquivadas, porque "Outros" existe nos dois tipos; um só nível de subcategoria |
 
 ### Decisões do modelo

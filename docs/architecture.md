@@ -127,13 +127,13 @@ trafega como texto decimal: `{"amount": "1234.56", "currency": "BRL"}`.
 | Recurso | Operações |
 |---|---|
 | Sessão | `GET /oauth2/authorization/google`, endpoints WebAuthn do Spring Security, `POST /logout`, `GET /v1/csrf` |
-| Eu | `GET /v1/me`, `POST /v1/me/export`, `POST /v1/me/deletion`, `DELETE /v1/me/deletion`, `GET /v1/me/activity`, `GET /v1/me/consents`, `DELETE /v1/me/consents/{id}`, `GET /v1/me/passkeys`, `DELETE /v1/me/passkeys/{id}` |
+| Eu | `GET /v1/me`, `POST /v1/me/export`, `POST /v1/me/deletion`, `DELETE /v1/me/deletion`, `GET /v1/me/activity`, `GET /v1/me/consents`, `DELETE /v1/me/consents/{id}`, `GET /v1/me/passkeys`, `DELETE /v1/me/passkeys/{id}`, `POST /v1/me/getting-started/dismiss` |
 | Famílias | `POST /v1/workspaces`, `GET /v1/workspaces/{ws}`, `PATCH /v1/workspaces/{ws}`, `POST .../export`, `POST .../deletion`, `DELETE .../deletion` |
 | Membros | `GET /v1/workspaces/{ws}/members`, `PATCH .../members/{id}` (papel), `DELETE .../members/{id}`, `POST .../members/{id}/recovery` (link de recuperação) |
 | Convites | `POST /v1/workspaces/{ws}/invitations` (com `parentalConsent` quando o papel é Jovem), `DELETE .../invitations/{id}`, `POST /v1/invitations/{token}/accept` |
 | Módulos | `GET /v1/workspaces/{ws}/modules`, `PUT .../modules/{key}` |
-| Contas | `GET`, `POST`, `PATCH .../accounts/{id}`, `POST .../accounts/{id}/archive` |
-| Categorias | `GET`, `POST`, `PATCH .../categories/{id}`, `POST .../categories/{id}/archive` |
+| Contas | `GET`, `POST`, `PATCH .../accounts/{id}`, `POST .../accounts/{id}/archive`, `POST .../accounts/{id}/unarchive` |
+| Categorias | `GET`, `POST`, `PATCH .../categories/{id}`, `POST .../categories/{id}/archive`, `POST .../categories/{id}/unarchive` |
 | Lançamentos | `GET .../transactions?month=2026-11&accountId=&categoryId=`, `POST` (com `Idempotency-Key`), `PATCH .../transactions/{id}` (com `version`), `DELETE .../transactions/{id}`, `POST .../transactions/{id}/restore` |
 | Painel | `GET /v1/workspaces/{ws}/dashboard?month=2026-11` |
 
