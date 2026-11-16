@@ -103,6 +103,8 @@ export interface TransactionFormProps {
   month?: string
   /** Saves an edit; true once it is saved. Given only by the lazy editing module (ADR-0007). */
   onEdit?: (body: UpdateTransactionRequest) => Promise<boolean>
+  /** The editing module is saving on its own (a re-send after a conflict): no second save meanwhile. */
+  busy?: boolean
   /** Rendered after the form: the editing module's conflict dialogs. */
   children?: ReactNode
 }
@@ -122,6 +124,7 @@ export function TransactionForm({
   editing,
   month,
   onEdit,
+  busy = false,
   children,
 }: TransactionFormProps) {
   const intl = useIntl()
@@ -202,7 +205,8 @@ export function TransactionForm({
     dateInRange &&
     account !== undefined &&
     (transfer ? to !== undefined : !noCategories && categoryKnown) &&
-    !saving
+    !saving &&
+    !busy
   const dateLabel =
     date === 'today' || date === 'yesterday'
       ? intl.formatMessage({ id: date === 'today' ? 'common.today' : 'common.yesterday' })
@@ -240,7 +244,7 @@ export function TransactionForm({
   }
 
   async function save() {
-    if (!canSave || !account || savingRef.current) return
+    if (!canSave || !account || savingRef.current || busy) return
     if (transfer ? !to : categoryId === undefined) return
     savingRef.current = true
     setSaving(true)

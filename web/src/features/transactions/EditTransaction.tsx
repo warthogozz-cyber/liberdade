@@ -107,6 +107,7 @@ function EditForm({ userId, workspace, opened, month }: EditFormProps) {
   const incomeCategories = useCategories(workspace.id, 'INCOME')
   const accounts = useAccounts(workspace.id)
   const [conflict, setConflict] = useState<ConflictState>()
+  const [resending, setResending] = useState(false)
   const listPath = `/lancamentos?mes=${month}`
 
   /** Saves the edit; a conflict or a transaction gone elsewhere opens its dialog (D12). */
@@ -149,6 +150,7 @@ function EditForm({ userId, workspace, opened, month }: EditFormProps) {
       editing={opened}
       month={month}
       onEdit={submit}
+      busy={resending}
     >
       {conflict?.kind === 'deleted' && (
         <DeletedElsewhereDialog open onBack={() => void navigate(listPath)} />
@@ -169,7 +171,10 @@ function EditForm({ userId, workspace, opened, month }: EditFormProps) {
           }
           onKeepTheirs={() => void navigate(listPath)}
           onKeepMine={() => {
-            void submit({ ...conflict.saved, version: conflict.current.version })
+            setResending(true)
+            void submit({ ...conflict.saved, version: conflict.current.version }).finally(() =>
+              setResending(false),
+            )
             setConflict(undefined)
           }}
         />

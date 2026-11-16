@@ -997,3 +997,41 @@ describe('NewTransactionPage, editing: what is on offer and when it is gone', ()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 })
+
+describe('NewTransactionPage, editing: keep mine', () => {
+  it('keepMineGuardsADoubleSubmit', async () => {
+    const workspace = seedMockFamily()
+    storeForEdit(workspace)
+    const bodies: Record<string, unknown>[] = []
+    let release = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    server.use(
+      http.patch(PATCH_URL, async ({ request }) => {
+        bodies.push((await request.clone().json()) as Record<string, unknown>)
+        if (bodies.length === 2) await held
+        return undefined
+      }),
+    )
+    const { router } = await openEdit()
+    const stored = mockState.transactions[0]
+    stored.version = 1
+    stored.amount = { amount: '20.00', currency: 'BRL' }
+
+    press('5')
+    fireEvent.click(saveButton())
+    const dialog = await screen.findByRole('alertdialog', { name: 'Este lançamento mudou' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar a minha mesmo assim' }))
+
+    await waitFor(() => expect(bodies).toHaveLength(2))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(saveButton()).toBeDisabled()
+    fireEvent.click(saveButton())
+    release()
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancamentos'))
+    expect(bodies.map(({ version }) => version)).toEqual([0, 1])
+    expect(await within(toastRegion()).findByText('Lançamento atualizado.')).toBeInTheDocument()
+  })
+})
