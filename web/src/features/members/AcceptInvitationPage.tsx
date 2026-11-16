@@ -8,7 +8,7 @@ import { ApiError, getMe, queryKeys, selectWorkspace, type InvitationPreview } f
 import { useAcceptInvitation, usePreviewInvitation } from '@/shared/api/family'
 import { startGoogleSignIn } from '@/shared/auth'
 import { registerPasskey } from '@/shared/auth/passkey'
-import { broadcastSignedIn, clearSession, useOnline } from '@/shared/offline'
+import { broadcastSignedIn, clearSession, saveQueryCacheNow, useOnline } from '@/shared/offline'
 import { useDocumentTitle } from '@/shared/ui'
 import {
   clearInvitationToken,
@@ -196,6 +196,8 @@ export function AcceptInvitationPage() {
     setFinishFailed(false)
     if (done.freshSession) broadcastSignedIn(me.user.id)
     selectWorkspace(done.workspaceId)
+    // Saved past the throttle, so a reload right away finds the family, not the welcome page.
+    await saveQueryCacheNow(queryClient)
     if (done.mustRegisterPasskey) {
       setStep('passkey')
       return

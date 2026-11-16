@@ -1,13 +1,14 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import type { PersistedClient } from '@tanstack/react-query-persist-client'
 import { http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily, seedMockInvitation } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
-import { API_URL } from '@/shared/api'
+import { API_URL, type MeView } from '@/shared/api'
 import { readSelectedWorkspaceId } from '@/shared/api/workspaceChoice'
 import { registerPasskey } from '@/shared/auth/passkey'
-import { broadcastSignedIn } from '@/shared/offline'
+import { broadcastSignedIn, db } from '@/shared/offline'
 import { renderWithProviders } from '@/shared/testing'
 import { AcceptInvitationPage } from './AcceptInvitationPage'
 
@@ -74,6 +75,24 @@ describe('AcceptInvitationPage', () => {
     expect(readSelectedWorkspaceId()).toBe('ws-b')
     expect(mockState.workspaces.some((workspace) => workspace.id === 'ws-b')).toBe(true)
     expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
+  })
+
+  it('joinedFamilyIsSavedForAReload', async () => {
+    seedMockFamily()
+    seedMockInvitation({ token: TOKEN })
+    renderAccept()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Entrar na família' }))
+
+    expect(await screen.findByText('Início da família')).toBeInTheDocument()
+    // A reload right away decides on the saved `me`: it must already hold the new family.
+    const saved = await db.kv.get('liberdade-query-cache')
+    const me = saved
+      ? ((JSON.parse(saved.value) as PersistedClient).clientState.queries.find(
+          (query) => query.queryHash === '["me"]',
+        )?.state.data as MeView | undefined)
+      : undefined
+    expect(me?.workspaces.map((workspace) => workspace.id)).toContain('ws-b')
   })
 
   it('anonymousPasskeyPath', async () => {
