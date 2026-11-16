@@ -3,7 +3,8 @@ import { useIntl } from 'react-intl'
 import { ApiError, type MeWorkspace } from '@/shared/api'
 import { useRenameWorkspace } from '@/shared/api/family'
 import { useOnline } from '@/shared/offline'
-import { Sheet, useToast } from '@/shared/ui'
+import { useToast } from '@/shared/ui'
+import { Sheet } from '@/shared/ui/Sheet'
 import './register'
 
 interface RenameFamilySheetProps {

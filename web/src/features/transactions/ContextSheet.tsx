@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import type { AccountView } from '@/shared/api'
 import { MIN_DATE } from '@/shared/i18n'
-import { Sheet } from '@/shared/ui'
+import { Sheet } from '@/shared/ui/Sheet'
 
 /** Hoje and Ontem stay words until saving, which works out the date then (Review Focus 4). */
 export type ExpenseDate = 'today' | 'yesterday' | `${number}-${number}-${number}`

@@ -2,13 +2,40 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 import { VitePWA } from 'vite-plugin-pwa'
+import type { Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
+
+/**
+ * Writes `dist/chunk-modules.json`: each emitted chunk's file mapped to its modules and their
+ * rendered sizes in bytes. The Vite manifest has no module map, so `check:chunks` reads this to say
+ * what the initial load is made of.
+ */
+function chunkModules(): Plugin {
+  return {
+    name: 'chunk-modules',
+    generateBundle(_options, bundle) {
+      const map: Record<string, Record<string, number>> = {}
+      for (const [file, item] of Object.entries(bundle)) {
+        if (item.type !== 'chunk') continue
+        map[file] = Object.fromEntries(
+          Object.entries(item.modules).map(([id, info]) => [id, info.renderedLength]),
+        )
+      }
+      this.emitFile({
+        type: 'asset',
+        fileName: 'chunk-modules.json',
+        source: JSON.stringify(map),
+      })
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    chunkModules(),
     // Installable, with the app shell cached (D27). `main.tsx` registers the worker itself.
     VitePWA({
       registerType: 'autoUpdate',
@@ -64,9 +91,10 @@ export default defineConfig({
             {
               // The packages every screen needs, kept in one chunk: a lazy import that reaches only some
               // of them would otherwise split them in several, and each split costs the first load
-              // gzip overhead (T14 measured 1.5 KB).
+              // gzip overhead (T14 measured 1.5 KB). Radix is not here: its dialogs are only for lazy screens, so
+              // it splits on its own and stays out of the first load (Task 6 of Plan 5).
               name: 'vendor',
-              test: /node_modules[\\/](react|react-dom|react-router|react-intl|@formatjs|intl-messageformat|@tanstack|scheduler|dexie|dexie-react-hooks|radix-ui|@radix-ui|openapi-fetch|uuid)[\\/]/,
+              test: /node_modules[\\/](react|react-dom|react-router|react-intl|@formatjs|intl-messageformat|@tanstack|scheduler|dexie|dexie-react-hooks|openapi-fetch|uuid)[\\/]/,
             },
           ],
         },

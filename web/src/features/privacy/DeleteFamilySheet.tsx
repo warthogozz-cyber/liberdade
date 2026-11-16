@@ -4,7 +4,7 @@ import { ApiError, ReauthCancelledError, type MeWorkspace } from '@/shared/api'
 import { useFamilyDeletion } from '@/shared/api/privacy'
 import { useReauth } from '@/shared/auth'
 import { useOnline } from '@/shared/offline'
-import { Sheet } from '@/shared/ui'
+import { Sheet } from '@/shared/ui/Sheet'
 import { dangerButton } from './buttons'
 import './register'
 

@@ -10,7 +10,7 @@ import {
   countOutboxForUser,
   useOnline,
 } from '@/shared/offline'
-import { ConfirmDialog } from '@/shared/ui'
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 
 interface SignOutButtonProps {
   /**

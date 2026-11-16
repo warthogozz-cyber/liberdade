@@ -12,7 +12,9 @@ import {
   type MeWorkspace,
 } from '@/shared/api'
 import { useOnline } from '@/shared/offline'
-import { ConfirmDialog, Sheet, useDocumentTitle, useToast } from '@/shared/ui'
+import { useDocumentTitle, useToast } from '@/shared/ui'
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
+import { Sheet } from '@/shared/ui/Sheet'
 import { CategoryForm } from './CategoryForm'
 import { CategoryTabs } from './CategoryTabs'
 import { categoryTabId, categoryTree } from './categoryStyle'

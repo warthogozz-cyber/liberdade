@@ -47,3 +47,49 @@ export function checkBudget(manifest, gzipSize, limits = LIMITS) {
   }
   return { ok: rows.every((row) => row.kb <= row.limitKb), rows }
 }
+
+/** `node_modules/.pnpm/pkg@1/node_modules/@scope/name/x.js` -> `@scope/name`; `src/a/b/c.ts` -> `src/a`. */
+export function groupOf(id) {
+  const path = id.replaceAll('\\', '/').replace(/\?.*$/, '')
+  const nm = path.lastIndexOf('node_modules/')
+  if (nm !== -1) {
+    const parts = path.slice(nm + 'node_modules/'.length).split('/')
+    return parts[0].startsWith('@') ? `${parts[0]}/${parts[1]}` : parts[0]
+  }
+  const src = path.lastIndexOf('/src/')
+  if (src !== -1) {
+    const parts = path.slice(src + 1).split('/')
+    return parts.length > 2 ? `${parts[0]}/${parts[1]}` : parts[0]
+  }
+  return '(other)'
+}
+
+/**
+ * What the initial load is made of. `modulesByFile` maps each chunk file to `{ moduleId: bytes }`
+ * (the `chunk-modules.json` the build writes). A chunk's gzip size is split between its modules in
+ * proportion to their rendered size, so the rows add up to the initial load's JS (an estimate: rendered sizes are before minification). Heaviest first.
+ */
+export function composition(manifest, modulesByFile, gzipSize) {
+  const groups = new Map()
+  for (const file of initialFiles(manifest).filter((f) => f.endsWith('.js'))) {
+    const modules = modulesByFile[file] ?? {}
+    const total = Object.values(modules).reduce((sum, n) => sum + n, 0)
+    if (total === 0) continue
+    const gzip = gzipSize(file)
+    for (const [id, bytes] of Object.entries(modules)) {
+      const name = groupOf(id)
+      const row = groups.get(name) ?? { group: name, renderedKb: 0, gzipKb: 0 }
+      row.renderedKb += bytes / 1024
+      row.gzipKb += (gzip * bytes) / total / 1024
+      groups.set(name, row)
+    }
+  }
+  return [...groups.values()]
+    .map((r) => ({
+      group: r.group,
+      kind: r.group.startsWith('src') ? 'src' : r.group === '(other)' ? 'other' : 'package',
+      renderedKb: Math.round(r.renderedKb * 10) / 10,
+      gzipKb: Math.round(r.gzipKb * 10) / 10,
+    }))
+    .sort((a, b) => b.gzipKb - a.gzipKb || a.group.localeCompare(b.group))
+}

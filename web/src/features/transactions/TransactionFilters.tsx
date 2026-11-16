@@ -1,6 +1,6 @@
 import { useIntl } from 'react-intl'
 import type { AccountView, CategoryView, TransactionFilters as Filters } from '@/shared/api'
-import { Sheet } from '@/shared/ui'
+import { Sheet } from '@/shared/ui/Sheet'
 import { categoryLabel } from './listItems'
 
 interface TransactionFiltersProps {
