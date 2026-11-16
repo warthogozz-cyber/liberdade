@@ -2,6 +2,7 @@ package br.com.liberdadefamilia.privacy.internal;
 
 import br.com.liberdadefamilia.audit.AuditEntry;
 import br.com.liberdadefamilia.audit.AuditTrail;
+import br.com.liberdadefamilia.identity.UserDirectory;
 import br.com.liberdadefamilia.workspace.MemberRemoved;
 import br.com.liberdadefamilia.workspace.MemberSummary;
 import br.com.liberdadefamilia.workspace.MembershipStatus;
@@ -23,7 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Lists the consents that involve a person and lets the guardian who gave one take it back. Once that guardian is gone
- * from the family, any active Owner of it may take it back instead.
+ * from the family, or while their account is waiting out its deletion grace, any active Owner of it may take it back
+ * instead.
  */
 @Service
 class ConsentService {
@@ -36,11 +38,13 @@ class ConsentService {
 
     private final ConsentRepository consents;
     private final Memberships memberships;
+    private final UserDirectory users;
     private final AuditTrail trail;
 
-    ConsentService(ConsentRepository consents, Memberships memberships, AuditTrail trail) {
+    ConsentService(ConsentRepository consents, Memberships memberships, UserDirectory users, AuditTrail trail) {
         this.consents = consents;
         this.memberships = memberships;
+        this.users = users;
         this.trail = trail;
     }
 
@@ -80,6 +84,7 @@ class ConsentService {
         }
         Map<UUID, String> workspaceNames = memberships.workspaceNames(workspaceIds);
         Map<String, MemberSummary> members = membersByKey(workspaceIds, userIds);
+        Set<UUID> leaving = users.pendingDeletion(userIds);
         List<ConsentView> views = new ArrayList<>(rows.size());
         for (ConsentRepository.Row row : rows) {
             views.add(new ConsentView(
@@ -93,7 +98,7 @@ class ConsentService {
                     row.grantedAt(),
                     row.revokedAt(),
                     row.supersededAt(),
-                    canRevoke(row, userId, members)));
+                    canRevoke(row, userId, members, leaving)));
         }
         return views;
     }
@@ -111,7 +116,9 @@ class ConsentService {
         Map<String, MemberSummary> members = membersByKey(
                 List.of(workspaceId),
                 consent.grantedBy() == null ? List.of(userId) : List.of(userId, consent.grantedBy()));
-        if (!granter && !mayStepIn(consent, userId, members)) {
+        Set<UUID> leaving =
+                consent.grantedBy() == null ? Set.of() : users.pendingDeletion(List.of(consent.grantedBy()));
+        if (!granter && !mayStepIn(consent, userId, members, leaving)) {
             if (userId.equals(consent.userId())) {
                 throw forbidden();
             }
@@ -160,10 +167,11 @@ class ConsentService {
                 .filter(Objects::nonNull)
                 .forEach(people::add);
         Map<String, MemberSummary> members = membersByKey(owned, people);
+        Set<UUID> leaving = users.pendingDeletion(people);
         Set<UUID> seen = new HashSet<>();
         already.forEach(row -> seen.add(row.id()));
         return open.stream()
-                .filter(row -> !seen.contains(row.id()) && mayStepIn(row, me, members))
+                .filter(row -> !seen.contains(row.id()) && mayStepIn(row, me, members, leaving))
                 .toList();
     }
 
@@ -177,7 +185,8 @@ class ConsentService {
         return members;
     }
 
-    private static boolean canRevoke(ConsentRepository.Row row, UUID me, Map<String, MemberSummary> members) {
+    private static boolean canRevoke(
+            ConsentRepository.Row row, UUID me, Map<String, MemberSummary> members, Set<UUID> leaving) {
         UUID workspaceId = row.workspaceId();
         if (!row.open() || workspaceId == null) {
             return false;
@@ -185,14 +194,16 @@ class ConsentService {
         if (me.equals(row.grantedBy())) {
             return isActiveGuardian(members.get(key(workspaceId, me)));
         }
-        return mayStepIn(row, me, members);
+        return mayStepIn(row, me, members, leaving);
     }
 
     /**
-     * Whether I may revoke in the granter's place: the granter has left the family, or their account is gone, and I am
+     * Whether I may revoke in the granter's place: the granter has left the family, their account is gone, or it is
+     * waiting out its deletion grace (it may never come back, and the youth should not stay on it meanwhile), and I am
      * an active Owner of it. The youth the consent is about never may.
      */
-    private static boolean mayStepIn(ConsentRepository.Row row, UUID me, Map<String, MemberSummary> members) {
+    private static boolean mayStepIn(
+            ConsentRepository.Row row, UUID me, Map<String, MemberSummary> members, Set<UUID> leaving) {
         UUID workspaceId = row.workspaceId();
         if (workspaceId == null || me.equals(row.userId()) || !isActiveOwner(members.get(key(workspaceId, me)))) {
             return false;
@@ -201,7 +212,7 @@ class ConsentService {
             return true;
         }
         MemberSummary granter = members.get(key(workspaceId, row.grantedBy()));
-        return granter == null || granter.status() != MembershipStatus.ACTIVE;
+        return granter == null || granter.status() != MembershipStatus.ACTIVE || leaving.contains(row.grantedBy());
     }
 
     private static boolean isActiveOwner(@Nullable MemberSummary member) {

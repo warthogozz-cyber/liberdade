@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
@@ -38,6 +39,15 @@ class JdbcUserDeletion implements UserDeletion {
                 .single()
                 .toInstant();
         return new Scheduled(requested.plus(GRACE), changed == 1);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lock(UUID userId) {
+        jdbc.sql("select id from users where id = :id for update")
+                .param("id", userId)
+                .query(UUID.class)
+                .list();
     }
 
     @Override

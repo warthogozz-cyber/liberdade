@@ -4,11 +4,13 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
+import br.com.liberdadefamilia.identity.UserDeletion;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -77,6 +79,9 @@ class MembersIT {
 
     @Autowired
     Memberships memberships;
+
+    @Autowired
+    UserDeletion deletion;
 
     @Autowired
     PlatformTransactionManager transactionManager;
@@ -296,6 +301,76 @@ class MembersIT {
         assertThat(statuses).containsExactlyInAnyOrder(204, 422);
         assertThat(codes).containsExactly("member.last-owner");
         assertThat(activeOwners(ws)).isOne();
+    }
+
+    /**
+     * Ana asks for her account to be deleted while the nightly purge erases Bia, who owns two of Ana's families. The
+     * request locks the Owners' rows in id order and the purge used to take Bia's rows in the order of the table, the
+     * opposite one here: the request holds the lower row and wants the higher, the purge the other way round, and
+     * Postgres aborts one of them. A transaction of the test holds the lower row so that both stop on it and the
+     * interleaving is forced, not hoped for. Fifty rounds, each with its own people.
+     */
+    @Test
+    void deletionRequestAndPurgeDoNotDeadlock() throws Exception {
+        ExecutorService pool =
+                Executors.newFixedThreadPool(2, Thread.ofPlatform().daemon().factory());
+        try {
+            for (int round = 0; round < 50; round++) {
+                UUID ana = users.create("Ana Teste", "ana" + round + "@example.com");
+                UUID bia = users.create("Bia Teste", "bia" + round + "@example.com");
+                UUID caio = users.create("Caio Teste", "caio" + round + "@example.com");
+                UUID lower = jdbc.sql("select uuidv7()").query(UUID.class).single();
+                UUID higher = jdbc.sql("select uuidv7()").query(UUID.class).single();
+                // The higher row goes in first, so a scan of the table meets it first.
+                for (UUID row : List.of(higher, lower)) {
+                    UUID ws = jdbc.sql("insert into workspaces (name) values ('Família Teste') returning id")
+                            .query(UUID.class)
+                            .single();
+                    workspaces.addMember(ws, ana, Role.OWNER);
+                    workspaces.addMember(ws, caio, Role.OWNER);
+                    jdbc.sql(
+                                    "insert into memberships (id, workspace_id, user_id, role) values (:id, :ws, :bia, 'OWNER')")
+                            .param("id", row)
+                            .param("ws", ws)
+                            .param("bia", bia)
+                            .update();
+                }
+                jdbc.sql("update users set deletion_requested_at = now() - interval '31 days' where id = :id")
+                        .param("id", bia)
+                        .update();
+
+                List<Future<?>> calls = new ArrayList<>();
+                new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                    jdbc.sql("select id from memberships where id = :id for update")
+                            .param("id", lower)
+                            .query(UUID.class)
+                            .list();
+                    calls.add(pool.submit(() -> mvc.post()
+                            .uri("/v1/me/deletion")
+                            .with(session(ana, 0))
+                            .with(CsrfSession.start(mvc, session(ana, 0)))
+                            .exchange()));
+                    awaitWaitingRequests(1);
+                    calls.add(pool.submit(() -> {
+                        new TransactionTemplate(transactionManager).executeWithoutResult(inner -> {
+                            assertThat(deletion.lockIfDue(bia, Instant.now())).isTrue();
+                            memberships.detachUser(bia);
+                            deletion.purge(bia);
+                        });
+                        return null;
+                    }));
+                    awaitWaitingRequests(2);
+                });
+
+                MvcTestResult request = (MvcTestResult) calls.get(0).get(TIMEOUT_SECONDS, SECONDS);
+                assertThat(request.getResponse().getStatus())
+                        .as("request in round %d", round)
+                        .isEqualTo(202);
+                calls.get(1).get(TIMEOUT_SECONDS, SECONDS);
+            }
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     @Test

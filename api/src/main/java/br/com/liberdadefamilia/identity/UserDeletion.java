@@ -17,6 +17,13 @@ public interface UserDeletion {
      */
     Scheduled schedule(UUID userId);
 
+    /**
+     * Locks the account's row until the transaction ends. The lock order of the app is the user's row first, then
+     * memberships by id: whoever is about to lock memberships on behalf of a person takes this first, as the purge does
+     * in {@link #lockIfDue}.
+     */
+    void lock(UUID userId);
+
     /** Takes the request back; true when one was pending, false when nothing happened. */
     boolean cancel(UUID userId);
 

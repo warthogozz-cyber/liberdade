@@ -37,6 +37,8 @@ class AccountDeletionService {
         if (user.deletionRequestedAt() != null) {
             return user.deletionScheduledFor();
         }
+        // Lock order: the user's row first, then the Owners' memberships (the purge takes them the same way).
+        deletion.lock(user.id());
         if (memberships.isSoleActiveOwnerOfLiveFamily(user.id())) {
             throw new PrivacyRejectedException(409, "account.sole-owner", SOLE_OWNER_DETAIL);
         }

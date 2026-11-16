@@ -17,8 +17,10 @@ import br.com.liberdadefamilia.workspace.Memberships;
 import br.com.liberdadefamilia.workspace.ModuleKey;
 import br.com.liberdadefamilia.workspace.Modules;
 import br.com.liberdadefamilia.workspace.Role;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -57,7 +59,13 @@ class ExportService {
             "data", "tipo", "valor", "moeda", "conta", "conta_destino", "categoria", "descricao", "quem", "criado_em");
 
     /** The download: its file name and the writer of its bytes. */
-    record Archive(String filename, StreamingResponseBody body) {}
+    /**
+     * The zip, written in full before the controller answers. It is not streamed: a body written from the async
+     * executor commits the response, and so saves the session, on a thread of its own while the request thread saves it
+     * again, and a JDBC session is not thread-safe (a ConcurrentModificationException, an HTTP 500, now and then). The
+     * data is in memory already.
+     */
+    record Archive(String filename, byte[] content) {}
 
     private record Family(UUID id, String name) {}
 
@@ -156,7 +164,7 @@ class ExportService {
         PersonalData data = readOnly.execute(status -> loadMine(userId));
         audit.record(new AuditEntry(null, userId, "data.exported", "USER", userId, Map.of("scope", "ME")));
         Instant now = clock.instant();
-        return new Archive("liberdade-meus-dados-" + today() + ".zip", out -> writeMine(out, data, now));
+        return new Archive("liberdade-meus-dados-" + today() + ".zip", bytes(out -> writeMine(out, data, now)));
     }
 
     /** Everything the family has. */
@@ -165,7 +173,17 @@ class ExportService {
         audit.record(new AuditEntry(
                 workspaceId, actorUserId, "data.exported", "WORKSPACE", workspaceId, Map.of("scope", "FAMILY")));
         Instant now = clock.instant();
-        return new Archive("liberdade-familia-" + today() + ".zip", out -> writeFamily(out, data, now));
+        return new Archive("liberdade-familia-" + today() + ".zip", bytes(out -> writeFamily(out, data, now)));
+    }
+
+    private static byte[] bytes(StreamingResponseBody writer) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try {
+            writer.writeTo(out);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return out.toByteArray();
     }
 
     private LocalDate today() {

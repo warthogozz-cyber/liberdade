@@ -499,6 +499,39 @@ class ConsentsIT {
     }
 
     @Test
+    void ownerRevokesWhenGranterPendingDeletion() {
+        Family family = familyWithYouth();
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        workspaces.addMember(family.ws, bia, Role.OWNER, "Bibi");
+        UUID leoMembership = workspaces.membershipOf(family.ws, family.leo);
+        UUID consent = consentId(family.ws);
+        jdbc.sql("update users set deletion_requested_at = now() where id = :id")
+                .param("id", family.ana)
+                .update();
+
+        MvcTestResult forBia = list(bia);
+        assertThat(forBia).bodyJson().extractingPath("$").asArray().hasSize(1);
+        assertThat(forBia).bodyJson().extractingPath("$[0].canRevoke").isEqualTo(true);
+        assertThat(revoke(bia, consent)).hasStatus(204);
+
+        assertThat(statusOf(leoMembership)).isEqualTo("REMOVED");
+        assertThat(consentRows(family.ws).getFirst()).containsEntry("revoked", true);
+    }
+
+    @Test
+    void ownerCannotRevokeOtherwise() {
+        Family family = familyWithYouth();
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        workspaces.addMember(family.ws, bia, Role.OWNER, "Bibi");
+
+        assertThat(list(bia)).bodyJson().extractingPath("$").asArray().isEmpty();
+        assertThat(revoke(bia, consentId(family.ws))).hasStatus(404);
+
+        assertThat(statusOf(workspaces.membershipOf(family.ws, family.leo))).isEqualTo("ACTIVE");
+        assertThat(consentRows(family.ws).getFirst()).containsEntry("revoked", false);
+    }
+
+    @Test
     void onlyAnOwnerStepsInForTheGranter() {
         Family family = familyWithYouth();
         UUID bia = users.create("Bia Teste", "bia@example.com");
