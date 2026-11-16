@@ -1,6 +1,5 @@
 package br.com.liberdadefamilia.workspace.internal;
 
-import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,7 +26,6 @@ import org.springframework.web.servlet.HandlerMapping;
  *   <li>a {@code {ws}} that is not a UUID: 404;
  *   <li>no ACTIVE membership in that family, or a family that asked for deletion: 404, so nobody learns whether it
  *       exists;
- *   <li>the YOUTH role, even where {@code allow} lists it, until parental consent exists (D13): 403;
  *   <li>a role that {@code allow} does not list: 403.
  * </ol>
  *
@@ -56,7 +54,7 @@ class WorkspaceGuardInterceptor implements HandlerInterceptor {
         WorkspaceMember member = workspaces
                 .activeMember(workspaceIdOf(request), currentUserId())
                 .orElseThrow(WorkspaceNotFoundException::new);
-        if (member.role() == Role.YOUTH || !Arrays.asList(scope.allow()).contains(member.role())) {
+        if (!Arrays.asList(scope.allow()).contains(member.role())) {
             throw new AccessDeniedException("Role not allowed on this route");
         }
         request.setAttribute(MEMBER_ATTRIBUTE, member);

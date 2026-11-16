@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.ledger.internal;
 import static br.com.liberdadefamilia.workspace.Role.ADULT;
 import static br.com.liberdadefamilia.workspace.Role.OWNER;
 import static br.com.liberdadefamilia.workspace.Role.VIEWER;
+import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
@@ -32,9 +33,9 @@ class AccountController {
     }
 
     @GetMapping("/v1/workspaces/{ws}/accounts")
-    @WorkspaceScoped(allow = {OWNER, ADULT, VIEWER})
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
     List<AccountView> listAccounts(WorkspaceMember member) {
-        return accounts.allWithBalances(member.workspaceId());
+        return accounts.allWithBalances(member.workspaceId(), accounts.scopeFor(member));
     }
 
     @PostMapping("/v1/workspaces/{ws}/accounts")

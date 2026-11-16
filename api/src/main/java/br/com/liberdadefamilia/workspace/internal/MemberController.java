@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.workspace.internal;
 import static br.com.liberdadefamilia.workspace.Role.ADULT;
 import static br.com.liberdadefamilia.workspace.Role.OWNER;
 import static br.com.liberdadefamilia.workspace.Role.VIEWER;
+import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 
 import br.com.liberdadefamilia.identity.RecentSignInCheck;
 import br.com.liberdadefamilia.identity.RequiresRecentSignIn;
@@ -34,7 +35,7 @@ class MemberController {
     }
 
     @GetMapping("/v1/workspaces/{ws}/members")
-    @WorkspaceScoped(allow = {OWNER, ADULT, VIEWER})
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
     List<MemberView> listMembers(WorkspaceMember member) {
         return service.list(member);
     }

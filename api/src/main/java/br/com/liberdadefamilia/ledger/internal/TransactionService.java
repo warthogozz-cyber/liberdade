@@ -58,24 +58,27 @@ class TransactionService {
         if (!request.id().equals(idempotencyKey) || request.id().version() != 7) {
             throw new LedgerRejectedException("transaction.invalid-id", "O identificador do lançamento é inválido.");
         }
+        AccountScope scope = accounts.scopeFor(member);
         UUID memberId = request.memberId() == null ? member.membershipId() : request.memberId();
-        Optional<StoredTransaction> stored = transactions.find(workspaceId, request.id());
+        Optional<StoredTransaction> stored = transactions.find(workspaceId, request.id(), scope);
         if (stored.isPresent()) {
-            return new Recorded(repeated(stored.get().view(), request, memberId), false);
+            return new Recorded(repeated(member, scope, stored.get(), request, memberId), false);
         }
 
-        checkAgainstFamily(member, Proposed.of(request, memberId), null);
+        checkAgainstFamily(member, scope, Proposed.of(request, memberId), null);
         Optional<TransactionView> created =
                 transactions.insertIfAbsent(workspaceId, member.membershipId(), memberId, request);
         if (created.isPresent()) {
             return new Recorded(created.get(), true);
         }
-        // The id was taken since the lookup: by the other tap of a double tap, or by another family.
+        // The id was taken since the lookup: by the other tap of a double tap, by another family, or by a transaction
+        // out of the scope, which answers as the other family's would.
         return new Recorded(
                 repeated(
+                        member,
+                        scope,
                         transactions
-                                .find(workspaceId, request.id())
-                                .map(StoredTransaction::view)
+                                .find(workspaceId, request.id(), scope)
                                 .orElseThrow(TransactionIdConflictException::new),
                         request,
                         memberId),
@@ -92,27 +95,36 @@ class TransactionService {
      */
     TransactionView update(WorkspaceMember member, UUID id, UpdateTransactionRequest request) {
         UUID workspaceId = member.workspaceId();
-        StoredTransaction stored = transactions.find(workspaceId, id).orElseThrow(TransactionService::notFound);
+        AccountScope scope = accounts.scopeFor(member);
+        UUID caller = member.membershipId();
+        StoredTransaction stored =
+                transactions.findOwn(workspaceId, id, scope, caller).orElseThrow(TransactionService::notFound);
         checkEditable(stored, request.version());
         UUID memberId = request.memberId() == null ? stored.view().memberId() : request.memberId();
-        checkAgainstFamily(member, Proposed.of(request, memberId), stored.view());
-        return transactions.update(workspaceId, id, memberId, request).orElseThrow(() -> {
-            // Someone else edited or deleted it between the checks and the update.
-            StoredTransaction now = transactions.find(workspaceId, id).orElseThrow(TransactionService::notFound);
-            checkEditable(now, request.version());
-            return versionConflict(now.view());
-        });
+        checkAgainstFamily(member, scope, Proposed.of(request, memberId), stored.view());
+        return transactions
+                .update(workspaceId, id, scope, caller, memberId, request)
+                .orElseThrow(() -> {
+                    // Someone else edited or deleted it between the checks and the update.
+                    StoredTransaction now = transactions
+                            .findOwn(workspaceId, id, scope, caller)
+                            .orElseThrow(TransactionService::notFound);
+                    checkEditable(now, request.version());
+                    return versionConflict(now.view());
+                });
     }
 
     /**
      * One transaction, as the list shows it.
      *
-     * @throws LedgerNotFoundException when the family has no such transaction, or it was purged
+     * @throws LedgerNotFoundException when the family has no such transaction, it was purged, or it is out of the
+     *     member's scope (deleted or not)
      * @throws LedgerConflictException when it was deleted
      */
     TransactionView get(WorkspaceMember member, UUID id) {
-        StoredTransaction stored =
-                transactions.find(member.workspaceId(), id).orElseThrow(TransactionService::notFound);
+        StoredTransaction stored = transactions
+                .find(member.workspaceId(), id, accounts.scopeFor(member))
+                .orElseThrow(TransactionService::notFound);
         if (stored.deleted()) {
             throw new LedgerConflictException("transaction.deleted", "Este lançamento foi excluído.");
         }
@@ -122,11 +134,14 @@ class TransactionService {
     /**
      * Deletes the transaction; it stays restorable until the nightly purge. Deleting it again changes nothing.
      *
-     * @throws LedgerNotFoundException when the family has no such transaction, or it was purged
+     * @throws LedgerNotFoundException when the family has no such transaction, it was purged, or the member may not
+     *     change it
      */
     void delete(WorkspaceMember member, UUID id) {
-        if (!transactions.softDelete(member.workspaceId(), id, clock.instant())
-                && transactions.find(member.workspaceId(), id).isEmpty()) {
+        AccountScope scope = accounts.scopeFor(member);
+        UUID caller = member.membershipId();
+        if (!transactions.softDelete(member.workspaceId(), id, scope, caller, clock.instant())
+                && transactions.findOwn(member.workspaceId(), id, scope, caller).isEmpty()) {
             throw notFound();
         }
     }
@@ -135,17 +150,23 @@ class TransactionService {
      * Brings a deleted transaction back, as it was. An active one comes back unchanged, so a repeated "Desfazer" is
      * harmless. Whether its account was archived since does not matter: restoring is not choosing it again.
      *
-     * @throws LedgerNotFoundException when the family has no such transaction, or it was purged
+     * @throws LedgerNotFoundException when the family has no such transaction, it was purged, or the member may not
+     *     change it
      */
     TransactionView restore(WorkspaceMember member, UUID id) {
+        AccountScope scope = accounts.scopeFor(member);
+        UUID caller = member.membershipId();
         return transactions
-                .restore(member.workspaceId(), id)
-                .or(() -> transactions.find(member.workspaceId(), id).map(StoredTransaction::view))
+                .restore(member.workspaceId(), id, scope, caller)
+                .or(() -> transactions
+                        .findOwn(member.workspaceId(), id, scope, caller)
+                        .map(StoredTransaction::view))
                 .orElseThrow(TransactionService::notFound);
     }
 
     /**
-     * The month's transactions, newest first, optionally of one category (with its subcategories) or one account.
+     * The month's transactions in the member's scope, newest first, optionally of one category (with its
+     * subcategories) or one account.
      *
      * @throws LedgerRejectedException when the month is out of range
      */
@@ -153,7 +174,12 @@ class TransactionService {
             WorkspaceMember member, YearMonth month, @Nullable UUID categoryId, @Nullable UUID accountId) {
         checkMonth(member, month);
         return transactions.between(
-                member.workspaceId(), month.atDay(1), month.plusMonths(1).atDay(1), categoryId, accountId);
+                member.workspaceId(),
+                month.atDay(1),
+                month.plusMonths(1).atDay(1),
+                categoryId,
+                accountId,
+                accounts.scopeFor(member));
     }
 
     /**
@@ -196,9 +222,11 @@ class TransactionService {
     /**
      * The rules a new or edited transaction must pass against the family's data, in order, the first failure deciding.
      * On an edit, {@code current} is the stored transaction: an account or category archived since it was chosen may
-     * stay where it is, but cannot be chosen anew (D10).
+     * stay where it is, but cannot be chosen anew (D10). An account out of the member's scope is as absent as one that
+     * does not exist, and is checked before who the transaction is for.
      */
-    private void checkAgainstFamily(WorkspaceMember member, Proposed proposed, @Nullable TransactionView current) {
+    private void checkAgainstFamily(
+            WorkspaceMember member, AccountScope scope, Proposed proposed, @Nullable TransactionView current) {
         if (!TransactionDateRange.contains(proposed.occurredOn(), today(member))) {
             throw new LedgerRejectedException(
                     "transaction.date-out-of-range", "Escolha uma data entre 2000 e o próximo ano.");
@@ -207,11 +235,11 @@ class TransactionService {
 
         UUID workspaceId = member.workspaceId();
         Currency accountCurrency =
-                usableAccount(workspaceId, proposed.accountId(), current == null ? null : current.accountId());
+                usableAccount(workspaceId, scope, proposed.accountId(), current == null ? null : current.accountId());
         UUID toAccountId = proposed.toAccountId();
         Currency destinationCurrency = toAccountId == null
                 ? accountCurrency
-                : usableAccount(workspaceId, toAccountId, current == null ? null : current.toAccountId());
+                : usableAccount(workspaceId, scope, toAccountId, current == null ? null : current.toAccountId());
         UUID categoryId = proposed.categoryId();
         if (categoryId != null) {
             UUID keptCategoryId = current == null ? null : current.categoryId();
@@ -234,7 +262,13 @@ class TransactionService {
         // The member the transaction already has may have left the family since; anyone else must be in it now.
         UUID memberId = proposed.memberId();
         boolean kept = current != null && memberId.equals(current.memberId());
-        if (!member.membershipId().equals(memberId) && !kept && !memberships.isActive(workspaceId, memberId)) {
+        boolean self = member.membershipId().equals(memberId);
+        // The youth records only for themselves (D13): an edit may keep who it already was for, nothing else.
+        if (scope.isRestricted() && !self && !kept) {
+            throw new LedgerRejectedException(
+                    "transaction.member-forbidden", "Você só pode lançar em seu próprio nome.");
+        }
+        if (!self && !kept && !memberships.isActive(workspaceId, memberId)) {
             throw new LedgerRejectedException("transaction.member-not-found", "Essa pessoa não faz parte da família.");
         }
     }
@@ -257,21 +291,35 @@ class TransactionService {
         }
     }
 
-    /** The account's currency, when it is one the transaction may use: active, or the one it already had. */
-    private Currency usableAccount(UUID workspaceId, UUID accountId, @Nullable UUID keptAccountId) {
-        return accounts.choice(workspaceId, accountId)
+    /**
+     * The account's currency, when it is one the transaction may use: in the scope, and active or the one it already
+     * had. An account out of the scope gets the same answer as one that does not exist.
+     */
+    private Currency usableAccount(UUID workspaceId, AccountScope scope, UUID accountId, @Nullable UUID keptAccountId) {
+        return accounts.choice(workspaceId, accountId, scope)
                 .filter(choice -> !choice.archived() || accountId.equals(keptAccountId))
                 .map(AccountRepository.AccountChoice::currency)
                 .orElseThrow(() -> new LedgerRejectedException(
                         "transaction.account-not-found", "Conta não encontrada nesta família."));
     }
 
-    /** The stored transaction, when the request repeats it; under the same id, any other content is a conflict. */
-    private static TransactionView repeated(TransactionView stored, CreateTransactionRequest request, UUID memberId) {
-        if (!sameContent(stored, request, memberId)) {
+    /**
+     * The stored transaction, when the request repeats it; under the same id, any other content is a conflict. Under a
+     * restricted scope, so is a transaction the member did not record: the youth may see it, but did not send it.
+     */
+    private static TransactionView repeated(
+            WorkspaceMember member,
+            AccountScope scope,
+            StoredTransaction stored,
+            CreateTransactionRequest request,
+            UUID memberId) {
+        if (scope.isRestricted() && !stored.createdBy().equals(member.membershipId())) {
             throw new TransactionIdConflictException();
         }
-        return stored;
+        if (!sameContent(stored.view(), request, memberId)) {
+            throw new TransactionIdConflictException();
+        }
+        return stored.view();
     }
 
     /**

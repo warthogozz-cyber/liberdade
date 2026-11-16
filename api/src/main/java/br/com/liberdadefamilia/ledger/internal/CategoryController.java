@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.ledger.internal;
 import static br.com.liberdadefamilia.workspace.Role.ADULT;
 import static br.com.liberdadefamilia.workspace.Role.OWNER;
 import static br.com.liberdadefamilia.workspace.Role.VIEWER;
+import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 
 import br.com.liberdadefamilia.ledger.domain.TransactionKind;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
@@ -29,22 +30,32 @@ class CategoryController {
     /** Today and the 89 days before it. */
     static final int USAGE_WINDOW_DAYS = 90;
 
+    private final AccountRepository accounts;
     private final CategoryRepository categories;
     private final CategoryService service;
     private final Clock clock;
 
-    CategoryController(CategoryRepository categories, CategoryService service, Clock clock) {
+    CategoryController(
+            AccountRepository accounts, CategoryRepository categories, CategoryService service, Clock clock) {
+        this.accounts = accounts;
         this.categories = categories;
         this.service = service;
         this.clock = clock;
     }
 
-    /** "Today" is the family's date, in its time zone, not the server's. */
+    /**
+     * "Today" is the family's date, in its time zone, not the server's. Every category is listed to every role; the
+     * order counts only the use in the member's scope.
+     */
     @GetMapping("/v1/workspaces/{ws}/categories")
-    @WorkspaceScoped(allow = {OWNER, ADULT, VIEWER})
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
     List<CategoryView> listCategories(@RequestParam Kind kind, WorkspaceMember member) {
         LocalDate today = LocalDate.now(clock.withZone(member.timezone()));
-        return categories.allByUse(member.workspaceId(), kind.transactionKind, today.minusDays(USAGE_WINDOW_DAYS - 1));
+        return categories.allByUse(
+                member.workspaceId(),
+                kind.transactionKind,
+                today.minusDays(USAGE_WINDOW_DAYS - 1),
+                accounts.scopeFor(member));
     }
 
     @PostMapping("/v1/workspaces/{ws}/categories")

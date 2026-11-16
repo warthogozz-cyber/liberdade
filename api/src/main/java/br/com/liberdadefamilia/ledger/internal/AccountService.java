@@ -45,7 +45,7 @@ class AccountService {
         }
         UUID id = nameTakenIfDuplicate(
                 () -> accounts.insert(workspaceId, request.name(), request.type(), request.initialBalance(), owner));
-        return view(workspaceId, id);
+        return view(member, id);
     }
 
     /**
@@ -56,7 +56,7 @@ class AccountService {
     @Transactional
     AccountView update(WorkspaceMember member, UUID accountId, UpdateAccountRequest request) {
         UUID workspaceId = member.workspaceId();
-        AccountChoice choice = find(workspaceId, accountId);
+        AccountChoice choice = find(member, accountId);
         Money balance = request.balance();
         for (Money money : new Money[] {request.initialBalance(), balance}) {
             if (money != null && !money.currency().equals(choice.currency())) {
@@ -68,7 +68,7 @@ class AccountService {
         if (balance != null) {
             accounts.setBalance(workspaceId, accountId, balance);
         }
-        return view(workspaceId, accountId);
+        return view(member, accountId);
     }
 
     /**
@@ -80,12 +80,12 @@ class AccountService {
     @Transactional
     AccountView setOwner(WorkspaceMember member, UUID accountId, @Nullable UUID ownerMembershipId) {
         UUID workspaceId = member.workspaceId();
-        find(workspaceId, accountId);
+        find(member, accountId);
         if (ownerMembershipId != null && !memberships.isActive(workspaceId, ownerMembershipId)) {
             throw new LedgerRejectedException("account.owner-not-found", "Essa pessoa não faz parte da família.");
         }
         accounts.setOwner(workspaceId, accountId, ownerMembershipId);
-        return view(workspaceId, accountId);
+        return view(member, accountId);
     }
 
     /**
@@ -97,14 +97,14 @@ class AccountService {
     @Transactional
     AccountView archive(WorkspaceMember member, UUID accountId) {
         UUID workspaceId = member.workspaceId();
-        if (!find(workspaceId, accountId).archived()) {
+        if (!find(member, accountId).archived()) {
             if (accounts.countActive(workspaceId) <= 1) {
                 throw new LedgerRejectedException(
                         "account.last-active", "A família precisa de pelo menos uma conta ativa.");
             }
             accounts.archive(workspaceId, accountId, clock.instant());
         }
-        return view(workspaceId, accountId);
+        return view(member, accountId);
     }
 
     /**
@@ -116,18 +116,21 @@ class AccountService {
     @Transactional
     AccountView unarchive(WorkspaceMember member, UUID accountId) {
         UUID workspaceId = member.workspaceId();
-        if (find(workspaceId, accountId).archived()) {
+        if (find(member, accountId).archived()) {
             nameTakenIfDuplicate(() -> accounts.unarchive(workspaceId, accountId));
         }
-        return view(workspaceId, accountId);
+        return view(member, accountId);
     }
 
-    private AccountChoice find(UUID workspaceId, UUID accountId) {
-        return accounts.choice(workspaceId, accountId).orElseThrow(AccountService::notFound);
+    /** The account, read through the member's scope: only adults reach these routes, and theirs is every account. */
+    private AccountChoice find(WorkspaceMember member, UUID accountId) {
+        return accounts.choice(member.workspaceId(), accountId, accounts.scopeFor(member))
+                .orElseThrow(AccountService::notFound);
     }
 
-    private AccountView view(UUID workspaceId, UUID accountId) {
-        return accounts.findWithBalance(workspaceId, accountId).orElseThrow(AccountService::notFound);
+    private AccountView view(WorkspaceMember member, UUID accountId) {
+        return accounts.findWithBalance(member.workspaceId(), accountId, accounts.scopeFor(member))
+                .orElseThrow(AccountService::notFound);
     }
 
     private static LedgerNotFoundException notFound() {

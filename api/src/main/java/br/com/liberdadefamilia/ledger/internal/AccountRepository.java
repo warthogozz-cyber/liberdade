@@ -1,6 +1,8 @@
 package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.workspace.Role;
+import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -10,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -40,7 +43,8 @@ class AccountRepository {
                   and (t.account_id = a.id or t.to_account_id = a.id)
                   and t.deleted_at is null
             where a.workspace_id = :workspaceId
-            """.formatted(MOVEMENT);
+              and %s
+            """.formatted(MOVEMENT, AccountScope.sqlIncludes("a.id"));
 
     private final JdbcClient jdbc;
 
@@ -50,6 +54,25 @@ class AccountRepository {
 
     /** What a new transaction needs to know about an account: its currency, and whether it is archived. */
     record AccountChoice(Currency currency, boolean archived) {}
+
+    /**
+     * The accounts the member may see and record in (D13): for the youth, the accounts whose owner is their membership,
+     * archived ones included, read from the database on every request; for every other role, {@link AccountScope#all()}.
+     */
+    AccountScope scopeFor(WorkspaceMember member) {
+        if (member.role() != Role.YOUTH) {
+            return AccountScope.all();
+        }
+        return new AccountScope(Set.copyOf(jdbc.sql("""
+                        select id
+                        from accounts
+                        where workspace_id = :workspaceId
+                          and owner_membership_id = :membershipId""")
+                .param("workspaceId", member.workspaceId())
+                .param("membershipId", member.membershipId())
+                .query(UUID.class)
+                .list()));
+    }
 
     UUID insert(
             UUID workspaceId, String name, AccountType type, Money initialBalance, @Nullable UUID ownerMembershipId) {
@@ -100,48 +123,67 @@ class AccountRepository {
                 .optional();
     }
 
-    /** Every account of the family: the active ones first, then the archived, each group by name and id. */
-    List<AccountView> allWithBalances(UUID workspaceId) {
+    /**
+     * Every account of the family in the scope: the active ones first, then the archived, each group by name and id.
+     * The balance counts every transaction of the account, whoever recorded it.
+     */
+    List<AccountView> allWithBalances(UUID workspaceId, AccountScope scope) {
         return jdbc.sql(SELECT_WITH_BALANCE + """
                         group by a.id
                         order by (a.archived_at is not null), a.name, a.id""")
                 .param("workspaceId", workspaceId)
+                .param("scopeIds", scope.sqlArray())
                 .query(AccountRepository::view)
                 .list();
     }
 
-    /** The initial balance of each active account, by id; what the family has is this plus what the flows moved. */
-    Map<UUID, Money> activeInitialBalances(UUID workspaceId) {
+    /**
+     * The initial balance of each active account in the scope, by id; what the member sees the family have is this plus
+     * what the flows moved.
+     */
+    Map<UUID, Money> activeInitialBalances(UUID workspaceId, AccountScope scope) {
         Map<UUID, Money> balances = new HashMap<>();
         jdbc.sql("""
                         select id, currency, initial_balance
                         from accounts
                         where workspace_id = :workspaceId
-                          and archived_at is null""").param("workspaceId", workspaceId).query(rs -> {
-            Currency currency = Currency.getInstance(rs.getString("currency"));
-            balances.put(rs.getObject("id", UUID.class), Money.of(rs.getBigDecimal("initial_balance"), currency));
-        });
+                          and archived_at is null
+                          and """ + AccountScope.sqlIncludes("id"))
+                .param("workspaceId", workspaceId)
+                .param("scopeIds", scope.sqlArray())
+                .query(rs -> {
+                    Currency currency = Currency.getInstance(rs.getString("currency"));
+                    balances.put(
+                            rs.getObject("id", UUID.class), Money.of(rs.getBigDecimal("initial_balance"), currency));
+                });
         return balances;
     }
 
-    Optional<AccountView> findWithBalance(UUID workspaceId, UUID accountId) {
+    /** The account with its balance, when it is in this family and in the scope. */
+    Optional<AccountView> findWithBalance(UUID workspaceId, UUID accountId, AccountScope scope) {
         return jdbc.sql(SELECT_WITH_BALANCE + """
                           and a.id = :accountId
                         group by a.id""")
                 .param("workspaceId", workspaceId)
+                .param("scopeIds", scope.sqlArray())
                 .param("accountId", accountId)
                 .query(AccountRepository::view)
                 .optional();
     }
 
-    /** The currency and archived state of an account of this family. */
-    Optional<AccountChoice> choice(UUID workspaceId, UUID accountId) {
+    /**
+     * The currency and archived state of an account of this family, when it is in the scope: an account out of the
+     * scope is as absent as one that does not exist.
+     */
+    Optional<AccountChoice> choice(UUID workspaceId, UUID accountId, AccountScope scope) {
         return jdbc.sql("""
                         select currency, archived_at is not null as archived
                         from accounts
                         where workspace_id = :workspaceId
-                          and id = :accountId""")
+                          and id = :accountId
+                          and """ + AccountScope.sqlIncludes("id"))
                 .param("workspaceId", workspaceId)
+                .param("scopeIds", scope.sqlArray())
                 .param("accountId", accountId)
                 .query((rs, row) ->
                         new AccountChoice(Currency.getInstance(rs.getString("currency")), rs.getBoolean("archived")))
