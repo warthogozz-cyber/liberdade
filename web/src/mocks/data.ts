@@ -34,6 +34,8 @@ export interface MockState {
   members: Record<string, Schemas['MemberView'][]>
   /** Every link made, whatever became of it, in creation order. */
   invitations: MockInvitation[]
+  /** The modules each family switched on, by workspace id. A module with no entry is off. */
+  modules: Record<string, Partial<Record<Schemas['ModuleView']['key'], boolean>>>
 }
 
 // The seed of LedgerSeeder.java: same emojis, names and order.
@@ -78,6 +80,7 @@ function initialState(): MockState {
     deletedTransactionIds: new Set(),
     members: {},
     invitations: [],
+    modules: {},
   }
 }
 

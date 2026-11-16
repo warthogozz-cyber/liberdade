@@ -995,6 +995,97 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/modules": {
+      "get": {
+        "operationId": "listModules",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModuleView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "module-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/modules/{key}": {
+      "put": {
+        "operationId": "setModule",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "planning",
+                "indicators",
+                "gamification",
+                "ventures"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateModuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "module-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/transactions": {
       "get": {
         "operationId": "listTransactions",
@@ -1863,6 +1954,23 @@
           }
         }
       },
+      "ModuleView": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string",
+            "enum": [
+              "planning",
+              "indicators",
+              "gamification",
+              "ventures"
+            ]
+          }
+        }
+      },
       "Money": {
         "required": [
           "amount",
@@ -2076,6 +2184,17 @@
               "YOUTH",
               "VIEWER"
             ]
+          }
+        }
+      },
+      "UpdateModuleRequest": {
+        "required": [
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
           }
         }
       },

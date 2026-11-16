@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.workspace.internal;
 
+import br.com.liberdadefamilia.workspace.Modules;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import io.swagger.v3.oas.models.media.UUIDSchema;
@@ -26,9 +27,11 @@ class WorkspaceWebConfig implements WebMvcConfigurer {
     }
 
     private final WorkspaceRepository workspaces;
+    private final Modules modules;
 
-    WorkspaceWebConfig(WorkspaceRepository workspaces) {
+    WorkspaceWebConfig(WorkspaceRepository workspaces, Modules modules) {
         this.workspaces = workspaces;
+        this.modules = modules;
     }
 
     /**
@@ -57,8 +60,8 @@ class WorkspaceWebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         // A trailing "/**" also matches no segment at all, so /v1/workspaces/{ws} itself is guarded too.
-        registry.addInterceptor(
-                        new WorkspaceGuardInterceptor(workspaces, SecurityContextHolder.getContextHolderStrategy()))
+        registry.addInterceptor(new WorkspaceGuardInterceptor(
+                        workspaces, modules, SecurityContextHolder.getContextHolderStrategy()))
                 .addPathPatterns("/v1/workspaces/*/**");
     }
 

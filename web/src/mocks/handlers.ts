@@ -58,6 +58,19 @@ const invitationNotFound = () => problem(404, 'invitation.not-found', 'Convite n
 const invitationGoneProblem = () =>
   problem(410, 'invitation.gone', 'Este convite já foi usado, cancelado ou venceu.')
 
+const MODULE_KEYS: Schemas['ModuleView']['key'][] = [
+  'planning',
+  'indicators',
+  'gamification',
+  'ventures',
+]
+
+/** The four modules in the API's order, off unless the family switched them on. */
+function moduleViews(workspaceId: string): Schemas['ModuleView'][] {
+  const on = mockState.modules[workspaceId] ?? {}
+  return MODULE_KEYS.map((key) => ({ key, enabled: on[key] === true }))
+}
+
 /** A link is gone once used, cancelled or past its date. */
 function invitationGone(invitation: MockInvitation): boolean {
   return invitation.status !== 'PENDING' || Date.parse(invitation.view.expiresAt) <= Date.now()
@@ -822,6 +835,26 @@ export const handlers = [
     // A link already used or cancelled stays as it is.
     if (invitation.status === 'PENDING') invitation.status = 'REVOKED'
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get(url('/v1/workspaces/:ws/modules'), ({ params }) => {
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    return HttpResponse.json(moduleViews(workspace.id))
+  }),
+
+  http.put(url('/v1/workspaces/:ws/modules/:key'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER' && workspace.role !== 'ADULT') return roleDenied()
+    const key = MODULE_KEYS.find((candidate) => candidate === params.key)
+    if (!key) return problem(404, 'module.not-found', 'Módulo não encontrado.')
+    const body = (await readJson(request)) as { enabled?: unknown } | undefined
+    if (typeof body !== 'object' || body === null) return malformed()
+    if (typeof body.enabled !== 'boolean') return invalid([{ field: 'enabled', code: 'NotNull' }])
+    mockState.modules[workspace.id] = { ...mockState.modules[workspace.id], [key]: body.enabled }
+    return HttpResponse.json({ key, enabled: body.enabled })
   }),
 
   http.post(url('/v1/invitations/preview'), async ({ request }) => {

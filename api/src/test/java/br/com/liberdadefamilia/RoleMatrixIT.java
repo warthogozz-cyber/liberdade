@@ -108,7 +108,7 @@ class RoleMatrixIT {
 
     // --- the matrix ---
 
-    /** Every row. Tasks 7, 10 and 11 add their groups here (modules, export, deletion). */
+    /** Every row. Tasks 10 and 11 add their groups here (export, deletion). */
     static Stream<Row> rows() {
         return Stream.of(
                         accountRows(),
@@ -117,7 +117,8 @@ class RoleMatrixIT {
                         transactionRows(),
                         memberRows(),
                         invitationRows(),
-                        workspaceRows())
+                        workspaceRows(),
+                        moduleRows())
                 .flatMap(group -> group);
     }
 
@@ -338,6 +339,20 @@ class RoleMatrixIT {
 
     static Stream<Row> workspaceRows() {
         return ownerOnly("PATCH " + W, W, "{\"name\":\"Família Nova\"}");
+    }
+
+    static Stream<Row> moduleRows() {
+        return Stream.of(
+                        each(
+                                "GET " + W + "/modules",
+                                W + "/modules",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        ownerAndAdult("PUT " + W + "/modules/{key}", W + "/modules/planning", "{\"enabled\":true}"))
+                .flatMap(group -> group);
     }
 
     // --- row builders ---
@@ -605,7 +620,9 @@ class RoleMatrixIT {
                                 'transactions', (select json_agg(t order by t.id) from transactions t
                                                  where t.workspace_id = :ws),
                                 'invitations', (select json_agg(i order by i.id) from invitations i
-                                                where i.workspace_id = :ws))::text""").param("ws", ws).query(String.class).single();
+                                                where i.workspace_id = :ws),
+                                'modules', (select json_agg(x order by x.module_key) from workspace_modules x
+                                            where x.workspace_id = :ws))::text""").param("ws", ws).query(String.class).single();
         }
     }
 

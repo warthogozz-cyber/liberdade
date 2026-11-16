@@ -356,6 +356,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listModules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/modules/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setModule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/transactions": {
         parameters: {
             query?: never;
@@ -583,6 +615,11 @@ export interface components {
             status: "ACTIVE" | "REMOVED";
             you: boolean;
         };
+        ModuleView: {
+            enabled: boolean;
+            /** @enum {string} */
+            key: "planning" | "indicators" | "gamification" | "ventures";
+        };
         Money: {
             /** @example 12.34 */
             amount: string;
@@ -642,6 +679,9 @@ export interface components {
             parentalConsent?: boolean | null;
             /** @enum {string|null} */
             role?: "OWNER" | "ADULT" | "YOUTH" | "VIEWER" | null;
+        };
+        UpdateModuleRequest: {
+            enabled: boolean;
         };
         UpdateTransactionRequest: {
             /** Format: uuid */
@@ -1308,6 +1348,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvitationView"];
+                };
+            };
+        };
+    };
+    listModules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleView"][];
+                };
+            };
+        };
+    };
+    setModule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                key: "planning" | "indicators" | "gamification" | "ventures";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateModuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleView"];
                 };
             };
         };
