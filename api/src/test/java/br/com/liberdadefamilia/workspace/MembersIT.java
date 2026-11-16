@@ -454,10 +454,15 @@ class MembersIT {
                 .count();
     }
 
-    /** Waits until that many requests are stopped on a database lock. */
+    /**
+     * Waits until that many requests are stopped on a database lock. The caller holds the lock in its own
+     * transaction, and Postgres caches pg_stat_activity until that transaction ends, so each poll clears the
+     * snapshot first.
+     */
     private void awaitWaitingRequests(int expected) {
         long deadline = System.nanoTime() + SECONDS.toNanos(TIMEOUT_SECONDS);
         while (System.nanoTime() < deadline) {
+            jdbc.sql("select pg_stat_clear_snapshot()").query(rs -> {});
             Long waiting = jdbc.sql("""
                             select count(*) from pg_stat_activity
                             where datname = current_database() and wait_event_type = 'Lock'""").query(Long.class).single();
