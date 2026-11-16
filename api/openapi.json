@@ -1057,17 +1057,63 @@
           }
         }
       },
+      "DashboardCategory": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "current": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "DashboardDay": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "day": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
       "DashboardView": {
         "type": "object",
         "properties": {
           "balance": {
             "$ref": "#/components/schemas/Money"
           },
+          "byCategory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardCategory"
+            }
+          },
+          "dailyBalance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardDay"
+            }
+          },
           "expenses": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "income": {
             "$ref": "#/components/schemas/Money"
           },
           "month": {
             "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/Money"
           }
         }
       },

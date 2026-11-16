@@ -12,8 +12,12 @@ const ws = 'ws1'
 function dashboard(month: string, expenses: string, balance: string): DashboardView {
   return {
     month,
+    income: { amount: '0.00', currency: 'BRL' },
     expenses: { amount: expenses, currency: 'BRL' },
+    result: { amount: '0.00', currency: 'BRL' },
     balance: { amount: balance, currency: 'BRL' },
+    byCategory: [],
+    dailyBalance: [],
   }
 }
 

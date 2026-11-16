@@ -144,11 +144,24 @@ describe('family hooks', () => {
     expect(result.current.transactions.data).toMatchObject([
       { id: '0192f3a4-5b6c-7d8e-9f01-23456789abcd', description: null },
     ])
-    expect(result.current.dashboard.data).toEqual({
+    expect(result.current.dashboard.data).toMatchObject({
       month: '2026-11',
+      income: { amount: '0.00', currency: 'BRL' },
       expenses: { amount: '12.50', currency: 'BRL' },
+      result: { amount: '-12.50', currency: 'BRL' },
       balance: { amount: '-12.50', currency: 'BRL' },
+      byCategory: [
+        {
+          categoryId: mockState.categories[0].id,
+          current: { amount: '12.50', currency: 'BRL' },
+          previous: { amount: '0.00', currency: 'BRL' },
+        },
+      ],
     })
+    const daily = result.current.dashboard.data?.dailyBalance ?? []
+    expect(daily).toHaveLength(30)
+    expect(daily[1].balance.amount).toBe('0.00')
+    expect(daily[2].balance.amount).toBe('-12.50')
   })
 })
 

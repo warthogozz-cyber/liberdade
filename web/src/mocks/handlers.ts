@@ -292,6 +292,96 @@ function lastDay(workspace: MeWorkspace): string {
   return new Date(today + DAYS_AHEAD * DAY).toISOString().slice(0, 10)
 }
 
+/** The panel shows the biggest six categories and gathers the rest in "Outras" (D8). */
+const CATEGORY_LIMIT = 6
+
+/** A category's top-level id: a subcategory counts for its parent (D9). */
+function topCategoryId(categoryId: string): string {
+  const category = mockState.categories.find((each) => each.id === categoryId)
+  return category?.parentId ?? categoryId
+}
+
+/** The month's spending by top-level category, this month and last, ranked as the API ranks it. */
+function categoriesFor(month: string, currency: string) {
+  const [year, number] = month.split('-').map(Number)
+  const previousMonth = new Date(Date.UTC(year, number - 2, 1)).toISOString().slice(0, 7)
+  const totals = new Map<string, { current: bigint; previous: bigint }>()
+  for (const transaction of activeTransactions()) {
+    if (transaction.kind !== 'EXPENSE' || transaction.categoryId === null) continue
+    const current = transaction.occurredOn.startsWith(`${month}-`)
+    if (!current && !transaction.occurredOn.startsWith(`${previousMonth}-`)) continue
+    const id = topCategoryId(transaction.categoryId)
+    const total = totals.get(id) ?? { current: 0n, previous: 0n }
+    const cents = parseCents(transaction.amount.amount)
+    if (current) total.current += cents
+    else total.previous += cents
+    totals.set(id, total)
+  }
+  const ranked = [...totals.entries()]
+    .filter(([, total]) => total.current !== 0n || total.previous !== 0n)
+    .sort(([idA, a], [idB, b]) => {
+      if (a.current !== b.current) return a.current > b.current ? -1 : 1
+      if (a.previous !== b.previous) return a.previous > b.previous ? -1 : 1
+      return idA.localeCompare(idB)
+    })
+  const line = (categoryId: string | null, total: { current: bigint; previous: bigint }) => ({
+    categoryId,
+    current: money(total.current, currency),
+    previous: money(total.previous, currency),
+  })
+  const lines = ranked.slice(0, CATEGORY_LIMIT).map(([id, total]) => line(id, total))
+  const rest = ranked.slice(CATEGORY_LIMIT)
+  if (rest.length > 0) {
+    lines.push(
+      line(null, {
+        current: rest.reduce((sum, [, total]) => sum + total.current, 0n),
+        previous: rest.reduce((sum, [, total]) => sum + total.previous, 0n),
+      }),
+    )
+  }
+  return lines
+}
+
+/** The month at a glance, computed as the API does: the balance of the active accounts at each day's end. */
+function dashboardFor(month: string, currency: string) {
+  const [year, number] = month.split('-').map(Number)
+  const days = new Date(Date.UTC(year, number, 0)).getUTCDate()
+  const transactions = activeTransactions().filter(
+    (transaction) => transaction.occurredOn <= `${month}-${String(days).padStart(2, '0')}`,
+  )
+  const active = mockState.accounts.filter((account) => account.archivedAt === null)
+  let income = 0n
+  let expenses = 0n
+  const moved = new Array<bigint>(days).fill(0n)
+  let balance = active.reduce((sum, account) => sum + parseCents(account.initialBalance.amount), 0n)
+  for (const transaction of transactions) {
+    const effect = active.reduce((sum, account) => sum + signedCents(transaction, account.id), 0n)
+    if (transaction.occurredOn < `${month}-01`) {
+      balance += effect
+      continue
+    }
+    moved[Number(transaction.occurredOn.slice(8, 10)) - 1] += effect
+    if (transaction.kind === 'INCOME') income += parseCents(transaction.amount.amount)
+    if (transaction.kind === 'EXPENSE') expenses += parseCents(transaction.amount.amount)
+  }
+  const dailyBalance = moved.map((effect, index) => {
+    balance += effect
+    return {
+      day: `${month}-${String(index + 1).padStart(2, '0')}`,
+      balance: money(balance, currency),
+    }
+  })
+  return {
+    month,
+    income: money(income, currency),
+    expenses: money(expenses, currency),
+    result: money(income - expenses, currency),
+    balance: money(balance, currency),
+    byCategory: categoriesFor(month, currency),
+    dailyBalance,
+  }
+}
+
 /** The list and the dashboard show January 2000 up to the month of the last day; others are a 422. */
 function monthOutOfRange(workspace: MeWorkspace, month: string): Response | undefined {
   if (month < MIN_DATE.slice(0, 7) || month > lastDay(workspace).slice(0, 7)) {
@@ -978,19 +1068,6 @@ export const handlers = [
     if (!MONTH.test(month)) return malformed()
     const outOfRange = monthOutOfRange(workspace, month)
     if (outOfRange) return outOfRange
-    const expenses = activeTransactions()
-      .filter(
-        (transaction) =>
-          transaction.kind === 'EXPENSE' && transaction.occurredOn.startsWith(`${month}-`),
-      )
-      .reduce((sum, transaction) => sum + parseCents(transaction.amount.amount), 0n)
-    const balance = mockState.accounts
-      .filter((account) => account.archivedAt === null)
-      .reduce((sum, account) => sum + balanceCents(account), 0n)
-    return HttpResponse.json({
-      month,
-      expenses: money(expenses, workspace.currency),
-      balance: money(balance, workspace.currency),
-    })
+    return HttpResponse.json(dashboardFor(month, workspace.currency))
   }),
 ]

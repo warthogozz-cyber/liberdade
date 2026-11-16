@@ -51,6 +51,9 @@ class DashboardIT {
     private UUID membershipId;
     private UUID mercadoId;
 
+    private static final String MONTH = "2026-11";
+    private static final LocalDate DAY = LocalDate.of(2026, 11, 5);
+
     @BeforeEach
     void family() {
         userId = users.create("Ana Teste", "ana@example.com");
@@ -69,11 +72,11 @@ class DashboardIT {
         var december = dashboard(userId, "2026-12");
 
         assertThat(november).hasStatusOk().hasContentType(MediaType.APPLICATION_JSON);
-        assertThat(november).bodyJson().isStrictlyEqualTo("""
+        assertThat(november).bodyJson().isLenientlyEqualTo("""
                 {"month":"2026-11",
                  "expenses":{"amount":"10.00","currency":"BRL"},
-                 "balance":{"amount":"-30.00","currency":"BRL"}}""");
-        assertThat(december).bodyJson().isStrictlyEqualTo("""
+                 "balance":{"amount":"-10.00","currency":"BRL"}}""");
+        assertThat(december).bodyJson().isLenientlyEqualTo("""
                 {"month":"2026-12",
                  "expenses":{"amount":"20.00","currency":"BRL"},
                  "balance":{"amount":"-30.00","currency":"BRL"}}""");
@@ -86,9 +89,11 @@ class DashboardIT {
 
         var result = dashboard(userId, "2026-11");
 
-        assertThat(result).bodyJson().isStrictlyEqualTo("""
+        assertThat(result).bodyJson().isLenientlyEqualTo("""
                 {"month":"2026-11",
+                 "income":{"amount":"100.00","currency":"BRL"},
                  "expenses":{"amount":"30.00","currency":"BRL"},
+                 "result":{"amount":"70.00","currency":"BRL"},
                  "balance":{"amount":"70.00","currency":"BRL"}}""");
     }
 
@@ -97,10 +102,13 @@ class DashboardIT {
         var result = dashboard(userId, "2026-11");
 
         assertThat(result).hasStatusOk();
-        assertThat(result).bodyJson().isStrictlyEqualTo("""
+        assertThat(result).bodyJson().isLenientlyEqualTo("""
                 {"month":"2026-11",
+                 "income":{"amount":"0.00","currency":"BRL"},
                  "expenses":{"amount":"0.00","currency":"BRL"},
-                 "balance":{"amount":"0.00","currency":"BRL"}}""");
+                 "result":{"amount":"0.00","currency":"BRL"},
+                 "balance":{"amount":"0.00","currency":"BRL"},
+                 "byCategory":[]}""");
     }
 
     @Test
@@ -177,10 +185,11 @@ class DashboardIT {
 
         var dashboard = dashboard(userId, "2026-11");
 
-        assertThat(dashboard).bodyJson().isStrictlyEqualTo("""
+        assertThat(dashboard).bodyJson().isLenientlyEqualTo("""
                 {"month":"2026-11",
                  "expenses":{"amount":"10.00","currency":"BRL"},
                  "balance":{"amount":"-10.00","currency":"BRL"}}""");
+        assertThat(dashboard).bodyJson().extractingPath("$.byCategory").asList().hasSize(1);
     }
 
     /** A transfer leaves its account and enters the other one; it is not an expense. */
@@ -208,6 +217,192 @@ class DashboardIT {
                  {"name":"Carteira","balance":{"amount":"-5.00","currency":"BRL"}}]""");
         assertThat(dashboard).bodyJson().extractingPath("$.expenses.amount").isEqualTo("0.00");
         assertThat(dashboard).bodyJson().extractingPath("$.balance.amount").isEqualTo("0.00");
+    }
+
+    /** PRD section 7.1: 1000 in the checking account, 5000 in, 1234.56 out and 500 moved to savings. */
+    @Test
+    void prdExampleThroughTheApi() {
+        UUID checking = account("Corrente", "CHECKING", "BRL", "1000.00", false);
+        UUID savings = account("Poupança", "SAVINGS", "BRL", "0.00", false);
+        postTransaction("INCOME", checking, null, ledger.categoryOf(workspaceId, "INCOME", "Salário"), "5000.00", DAY);
+        postTransaction("EXPENSE", checking, null, mercadoId, "1234.56", DAY);
+        postTransaction("TRANSFER", checking, savings, null, "500.00", DAY);
+
+        var dashboard = dashboard(userId, MONTH);
+        var accounts = accounts(userId);
+
+        assertThat(dashboard).hasStatusOk();
+        assertThat(dashboard).bodyJson().isLenientlyEqualTo("""
+                {"month":"2026-11",
+                 "income":{"amount":"5000.00","currency":"BRL"},
+                 "expenses":{"amount":"1234.56","currency":"BRL"},
+                 "result":{"amount":"3765.44","currency":"BRL"},
+                 "balance":{"amount":"4765.44","currency":"BRL"},
+                 "byCategory":[{"categoryId":"%s",
+                                "current":{"amount":"1234.56","currency":"BRL"},
+                                "previous":{"amount":"0.00","currency":"BRL"}}]}""".formatted(mercadoId));
+        assertThat(dashboard).bodyJson().extractingPath("$.byCategory").asList().hasSize(1);
+        assertThat(dashboard)
+                .bodyJson()
+                .extractingPath("$.dailyBalance[29].balance.amount")
+                .isEqualTo("4765.44");
+        assertThat(dashboard)
+                .bodyJson()
+                .extractingPath("$.dailyBalance[3].balance.amount")
+                .isEqualTo("1000.00");
+        assertThat(accounts).bodyJson().isLenientlyEqualTo("""
+                [{"name":"Carteira","balance":{"amount":"0.00","currency":"BRL"}},
+                 {"name":"Corrente","balance":{"amount":"4265.44","currency":"BRL"}},
+                 {"name":"Poupança","balance":{"amount":"500.00","currency":"BRL"}}]""");
+    }
+
+    /** Archiving an account takes its balance out of the family's; what it spent stays in the month's expenses. */
+    @Test
+    void archivedAccountLeavesBalance() {
+        UUID bank = account("Banco", "CHECKING", "BRL", "250.00", false);
+        postTransaction("EXPENSE", bank, null, mercadoId, "50.00", DAY);
+        assertThat(dashboard(userId, MONTH))
+                .bodyJson()
+                .extractingPath("$.balance.amount")
+                .isEqualTo("200.00");
+
+        jdbc.sql("update accounts set archived_at = now() where id = :id")
+                .param("id", bank)
+                .update();
+        var after = dashboard(userId, MONTH);
+
+        assertThat(after).bodyJson().extractingPath("$.balance.amount").isEqualTo("0.00");
+        assertThat(after).bodyJson().extractingPath("$.expenses.amount").isEqualTo("50.00");
+    }
+
+    @Test
+    void pastMonthBalance() {
+        ledger.expense(workspaceId, membershipId, mercadoId, "30.00", DAY);
+
+        var october = dashboard(userId, "2026-10");
+
+        assertThat(october).bodyJson().extractingPath("$.balance.amount").isEqualTo("0.00");
+        assertThat(october).bodyJson().extractingPath("$.expenses.amount").isEqualTo("0.00");
+        assertThat(dashboard(userId, MONTH))
+                .bodyJson()
+                .extractingPath("$.balance.amount")
+                .isEqualTo("-30.00");
+    }
+
+    @Test
+    void futureFlowsStayOut() {
+        ledger.expense(workspaceId, membershipId, mercadoId, "30.00", LocalDate.of(2026, 12, 5));
+
+        var result = dashboard(userId, MONTH);
+
+        assertThat(result).bodyJson().extractingPath("$.balance.amount").isEqualTo("0.00");
+        assertThat(result).bodyJson().extractingPath("$.expenses.amount").isEqualTo("0.00");
+    }
+
+    @Test
+    void previousMonthInByCategory() {
+        UUID lazer = ledger.categoryOf(workspaceId, "EXPENSE", "Lazer");
+        ledger.expense(workspaceId, membershipId, lazer, "80.00", LocalDate.of(2026, 10, 15));
+        ledger.expense(workspaceId, membershipId, lazer, "20.00", DAY);
+
+        var result = dashboard(userId, MONTH);
+
+        assertThat(result).bodyJson().extractingPath("$.byCategory").asList().hasSize(1);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.byCategory[0].categoryId")
+                .isEqualTo(lazer.toString());
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.byCategory[0].current.amount")
+                .isEqualTo("20.00");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.byCategory[0].previous.amount")
+                .isEqualTo("80.00");
+    }
+
+    @Test
+    void groupsBeyondSix() {
+        List<UUID> categories = jdbc.sql("""
+                        select id
+                        from categories
+                        where workspace_id = :workspaceId
+                          and kind = 'EXPENSE'
+                          and parent_id is null
+                        order by name
+                        limit 8""")
+                .param("workspaceId", workspaceId)
+                .query(UUID.class)
+                .list();
+        for (int i = 0; i < categories.size(); i++) {
+            ledger.expense(workspaceId, membershipId, categories.get(i), (i + 1) + ".00", DAY);
+        }
+
+        var result = dashboard(userId, MONTH);
+
+        assertThat(categories).hasSize(8);
+        assertThat(result).bodyJson().extractingPath("$.byCategory").asList().hasSize(7);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.byCategory[6].categoryId")
+                .isNull();
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.byCategory[6].current.amount")
+                .isEqualTo("3.00");
+    }
+
+    @Test
+    void subcategoryFoldsIntoParent() {
+        UUID feira = jdbc.sql("""
+                        insert into categories (workspace_id, parent_id, kind, name)
+                        values (:workspaceId, :parentId, 'EXPENSE', 'Feira')
+                        returning id""")
+                .param("workspaceId", workspaceId)
+                .param("parentId", mercadoId)
+                .query(UUID.class)
+                .single();
+        ledger.expense(workspaceId, membershipId, feira, "15.00", DAY);
+        ledger.expense(workspaceId, membershipId, mercadoId, "5.00", DAY);
+
+        var result = dashboard(userId, MONTH);
+
+        assertThat(result).bodyJson().extractingPath("$.byCategory").asList().hasSize(1);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.byCategory[0].categoryId")
+                .isEqualTo(mercadoId.toString());
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.byCategory[0].current.amount")
+                .isEqualTo("20.00");
+    }
+
+    @Test
+    void deletedTransactionsStayOut() {
+        postIncome("100.00", "2026-11-05");
+        ledger.expense(workspaceId, membershipId, mercadoId, "10.00", DAY);
+        ledger.expense(workspaceId, membershipId, mercadoId, "10.00", LocalDate.of(2026, 10, 5));
+        jdbc.sql("update transactions set deleted_at = now() where workspace_id = :workspaceId")
+                .param("workspaceId", workspaceId)
+                .update();
+
+        var result = dashboard(userId, MONTH);
+
+        assertThat(result).bodyJson().extractingPath("$.income.amount").isEqualTo("0.00");
+        assertThat(result).bodyJson().extractingPath("$.expenses.amount").isEqualTo("0.00");
+        assertThat(result).bodyJson().extractingPath("$.balance.amount").isEqualTo("0.00");
+        assertThat(result).bodyJson().extractingPath("$.byCategory").asList().isEmpty();
+    }
+
+    @Test
+    void dailyBalanceHasEveryDay() {
+        var result = dashboard(userId, MONTH);
+
+        assertThat(result).bodyJson().extractingPath("$.dailyBalance").asList().hasSize(30);
+        assertThat(result).bodyJson().extractingPath("$.dailyBalance[0].day").isEqualTo("2026-11-01");
+        assertThat(result).bodyJson().extractingPath("$.dailyBalance[29].day").isEqualTo("2026-11-30");
     }
 
     @Test
@@ -279,6 +474,26 @@ class DashboardIT {
                                 ledger.categoryOf(workspaceId, "INCOME", "Salário")))
                 .exchange();
         assertThat(result).hasStatus(201);
+    }
+
+    private void postTransaction(
+            String kind, UUID accountId, UUID toAccountId, UUID categoryId, String amount, LocalDate on) {
+        UUID id = TestIds.v7();
+        var result = mvc.post()
+                .uri("/v1/workspaces/" + workspaceId + "/transactions")
+                .with(TestUsers.signedIn(userId, null))
+                .with(CsrfSession.start(mvc, TestUsers.signedIn(userId, null)))
+                .header("Idempotency-Key", id.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"id":"%s","kind":"%s","amount":{"amount":"%s","currency":"BRL"},"occurredOn":"%s",
+                         "accountId":"%s","toAccountId":%s,"categoryId":%s}""".formatted(id, kind, amount, on, accountId, quoted(toAccountId), quoted(categoryId)))
+                .exchange();
+        assertThat(result).hasStatus(201);
+    }
+
+    private static String quoted(UUID id) {
+        return id == null ? "null" : "\"" + id + "\"";
     }
 
     private MvcTestResult dashboard(UUID callerId, String month) {

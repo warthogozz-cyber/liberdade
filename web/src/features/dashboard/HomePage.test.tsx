@@ -45,8 +45,12 @@ function renderHomeWithCache(workspace: MeWorkspace) {
   const queryClient = createTestQueryClient()
   const cached: DashboardView = {
     month: '2026-11',
+    income: { amount: '0.00', currency: 'BRL' },
     expenses: { amount: '10.00', currency: 'BRL' },
+    result: { amount: '-10.00', currency: 'BRL' },
     balance: { amount: '90.00', currency: 'BRL' },
+    byCategory: [],
+    dailyBalance: [],
   }
   queryClient.setQueryData(queryKeys.dashboard(workspace.id, '2026-11'), cached, {
     updatedAt: Date.parse('2026-11-15T14:30:00Z'),

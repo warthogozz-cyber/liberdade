@@ -319,10 +319,25 @@ export interface components {
             headerName: string;
             token: string;
         };
+        DashboardCategory: {
+            /** Format: uuid */
+            categoryId: string | null;
+            current: components["schemas"]["Money"];
+            previous: components["schemas"]["Money"];
+        };
+        DashboardDay: {
+            balance: components["schemas"]["Money"];
+            /** Format: date */
+            day: string;
+        };
         DashboardView: {
             balance: components["schemas"]["Money"];
+            byCategory: components["schemas"]["DashboardCategory"][];
+            dailyBalance: components["schemas"]["DashboardDay"][];
             expenses: components["schemas"]["Money"];
+            income: components["schemas"]["Money"];
             month: string;
+            result: components["schemas"]["Money"];
         };
         MeUser: {
             displayName: string;

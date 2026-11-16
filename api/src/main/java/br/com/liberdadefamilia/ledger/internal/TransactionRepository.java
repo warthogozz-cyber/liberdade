@@ -1,13 +1,15 @@
 package br.com.liberdadefamilia.ledger.internal;
 
+import br.com.liberdadefamilia.ledger.domain.CategoryTotal;
+import br.com.liberdadefamilia.ledger.domain.Flow;
 import br.com.liberdadefamilia.ledger.domain.TransactionKind;
 import br.com.liberdadefamilia.shared.Money;
-import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.Currency;
 import java.util.List;
@@ -177,25 +179,62 @@ class TransactionRepository {
                 .list();
     }
 
-    /** The sum of the expenses in the given currency on or after {@code from} and before {@code until}. */
-    Money expenses(UUID workspaceId, Currency currency, LocalDate from, LocalDate until) {
-        return Money.of(
-                jdbc.sql("""
-                                select coalesce(sum(amount), 0)
-                                from transactions
-                                where workspace_id = :workspaceId
-                                  and kind = 'EXPENSE'
-                                  and currency = :currency
-                                  and occurred_on >= :from
-                                  and occurred_on < :until
-                                  and deleted_at is null""")
-                        .param("workspaceId", workspaceId)
-                        .param("currency", currency.getCurrencyCode())
-                        .param("from", from)
-                        .param("until", until)
-                        .query(BigDecimal.class)
-                        .single(),
-                currency);
+    /**
+     * What moved up to {@code monthEnd}, summed by day, kind, accounts and currency. What happened before the month
+     * collapses into the day before {@code monthStart}, so that years of history come back as a few flows.
+     */
+    List<Flow> flowsUntil(UUID workspaceId, LocalDate monthStart, LocalDate monthEnd) {
+        return jdbc.sql("""
+                        select greatest(occurred_on, cast(:monthStart as date) - 1) as day,
+                               kind, account_id, to_account_id, currency, sum(amount) as amount
+                        from transactions
+                        where workspace_id = :workspaceId
+                          and occurred_on <= :monthEnd
+                          and deleted_at is null
+                        group by 1, kind, account_id, to_account_id, currency""")
+                .param("workspaceId", workspaceId)
+                .param("monthStart", monthStart)
+                .param("monthEnd", monthEnd)
+                .query((rs, row) -> new Flow(
+                        rs.getObject("day", LocalDate.class),
+                        TransactionKind.valueOf(rs.getString("kind")),
+                        rs.getObject("account_id", UUID.class),
+                        rs.getObject("to_account_id", UUID.class),
+                        Money.of(rs.getBigDecimal("amount"), Currency.getInstance(rs.getString("currency")))))
+                .list();
+    }
+
+    /**
+     * The expenses of the month and of the month before, by top-level category: a subcategory counts for its parent
+     * (D9). One line for each category and currency.
+     */
+    List<CategoryTotal> expensesByTopCategory(UUID workspaceId, YearMonth month) {
+        return jdbc.sql("""
+                        select coalesce(c.parent_id, c.id) as category_id, t.currency,
+                               coalesce(sum(t.amount) filter (where t.occurred_on >= :monthStart), 0) as current,
+                               coalesce(sum(t.amount) filter (where t.occurred_on < :monthStart), 0) as previous
+                        from transactions t
+                        join categories c
+                          on c.workspace_id = t.workspace_id
+                         and c.id = t.category_id
+                        where t.workspace_id = :workspaceId
+                          and t.kind = 'EXPENSE'
+                          and t.deleted_at is null
+                          and t.occurred_on >= :previousStart
+                          and t.occurred_on < :nextStart
+                        group by coalesce(c.parent_id, c.id), t.currency""")
+                .param("workspaceId", workspaceId)
+                .param("monthStart", month.atDay(1))
+                .param("previousStart", month.minusMonths(1).atDay(1))
+                .param("nextStart", month.plusMonths(1).atDay(1))
+                .query((rs, row) -> {
+                    Currency currency = Currency.getInstance(rs.getString("currency"));
+                    return new CategoryTotal(
+                            rs.getObject("category_id", UUID.class),
+                            Money.of(rs.getBigDecimal("current"), currency),
+                            Money.of(rs.getBigDecimal("previous"), currency));
+                })
+                .list();
     }
 
     /**

@@ -6,7 +6,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Currency;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
@@ -73,6 +75,20 @@ class AccountRepository {
                 .param("workspaceId", workspaceId)
                 .query(AccountRepository::view)
                 .list();
+    }
+
+    /** The initial balance of each active account, by id; what the family has is this plus what the flows moved. */
+    Map<UUID, Money> activeInitialBalances(UUID workspaceId) {
+        Map<UUID, Money> balances = new HashMap<>();
+        jdbc.sql("""
+                        select id, currency, initial_balance
+                        from accounts
+                        where workspace_id = :workspaceId
+                          and archived_at is null""").param("workspaceId", workspaceId).query(rs -> {
+            Currency currency = Currency.getInstance(rs.getString("currency"));
+            balances.put(rs.getObject("id", UUID.class), Money.of(rs.getBigDecimal("initial_balance"), currency));
+        });
+        return balances;
     }
 
     Optional<AccountView> findWithBalance(UUID workspaceId, UUID accountId) {
