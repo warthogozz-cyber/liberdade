@@ -34,6 +34,10 @@ if (import.meta.env.VITE_API_MOCKS === 'true') {
   const { worker } = await import('@/mocks/browser')
   // MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`.
   await worker.start({ onUnhandledFrame: 'bypass' })
+} else {
+  // With mocks, only MSW's worker runs: the two would fight over the same scope.
+  const { registerSW } = await import('virtual:pwa-register')
+  void registerSW({ immediate: true })
 }
 
 createRoot(document.getElementById('root')!).render(

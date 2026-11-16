@@ -16,3 +16,19 @@ overrides:
   '@inquirer/core': 12.0.5
   '@inquirer/figures': 2.0.9
   '@mswjs/interceptors': 0.45.9
+  # The same cutoff for the transitive packages of vite-plugin-pwa and workbox-build.
+  '@babel/generator': 7.29.8
+  '@babel/helper-create-class-features-plugin': 7.29.7
+  '@babel/helper-skip-transparent-expression-wrappers': 7.29.7
+  '@babel/parser': 7.29.11
+  '@babel/plugin-bugfix-safari-rest-destructuring-rhs-array': 7.29.7
+  '@babel/plugin-transform-block-scoping': 7.29.11
+  '@babel/plugin-transform-destructuring': 7.29.7
+  '@babel/plugin-transform-for-of': 7.29.7
+  '@babel/traverse': 7.29.10
+  '@types/estree': 1.0.9
+  is-core-module: 2.17.0
+  regexpu-core: 6.5.3
+  regjsparser: 0.13.4
+  resolve: 1.22.13
+  rollup: 4.65.1

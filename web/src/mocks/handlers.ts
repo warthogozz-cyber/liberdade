@@ -21,6 +21,9 @@ const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/
 const NUMBER = /^-?\d+(\.\d+)?$/
 const DECIMAL = /^\d+(\.\d+)?$/
 const KINDS: unknown[] = ['INCOME', 'EXPENSE', 'TRANSFER']
+const CHALLENGE = 'bW9jay1jaGFsbGVuZ2U'
+const csrfInvalid = () => problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
+const authRequired = () => problem(401, 'auth.required', 'Entre para continuar.')
 
 interface FieldError {
   field: string
@@ -152,7 +155,10 @@ function isKnownTimezone(timezone: unknown): timezone is string {
   }
 }
 
-/** The routes of Tasks 3, 5 and 6, with the API's error codes, plus `POST /logout`. */
+/**
+ * The routes of Tasks 3, 5 and 6, with the API's error codes, plus `POST /logout` and the four
+ * passkey routes of Task 4.
+ */
 export const handlers = [
   http.get(url('/v1/csrf'), () => HttpResponse.json(CSRF)),
 
@@ -161,6 +167,56 @@ export const handlers = [
       return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
     }
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Spring's passkey options, fixed: the relying party is `localhost`, named "Liberdade".
+  http.post(url('/webauthn/register/options'), ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    if (!mockState.signedIn) return authRequired()
+    return HttpResponse.json({
+      rp: { id: 'localhost', name: 'Liberdade' },
+      user: {
+        id: 'bW9jay11c2VyLWhhbmRsZQ',
+        name: 'ana@example.com',
+        displayName: mockState.user.displayName,
+      },
+      challenge: CHALLENGE,
+      pubKeyCredParams: [
+        { type: 'public-key', alg: -8 },
+        { type: 'public-key', alg: -7 },
+        { type: 'public-key', alg: -257 },
+      ],
+      timeout: 300000,
+      excludeCredentials: [],
+      authenticatorSelection: { residentKey: 'required', userVerification: 'preferred' },
+      attestation: 'none',
+      extensions: { credProps: true },
+    })
+  }),
+
+  http.post(url('/webauthn/authenticate/options'), ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    return HttpResponse.json({
+      challenge: CHALLENGE,
+      timeout: 300000,
+      rpId: 'localhost',
+      allowCredentials: [],
+      userVerification: 'preferred',
+      extensions: {},
+    })
+  }),
+
+  http.post(url('/webauthn/register'), ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    if (!mockState.signedIn) return authRequired()
+    mockState.user.passkeyCreatedAt = new Date().toISOString()
+    return HttpResponse.json({ success: true })
+  }),
+
+  http.post(url('/login/webauthn'), ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    mockState.signedIn = true
+    return HttpResponse.json({ redirectUrl: '/', authenticated: true })
   }),
 
   http.get(url('/v1/me'), () => {

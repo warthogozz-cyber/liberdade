@@ -3,7 +3,7 @@ import { defineMessage } from 'react-intl'
 
 describe('message ids', () => {
   it('accepts only known message ids', () => {
-    expect(defineMessage({ id: 'home.title' }).id).toBe('home.title')
+    expect(defineMessage({ id: 'app.name' }).id).toBe('app.name')
     // @ts-expect-error unknown ids do not type-check
     defineMessage({ id: 'nope.missing' })
   })
