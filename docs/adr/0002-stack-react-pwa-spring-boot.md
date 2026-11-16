@@ -46,6 +46,7 @@ Escolhas de ferramenta (decididas por mim, sem impacto no produto):
 ## Consequências
 
 - Duas linguagens (Java e TypeScript) e custo fixo maior que um backend serverless.
-- Domínio financeiro com `BigDecimal`, JUnit e jqwik (ver ADR-0013), onde o mantenedor é mais produtivo.
+- Domínio financeiro com `BigDecimal` e testes em JUnit, inclusive os de propriedade
+  ([ADR-0013](0013-property-tests-without-jqwik.md)), onde o mantenedor é mais produtivo.
 - Spring AI fica disponível para a fase 3 (agente de IA) sem trocar de stack.
 - Versões são revisadas a cada release minor pelo Dependabot; este ADR registra o ponto de partida.
