@@ -42,7 +42,7 @@ test("exportMyData: Baixar meus dados downloads the person's zip", async () => {
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Baixar meus dados' }).click()
 
-  expect((await download).suggestedFilename()).toMatch(/^liberdade-meus-dados.*\.zip$/)
+  expect((await download).suggestedFilename()).toMatch(/^liberdade-meus-dados-\d{4}-\d{2}-\d{2}\.zip$/)
 })
 
 test('deleteAndCancel: an Adult asks to delete the account, confirms with Google and cancels', async ({
