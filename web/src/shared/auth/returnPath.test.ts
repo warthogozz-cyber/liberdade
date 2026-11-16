@@ -17,6 +17,9 @@ describe('returnPath', () => {
       '/convite\n',
       '/convite:8080',
       'mais/familia',
+      '/%2F%2Fevil.example.com',
+      '/mais%2Ffamilia',
+      '/\\evil.example.com',
     ]) {
       saveReturnPath(path)
       expect(takeReturnPath(), path).toBeUndefined()

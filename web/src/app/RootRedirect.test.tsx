@@ -3,7 +3,7 @@ import { useRoutes } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { routes } from '@/app/routes'
 import { mockState, seedMockFamily } from '@/mocks/data'
-import { saveReturnPath } from '@/shared/auth'
+import { saveReauthUser, saveReturnPath } from '@/shared/auth/returnPath'
 import { renderWithProviders } from '@/shared/testing'
 
 afterEach(() => {
@@ -55,5 +55,51 @@ describe('RootRedirect', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/mais/modulos'))
     expect(sessionStorage.getItem('liberdade.returnPath')).toBeNull()
+  })
+
+  it('opens an invitation page even without a family', async () => {
+    saveReturnPath('/convite?token=x')
+
+    const { router } = renderWithProviders(<App />, { path: '/*', route: '/' })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/convite'))
+    expect(router.state.location.search).toBe('?token=x')
+  })
+
+  it('drops a family page without a family', async () => {
+    saveReturnPath('/mais/modulos')
+
+    const { router } = renderWithProviders(<App />, { path: '/*', route: '/' })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/boas-vindas'))
+    expect(sessionStorage.getItem('liberdade.returnPath')).toBeNull()
+  })
+
+  it('keeps going to the return path when Google brought back the same person', async () => {
+    seedMockFamily()
+    saveReturnPath('/mais/modulos')
+    saveReauthUser(mockState.user.id)
+
+    const { router } = renderWithProviders(<App />, { path: '/*', route: '/' })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/mais/modulos'))
+    expect(sessionStorage.getItem('liberdade.reauthUserId')).toBeNull()
+  })
+
+  it('clears the session and starts at /inicio when Google brought back another person', async () => {
+    const sent = recordBroadcasts()
+    const assign = vi.fn<(url: string) => void>()
+    vi.stubGlobal('location', { ...window.location, assign })
+    seedMockFamily()
+    saveReturnPath('/mais/modulos')
+    saveReauthUser('0192f3a4-0000-7000-8000-0000000000ff')
+    localStorage.setItem('liberdade.workspaceId', 'old')
+
+    const { router } = renderWithProviders(<App />, { path: '/*', route: '/' })
+
+    await waitFor(() => expect(assign).toHaveBeenCalledExactlyOnceWith('/inicio'))
+    expect(router.state.location.pathname).not.toBe('/mais/modulos')
+    expect(localStorage.getItem('liberdade.workspaceId')).toBeNull()
+    expect(sent).toContainEqual({ type: 'signed-in', userId: mockState.user.id })
   })
 })

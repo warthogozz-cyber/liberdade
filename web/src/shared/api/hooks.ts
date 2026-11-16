@@ -71,7 +71,12 @@ export function useCurrentWorkspace(): MeWorkspace | undefined {
     readSelectedWorkspaceId,
     () => null,
   )
-  return workspaces.find((workspace) => workspace.id === chosen) ?? workspaces[0]
+  // Without a valid choice, a family that is not pending deletion comes first.
+  return (
+    workspaces.find((workspace) => workspace.id === chosen) ??
+    workspaces.find((workspace) => workspace.deletionScheduledFor === null) ??
+    workspaces[0]
+  )
 }
 
 /** The family's modules; waits for a family id. */

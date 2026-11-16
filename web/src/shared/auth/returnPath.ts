@@ -1,4 +1,4 @@
-import { RETURN_PATH_KEY } from '@/shared/offline'
+import { REAUTH_USER_KEY, RETURN_PATH_KEY } from '@/shared/offline'
 
 /** The pages a re-authentication or an invitation may bring the person back to. */
 export const RETURN_PATHS = ['/convite', '/mais/familia', '/mais/privacidade', '/mais/modulos']
@@ -32,6 +32,26 @@ export function takeReturnPath(): string | undefined {
     const value = sessionStorage.getItem(RETURN_PATH_KEY)
     sessionStorage.removeItem(RETURN_PATH_KEY)
     return accepted(value)
+  } catch {
+    return undefined
+  }
+}
+
+/** Remembers who is signed in as a Google re-authentication starts, to notice another person back. */
+export function saveReauthUser(userId: string): void {
+  try {
+    sessionStorage.setItem(REAUTH_USER_KEY, userId)
+  } catch {
+    // Without storage a change of person is not noticed on return.
+  }
+}
+
+/** Who was signed in when the re-authentication began, once; `undefined` when none was recorded. */
+export function takeReauthUser(): string | undefined {
+  try {
+    const value = sessionStorage.getItem(REAUTH_USER_KEY)
+    sessionStorage.removeItem(REAUTH_USER_KEY)
+    return value || undefined
   } catch {
     return undefined
   }

@@ -76,6 +76,23 @@ describe('selected family', () => {
     await waitFor(() => expect(result.current?.id).toBe(first.id))
   })
 
+  it('prefersAFamilyNotPendingDeletion', async () => {
+    const [first, second] = twoFamilies()
+    first.deletionScheduledFor = '2026-12-16T00:00:00Z'
+    const { result } = renderHookWithProviders(() => useCurrentWorkspace())
+
+    await waitFor(() => expect(result.current?.id).toBe(second.id))
+  })
+
+  it('uses the first family when all are pending deletion', async () => {
+    const [first, second] = twoFamilies()
+    first.deletionScheduledFor = '2026-12-16T00:00:00Z'
+    second.deletionScheduledFor = '2026-12-17T00:00:00Z'
+    const { result } = renderHookWithProviders(() => useCurrentWorkspace())
+
+    await waitFor(() => expect(result.current?.id).toBe(first.id))
+  })
+
   it('switches at once on selectWorkspace and when another tab chooses', async () => {
     const [first, second] = twoFamilies()
     const { result } = renderHookWithProviders(() => useCurrentWorkspace())

@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { queryKeys, useCurrentWorkspace, useMe } from '@/shared/api'
-import { registerPasskey } from '@/shared/auth'
+import { registerPasskey } from '@/shared/auth/passkey'
 import { DEFAULT_TIMEZONE } from '@/shared/i18n'
 import { useOnline } from '@/shared/offline'
 

@@ -12,7 +12,7 @@ import { locale, useAppMessages } from '@/shared/i18n'
 import { createTestQueryClient } from '@/shared/testing'
 import { ToastProvider } from '@/shared/ui'
 import { ReauthProvider } from './ReauthProvider'
-import { takeReturnPath } from './returnPath'
+import { takeReauthUser, takeReturnPath } from './returnPath'
 import { useReauth } from './useReauth'
 
 vi.mock('@simplewebauthn/browser')
@@ -189,6 +189,16 @@ describe('useReauth', () => {
       ),
     )
     localStorage.setItem('liberdade.workspaceId', 'old')
+    const sent: unknown[] = []
+    vi.stubGlobal(
+      'BroadcastChannel',
+      class {
+        postMessage(data: unknown) {
+          sent.push(data)
+        }
+        close() {}
+      },
+    )
     const action = vi.fn<() => Promise<string>>().mockRejectedValue(reauthRequired())
 
     const result = run(action)
@@ -200,6 +210,8 @@ describe('useReauth', () => {
     expect(queryClient.getQueryData(queryKeys.me)).toBeUndefined()
     expect(localStorage.getItem('liberdade.workspaceId')).toBeNull()
     expect(assign).toHaveBeenCalledExactlyOnceWith('/inicio')
+    expect(sent).toEqual([{ type: 'signed-in', userId: '0192f3a4-0000-7000-8000-0000000000ff' }])
+    vi.unstubAllGlobals()
   })
 
   it('goes to Google with the current page remembered', async () => {
@@ -214,6 +226,28 @@ describe('useReauth', () => {
     )
     expect(takeReturnPath()).toBe('/mais/privacidade')
     window.history.pushState({}, '', '/')
+  })
+
+  it('records who is signed in before leaving for Google', async () => {
+    const { run } = setup()
+    void run(() => Promise.reject(reauthRequired())).catch(() => {})
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Entrar com Google' }))
+
+    expect(takeReauthUser()).toBe(mockState.user.id)
+  })
+
+  it('locksTheDialogWhileAnAttemptRuns', async () => {
+    const { run, assign } = setup()
+    void run(() => Promise.reject(reauthRequired())).catch(() => {})
+    const google = await screen.findByRole('button', { name: 'Entrar com Google' })
+
+    fireEvent.click(google)
+    fireEvent.click(google)
+
+    expect(assign).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Usar passkey' })).toBeDisabled()
   })
 
   it('throws a clear error without the provider', () => {

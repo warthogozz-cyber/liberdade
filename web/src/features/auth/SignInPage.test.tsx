@@ -65,6 +65,20 @@ describe('SignInPage', () => {
     )
   })
 
+  it('empties the previous session before it leaves for Google', async () => {
+    const { queryClient } = renderSignIn()
+    queryClient.setQueryData(['me'], { user: { id: 'previous-person' } })
+    let cachedWhenLeaving: unknown = 'not called'
+    vi.mocked(startGoogleSignIn).mockImplementation(() => {
+      cachedWhenLeaving = queryClient.getQueryData(['me'])
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar com Google' }))
+
+    await waitFor(() => expect(startGoogleSignIn).toHaveBeenCalledTimes(1))
+    expect(cachedWhenLeaving).toBeUndefined()
+  })
+
   it('starts the Google sign-in once', async () => {
     renderSignIn()
 

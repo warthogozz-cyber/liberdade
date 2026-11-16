@@ -11,7 +11,7 @@ import { useModuleEnabled } from './useModuleEnabled'
 describe('useModuleEnabled', () => {
   it('followsApi', async () => {
     const workspace = seedMockFamily()
-    mockState.modules[workspace.id] = { planning: true }
+    mockState.modules[workspace.id] = { planning: true, ventures: false }
     const planning = renderHookWithProviders(() => useModuleEnabled('planning'))
     const ventures = renderHookWithProviders(() => useModuleEnabled('ventures'))
 

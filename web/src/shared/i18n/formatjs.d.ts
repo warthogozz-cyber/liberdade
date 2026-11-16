@@ -7,6 +7,7 @@ import type { categoriesMessages } from '@/features/categories/messages.pt-BR'
 import type { dashboardMessages } from '@/features/dashboard/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { gettingStartedMessages } from '@/features/dashboard/gettingStarted.messages.pt-BR'
+import type { reauthMessages } from '@/shared/auth/messages.pt-BR'
 import type { messages } from './messages.pt-BR'
 
 // Each lazy route's bundle adds its ids here, by type only: nothing of it is imported at runtime.
@@ -19,6 +20,7 @@ declare global {
         | keyof typeof categoriesMessages
         | keyof typeof dashboardMessages
         | keyof typeof gettingStartedMessages
+        | keyof typeof reauthMessages
     }
   }
 }

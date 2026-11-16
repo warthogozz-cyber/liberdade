@@ -10,6 +10,10 @@ import {
   startOutboxSync,
 } from '@/shared/offline'
 
+function logCleanupFailure(error: unknown): void {
+  console.error('Could not clear the session after another tab changed it', error)
+}
+
 /**
  * Every screen of a signed-in person sits under this layout. It waits for `/v1/me`, sends a 401 to
  * Entrar, and sends the person's queue while it is open.
@@ -37,12 +41,16 @@ export function SessionLayout() {
     () =>
       onSessionMessage((message) => {
         if (message.type === 'signed-out') {
-          void Promise.resolve(navigate('/entrar')).then(() => clearSession(queryClient))
+          void Promise.resolve(navigate('/entrar'))
+            .then(() => clearSession(queryClient))
+            .catch(logCleanupFailure)
           return
         }
         const cached = queryClient.getQueryData<MeView>(queryKeys.me)?.user.id
         if (cached !== undefined && cached !== message.userId) {
-          void clearSession(queryClient).then(() => window.location.assign('/inicio'))
+          void clearSession(queryClient)
+            .catch(logCleanupFailure)
+            .then(() => window.location.assign('/inicio'))
         }
       }),
     [navigate, queryClient],

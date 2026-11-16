@@ -2,11 +2,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { getMe, queryKeys, resetCsrf, type MeView } from '@/shared/api'
-import { clearSession } from '@/shared/offline'
+import { broadcastSignedIn, clearSession } from '@/shared/offline'
 import { Sheet } from '@/shared/ui'
+import { registerMessages } from '@/shared/i18n'
 import { startGoogleSignIn } from './google'
 import { signInWithPasskey } from './passkey'
-import { saveReturnPath } from './returnPath'
+import { reauthMessages } from './messages.pt-BR'
+import { saveReauthUser } from './returnPath'
 import type { ReauthOutcome } from './useReauth'
 
 interface ReauthDialogProps {
@@ -14,6 +16,8 @@ interface ReauthDialogProps {
   assign: (url: string) => void
   onFinish: (outcome: ReauthOutcome) => void
 }
+
+registerMessages(reauthMessages)
 
 const button =
   'min-h-12 w-full rounded-field px-4 font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50'
@@ -40,6 +44,7 @@ export function ReauthDialog({ assign, onFinish }: ReauthDialogProps) {
       if (before !== undefined && me.user.id !== before) {
         // The passkey belongs to somebody else: nothing of the previous person stays, and the action
         // does not run again.
+        broadcastSignedIn(me.user.id)
         await clearSession(queryClient)
         onFinish('replaced')
         assign('/inicio')
@@ -58,8 +63,19 @@ export function ReauthDialog({ assign, onFinish }: ReauthDialogProps) {
   }
 
   function confirmWithGoogle() {
-    saveReturnPath(`${window.location.pathname}${window.location.search}${window.location.hash}`)
-    startGoogleSignIn({ reauth: true }, assign)
+    if (busyRef.current) return
+    busyRef.current = true
+    setBusy(true)
+    // Google may bring back another account: RootRedirect compares who it finds with who left.
+    const current = queryClient.getQueryData<MeView>(queryKeys.me)?.user.id
+    if (current) saveReauthUser(current)
+    startGoogleSignIn(
+      {
+        reauth: true,
+        returnTo: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      },
+      assign,
+    )
   }
 
   const cancel = () => onFinish('cancelled')
@@ -68,7 +84,7 @@ export function ReauthDialog({ assign, onFinish }: ReauthDialogProps) {
     <Sheet
       open
       onOpenChange={(open) => {
-        if (!open) cancel()
+        if (!open && !busyRef.current) cancel()
       }}
       title={<FormattedMessage id="reauth.title" />}
     >
@@ -97,7 +113,12 @@ export function ReauthDialog({ assign, onFinish }: ReauthDialogProps) {
         >
           <FormattedMessage id="reauth.google" />
         </button>
-        <button type="button" className={`${button} text-text-muted`} onClick={cancel}>
+        <button
+          type="button"
+          className={`${button} text-text-muted`}
+          disabled={busy}
+          onClick={cancel}
+        >
           <FormattedMessage id="reauth.cancel" />
         </button>
       </div>

@@ -11,7 +11,7 @@ export {
   replaceOutboxItem,
 } from './outbox'
 export { persistOptions, saveQueryCacheNow } from './persister'
-export { clearSession, RETURN_PATH_KEY } from './session'
+export { clearSession, REAUTH_USER_KEY, RETURN_PATH_KEY } from './session'
 export {
   broadcastSignedIn,
   broadcastSignedOut,
