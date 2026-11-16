@@ -81,12 +81,13 @@ erDiagram
   memberships {
     uuid id PK
     uuid workspace_id FK
-    uuid user_id FK
+    uuid user_id FK "nulo depois que a conta é apagada"
     text role "OWNER ADULT YOUTH VIEWER"
     text nickname
     text status "ACTIVE REMOVED"
     timestamptz parental_consent_at
     uuid parental_consent_by FK
+    timestamptz recovered_at "último acesso recuperado"
     timestamptz getting_started_dismissed_at "fechou os primeiros passos"
     bigint version
   }
@@ -95,9 +96,11 @@ erDiagram
     uuid workspace_id FK
     text kind "INVITE RECOVERY"
     text role
+    text nickname "só INVITE"
     uuid target_membership_id FK "só RECOVERY"
     timestamptz parental_consent_at "só convite de Jovem"
-    bytea token_hash UK
+    uuid parental_consent_by FK "só convite de Jovem"
+    bytea token_hash UK "sha256 do token"
     uuid created_by FK
     timestamptz expires_at
     timestamptz used_at
@@ -164,7 +167,7 @@ erDiagram
     uuid id PK
     uuid user_id FK
     uuid workspace_id FK
-    text purpose "TERMS PRIVACY PARENTAL"
+    text purpose "PARENTAL na v0.1; TERMS e PRIVACY no Plano 5"
     text document_version
     uuid granted_by FK "responsável, no PARENTAL"
     timestamptz granted_at
@@ -185,7 +188,8 @@ Spring Security, por isso fogem das convenções acima. O diagrama mostra só as
 |---|---|
 | `auth_identities` | `UNIQUE (provider, subject)` |
 | `memberships` | `UNIQUE (workspace_id, user_id)`; pelo menos um `OWNER` ativo por família (checado na aplicação, com teste) |
-| `memberships` | Na v0.1, uma família ativa por pessoa: índice único parcial em `user_id` com `status = 'ACTIVE'`. Sai quando chegarem os convites |
+| `memberships` | Uma pessoa pode estar em mais de uma família. Índice parcial (não único) em `user_id` com `status = 'ACTIVE'`, para listar as famílias dela |
+| Autoria | `memberships.user_id`, `memberships.parental_consent_by`, `invitations.created_by`, `invitations.parental_consent_by`, `workspace_modules.updated_by` e `audit_events.actor_user_id` usam `ON DELETE SET NULL`: apagar a conta de alguém não apaga o que a família registrou |
 | `user_entities`, `user_credentials` | `UNIQUE (name)` em `user_entities`; as credenciais são apagadas junto com o `user_entities` (`ON DELETE CASCADE`) |
 | `invitations` | Guarda só o **hash** do token; uso único; convite expira em 7 dias e recuperação em 24 h |
 | `transactions` | `amount > 0`; `TRANSFER` ⇔ `to_account_id IS NOT NULL` e `category_id IS NULL`; `to_account_id <> account_id`; moeda igual à das contas |
@@ -209,7 +213,12 @@ Spring Security, por isso fogem das convenções acima. O diagrama mostra só as
   apelido.
 - **Jovem** pode não ter e-mail (`users.email` nulo) e entra só por passkey. O consentimento
   parental dado no convite é copiado para `memberships` e `consents` (`PARENTAL`) quando o convite
-  é aceito.
+  é aceito. Revogar esse consentimento tira o Jovem da família.
+- **Conta apagada de vez**: os vínculos viram `REMOVED` com `user_id` nulo, e os lançamentos ficam
+  com o apelido. As passkeys (`user_entities`), as sessões, as identidades e os consentimentos da
+  pessoa são apagados.
+- **Família excluída de vez**: tudo dela vai em cascata. Os eventos de auditoria ficam com
+  `workspace_id` nulo até vencer o prazo de retenção.
 
 ## 3. v0.2 — Planejamento
 
@@ -250,6 +259,7 @@ têm `workspace_id`.
 | Dado | Retenção |
 |---|---|
 | Conta excluída | 30 dias de carência e depois apagamento definitivo |
+| Família excluída | 30 dias de carência e depois apagamento definitivo |
 | Lançamento excluído | Apagado de vez após 30 dias |
 | Convites usados ou vencidos | Apagados após 90 dias |
 | `audit_events` | 12 meses |

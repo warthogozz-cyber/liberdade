@@ -127,14 +127,14 @@ trafega como texto decimal: `{"amount": "1234.56", "currency": "BRL"}`.
 | Recurso | Operações |
 |---|---|
 | Sessão | `GET /oauth2/authorization/google`, endpoints WebAuthn do Spring Security, `POST /logout`, `GET /v1/csrf` |
-| Eu | `GET /v1/me`, `POST /v1/me/export`, `POST /v1/me/deletion`, `DELETE /v1/me/deletion`, `GET /v1/me/activity`, `GET /v1/me/consents`, `DELETE /v1/me/consents/{id}`, `GET /v1/me/passkeys`, `DELETE /v1/me/passkeys/{id}`, `POST /v1/me/getting-started/dismiss` |
-| Famílias | `POST /v1/workspaces`, `GET /v1/workspaces/{ws}`, `PATCH /v1/workspaces/{ws}`, `POST .../export`, `POST .../deletion`, `DELETE .../deletion` |
-| Membros | `GET /v1/workspaces/{ws}/members`, `PATCH .../members/{id}` (papel), `DELETE .../members/{id}`, `POST .../members/{id}/recovery` (link de recuperação) |
-| Convites | `POST /v1/workspaces/{ws}/invitations` (com `parentalConsent` quando o papel é Jovem), `DELETE .../invitations/{id}`, `POST /v1/invitations/{token}/accept` |
+| Eu | `GET /v1/me`, `POST /v1/me/export`, `POST /v1/me/deletion`, `DELETE /v1/me/deletion`, `GET /v1/me/activity`, `GET /v1/me/consents`, `DELETE /v1/me/consents/{id}`, `POST /v1/me/getting-started/dismiss`; no Plano 5, `GET /v1/me/passkeys` e `DELETE /v1/me/passkeys/{id}` |
+| Famílias | `POST /v1/workspaces`, `PATCH /v1/workspaces/{ws}` (nome; a família vem no `GET /v1/me`), `POST .../export`, `POST .../deletion`, `DELETE .../deletion` |
+| Membros | `GET /v1/workspaces/{ws}/members`, `PATCH .../members/{id}` (papel e apelido), `DELETE .../members/{id}`, `POST .../members/{id}/recovery` (link de recuperação) |
+| Convites | `GET /v1/workspaces/{ws}/invitations`, `POST .../invitations` (com `parentalConsent` quando o papel é Jovem), `DELETE .../invitations/{id}`, `POST /v1/invitations/preview` e `POST /v1/invitations/accept` (anônimas, com o token no corpo, nunca na URL) |
 | Módulos | `GET /v1/workspaces/{ws}/modules`, `PUT .../modules/{key}` |
-| Contas | `GET`, `POST`, `PATCH .../accounts/{id}`, `POST .../accounts/{id}/archive`, `POST .../accounts/{id}/unarchive` |
+| Contas | `GET`, `POST`, `PATCH .../accounts/{id}`, `POST .../accounts/{id}/archive`, `POST .../accounts/{id}/unarchive`, `PUT .../accounts/{id}/owner` (titular) |
 | Categorias | `GET`, `POST`, `PATCH .../categories/{id}`, `POST .../categories/{id}/archive`, `POST .../categories/{id}/unarchive` |
-| Lançamentos | `GET .../transactions?month=2026-11&accountId=&categoryId=`, `POST` (com `Idempotency-Key`), `PATCH .../transactions/{id}` (com `version`), `DELETE .../transactions/{id}`, `POST .../transactions/{id}/restore` |
+| Lançamentos | `GET .../transactions?month=2026-11&accountId=&categoryId=`, `GET .../transactions/{id}`, `POST` (com `Idempotency-Key`), `PATCH .../transactions/{id}` (com `version`), `DELETE .../transactions/{id}`, `POST .../transactions/{id}/restore` |
 | Painel | `GET /v1/workspaces/{ws}/dashboard?month=2026-11` |
 
 Toda rota sob `/v1/workspaces/{ws}` verifica se o usuário é membro ativo de `{ws}` e se o papel
