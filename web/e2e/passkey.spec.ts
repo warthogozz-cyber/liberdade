@@ -1,19 +1,14 @@
 import { expect, test } from '@playwright/test'
-import { createFamily, newUser, signInWithGoogle } from './support.ts'
+import {
+  addVirtualAuthenticator,
+  createFamily,
+  newUser,
+  signInBudget,
+  signInWithGoogle,
+} from './support.ts'
 
 test('creates a passkey on this device and signs in with it', async ({ page }) => {
-  const cdp = await page.context().newCDPSession(page)
-  await cdp.send('WebAuthn.enable')
-  const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', {
-    options: {
-      protocol: 'ctap2',
-      transport: 'internal',
-      hasResidentKey: true,
-      hasUserVerification: true,
-      isUserVerified: true,
-      automaticPresenceSimulation: true,
-    },
-  })
+  const { cdp, authenticatorId } = await addVirtualAuthenticator(page)
 
   await signInWithGoogle(page, newUser())
   await createFamily(page)
@@ -28,6 +23,8 @@ test('creates a passkey on this device and signs in with it', async ({ page }) =
   expect(credentials).toHaveLength(1)
 
   await page.getByRole('button', { name: 'Sair' }).click()
+  // A passkey sign-in counts 2 against the sign-in limit (see support.ts).
+  await signInBudget.reserve(2)
   await page.getByRole('button', { name: 'Entrar com passkey' }).click()
 
   await expect(page).toHaveURL('/inicio')

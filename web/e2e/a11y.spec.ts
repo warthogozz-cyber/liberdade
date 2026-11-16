@@ -2,10 +2,15 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import {
   createFamily,
+  createInvitation,
+  joinAsYouth,
   newUser,
+  openInvitation,
   recordExpense,
   signInWithGoogle,
+  stubFirstReauthRequired,
   waitForQueueToEmpty,
+  withContext,
 } from './support.ts'
 
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
@@ -127,4 +132,86 @@ test('the screens to view and organize meet WCAG 2.2 AA in both themes', async (
 
   await page.goto('/lancar?tipo=transferencia')
   await expectNoViolations(page, 'Nova transferência', page.getByRole('group', { name: 'Para' }))
+})
+
+test('the family, privacy and module screens meet WCAG 2.2 AA in both themes', async ({
+  browser,
+  page,
+}) => {
+  await signInWithGoogle(page, newUser())
+  await createFamily(page)
+
+  // A member to open, and an invitation that has not been used, for the anonymous page.
+  await withContext(browser, async (_context, youth) => {
+    const link = await createInvitation(page, 'Leo', 'Jovem')
+    await joinAsYouth(youth, link, 'Leo')
+
+    await page.goto('/mais/familia')
+    await expectNoViolations(
+      page,
+      'Família',
+      page.getByRole('main').getByRole('listitem').filter({ hasText: 'Leo' }),
+    )
+    await page
+      .getByRole('main')
+      .getByRole('listitem')
+      .filter({ hasText: 'Leo' })
+      .getByRole('button')
+      .click()
+    await expectNoViolationsOpen(page, page.getByRole('dialog', { name: 'Leo' }))
+    await page.keyboard.press('Escape')
+
+    // The invite screen with the link made, and the page that link opens, signed out.
+    const open = await createInvitation(page, 'Gil', 'Adulto')
+    await expectNoViolations(page, 'Convidar alguém', page.getByLabel('Link do convite'))
+    await withContext(browser, async (_anonymous, guest) => {
+      await openInvitation(guest, open, /convidou você para a .+ como Adulto/)
+      await expectNoViolations(
+        guest,
+        'convidou você',
+        guest.getByRole('button', { name: 'Entrar com Google' }),
+      )
+    })
+
+    await page.goto('/mais/modulos')
+    await expectNoViolations(page, 'Módulos', page.getByRole('switch', { name: 'Planejamento' }))
+
+    await page.goto('/mais/privacidade/atividade')
+    await expectNoViolations(
+      page,
+      'Histórico de acessos',
+      page.getByRole('main').getByRole('listitem').first(),
+    )
+
+    await page.goto('/mais/privacidade')
+    await expectNoViolations(
+      page,
+      'Privacidade',
+      page.getByRole('button', { name: 'Baixar meus dados' }),
+    )
+    await page.getByRole('button', { name: 'Excluir minha conta' }).click()
+    await expectNoViolationsOpen(page, page.getByRole('dialog', { name: 'Excluir minha conta' }))
+
+    // The sign-in again dialog, asked for by the API's own answer (the sign-in is seconds old).
+    await stubFirstReauthRequired(page, /\/v1\/me\/deletion$/, 'POST')
+    await page
+      .getByRole('dialog', { name: 'Excluir minha conta' })
+      .getByRole('button', { name: 'Excluir minha conta' })
+      .click()
+    await expectNoViolationsOpen(page, page.getByRole('dialog', { name: 'Confirme que é você' }))
+    await page.keyboard.press('Escape')
+
+    // Leo's account waits to be deleted: the pending screen replaces his app.
+    await youth.goto('/mais/privacidade')
+    await youth.getByRole('button', { name: 'Excluir minha conta' }).click()
+    await youth
+      .getByRole('dialog', { name: 'Excluir minha conta' })
+      .getByRole('button', { name: 'Excluir minha conta' })
+      .click()
+    await expectNoViolations(
+      youth,
+      'Sua conta será excluída em',
+      youth.getByRole('button', { name: 'Cancelar exclusão' }),
+    )
+  })
 })
