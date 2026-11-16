@@ -19,6 +19,7 @@ const workspace: MeWorkspace = {
   gettingStartedDismissedAt: null,
   hasTransactions: false,
   familyInvited: false,
+  recoveredAt: null,
 }
 
 const me: MeView = {

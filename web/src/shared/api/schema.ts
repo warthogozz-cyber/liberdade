@@ -324,6 +324,22 @@ export interface paths {
         patch: operations["updateMember"];
         trace?: never;
     };
+    "/v1/workspaces/{ws}/members/{id}/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createRecoveryLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/transactions": {
         parameters: {
             query?: never;
@@ -529,6 +545,8 @@ export interface components {
             /** Format: uuid */
             membershipId: string;
             name: string;
+            /** Format: date-time */
+            recoveredAt: string | null;
             /** @enum {string} */
             role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
             timezone: string;
@@ -1214,6 +1232,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberView"];
+                };
+            };
+        };
+    };
+    createRecoveryLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationView"];
                 };
             };
         };

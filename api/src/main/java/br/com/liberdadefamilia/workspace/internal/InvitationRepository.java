@@ -23,10 +23,12 @@ class InvitationRepository {
 
     private static final String SELECT_BY_HASH = """
             select i.id, i.workspace_id, w.name as workspace_name, i.kind, i.role, i.nickname,
-                   i.parental_consent_at, i.parental_consent_by, i.expires_at, i.used_at, i.revoked_at, c.nickname as created_by_name
+                   i.parental_consent_at, i.parental_consent_by, i.expires_at, i.used_at, i.revoked_at, c.nickname as created_by_name,
+                   i.target_membership_id, t.nickname as target_nickname, t.status as target_status
             from invitations i
             join workspaces w on w.id = i.workspace_id
             left join memberships c on c.workspace_id = i.workspace_id and c.user_id = i.created_by
+            left join memberships t on t.workspace_id = i.workspace_id and t.id = i.target_membership_id
             where i.token_hash = :hash""";
 
     private final JdbcClient jdbc;
@@ -39,17 +41,19 @@ class InvitationRepository {
             UUID workspaceId,
             InvitationKind kind,
             Role role,
-            String nickname,
+            @Nullable String nickname,
             @Nullable Instant consentAt,
             @Nullable UUID consentBy,
             byte[] tokenHash,
             UUID createdBy,
-            Instant expiresAt) {
+            Instant expiresAt,
+            @Nullable UUID targetMembershipId) {
         return jdbc.sql("""
                         insert into invitations (workspace_id, kind, role, nickname, parental_consent_at,
-                                                 parental_consent_by, token_hash, created_by, expires_at)
+                                                 parental_consent_by, token_hash, created_by, expires_at,
+                                                 target_membership_id)
                         values (:workspaceId, :kind, :role, :nickname, :consentAt, :consentBy, :tokenHash,
-                                :createdBy, :expiresAt)
+                                :createdBy, :expiresAt, :targetMembershipId)
                         returning id""")
                 .param("workspaceId", workspaceId)
                 .param("kind", kind.name())
@@ -60,17 +64,33 @@ class InvitationRepository {
                 .param("tokenHash", tokenHash)
                 .param("createdBy", createdBy)
                 .param("expiresAt", utc(expiresAt))
+                .param("targetMembershipId", targetMembershipId)
                 .query(UUID.class)
                 .single();
     }
 
-    /** The links that can still be used, oldest first. */
+    /** Cancels the recovery links still pending for this member, so that only the newest one works. */
+    void revokePendingRecovery(UUID workspaceId, UUID targetMembershipId, Instant now) {
+        jdbc.sql("""
+                        update invitations
+                        set revoked_at = :now
+                        where workspace_id = :workspaceId and kind = 'RECOVERY'
+                          and target_membership_id = :targetMembershipId
+                          and revoked_at is null and used_at is null""")
+                .param("now", utc(now))
+                .param("workspaceId", workspaceId)
+                .param("targetMembershipId", targetMembershipId)
+                .update();
+    }
+
+    /** The invitations that can still be used, oldest first. Recovery links are never listed. */
     List<InvitationView> pending(UUID workspaceId, Instant now) {
         return jdbc.sql("""
                         select i.id, i.role, i.nickname, i.kind, i.expires_at, c.nickname as created_by_name
                         from invitations i
                         left join memberships c on c.workspace_id = i.workspace_id and c.user_id = i.created_by
                         where i.workspace_id = :workspaceId
+                          and i.kind = 'INVITE'
                           and i.used_at is null
                           and i.revoked_at is null
                           and i.expires_at > :now
@@ -156,7 +176,10 @@ class InvitationRepository {
                 rs.getObject("expires_at", OffsetDateTime.class).toInstant(),
                 used != null,
                 revoked != null,
-                rs.getString("created_by_name"));
+                rs.getString("created_by_name"),
+                rs.getObject("target_membership_id", UUID.class),
+                rs.getString("target_nickname"),
+                "ACTIVE".equals(rs.getString("target_status")));
     }
 
     record InvitationRow(
@@ -171,7 +194,10 @@ class InvitationRepository {
             Instant expiresAt,
             boolean used,
             boolean revoked,
-            @Nullable String createdByName) {
+            @Nullable String createdByName,
+            @Nullable UUID targetMembershipId,
+            @Nullable String targetNickname,
+            boolean targetActive) {
 
         /** Used, cancelled or past its time: what a person who holds the link can no longer do with it. */
         boolean isGone(Instant now) {

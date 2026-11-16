@@ -63,6 +63,13 @@ function invitationGone(invitation: MockInvitation): boolean {
   return invitation.status !== 'PENDING' || Date.parse(invitation.view.expiresAt) <= Date.now()
 }
 
+/** The member a RECOVERY link is for. */
+function recoveryTargetOf(invitation: MockInvitation) {
+  return mockState.members[invitation.workspaceId]?.find(
+    (member) => member.id === invitation.targetMembershipId,
+  )
+}
+
 function lastOwner() {
   return problem(422, 'member.last-owner', 'A família precisa de pelo menos uma Dona ou Dono.')
 }
@@ -675,7 +682,10 @@ export const handlers = [
     return HttpResponse.json(
       mockState.invitations
         .filter(
-          (invitation) => invitation.workspaceId === workspace.id && !invitationGone(invitation),
+          (invitation) =>
+            invitation.workspaceId === workspace.id &&
+            invitation.view.kind === 'INVITE' &&
+            !invitationGone(invitation),
         )
         .map((invitation) => ({ ...invitation.view, token: null })),
     )
@@ -728,6 +738,61 @@ export const handlers = [
     return HttpResponse.json({ ...view, token }, { status: 201 })
   }),
 
+  http.post(url('/v1/workspaces/:ws/members/:id/recovery'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER' && workspace.role !== 'ADULT') return roleDenied()
+    const members = mockState.members[workspace.id] ?? []
+    const target = members.find((candidate) => candidate.id === params.id)
+    if (!target) return problem(404, 'member.not-found', 'Pessoa não encontrada.')
+    if (target.role === 'OWNER' && workspace.role !== 'OWNER') {
+      return problem(
+        403,
+        'invitation.role-forbidden',
+        'Só quem é Dona ou Dono pode trazer outra Dona ou Dono de volta.',
+      )
+    }
+    if (target.status !== 'ACTIVE') {
+      return rejected('member.removed', 'Esta pessoa já saiu da família.')
+    }
+    if (!target.passkeyOnly) {
+      return rejected(
+        'member.recovery-unavailable',
+        'Esta pessoa entra com o Google; é por lá que ela recupera o acesso.',
+      )
+    }
+    // One pending link per person: a new one replaces the old.
+    for (const previous of mockState.invitations) {
+      if (
+        previous.status === 'PENDING' &&
+        previous.view.kind === 'RECOVERY' &&
+        previous.targetMembershipId === target.id
+      ) {
+        previous.status = 'REVOKED'
+      }
+    }
+    const creator = members.find((member) => member.id === workspace.membershipId)
+    const token = newToken()
+    const view: Schemas['InvitationView'] = {
+      id: crypto.randomUUID(),
+      role: target.role,
+      nickname: null,
+      kind: 'RECOVERY',
+      expiresAt: new Date(Date.now() + DAY).toISOString(),
+      createdByName: creator?.nickname ?? creator?.displayName ?? null,
+      token: null,
+    }
+    mockState.invitations.push({
+      view,
+      token,
+      status: 'PENDING',
+      workspaceId: workspace.id,
+      targetMembershipId: target.id,
+    })
+    return HttpResponse.json({ ...view, token }, { status: 201 })
+  }),
+
   http.delete(url('/v1/workspaces/:ws/invitations/:id'), ({ request, params }) => {
     if (withoutToken(request)) return csrfInvalid()
     const workspace = guard(String(params.ws))
@@ -751,6 +816,10 @@ export const handlers = [
     const invitation = mockState.invitations.find((candidate) => candidate.token === body.token)
     if (!invitation) return invitationNotFound()
     if (invitationGone(invitation)) return invitationGoneProblem()
+    const recoveryTarget = recoveryTargetOf(invitation)
+    if (invitation.view.kind === 'RECOVERY' && recoveryTarget?.status !== 'ACTIVE') {
+      return invitationGoneProblem()
+    }
     const workspace = mockState.workspaces.find(
       (candidate) => candidate.id === invitation.workspaceId,
     )
@@ -758,7 +827,7 @@ export const handlers = [
       workspaceName: workspace?.name ?? '',
       invitedBy: invitation.view.createdByName,
       role: invitation.view.role,
-      nickname: invitation.view.nickname,
+      nickname: recoveryTarget ? recoveryTarget.nickname : invitation.view.nickname,
       kind: invitation.view.kind,
     })
   }),
@@ -775,6 +844,14 @@ export const handlers = [
     if (invitationGone(invitation)) return invitationGoneProblem()
     const workspaceId = invitation.workspaceId
     const members = (mockState.members[workspaceId] ??= [])
+    if (invitation.view.kind === 'RECOVERY') {
+      // The target signs in whoever holds the link, and `newUser` plays no part.
+      const target = recoveryTargetOf(invitation)
+      if (target?.status !== 'ACTIVE') return invitationGoneProblem()
+      invitation.status = 'USED'
+      mockState.signedIn = true
+      return HttpResponse.json({ workspaceId, membershipId: target.id, mustRegisterPasskey: true })
+    }
     const signedIn = mockState.signedIn
     let displayName = mockState.user.displayName
     if (!signedIn) {

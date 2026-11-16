@@ -16,7 +16,7 @@ class InvitationConfig {
         return new RateLimiter(clock, 10, Duration.ofMinutes(1));
     }
 
-    /** Links made by one person: 20 an hour. Recovery links (a later route) draw on the same one. */
+    /** Links made by one person: 20 an hour. Recovery links draw on the same one. */
     @Bean
     RateLimiter invitationCreateRateLimiter(Clock clock) {
         return new RateLimiter(clock, 20, Duration.ofHours(1));

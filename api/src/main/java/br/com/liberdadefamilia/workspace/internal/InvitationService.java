@@ -1,12 +1,16 @@
 package br.com.liberdadefamilia.workspace.internal;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
+import br.com.liberdadefamilia.identity.SignInMethod;
 import br.com.liberdadefamilia.identity.UserDirectory;
+import br.com.liberdadefamilia.identity.UserSummary;
 import br.com.liberdadefamilia.workspace.InvitationCreated;
 import br.com.liberdadefamilia.workspace.InvitationKind;
 import br.com.liberdadefamilia.workspace.InvitationRevoked;
 import br.com.liberdadefamilia.workspace.MemberJoined;
 import br.com.liberdadefamilia.workspace.MembershipStatus;
+import br.com.liberdadefamilia.workspace.RecoveryCreated;
+import br.com.liberdadefamilia.workspace.RecoveryUsed;
 import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.internal.InvitationRepository.InvitationRow;
@@ -30,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 class InvitationService {
 
     static final Duration VALIDITY = Duration.ofDays(7);
+    static final Duration RECOVERY_VALIDITY = Duration.ofHours(24);
 
     private final InvitationRepository invitations;
     private final MemberRepository members;
@@ -85,13 +90,63 @@ class InvitationService {
                 consentBy,
                 InvitationTokens.hash(token),
                 caller.userId(),
-                expiresAt);
+                expiresAt,
+                null);
         events.publishEvent(
                 new InvitationCreated(caller.workspaceId(), id, InvitationKind.INVITE, role, caller.userId()));
         String createdByName = members.find(caller.workspaceId(), caller.membershipId())
                 .map(MemberRow::nickname)
                 .orElse(null);
         return new InvitationView(id, role, request.nickname(), InvitationKind.INVITE, expiresAt, createdByName, token);
+    }
+
+    /**
+     * Makes a link that lasts 24 hours to bring a passkey-only member back into their account, and returns it with its
+     * token, the only time the token is shown. A link still pending for the same member is cancelled. The member row
+     * is locked, so two links made at once leave one pending.
+     *
+     * @throws MemberNotFoundException when the membership is not in the family
+     * @throws InvitationForbiddenException when an ADULT recovers an OWNER
+     * @throws WorkspaceRejectedException when the member is gone, or signs in with Google
+     */
+    @Transactional
+    InvitationView createRecovery(WorkspaceMember caller, UUID membershipId) {
+        UUID workspaceId = caller.workspaceId();
+        MemberRow target = members.lock(workspaceId, membershipId).orElseThrow(MemberNotFoundException::new);
+        if (target.role() == Role.OWNER && caller.role() != Role.OWNER) {
+            throw new InvitationForbiddenException();
+        }
+        if (target.status() != MembershipStatus.ACTIVE) {
+            throw new WorkspaceRejectedException("member.removed", "Essa pessoa já saiu da família.");
+        }
+        UserSummary person = target.userId() == null
+                ? null
+                : users.findAll(List.of(target.userId())).get(target.userId());
+        if (person == null || person.hasGoogle()) {
+            throw new WorkspaceRejectedException(
+                    "member.recovery-unavailable",
+                    "Essa pessoa entra com o Google, então não há link de recuperação para ela.");
+        }
+        Instant now = clock.instant();
+        invitations.revokePendingRecovery(workspaceId, membershipId, now);
+        String token = InvitationTokens.newToken();
+        Instant expiresAt = now.plus(RECOVERY_VALIDITY);
+        UUID id = invitations.insert(
+                workspaceId,
+                InvitationKind.RECOVERY,
+                target.role(),
+                null,
+                null,
+                null,
+                InvitationTokens.hash(token),
+                caller.userId(),
+                expiresAt,
+                membershipId);
+        events.publishEvent(new RecoveryCreated(workspaceId, id, membershipId, caller.userId()));
+        String createdByName = members.find(workspaceId, caller.membershipId())
+                .map(MemberRow::nickname)
+                .orElse(null);
+        return new InvitationView(id, target.role(), null, InvitationKind.RECOVERY, expiresAt, createdByName, token);
     }
 
     @Transactional(readOnly = true)
@@ -124,10 +179,11 @@ class InvitationService {
     InvitationPreview preview(String token) {
         InvitationRow row =
                 invitations.findByHash(InvitationTokens.hash(token)).orElseThrow(InvitationNotFoundException::new);
-        if (row.isGone(clock.instant())) {
+        if (row.isGone(clock.instant()) || (row.kind() == InvitationKind.RECOVERY && !row.targetActive())) {
             throw new InvitationGoneException();
         }
-        return new InvitationPreview(row.workspaceName(), row.createdByName(), row.role(), row.nickname(), row.kind());
+        String nickname = row.kind() == InvitationKind.RECOVERY ? row.targetNickname() : row.nickname();
+        return new InvitationPreview(row.workspaceName(), row.createdByName(), row.role(), nickname, row.kind());
     }
 
     /**
@@ -148,9 +204,8 @@ class InvitationService {
         if (row.isGone(now)) {
             throw new InvitationGoneException();
         }
-        if (row.kind() != InvitationKind.INVITE || row.nickname() == null) {
-            // Recovery links bring someone back into their own place; they are taken by their own route.
-            throw new InvitationNotFoundException();
+        if (row.kind() == InvitationKind.RECOVERY) {
+            return acceptRecovery(row, now);
         }
         AcceptInvitationRequest.NewUser newUser = request.newUser();
         UUID userId;
@@ -180,15 +235,38 @@ class InvitationService {
                 new MemberJoined(row.workspaceId(), membershipId, userId, row.role(), row.nickname(), consentBy));
         boolean created = caller.isEmpty();
         return new AcceptResult(
-                new AcceptedInvitation(row.workspaceId(), membershipId, created), created ? userId : null);
+                new AcceptedInvitation(row.workspaceId(), membershipId, created),
+                created ? userId : null,
+                SignInMethod.INVITATION);
+    }
+
+    /**
+     * Brings the target back in. Whoever holds the link is signed in as the target, replacing any session they had, and
+     * no person is created: a {@code newUser} in the request is ignored. The target row is locked, so a member removed
+     * at the same moment is either seen as removed here or removed after this commits.
+     */
+    private AcceptResult acceptRecovery(InvitationRow row, Instant now) {
+        UUID targetId = row.targetMembershipId();
+        MemberRow target = targetId == null
+                ? null
+                : members.lock(row.workspaceId(), targetId).orElse(null);
+        if (target == null || target.status() != MembershipStatus.ACTIVE || target.userId() == null) {
+            throw new InvitationGoneException();
+        }
+        members.markRecovered(row.workspaceId(), target.id(), now);
+        invitations.markUsed(row.id(), now);
+        events.publishEvent(new RecoveryUsed(row.workspaceId(), target.id(), target.userId()));
+        return new AcceptResult(
+                new AcceptedInvitation(row.workspaceId(), target.id(), true), target.userId(), SignInMethod.RECOVERY);
     }
 
     /**
      * What taking a link gives back.
      *
-     * @param signInUserId the person this call created, who the caller must now sign in once the transaction has
-     *     committed; null when the caller already had a session
+     * @param signInUserId the person the caller must now sign in once the transaction has committed: the one this call
+     *     created, or the target of a recovery; null when the caller already had a session and keeps it
+     * @param signInMethod how that person is signed in
      */
     record AcceptResult(
-            AcceptedInvitation accepted, @Nullable UUID signInUserId) {}
+            AcceptedInvitation accepted, @Nullable UUID signInUserId, SignInMethod signInMethod) {}
 }

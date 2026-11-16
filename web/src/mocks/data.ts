@@ -12,6 +12,8 @@ export interface MockInvitation {
   token: string
   status: 'PENDING' | 'USED' | 'REVOKED'
   workspaceId: string
+  /** The member a RECOVERY link brings back; absent on an INVITE. */
+  targetMembershipId?: string
 }
 
 export interface MockState {
@@ -98,6 +100,7 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
     gettingStartedDismissedAt: null,
     hasTransactions: false,
     familyInvited: false,
+    recoveredAt: null,
   }
   mockState.workspaces.push(workspace)
   mockState.members[workspace.id] = [

@@ -99,7 +99,7 @@ class WorkspaceRepository {
     private List<MeWorkspace> meWorkspaces(UUID userId, @Nullable UUID workspaceId) {
         List<MeRow> rows = jdbc.sql("""
                         select w.id, w.name, m.role, m.id as membership_id, w.timezone, w.base_currency,
-                               m.getting_started_dismissed_at,
+                               m.getting_started_dismissed_at, m.recovered_at,
                                ((select count(*) from memberships o
                                  where o.workspace_id = w.id and o.status = 'ACTIVE') >= 2
                                 or exists (select 1 from invitations i
@@ -130,12 +130,14 @@ class WorkspaceRepository {
                         r.currency(),
                         r.dismissedAt(),
                         withTransactions.contains(r.id()),
-                        r.familyInvited()))
+                        r.familyInvited(),
+                        r.recoveredAt()))
                 .toList();
     }
 
     private static MeRow toRow(ResultSet rs) throws SQLException {
         OffsetDateTime dismissed = rs.getObject("getting_started_dismissed_at", OffsetDateTime.class);
+        OffsetDateTime recovered = rs.getObject("recovered_at", OffsetDateTime.class);
         return new MeRow(
                 rs.getObject("id", UUID.class),
                 rs.getString("name"),
@@ -144,7 +146,8 @@ class WorkspaceRepository {
                 rs.getString("timezone"),
                 rs.getString("base_currency"),
                 dismissed == null ? null : dismissed.toInstant(),
-                rs.getBoolean("family_invited"));
+                rs.getBoolean("family_invited"),
+                recovered == null ? null : recovered.toInstant());
     }
 
     Optional<WorkspaceMember> activeMember(UUID workspaceId, UUID userId) {
@@ -198,5 +201,6 @@ class WorkspaceRepository {
             String timezone,
             String currency,
             @Nullable Instant dismissedAt,
-            boolean familyInvited) {}
+            boolean familyInvited,
+            @Nullable Instant recoveredAt) {}
 }

@@ -903,6 +903,47 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/members/{id}/recovery": {
+      "post": {
+        "operationId": "createRecoveryLink",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationView"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "recovery-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/transactions": {
       "get": {
         "operationId": "listTransactions",
@@ -1664,6 +1705,11 @@
           },
           "name": {
             "type": "string"
+          },
+          "recoveredAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "role": {
             "type": "string",

@@ -43,6 +43,27 @@ class MemberRepository {
                 .optional();
     }
 
+    /** The member's row, held until the transaction ends so that nothing changes it while a recovery link is made or used. */
+    Optional<MemberRow> lock(UUID workspaceId, UUID membershipId) {
+        return jdbc.sql(SELECT + " where workspace_id = :workspaceId and id = :membershipId for update")
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .query((rs, row) -> toRow(rs))
+                .optional();
+    }
+
+    /** Stamps the moment a recovery link brought the member back in. */
+    void markRecovered(UUID workspaceId, UUID membershipId, Instant now) {
+        jdbc.sql("""
+                        update memberships
+                        set recovered_at = :now, updated_at = now(), version = version + 1
+                        where workspace_id = :workspaceId and id = :membershipId""")
+                .param("now", OffsetDateTime.ofInstant(now, ZoneOffset.UTC))
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .update();
+    }
+
     /** The row of this person in the family, active or removed. */
     Optional<MemberRow> findByUser(UUID workspaceId, UUID userId) {
         return jdbc.sql(SELECT + " where workspace_id = :workspaceId and user_id = :userId")

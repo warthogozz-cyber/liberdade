@@ -9,7 +9,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * A family the user is an active member of, as {@code GET /v1/me} lists it. {@code gettingStartedDismissedAt} is this
  * member's own; {@code hasTransactions} is the family's, and so is
- * {@code familyInvited}: whether two or more people are in it.
+ * {@code familyInvited}: whether two or more people are in it. {@code recoveredAt} is when a recovery link last brought
+ * this member back in, if one did.
  */
 record MeWorkspace(
         UUID id,
@@ -20,4 +21,5 @@ record MeWorkspace(
         String currency,
         @Nullable @Schema(nullable = true) Instant gettingStartedDismissedAt,
         boolean hasTransactions,
-        boolean familyInvited) {}
+        boolean familyInvited,
+        @Nullable @Schema(nullable = true) Instant recoveredAt) {}
