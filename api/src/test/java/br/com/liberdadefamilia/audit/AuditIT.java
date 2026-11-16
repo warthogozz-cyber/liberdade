@@ -34,6 +34,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -76,12 +77,22 @@ class AuditIT {
                 () -> "http://" + GOOGLE.getHost() + ":" + GOOGLE.getMappedPort(8080) + "/google");
     }
 
-    /** Throws after the audit listener, inside the changing transaction, when armed. */
+    /**
+     * Throws when armed, after looking in the same transaction for the audit row of the change. {@code auditRowsSeen}
+     * proves the row had been written before the failure, so the test shows a rollback and not a missing insert.
+     */
     static class FailAfterAudit {
 
         private final AtomicBoolean armed = new AtomicBoolean();
+        private final AtomicInteger auditRowsSeen = new AtomicInteger(-1);
+        private final JdbcClient jdbc;
+
+        FailAfterAudit(JdbcClient jdbc) {
+            this.jdbc = jdbc;
+        }
 
         void arm() {
+            auditRowsSeen.set(-1);
             armed.set(true);
         }
 
@@ -89,10 +100,20 @@ class AuditIT {
             armed.set(false);
         }
 
+        int auditRowsSeen() {
+            return auditRowsSeen.get();
+        }
+
         @EventListener
-        @Order(Integer.MAX_VALUE)
+        @Order(Ordered.LOWEST_PRECEDENCE)
         void on(MemberRoleChanged event) {
             if (armed.get()) {
+                auditRowsSeen.set(jdbc.sql("""
+                                select count(*) from audit_events
+                                where action = 'member.role_changed' and target_id = :id""")
+                        .param("id", event.membershipId())
+                        .query(Integer.class)
+                        .single());
                 throw new IllegalStateException("forced failure");
             }
         }
@@ -102,8 +123,8 @@ class AuditIT {
     static class Config {
 
         @Bean
-        FailAfterAudit failAfterAudit() {
-            return new FailAfterAudit();
+        FailAfterAudit failAfterAudit(JdbcClient jdbc) {
+            return new FailAfterAudit(jdbc);
         }
     }
 
@@ -297,8 +318,9 @@ class AuditIT {
         assertThat(accept(JsonPath.read(body(invited), "$.token"), "Zelia Teste"))
                 .hasStatusOk();
 
-        List<Row> rows = rowsOf(ws);
+        List<Row> rows = allRows();
         assertThat(rows).hasSizeGreaterThanOrEqualTo(3);
+        assertThat(rows).extracting(Row::action).contains("auth.signed_in", "invitation.created", "workspace.renamed");
         for (Row row : rows) {
             assertThat(row.metadata().toString())
                     .doesNotContain(
@@ -338,6 +360,9 @@ class AuditIT {
         MvcTestResult failed = patchRole(ana, ws, biaMembership, "VIEWER");
 
         assertThat(failed.getResponse().getStatus()).isGreaterThanOrEqualTo(400);
+        assertThat(failAfterAudit.auditRowsSeen())
+                .as("audit row visible before the failure")
+                .isEqualTo(1);
         assertThat(rowsOf(ws)).isEmpty();
         assertThat(jdbc.sql("select role from memberships where id = :id")
                         .param("id", biaMembership)
@@ -362,6 +387,22 @@ class AuditIT {
                         where workspace_id = :id or actor_user_id = :id
                         order by occurred_at, id""")
                 .param("id", workspaceOrUser)
+                .query((rs, row) -> new Row(
+                        rs.getString("action"),
+                        rs.getString("target_type"),
+                        rs.getObject("target_id", UUID.class),
+                        rs.getObject("actor_user_id", UUID.class),
+                        rs.getObject("workspace_id", UUID.class),
+                        JsonPath.<Map<String, Object>>read(rs.getString("metadata"), "$")))
+                .list();
+    }
+
+    /** Every audit row of the table, whoever it belongs to. */
+    private List<Row> allRows() {
+        return jdbc.sql("""
+                        select action, target_type, target_id, actor_user_id, workspace_id, metadata::text as metadata
+                        from audit_events
+                        order by occurred_at, id""")
                 .query((rs, row) -> new Row(
                         rs.getString("action"),
                         rs.getString("target_type"),

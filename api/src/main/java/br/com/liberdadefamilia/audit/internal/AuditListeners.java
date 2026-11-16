@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.event.EventListener;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -26,7 +25,6 @@ import org.springframework.stereotype.Component;
  * fixed labels only: no names, no addresses.
  */
 @Component
-@Order(0)
 class AuditListeners {
 
     private final AuditTrail trail;

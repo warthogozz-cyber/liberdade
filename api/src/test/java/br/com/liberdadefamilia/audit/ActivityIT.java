@@ -130,10 +130,26 @@ class ActivityIT {
         workspaces.addMember(ws, vera, Role.VIEWER);
 
         assertThat(patchRole(ana, ws, biaMembership, "OWNER")).hasStatusOk();
+        // Events whose only link to Vera is the shared family: a rename, a module switch and an invitation.
+        assertThat(send(mvc.patch(), ana, "/v1/workspaces/" + ws, "{\"name\":\"Os Teste\"}"))
+                .hasStatusOk();
+        assertThat(send(mvc.put(), bia, "/v1/workspaces/" + ws + "/modules/planning", "{\"enabled\":true}"))
+                .hasStatusOk();
+        assertThat(send(
+                        mvc.post(),
+                        ana,
+                        "/v1/workspaces/" + ws + "/invitations",
+                        "{\"role\":\"VIEWER\",\"nickname\":\"Vovo\"}"))
+                .hasStatus(201);
 
         assertThat(activity(vera)).hasStatusOk();
         assertThat(activity(vera)).bodyJson().extractingPath("$").asArray().isEmpty();
-        assertThat(activity(bia)).bodyJson().extractingPath("$").asArray().hasSize(1);
+        // Bia sees the change to her own role and the module she switched, and nothing else.
+        assertThat(activity(bia))
+                .bodyJson()
+                .extractingPath("$[*].action")
+                .asArray()
+                .containsExactly("module.toggled", "member.role_changed");
     }
 
     @Test
@@ -279,6 +295,19 @@ class ActivityIT {
 
     private static RequestPostProcessor session(UUID userId) {
         return TestUsers.signedIn(userId, null);
+    }
+
+    private MvcTestResult send(
+            org.springframework.test.web.servlet.assertj.MockMvcTester.MockMvcRequestBuilder builder,
+            UUID caller,
+            String uri,
+            String json) {
+        return builder.uri(uri)
+                .with(session(caller))
+                .with(CsrfSession.start(mvc, session(caller)))
+                .contentType(JSON)
+                .content(json)
+                .exchange();
     }
 
     private MvcTestResult patchRole(UUID caller, UUID ws, UUID membershipId, String role) {
