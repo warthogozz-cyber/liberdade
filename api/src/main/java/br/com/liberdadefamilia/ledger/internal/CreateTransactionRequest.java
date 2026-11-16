@@ -14,8 +14,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * A new transaction as the device sends it. A transfer has {@code toAccountId} and no {@code categoryId}; income and
  * expenses have a category and no destination, which the family rules check. The description is stripped, and a blank
- * one becomes null, before validation. {@code memberId} is who the spending was for; null means whoever records it.
- * It may hold any character but U+0000, which PostgreSQL text cannot store.
+ * one becomes null, before validation. It may hold any character but U+0000, which PostgreSQL text cannot store.
+ * {@code memberId} is who the spending was for; null means whoever records it.
  */
 record CreateTransactionRequest(
         @NotNull UUID id,

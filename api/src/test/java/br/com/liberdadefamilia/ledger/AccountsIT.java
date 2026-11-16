@@ -244,6 +244,48 @@ class AccountsIT {
     }
 
     @Test
+    void setOwnerOnOtherFamilyAccountIs404() {
+        UUID biaId = users.create("Bia Teste", "bia@example.com");
+        UUID biaWorkspace = workspaces.createFor(biaId);
+        UUID biaWallet = ledger.walletOf(biaWorkspace);
+
+        var result = send(
+                "PUT",
+                "/accounts/" + biaWallet + "/owner",
+                ownerBody(workspaces.membershipOf(workspaceId, anaId)),
+                anaId);
+
+        assertProblem(result, 404, "account.not-found");
+    }
+
+    @Test
+    void setOwnerRejectsOtherFamilyMembership() {
+        UUID biaId = users.create("Bia Teste", "bia@example.com");
+        UUID biaWorkspace = workspaces.createFor(biaId);
+        UUID biaMembership = workspaces.membershipOf(biaWorkspace, biaId);
+
+        var result = send("PUT", "/accounts/" + walletId + "/owner", ownerBody(biaMembership), anaId);
+
+        assertProblem(result, 422, "account.owner-not-found");
+    }
+
+    @Test
+    void setOwnerOnArchivedAccount() {
+        UUID adultId = users.create("Bia Teste", "bia@example.com");
+        UUID adultMembership = workspaces.addMember(workspaceId, adultId, Role.ADULT);
+        insert("Reserva", "SAVINGS", "0", true);
+        UUID archivedId = jdbc.sql("select id from accounts where workspace_id = :ws and archived_at is not null")
+                .param("ws", workspaceId)
+                .query(UUID.class)
+                .single();
+
+        var result = send("PUT", "/accounts/" + archivedId + "/owner", ownerBody(adultMembership), anaId);
+
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().extractingPath("$.ownerMembershipId").isEqualTo(adultMembership.toString());
+    }
+
+    @Test
     void setOwnerRejectsInactive() {
         UUID removedUser = users.create("Bia Teste", "bia@example.com");
         UUID removed = workspaces.addMember(workspaceId, removedUser, Role.ADULT);

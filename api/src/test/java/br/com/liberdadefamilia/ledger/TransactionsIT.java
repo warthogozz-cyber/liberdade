@@ -789,13 +789,36 @@ class TransactionsIT {
         sameMember.put("memberId", removed.toString());
         assertThat(patch(id, sameMember)).hasStatusOk();
 
-        Map<String, Object> otherMember = new LinkedHashMap<>(edit);
-        otherMember.put("version", 2);
-        otherMember.put("memberId", UUID.randomUUID().toString());
-        var rejected = patch(id, otherMember);
-        assertThat(rejected).hasStatus(422);
-        assertThat(rejected).bodyJson().extractingPath("$.code").isEqualTo("transaction.member-not-found");
-        assertThat(row(id)).containsEntry("member_id", removed);
+        UUID otherRemovedUser = users.create("Cris Teste", "cris@example.com");
+        UUID otherRemoved = workspaces.addMember(ana.workspaceId(), otherRemovedUser, Role.ADULT);
+        removeMembership(otherRemoved);
+        Family otherFamily = family("Dani Teste", "dani@example.com");
+        for (UUID rejectedId : List.of(UUID.randomUUID(), otherRemoved, otherFamily.membershipId())) {
+            Map<String, Object> otherMember = new LinkedHashMap<>(edit);
+            otherMember.put("version", 2);
+            otherMember.put("memberId", rejectedId.toString());
+            var rejected = patch(id, otherMember);
+            assertThat(rejected).as(rejectedId.toString()).hasStatus(422);
+            assertThat(rejected).bodyJson().extractingPath("$.code").isEqualTo("transaction.member-not-found");
+            assertThat(row(id)).containsEntry("member_id", removed);
+        }
+    }
+
+    @Test
+    void editChangesMemberToAnotherActiveOne() {
+        UUID adultUser = users.create("Bia Teste", "bia@example.com");
+        UUID adult = workspaces.addMember(ana.workspaceId(), adultUser, Role.ADULT);
+        UUID id = created(ana, "2026-11-02");
+        Map<String, Object> edit = expense(id, ana);
+        edit.remove("id");
+        edit.put("version", 0);
+        edit.put("memberId", adult.toString());
+
+        var result = patch(id, edit);
+
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().extractingPath("$.memberId").isEqualTo(adult.toString());
+        assertThat(row(id)).containsEntry("member_id", adult).containsEntry("created_by", ana.membershipId());
     }
 
     @Test
