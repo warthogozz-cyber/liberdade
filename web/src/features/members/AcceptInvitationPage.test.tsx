@@ -8,7 +8,7 @@ import { server } from '@/mocks/server'
 import { API_URL, type MeView } from '@/shared/api'
 import { readSelectedWorkspaceId } from '@/shared/api/workspaceChoice'
 import { registerPasskey } from '@/shared/auth/passkey'
-import { broadcastSignedIn, db } from '@/shared/offline'
+import { broadcastSignedIn, broadcastSignedOut, db } from '@/shared/offline'
 import { renderWithProviders } from '@/shared/testing'
 import { AcceptInvitationPage } from './AcceptInvitationPage'
 
@@ -16,7 +16,7 @@ const assign = vi.hoisted(() => vi.fn<(url: string) => void>())
 
 vi.mock('@/shared/offline', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/offline')>()
-  return { ...actual, broadcastSignedIn: vi.fn() }
+  return { ...actual, broadcastSignedIn: vi.fn(), broadcastSignedOut: vi.fn() }
 })
 
 vi.mock('@/shared/auth/passkey', () => ({ registerPasskey: vi.fn() }))
@@ -175,6 +175,8 @@ describe('AcceptInvitationPage', () => {
 
     // Signed out, the same link now asks for a new passkey-only account.
     expect(await screen.findByLabelText('Como você se chama?')).toBeInTheDocument()
+    // The form shows before the session's storage goes; the sign-out ends with the broadcast.
+    await waitFor(() => expect(broadcastSignedOut).toHaveBeenCalledOnce())
     expect(logouts).toEqual(['POST'])
     expect(router.state.location.pathname).toBe('/convite')
     expect(sessionStorage.getItem(TOKEN_KEY)).toBe(TOKEN)
