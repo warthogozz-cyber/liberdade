@@ -157,6 +157,10 @@ export function TransactionForm({
   const [toAccountId, setToAccountId] = useState(
     () => editing?.toAccountId ?? fixing?.payload.toAccountId ?? initialToAccountId,
   )
+  // Only a person's own pick is sent: a member left alone stays the signed-in one (R2).
+  const [chosenMemberId, setChosenMemberId] = useState<string | undefined>(
+    () => fixing?.payload.memberId ?? undefined,
+  )
   const [description, setDescription] = useState(
     () => editing?.description ?? fixing?.payload.description ?? '',
   )
@@ -265,6 +269,7 @@ export function TransactionForm({
         categoryId: transfer ? null : categoryId,
         toAccountId: transfer ? (to?.id ?? null) : null,
         description: description.trim() || null,
+        ...(chosenMemberId && kind === 'EXPENSE' ? { memberId: chosenMemberId } : {}),
         version: editing.version,
       })
       if (!saved) {
@@ -282,6 +287,9 @@ export function TransactionForm({
       categoryId: transfer ? null : categoryId,
       toAccountId: transfer ? (to?.id ?? null) : null,
       description: description.trim() || null,
+      ...(chosenMemberId && chosenMemberId !== workspace.membershipId && kind === 'EXPENSE'
+        ? { memberId: chosenMemberId }
+        : {}),
     }
     try {
       if (fixing) await replaceOutboxItem(fixing.id, payload)
@@ -414,7 +422,16 @@ export function TransactionForm({
                 transfer
                   ? undefined
                   : {
-                      member: kind === 'EXPENSE',
+                      // An expense has someone who spent it; a Youth only ever spends their own.
+                      member:
+                        kind === 'EXPENSE' && workspace.role !== 'YOUTH'
+                          ? {
+                              workspaceId: workspace.id,
+                              selfId: workspace.membershipId,
+                              value: chosenMemberId ?? editing?.memberId ?? workspace.membershipId,
+                              onChange: setChosenMemberId,
+                            }
+                          : undefined,
                       accounts: activeAccounts,
                       accountId: account?.id,
                       onAccountChange: setChosenAccountId,

@@ -1,11 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useIntl } from 'react-intl'
-import {
-  ApiError,
-  ReauthCancelledError,
-  type MemberRole,
-  type MemberView,
-} from '@/shared/api'
+import { ApiError, ReauthCancelledError, type MemberRole, type MemberView } from '@/shared/api'
 import { useCreateRecoveryLink, useRemoveMember, useUpdateMember } from '@/shared/api/family'
 import { useReauth } from '@/shared/auth'
 import { useOnline } from '@/shared/offline'
@@ -129,7 +124,9 @@ export function MemberSheet({ workspaceId, viewerRole, member, onClose }: Member
         {isOwner && (
           <form onSubmit={(event) => void save(event)} className="flex flex-col gap-4">
             <label className="flex flex-col gap-1">
-              <span className="font-medium">{intl.formatMessage({ id: 'members.field.nickname' })}</span>
+              <span className="font-medium">
+                {intl.formatMessage({ id: 'members.field.nickname' })}
+              </span>
               <input
                 value={nickname}
                 maxLength={40}
@@ -138,7 +135,9 @@ export function MemberSheet({ workspaceId, viewerRole, member, onClose }: Member
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="font-medium">{intl.formatMessage({ id: 'members.field.role' })}</span>
+              <span className="font-medium">
+                {intl.formatMessage({ id: 'members.field.role' })}
+              </span>
               <select
                 value={role}
                 onChange={(event) => setRole(event.target.value as MemberRole)}
@@ -162,7 +161,11 @@ export function MemberSheet({ workspaceId, viewerRole, member, onClose }: Member
                 <span>{intl.formatMessage({ id: 'members.consent' })}</span>
               </label>
             )}
-            <button type="submit" disabled={!actionable || (becomesYouth && !consent)} className={primary}>
+            <button
+              type="submit"
+              disabled={!actionable || (becomesYouth && !consent)}
+              className={primary}
+            >
               {intl.formatMessage({ id: 'members.save' })}
             </button>
           </form>

@@ -24,6 +24,27 @@ describe('MorePage', () => {
     expect(screen.queryByText('Trocar de família')).not.toBeInTheDocument()
   })
 
+  it('youthMenu', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    // The menu is static: wait for the family to load before checking what it leaves out.
+    expect(await screen.findByText(workspace.name)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Família' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Contas' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Categorias' })).not.toBeInTheDocument()
+  })
+
+  it('adultMenuKeepsAccountsAndCategories', async () => {
+    const workspace = seedMockFamily()
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByText(workspace.name)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Contas' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Categorias' })).toBeInTheDocument()
+  })
+
   it('switcherWithTwoFamilies', async () => {
     seedMockFamily()
     const other = createFamily('Família Bia Teste', 'America/Fortaleza')

@@ -94,7 +94,9 @@ function FamilyScreen({ workspace }: { workspace: MeWorkspace }) {
           <li key={member.id}>
             <MemberRow
               member={member}
-              onOpen={canOpenMember(workspace.role, member) ? () => setOpenId(member.id) : undefined}
+              onOpen={
+                canOpenMember(workspace.role, member) ? () => setOpenId(member.id) : undefined
+              }
             />
           </li>
         ))}

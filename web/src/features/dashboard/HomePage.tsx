@@ -15,6 +15,7 @@ import { useOnline, useOutbox, usePendingTotals } from '@/shared/offline'
 import { DataAsOf, useDocumentTitle } from '@/shared/ui'
 import { isRecoveryNoticeRecent } from '@/features/members/recoveryWindow'
 import { shouldShowGettingStarted } from './gettingStarted'
+import './register'
 
 // The old card kept its dismissal here. The new one lives on the server, so the key is only cleared.
 const LEGACY_FIRST_STEPS_KEY = 'liberdade:first-steps-dismissed'
@@ -75,6 +76,7 @@ function HomeContent({ me, workspace }: HomeContentProps) {
   const queue = useOutbox(userId, workspace.id) ?? []
   const attention = queue.filter((item) => item.status === 'needs-attention').length
   const accounts = useAccounts(workspace.id).data
+  const youth = workspace.role === 'YOUTH'
   const monthName = intl.formatDate(`${month}-01T00:00:00Z`, { month: 'long', timeZone: 'UTC' })
 
   // The card needs the accounts to know whether it is done; until they load, its code stays unloaded.
@@ -106,11 +108,25 @@ function HomeContent({ me, workspace }: HomeContentProps) {
           </div>
           <div>
             <dt className="text-sm text-text-muted">
-              <FormattedMessage id="home.totalBalance" />
+              <FormattedMessage id={youth ? 'dashboard.yourWallet' : 'home.totalBalance'} />
             </dt>
             <dd className="text-xl font-semibold tabular-nums">{formatBRL(balance)}</dd>
           </div>
         </dl>
+        {youth && accounts && accounts.length > 0 && (
+          <ul className="flex flex-col gap-2 rounded-card bg-surface p-4">
+            {accounts
+              .filter((account) => account.archivedAt === null)
+              .map((account) => (
+                <li key={account.id} className="flex items-baseline justify-between gap-4">
+                  <span className="truncate">{account.name}</span>
+                  <span className="font-medium tabular-nums">
+                    {formatBRL(parseCents(account.balance.amount))}
+                  </span>
+                </li>
+              ))}
+          </ul>
+        )}
         <Link
           to="/painel"
           className="flex min-h-12 items-center font-medium text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -161,9 +177,11 @@ function HomeContent({ me, workspace }: HomeContentProps) {
         </Suspense>
       )}
       {totals}
-      <p className="text-sm text-text-muted">
-        <FormattedMessage id="home.addAccountsHint" />
-      </p>
+      {!youth && (
+        <p className="text-sm text-text-muted">
+          <FormattedMessage id="home.addAccountsHint" />
+        </p>
+      )}
       {attention > 0 && (
         <Link
           to="/lancamentos"

@@ -150,7 +150,10 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
     content = (
       <>
         <dl className="grid grid-cols-2 gap-3">
-          <Card id="dashboard.balance" cents={parseCents(data.balance.amount) + queuedBalance} />
+          <Card
+            id={workspace?.role === 'YOUTH' ? 'dashboard.yourWallet' : 'dashboard.balance'}
+            cents={parseCents(data.balance.amount) + queuedBalance}
+          />
           <Card id="dashboard.income" cents={parseCents(data.income.amount) + queuedIncome} />
           <Card id="dashboard.expenses" cents={parseCents(data.expenses.amount) + queuedExpenses} />
           <Card

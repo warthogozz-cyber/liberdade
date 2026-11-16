@@ -14,6 +14,7 @@ import { useOnline } from '@/shared/offline'
 import { useToast } from '@/shared/ui'
 import { ACCOUNT_TYPES, accountTypeInfo } from './accountTypes'
 import { BalanceInput } from './BalanceInput'
+import { OwnerPicker } from './OwnerPicker'
 import { signedCents } from './signedCents'
 import './register'
 
@@ -38,12 +39,15 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
   const [type, setType] = useState<AccountType>(account?.type ?? 'CHECKING')
   const [cents, setCents] = useState(0n)
   const [negative, setNegative] = useState(false)
+  const [ownerId, setOwnerId] = useState<string | null>(null)
   const [nameError, setNameError] = useState<string>()
   const [error, setError] = useState<string>()
   const ids = useId()
   const nameErrorId = `${ids}-name-error`
   const hintId = `${ids}-hint`
   const typeLegendId = `${ids}-type-legend`
+  // Only an Owner or an Adult chooses who an account belongs to; the API still answers for it.
+  const canChooseOwner = workspace.role === 'OWNER' || workspace.role === 'ADULT'
   const pending = create.isPending || update.isPending
 
   const trimmed = name.trim()
@@ -71,6 +75,7 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
             amount: centsToApi(signedCents(cents, negative)),
             currency: workspace.currency,
           },
+          ...(ownerId && { ownerMembershipId: ownerId }),
         })
       }
     } catch (failure) {
@@ -143,6 +148,14 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
           {intl.formatMessage({ id: accountTypeInfo(type).hintId })}
         </p>
       </fieldset>
+      {canChooseOwner && (
+        <OwnerPicker
+          workspace={workspace}
+          account={account}
+          value={ownerId}
+          onChange={setOwnerId}
+        />
+      )}
       {!account && (
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 font-medium">

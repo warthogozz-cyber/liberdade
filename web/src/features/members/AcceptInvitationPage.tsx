@@ -2,13 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useIntl } from 'react-intl'
 import { Link, useNavigate } from 'react-router'
-import {
-  ApiError,
-  getMe,
-  queryKeys,
-  selectWorkspace,
-  type InvitationPreview,
-} from '@/shared/api'
+import { ApiError, getMe, queryKeys, selectWorkspace, type InvitationPreview } from '@/shared/api'
 import { useAcceptInvitation, usePreviewInvitation } from '@/shared/api/family'
 import { startGoogleSignIn } from '@/shared/auth'
 import { registerPasskey } from '@/shared/auth/passkey'
@@ -129,7 +123,9 @@ export function AcceptInvitationPage() {
 
   function passkeyLabel(): string {
     return (
-      readPendingPasskey() ?? preview?.nickname ?? intl.formatMessage({ id: 'passkey.defaultLabel' })
+      readPendingPasskey() ??
+      preview?.nickname ??
+      intl.formatMessage({ id: 'passkey.defaultLabel' })
     )
   }
 
@@ -234,15 +230,24 @@ export function AcceptInvitationPage() {
   if (step === 'passkey') {
     content = (
       <section className="flex flex-col gap-4">
-        <h1 className="text-2xl font-semibold">{intl.formatMessage({ id: 'accept.passkeyTitle' })}</h1>
+        <h1 className="text-2xl font-semibold">
+          {intl.formatMessage({ id: 'accept.passkeyTitle' })}
+        </h1>
         <p>{intl.formatMessage({ id: 'accept.passkeyRequired' })}</p>
         {passkeyFailed && (
           <p role="alert" className="text-negative">
             {intl.formatMessage({ id: 'accept.passkeyFailed' })}
           </p>
         )}
-        <button type="button" disabled={busy || !online} onClick={() => void createPasskey()} className={primary}>
-          {intl.formatMessage({ id: passkeyFailed ? 'accept.passkeyRetry' : 'accept.passkeyCreate' })}
+        <button
+          type="button"
+          disabled={busy || !online}
+          onClick={() => void createPasskey()}
+          className={primary}
+        >
+          {intl.formatMessage({
+            id: passkeyFailed ? 'accept.passkeyRetry' : 'accept.passkeyCreate',
+          })}
         </button>
         {!online && (
           <p className="text-text-muted">{intl.formatMessage({ id: 'accept.passkeyOffline' })}</p>
@@ -254,7 +259,12 @@ export function AcceptInvitationPage() {
       <section className="flex flex-col gap-4">
         <h1 className="text-2xl font-semibold">{intl.formatMessage({ id: 'accept.title' })}</h1>
         <p role="alert">{intl.formatMessage({ id: 'accept.failed' })}</p>
-        <button type="button" disabled={busy} onClick={() => void guarded(finish)} className={primary}>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void guarded(finish)}
+          className={primary}
+        >
           {intl.formatMessage({ id: 'accept.retry' })}
         </button>
       </section>
@@ -309,24 +319,44 @@ export function AcceptInvitationPage() {
         {preview.kind === 'RECOVERY' ? (
           <>
             <p className="text-text-muted">{intl.formatMessage({ id: 'accept.recoveryHint' })}</p>
-            <button type="button" disabled={busy || !online} onClick={() => void recover()} className={primary}>
+            <button
+              type="button"
+              disabled={busy || !online}
+              onClick={() => void recover()}
+              className={primary}
+            >
               {intl.formatMessage({ id: 'accept.recoverAction' })}
             </button>
           </>
         ) : signedIn ? (
-          <button type="button" disabled={busy || !online} onClick={() => void join()} className={primary}>
+          <button
+            type="button"
+            disabled={busy || !online}
+            onClick={() => void join()}
+            className={primary}
+          >
             {intl.formatMessage({ id: 'accept.join' })}
           </button>
         ) : (
           <>
             {preview.role === 'YOUTH' ? (
-              <p className="text-text-muted">{intl.formatMessage({ id: 'accept.youthPasskeyOnly' })}</p>
+              <p className="text-text-muted">
+                {intl.formatMessage({ id: 'accept.youthPasskeyOnly' })}
+              </p>
             ) : (
-              <button type="button" disabled={busy || !online} onClick={() => void withGoogle()} className={outline}>
+              <button
+                type="button"
+                disabled={busy || !online}
+                onClick={() => void withGoogle()}
+                className={outline}
+              >
                 {intl.formatMessage({ id: 'accept.google' })}
               </button>
             )}
-            <form onSubmit={(event) => void createWithPasskey(event)} className="flex flex-col gap-3">
+            <form
+              onSubmit={(event) => void createWithPasskey(event)}
+              className="flex flex-col gap-3"
+            >
               <label className="flex flex-col gap-1">
                 <span className="font-medium">{intl.formatMessage({ id: 'accept.name' })}</span>
                 <input

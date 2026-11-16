@@ -14,6 +14,8 @@ import { formatBRL, parseCents } from '@/shared/money'
 import { useOnline } from '@/shared/offline'
 import { ConfirmDialog, Sheet, useDocumentTitle, useToast } from '@/shared/ui'
 import { accountTypeInfo } from './accountTypes'
+import { memberName } from '@/features/members/memberName'
+import { useMembers } from '@/shared/api/family'
 import { AccountForm } from './AccountForm'
 import { AdjustBalanceSheet } from './AdjustBalanceSheet'
 import './register'
@@ -58,10 +60,19 @@ function AccountsScreen({ workspace }: { workspace: MeWorkspace }) {
   const accounts = useAccounts(workspace.id)
   const archive = useArchiveAccount(workspace.id)
   const unarchive = useUnarchiveAccount(workspace.id)
+  const members = useMembers(workspace.id).data
   const archiving = useRef(false)
   const [view, setView] = useState<View | null>(null)
   const [archiveError, setArchiveError] = useState<string>()
   const [unarchiveError, setUnarchiveError] = useState<string>()
+
+  /** Who the account belongs to, once the family is loaded: "Titular: Leo". */
+  function ownerLine(account: AccountView): string | undefined {
+    const owner = members?.find((each) => each.id === account.ownerMembershipId)
+    return owner
+      ? intl.formatMessage({ id: 'accounts.owner.line' }, { name: memberName(owner, intl) })
+      : undefined
+  }
 
   const all = accounts.data ?? []
   const active = all.filter((account) => account.archivedAt === null)
@@ -150,6 +161,9 @@ function AccountsScreen({ workspace }: { workspace: MeWorkspace }) {
                     <span className="text-text-muted">
                       {intl.formatMessage({ id: info.labelId })}
                     </span>
+                    {ownerLine(account) && (
+                      <span className="truncate text-sm text-text-muted">{ownerLine(account)}</span>
+                    )}
                   </span>
                   <span className="font-medium tabular-nums">
                     {formatBRL(parseCents(account.balance.amount))}

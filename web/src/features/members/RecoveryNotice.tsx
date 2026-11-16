@@ -35,7 +35,9 @@ export function RecoveryNotice({ workspace }: { workspace: MeWorkspace }) {
       <p>
         {intl.formatMessage(
           { id: 'recovery.notice' },
-          { date: intl.formatDate(recoveredAt, { dateStyle: 'long', timeZone: workspace.timezone }) },
+          {
+            date: intl.formatDate(recoveredAt, { dateStyle: 'long', timeZone: workspace.timezone }),
+          },
         )}
       </p>
       <button

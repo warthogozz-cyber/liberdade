@@ -164,6 +164,28 @@ describe('HomePage', () => {
     expect(screen.queryByRole('heading', { name: 'Primeiros passos' })).not.toBeInTheDocument()
   })
 
+  it('youthSeesTheirWalletReadOnly', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    mockState.accounts[0].name = 'Carteira de Leo'
+    renderHome()
+
+    expect(await screen.findByText('Sua carteira')).toBeInTheDocument()
+    expect(screen.queryByText('Saldo total')).not.toBeInTheDocument()
+    expect(await screen.findByText('Carteira de Leo')).toBeInTheDocument()
+    expect(screen.queryByText(/Cadastre suas contas/)).not.toBeInTheDocument()
+  })
+
+  it('youthHasNoGettingStarted', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    workspace.hasTransactions = true
+    renderHome()
+
+    expect(await screen.findByText('Sua carteira')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Primeiros passos' })).not.toBeInTheDocument()
+  })
+
   it('dropsLegacyKey', async () => {
     const workspace = seedMockFamily()
     workspace.hasTransactions = true

@@ -65,7 +65,9 @@ describe('AcceptInvitationPage', () => {
     seedMockInvitation({ token: TOKEN })
     renderAccept()
 
-    expect(await screen.findByText(/Bia Teste convidou você para a Família Bia Teste como Adulto/)).toBeInTheDocument()
+    expect(
+      await screen.findByText(/Bia Teste convidou você para a Família Bia Teste como Adulto/),
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Entrar na família' }))
 
     expect(await screen.findByText('Início da família')).toBeInTheDocument()
@@ -177,7 +179,9 @@ describe('AcceptInvitationPage', () => {
   it('notFoundAtAcceptClearsTheToken', async () => {
     mockState.signedIn = false
     seedMockInvitation({ token: TOKEN })
-    server.use(http.post(ACCEPT, () => problem(404, 'invitation.not-found', 'Detalhe do servidor.')))
+    server.use(
+      http.post(ACCEPT, () => problem(404, 'invitation.not-found', 'Detalhe do servidor.')),
+    )
     renderAccept()
 
     fireEvent.change(await screen.findByLabelText('Como você se chama?'), {
@@ -294,7 +298,9 @@ describe('AcceptInvitationPage', () => {
     })
     renderAccept()
 
-    expect(await screen.findByRole('heading', { name: 'Recuperar acesso de Bia' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Recuperar acesso de Bia' }),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Entrar com Google' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Como você se chama?')).not.toBeInTheDocument()
 

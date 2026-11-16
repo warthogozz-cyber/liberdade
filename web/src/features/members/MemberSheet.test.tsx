@@ -145,7 +145,9 @@ describe('MemberSheet', () => {
       `${window.location.origin}/convite#${'R'.repeat(43)}`,
     )
     expect(
-      screen.getByText('O link vale por 24 horas e funciona uma vez só. Entregue só à própria pessoa.'),
+      screen.getByText(
+        'O link vale por 24 horas e funciona uma vez só. Entregue só à própria pessoa.',
+      ),
     ).toBeInTheDocument()
     expect(calls).toBe(2)
     expect(startAuthentication).toHaveBeenCalled()
@@ -169,7 +171,9 @@ describe('MemberSheet', () => {
   it('recoveryOnlyForPasskeyOnly', () => {
     renderSheet(member({ passkeyOnly: false }))
 
-    expect(screen.queryByRole('button', { name: 'Gerar link de recuperação' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Gerar link de recuperação' }),
+    ).not.toBeInTheDocument()
     // The same person with only a passkey does get it.
     cleanup()
     renderSheet(member({ id: 'm-other', passkeyOnly: true }))

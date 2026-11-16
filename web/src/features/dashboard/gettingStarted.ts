@@ -37,6 +37,8 @@ export function shouldShowGettingStarted({
   role,
   familyInvited,
 }: GettingStartedState): boolean {
+  // A Youth records and reads their own wallet only: the card's steps are the family's to do.
+  if (role === 'YOUTH') return false
   const started = hasTransactions || queued
   const inviteDone = familyInvited || !isAskedToInvite(role)
   const allDone = accountCount >= ACCOUNTS_DONE_AT && hasPasskey && inviteDone

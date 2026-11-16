@@ -406,6 +406,26 @@ describe('TransactionsPage, viewing and organizing', () => {
     expect(today.getByText('Carteira → Banco')).toBeInTheDocument()
   })
 
+  it('familyAccountLabel', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    mockState.accounts[0].name = 'Carteira de Leo'
+    // The allowance comes from an account the Youth cannot see.
+    storeOnServer(workspace, {
+      id: MERCADO_ID,
+      kind: 'TRANSFER',
+      amount: { amount: '50.00', currency: 'BRL' },
+      occurredOn: '2026-11-15',
+      accountId: '0192f3a4-0000-7000-8000-0000000000a9',
+      toAccountId: mockState.accounts[0].id,
+    })
+    renderAt('/lancamentos')
+
+    expect(
+      await within(await day('Hoje')).findByText('Conta da família → Carteira de Leo'),
+    ).toBeInTheDocument()
+  })
+
   it('archivedNamesStay', async () => {
     const workspace = seedMockFamily()
     const old = {

@@ -88,7 +88,9 @@ describe('FamilyPage', () => {
     seedMockInvitation({ token: 'E'.repeat(43), workspaceId: workspace.id })
     renderFamily()
     const revoke = await screen.findByRole('button', { name: 'Revogar' })
-    expect(screen.queryByText('Sem conexão. Mudar a família volta com o sinal.')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Sem conexão. Mudar a família volta com o sinal.'),
+    ).not.toBeInTheDocument()
 
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     window.dispatchEvent(new Event('offline'))

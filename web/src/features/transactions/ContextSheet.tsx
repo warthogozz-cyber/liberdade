@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import type { AccountView } from '@/shared/api'
 import { MIN_DATE } from '@/shared/i18n'
@@ -17,20 +18,29 @@ interface ContextSheetProps {
   max: string
   /** The account to choose; left out for a transfer, which picks its two accounts on the form. */
   account?: {
-    /** Whether "Quem gastou" shows: only an expense has someone who spent it (Ruling R17). */
-    member: boolean
+    /**
+     * "Quem", given only for an expense a non-Youth records: nobody else spends a Youth's money.
+     * It loads on its own, so the family's catalogue stays out of the recording screen.
+     */
+    member?: {
+      workspaceId: string
+      selfId: string
+      value: string
+      onChange: (memberId: string) => void
+    }
     accounts: AccountView[]
     accountId: string | undefined
     onAccountChange: (accountId: string) => void
   }
 }
 
+const MemberPicker = lazy(() => import('./MemberPicker'))
+
 const option =
   'flex min-h-12 cursor-pointer items-center gap-3 rounded-field px-3 has-checked:font-semibold has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary'
 
 /**
- * The transaction's date and, unless it is a transfer, its account. Who spent it is always the user
- * for now (D1).
+ * The transaction's date and, unless it is a transfer, its account and who spent it.
  */
 export function ContextSheet({
   open,
@@ -118,9 +128,9 @@ export function ContextSheet({
               ))}
             </fieldset>
             {account.member && (
-              <p className="text-text-muted">
-                <FormattedMessage id="expense.member" />
-              </p>
+              <Suspense fallback={null}>
+                <MemberPicker {...account.member} />
+              </Suspense>
             )}
           </>
         )}

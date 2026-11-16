@@ -14,6 +14,7 @@ import {
   type MeWorkspace,
   type TransactionFilters as Filters,
 } from '@/shared/api'
+import { useMembers } from '@/shared/api/family'
 import { MIN_MONTH, addDays, currentMonth, localDate, maxMonth } from '@/shared/i18n'
 import { useOnline, useOutbox, type OutboxItem } from '@/shared/offline'
 import { DataAsOf, useDocumentTitle, useToast } from '@/shared/ui'
@@ -238,6 +239,11 @@ function TransactionList({
     () => new Map((accountList ?? []).map((each) => [each.id, each])),
     [accountList],
   )
+  const memberList = useMembers(workspace.id).data
+  const members = useMemo(
+    () => new Map((memberList ?? []).map((each) => [each.id, each])),
+    [memberList],
+  )
   const queued = (outbox ?? []).filter((item) => queuedBelongs(item, filters, categoryList))
   const groups = groupByDay(mergeTransactions(transactions.data, queued))
 
@@ -324,6 +330,7 @@ function TransactionList({
                 accounts={accounts}
                 workspace={workspace}
                 displayName={displayName}
+                members={members}
                 month={month}
                 online={online}
                 onDelete={(id) => void onDelete(id)}

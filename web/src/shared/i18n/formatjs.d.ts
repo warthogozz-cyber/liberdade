@@ -11,6 +11,8 @@ import type { dashboardMessages } from '@/features/dashboard/messages.pt-BR'
 import type { signInMessages } from '@/features/auth/signIn.messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { gettingStartedMessages } from '@/features/dashboard/gettingStarted.messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
+import type { transactionsMoreMessages } from '@/features/transactions/more.messages.pt-BR'
 import type { reauthMessages } from '@/shared/auth/messages.pt-BR'
 import type { messages } from './messages.pt-BR'
 
@@ -27,6 +29,7 @@ declare global {
         | keyof typeof membersMessages
         | keyof typeof reauthMessages
         | keyof typeof signInMessages
+        | keyof typeof transactionsMoreMessages
     }
   }
 }

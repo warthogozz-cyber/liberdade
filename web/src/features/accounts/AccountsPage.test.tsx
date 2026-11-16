@@ -356,4 +356,28 @@ describe('AccountsPage', () => {
     expect(within(sheet).getByRole('button', { name: 'Arquivar' })).toBeDisabled()
     expect(within(sheet).getByRole('button', { name: 'Salvar' })).toBeDisabled()
   })
+
+  it('showsTheOwnerUnderTheName', async () => {
+    const workspace = seedMockFamily()
+    mockState.members[workspace.id]!.push({
+      id: '0192f3a4-0000-7000-8000-0000000000a2',
+      displayName: 'Leo Teste',
+      nickname: 'Leo',
+      role: 'YOUTH',
+      status: 'ACTIVE',
+      you: false,
+      passkeyOnly: false,
+      joinedAt: '2026-11-01T12:00:00Z',
+    })
+    addAccount({
+      name: 'Mesada',
+      ownerMembershipId: '0192f3a4-0000-7000-8000-0000000000a2',
+    })
+    renderAccounts()
+
+    const mesada = await row('Mesada')
+    expect(await within(mesada).findByText('Titular: Leo')).toBeInTheDocument()
+    // The family's own wallet belongs to the signed-in member, whom the list names too.
+    expect(await within(await row('Carteira')).findByText(/^Titular: /)).toBeInTheDocument()
+  })
 })

@@ -54,7 +54,6 @@ export const messages = {
   'expense.date': 'Data',
   'expense.account': 'Conta',
   'expense.otherDate': 'Outra data',
-  'expense.member': 'Quem gastou: Eu',
   'expense.description': 'Descrição (opcional)',
   'expense.save': 'Salvar',
   'expense.saveFailed': 'Não foi possível salvar o gasto. Tente de novo.',

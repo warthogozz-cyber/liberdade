@@ -57,8 +57,7 @@ function InviteForm({ workspace }: { workspace: MeWorkspace }) {
   const [created, setCreated] = useState<{ token: string; nickname: string }>()
 
   const isYouth = role === 'YOUTH'
-  const canCreate =
-    online && !create.isPending && nickname.trim() !== '' && (!isYouth || consent)
+  const canCreate = online && !create.isPending && nickname.trim() !== '' && (!isYouth || consent)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -100,7 +99,11 @@ function InviteForm({ workspace }: { workspace: MeWorkspace }) {
           token={created.token}
           hint={intl.formatMessage({ id: 'invite.linkHint' })}
         />
-        <button type="button" onClick={another} className={`${button} border border-primary text-primary`}>
+        <button
+          type="button"
+          onClick={another}
+          className={`${button} border border-primary text-primary`}
+        >
           {intl.formatMessage({ id: 'invite.another' })}
         </button>
         <Link to="/mais/familia" className={`${button} text-primary`}>
@@ -151,8 +154,14 @@ function InviteForm({ workspace }: { workspace: MeWorkspace }) {
           {error}
         </p>
       )}
-      {!online && <p className="text-text-muted">{intl.formatMessage({ id: 'members.offline' })}</p>}
-      <button type="submit" disabled={!canCreate} className={`${button} bg-primary text-on-primary`}>
+      {!online && (
+        <p className="text-text-muted">{intl.formatMessage({ id: 'members.offline' })}</p>
+      )}
+      <button
+        type="submit"
+        disabled={!canCreate}
+        className={`${button} bg-primary text-on-primary`}
+      >
         {intl.formatMessage({ id: 'invite.create' })}
       </button>
     </form>
