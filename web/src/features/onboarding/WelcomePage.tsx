@@ -1,9 +1,10 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Navigate, useNavigate } from 'react-router'
 import { useCreateWorkspace, useMe } from '@/shared/api'
 import { firstName } from '@/shared/i18n'
-import { useOnline } from '@/shared/offline'
+import { saveQueryCacheNow, useOnline } from '@/shared/offline'
 import { useDocumentTitle } from '@/shared/ui'
 
 const MAX_NAME_LENGTH = 60
@@ -13,6 +14,7 @@ export function WelcomePage() {
   useDocumentTitle(useIntl().formatMessage({ id: 'welcome.pageTitle' }))
   const me = useMe().data
   const createWorkspace = useCreateWorkspace()
+  const queryClient = useQueryClient()
   const navigate = useNavigate()
   const online = useOnline()
   const [name, setName] = useState<string>()
@@ -33,6 +35,8 @@ export function WelcomePage() {
     submitting.current = true
     try {
       await createWorkspace.mutateAsync(trimmed)
+      // Saved before leaving, so a reload right away finds the family, not this page again.
+      await saveQueryCacheNow(queryClient)
       await navigate('/lancar')
     } catch {
       // The mutation's error shows the message.

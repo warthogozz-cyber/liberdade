@@ -74,6 +74,22 @@ describe('SignInPage', () => {
     expect(startGoogleSignIn).toHaveBeenCalledWith(queryClient)
   })
 
+  it('frees the buttons when Back restores the page from the bfcache (M1)', () => {
+    vi.mocked(startGoogleSignIn).mockReturnValue(new Promise(() => {}))
+    renderSignIn()
+    const google = screen.getByRole('button', { name: 'Entrar com Google' })
+    fireEvent.click(google)
+    expect(google).toBeDisabled()
+
+    // A page loaded afresh says persisted: false, and nothing changes.
+    fireEvent(window, Object.assign(new Event('pageshow'), { persisted: false }))
+    expect(google).toBeDisabled()
+    fireEvent(window, Object.assign(new Event('pageshow'), { persisted: true }))
+
+    expect(google).toBeEnabled()
+    expect(passkeyButton()).toBeEnabled()
+  })
+
   it('signs in with a passkey and goes to /', async () => {
     const bodies: unknown[] = []
     server.use(

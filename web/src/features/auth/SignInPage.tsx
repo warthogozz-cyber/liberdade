@@ -4,7 +4,7 @@ import {
   type PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/browser'
 import { useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { useNavigate, useSearchParams } from 'react-router'
 import { ApiError, postJson } from '@/shared/api'
@@ -57,6 +57,17 @@ export function SignInPage() {
     busyRef.current = false
     setBusy(false)
   }
+
+  // Back from Google can restore this page from the bfcache, still busy from the redirect.
+  useEffect(() => {
+    function onShow(event: PageTransitionEvent) {
+      if (!event.persisted) return
+      busyRef.current = false
+      setBusy(false)
+    }
+    window.addEventListener('pageshow', onShow)
+    return () => window.removeEventListener('pageshow', onShow)
+  }, [])
 
   async function signInWithGoogle() {
     if (!claim()) return

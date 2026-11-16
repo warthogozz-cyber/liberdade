@@ -6,7 +6,7 @@ import { TransactionsPage } from '@/features/transactions/TransactionsPage'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
-import { API_URL, type CreateTransactionRequest, type MeWorkspace } from '@/shared/api'
+import { API_URL, queryKeys, type CreateTransactionRequest, type MeWorkspace } from '@/shared/api'
 import { db } from '@/shared/offline'
 import {
   createTestQueryClient,
@@ -55,6 +55,24 @@ function storeOnServer(workspace: MeWorkspace, body: CreateTransactionRequest) {
 
 function queue(workspace: MeWorkspace, id: string, overrides: Parameters<typeof outboxItem>[1]) {
   return outboxItem(id, { userId: mockState.user.id, workspaceId: workspace.id, ...overrides })
+}
+
+/**
+ * Renders the list with today's Mercado cached, as loaded at 11:30 in Fortaleza, and stored on the
+ * mock API as well, so a fetch online finds it too.
+ */
+function renderWithCachedMercado(workspace: MeWorkspace) {
+  const body = request(MERCADO_ID, 'Mercado', { occurredOn: '2026-11-15' })
+  storeOnServer(workspace, body)
+  const queryClient = createTestQueryClient()
+  queryClient.setQueryData(
+    queryKeys.transactions(workspace.id, '2026-11'),
+    [...mockState.transactions],
+    {
+      updatedAt: Date.parse('2026-11-15T14:30:00Z'),
+    },
+  )
+  return renderWithProviders(<TransactionsPage />, { path: '/lancamentos', queryClient })
 }
 
 const day = (title: string) => screen.findByRole('list', { name: title })
@@ -227,6 +245,29 @@ describe('TransactionsPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Sem conexão. Você pode lançar; os gastos saem quando o sinal voltar.',
     )
+  })
+
+  it('says when the cached list is from, next to the offline banner (I3)', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const workspace = seedMockFamily()
+    server.use(http.get(`${API_URL}/v1/workspaces/:ws/transactions`, () => HttpResponse.error()))
+    renderWithCachedMercado(workspace)
+
+    expect(await within(await day('Hoje')).findByText('🛒 Mercado')).toBeInTheDocument()
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent(
+      'Sem conexão. Você pode lançar; os gastos saem quando o sinal voltar.',
+    )
+    await waitFor(() => expect(status).toHaveTextContent('Mostrando dados de 15/11, 11:30.'))
+  })
+
+  it('leaves the data date out while online (I3)', async () => {
+    const workspace = seedMockFamily()
+    renderWithCachedMercado(workspace)
+
+    expect(await within(await day('Hoje')).findByText('🛒 Mercado')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Mostrando dados/)).not.toBeInTheDocument()
   })
 
   it('does not keep loading while offline without a cache', async () => {

@@ -19,7 +19,7 @@ export function SessionLayout() {
     if (!userId) return
     return startOutboxSync({
       userId,
-      send: (item) => postTransaction(item.workspaceId, item.payload),
+      send: (item, signal) => postTransaction(item.workspaceId, item.payload, signal),
       onSent: (item, view) => applySentTransaction(queryClient, item.workspaceId, view),
       // The 401 of `/v1/me` then reaches the app's global handler.
       onUnauthorized: () => void queryClient.invalidateQueries({ queryKey: queryKeys.me }),

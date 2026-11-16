@@ -5,7 +5,8 @@ import { OUTBOX_EVENT, userItems } from './outbox'
 
 export interface SyncDeps {
   userId: string
-  send: (item: OutboxItem) => Promise<TransactionView>
+  /** Sends the item, giving up when `signal` aborts: the sync stopping, or `SEND_TIMEOUT_MS` passing. */
+  send: (item: OutboxItem, signal: AbortSignal) => Promise<TransactionView>
   onSent: (item: OutboxItem, view: TransactionView) => void
   now?: () => number
   /** Once aborted, the sync sends nothing more and answers `done`. */
@@ -22,6 +23,9 @@ const BUSY_RETRY_MS = 1000
 
 /** How long `startOutboxSync` waits to try again after a run fails outright. */
 export const FAILED_RUN_RETRY_MS = 5000
+
+/** How long a send may go unanswered before the sync gives up on it and tries again later. */
+export const SEND_TIMEOUT_MS = 15_000
 
 /** The wait before the next try: doubling from 2 s up to 5 min, spread by ±20%. */
 export function backoffMs(attempts: number, random: () => number = Math.random): number {
@@ -63,9 +67,21 @@ async function recordFailure(
   return { status: 'waiting', nextAt: sendAfter }
 }
 
+/** Rejects with the signal's reason once it aborts. */
+function untilAborted(signal: AbortSignal): Promise<never> {
+  return new Promise((_, reject) => {
+    signal.addEventListener('abort', () => reject(signal.reason as Error), { once: true })
+  })
+}
+
 /**
  * Sends the first of the user's pending items, if it is due. Returns the result that stops the run,
  * or `undefined` to go on with the next item. The caller holds the lock.
+ *
+ * A send unanswered after `SEND_TIMEOUT_MS` counts as a network failure, so the lock is let go and
+ * the item waits for its backoff; the run also stops waiting for it when a stall sits outside the
+ * request itself (the CSRF token). A send cut short by the sync stopping still counts as an attempt,
+ * since the request may have reached the server, and the run then stops.
  */
 async function sendFirst({
   userId,
@@ -81,11 +97,14 @@ async function sendFirst({
   if (item.sendAfter > now()) return { status: 'waiting', nextAt: item.sendAfter }
   // Looked at again here, since the sync may have been stopped while the item was read.
   if (signal?.aborted) return { status: 'done' }
+  const timeout = AbortSignal.timeout(SEND_TIMEOUT_MS)
+  const sendSignal = signal ? AbortSignal.any([signal, timeout]) : timeout
   let view: TransactionView
   try {
-    view = await send(item)
+    view = await Promise.race([send(item, sendSignal), untilAborted(timeout)])
   } catch (error) {
-    return recordFailure(item, error, now)
+    const result = await recordFailure(item, error, now)
+    return signal?.aborted ? { status: 'done' } : result
   }
   await db.outbox.delete(item.id)
   onSent(item, view)

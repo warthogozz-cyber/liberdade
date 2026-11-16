@@ -10,10 +10,11 @@ export {
   pendingTotals,
   replaceOutboxItem,
 } from './outbox'
-export { persistOptions } from './persister'
+export { persistOptions, saveQueryCacheNow } from './persister'
 export { clearSession } from './session'
 export {
   FAILED_RUN_RETRY_MS,
+  SEND_TIMEOUT_MS,
   backoffMs,
   startOutboxSync,
   syncOutbox,

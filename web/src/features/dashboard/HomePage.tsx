@@ -5,7 +5,7 @@ import { useCurrentWorkspace, useDashboard, useMe, type MeWorkspace } from '@/sh
 import { currentMonth } from '@/shared/i18n'
 import { formatBRL, parseCents } from '@/shared/money'
 import { useOnline, useOutbox, usePendingTotals } from '@/shared/offline'
-import { useDocumentTitle } from '@/shared/ui'
+import { DataAsOf, useDocumentTitle } from '@/shared/ui'
 
 const FIRST_STEPS_KEY = 'liberdade:first-steps-dismissed'
 
@@ -76,20 +76,27 @@ function HomeContent({ userId, hasPasskey, workspace }: HomeContentProps) {
     const expenses = parseCents(dashboard.data.expenses.amount) + pending.monthExpenses
     const balance = parseCents(dashboard.data.balance.amount) - pending.allExpenses
     totals = (
-      <dl className="grid gap-4 rounded-card bg-surface p-4">
-        <div>
-          <dt className="text-sm text-text-muted">
-            <FormattedMessage id="home.expensesIn" values={{ month: monthName }} />
-          </dt>
-          <dd className="text-3xl font-semibold tabular-nums">{formatBRL(expenses)}</dd>
-        </div>
-        <div>
-          <dt className="text-sm text-text-muted">
-            <FormattedMessage id="home.totalBalance" />
-          </dt>
-          <dd className="text-xl font-semibold tabular-nums">{formatBRL(balance)}</dd>
-        </div>
-      </dl>
+      <>
+        <dl className="grid gap-4 rounded-card bg-surface p-4">
+          <div>
+            <dt className="text-sm text-text-muted">
+              <FormattedMessage id="home.expensesIn" values={{ month: monthName }} />
+            </dt>
+            <dd className="text-3xl font-semibold tabular-nums">{formatBRL(expenses)}</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-text-muted">
+              <FormattedMessage id="home.totalBalance" />
+            </dt>
+            <dd className="text-xl font-semibold tabular-nums">{formatBRL(balance)}</dd>
+          </div>
+        </dl>
+        {!online && (
+          <p className="text-sm text-text-muted">
+            <DataAsOf updatedAt={dashboard.dataUpdatedAt} timeZone={workspace.timezone} />
+          </p>
+        )}
+      </>
     )
   } else if (!online || dashboard.fetchStatus === 'paused') {
     totals = (

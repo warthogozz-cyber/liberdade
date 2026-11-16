@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { Navigate, Outlet } from 'react-router'
 import { prefetchWorkspace, useCurrentWorkspace } from '@/shared/api'
 import { currentMonth } from '@/shared/i18n'
+import { saveQueryCacheNow } from '@/shared/offline'
 
 /** The screens that need a family. Without one, the person goes to the welcome page first. */
 export function WorkspaceLayout() {
@@ -11,10 +12,13 @@ export function WorkspaceLayout() {
   const workspaceId = workspace?.id
   const timezone = workspace?.timezone
 
-  // Loads what the screens read as soon as the family is known, so it is cached if the signal drops.
+  // Loads what the screens read as soon as the family is known, so it is cached if the signal drops,
+  // and saves it to the device at once, so a reload offline right after still finds it.
   useEffect(() => {
     if (workspaceId === undefined || timezone === undefined) return
-    void prefetchWorkspace(queryClient, workspaceId, currentMonth(new Date(), timezone))
+    void prefetchWorkspace(queryClient, workspaceId, currentMonth(new Date(), timezone)).then(() =>
+      saveQueryCacheNow(queryClient),
+    )
   }, [queryClient, workspaceId, timezone])
 
   if (!workspace) return <Navigate to="/boas-vindas" replace />

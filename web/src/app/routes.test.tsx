@@ -3,6 +3,7 @@ import { useRoutes } from 'react-router'
 import { afterEach, describe, expect, it } from 'vitest'
 import { routes } from '@/app/routes'
 import { mockState, seedMockFamily } from '@/mocks/data'
+import { db } from '@/shared/offline'
 import { renderWithProviders } from '@/shared/testing'
 
 afterEach(cleanup)
@@ -60,6 +61,26 @@ describe('routes', () => {
     )
     expect(within(nav).getByRole('link', { name: /Novo gasto/ })).toHaveAttribute('href', '/lancar')
     await waitFor(() => expect(document.title).toBe('Início · Liberdade'))
+  })
+
+  it("saves the family's data to the device once it has loaded, for a reload offline (I1)", async () => {
+    const family = seedMockFamily()
+    renderApp('/inicio')
+
+    await waitFor(async () => {
+      const saved = await db.kv.get('liberdade-query-cache')
+      const { clientState } = JSON.parse(saved?.value ?? '{"clientState":{"queries":[]}}') as {
+        clientState: { queries: { queryKey: unknown[] }[] }
+      }
+      expect(clientState.queries.map(({ queryKey }) => queryKey.slice(2, 3)[0])).toEqual(
+        expect.arrayContaining(['accounts', 'categories', 'dashboard', 'transactions']),
+      )
+      expect(
+        clientState.queries.every(
+          ({ queryKey }) => queryKey[0] !== 'ws' || queryKey[1] === family.id,
+        ),
+      ).toBe(true)
+    })
   })
 
   it('shows /lancar full screen, without the navigation', async () => {

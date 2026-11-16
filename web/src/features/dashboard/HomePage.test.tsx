@@ -5,9 +5,14 @@ import { HomePage } from '@/features/dashboard/HomePage'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
-import { API_URL, type MeWorkspace } from '@/shared/api'
+import { API_URL, queryKeys, type DashboardView, type MeWorkspace } from '@/shared/api'
 import { db } from '@/shared/offline'
-import { outboxItem, outboxPayload, renderWithProviders } from '@/shared/testing'
+import {
+  createTestQueryClient,
+  outboxItem,
+  outboxPayload,
+  renderWithProviders,
+} from '@/shared/testing'
 
 const DASHBOARD = `${API_URL}/v1/workspaces/:ws/dashboard`
 
@@ -33,6 +38,20 @@ afterEach(() => {
 
 function renderHome() {
   return renderWithProviders(<HomePage />, { path: '/inicio' })
+}
+
+/** Renders Home with the month's dashboard already cached, as loaded at 11:30 in Fortaleza. */
+function renderHomeWithCache(workspace: MeWorkspace) {
+  const queryClient = createTestQueryClient()
+  const cached: DashboardView = {
+    month: '2026-11',
+    expenses: { amount: '10.00', currency: 'BRL' },
+    balance: { amount: '90.00', currency: 'BRL' },
+  }
+  queryClient.setQueryData(queryKeys.dashboard(workspace.id, '2026-11'), cached, {
+    updatedAt: Date.parse('2026-11-15T14:30:00Z'),
+  })
+  return renderWithProviders(<HomePage />, { path: '/inicio', queryClient })
 }
 
 function queue(workspace: MeWorkspace, id: string, overrides: Parameters<typeof outboxItem>[1]) {
@@ -115,6 +134,24 @@ describe('HomePage', () => {
     expect(
       await screen.findByText('Sem conexão. Os totais aparecem quando o sinal voltar.'),
     ).toBeInTheDocument()
+  })
+
+  it('says when the cached totals are from while offline (I3)', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const workspace = seedMockFamily()
+    server.use(http.get(DASHBOARD, () => HttpResponse.error()))
+    renderHomeWithCache(workspace)
+
+    expect(await screen.findByText('R$ 10,00')).toBeInTheDocument()
+    expect(await screen.findByText('Mostrando dados de 15/11, 11:30.')).toBeInTheDocument()
+  })
+
+  it('leaves the data date out while online (I3)', async () => {
+    const workspace = seedMockFamily()
+    renderHomeWithCache(workspace)
+
+    expect(await screen.findByText('R$ 10,00')).toBeInTheDocument()
+    expect(screen.queryByText(/Mostrando dados/)).not.toBeInTheDocument()
   })
 
   it('offers to try again when the dashboard fails', async () => {

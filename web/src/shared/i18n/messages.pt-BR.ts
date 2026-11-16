@@ -73,6 +73,7 @@ export const messages = {
   'home.expensesIn': 'Gastos em {month}',
   'home.totalBalance': 'Saldo total',
   'home.addAccountsHint': 'Adicione suas contas para ver o saldo real.',
+  'offline.dataAsOf': 'Mostrando dados de {when}.',
   'home.offlineNoData': 'Sem conexão. Os totais aparecem quando o sinal voltar.',
   'home.firstSteps': 'Primeiros passos',
   'home.dismissFirstSteps': 'Fechar primeiros passos',

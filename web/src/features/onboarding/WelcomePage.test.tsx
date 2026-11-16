@@ -1,11 +1,13 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import type { PersistedClient } from '@tanstack/react-query-persist-client'
 import { http } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WelcomePage } from '@/features/onboarding/WelcomePage'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
-import { API_URL } from '@/shared/api'
+import { API_URL, type MeView } from '@/shared/api'
+import { db } from '@/shared/offline'
 import { renderWithProviders } from '@/shared/testing'
 
 afterEach(() => {
@@ -28,6 +30,16 @@ function recordPosts() {
 }
 
 const startButton = () => screen.getByRole('button', { name: 'Começar' })
+
+/** The family name in the `me` that the device copy of the cache holds, if any. */
+async function savedMe(): Promise<string | undefined> {
+  const saved = await db.kv.get('liberdade-query-cache')
+  if (!saved) return undefined
+  const { clientState } = JSON.parse(saved.value) as PersistedClient
+  const me = clientState.queries.find((query) => query.queryHash === '["me"]')?.state.data as
+    MeView | undefined
+  return me?.workspaces[0]?.name
+}
 
 describe('WelcomePage', () => {
   it('greets by first name and suggests the family name', async () => {
@@ -59,6 +71,20 @@ describe('WelcomePage', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/lancar'))
     expect(bodies).toEqual([expect.objectContaining({ name: 'Família Teste' })])
     expect(mockState.workspaces).toHaveLength(1)
+  })
+
+  it('saves the new family to the device before opening the new expense (I1)', async () => {
+    const { router } = renderWelcome()
+    await screen.findByRole('textbox', { name: 'Nome da família' })
+    let savedAtNavigation: Promise<string | undefined> | undefined
+    router.subscribe(({ location }) => {
+      if (location.pathname === '/lancar') savedAtNavigation ??= savedMe()
+    })
+
+    fireEvent.click(startButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancar'))
+    expect(await savedAtNavigation).toBe('Família Teste')
   })
 
   it('sends one creation for two quick taps', async () => {

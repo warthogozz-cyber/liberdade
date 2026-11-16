@@ -10,7 +10,7 @@ import {
 } from '@/shared/api'
 import { addDays, localDate } from '@/shared/i18n'
 import { useOnline, useOutbox } from '@/shared/offline'
-import { useDocumentTitle } from '@/shared/ui'
+import { DataAsOf, useDocumentTitle } from '@/shared/ui'
 import { groupByDay, mergeTransactions } from './listItems'
 import { TransactionRow } from './TransactionRow'
 
@@ -27,9 +27,12 @@ export function TransactionsPage() {
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
       {!online && (
-        <p role="status" className="rounded-card bg-surface p-4">
-          <FormattedMessage id="transactions.offline" />
-        </p>
+        <div role="status" className="rounded-card bg-surface p-4">
+          <p>
+            <FormattedMessage id="transactions.offline" />
+          </p>
+          {workspace && <TransactionsAsOf workspace={workspace} />}
+        </div>
       )}
       {user && workspace ? (
         <TransactionList userId={user.id} displayName={user.displayName} workspace={workspace} />
@@ -39,6 +42,18 @@ export function TransactionsPage() {
         </p>
       )}
     </main>
+  )
+}
+
+/** When the cached month shown offline was loaded, once there is one (FR-I3). */
+function TransactionsAsOf({ workspace }: { workspace: MeWorkspace }) {
+  const today = localDate(new Date(), workspace.timezone)
+  const transactions = useTransactions(workspace.id, today.slice(0, 7))
+  if (!transactions.data) return null
+  return (
+    <p className="mt-1 text-sm text-text-muted">
+      <DataAsOf updatedAt={transactions.dataUpdatedAt} timeZone={workspace.timezone} />
+    </p>
   )
 }
 

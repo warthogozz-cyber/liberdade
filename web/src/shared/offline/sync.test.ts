@@ -4,6 +4,7 @@ import { ApiError, postTransaction, type TransactionView } from '@/shared/api'
 import {
   FAILED_RUN_RETRY_MS,
   SEND_DELAY_MS,
+  SEND_TIMEOUT_MS,
   backoffMs,
   cancelOutboxItem,
   db,
@@ -51,6 +52,13 @@ function holdingFirst() {
 
 function sentIds(send: Mock<SyncDeps['send']>) {
   return send.mock.calls.map(([queued]) => queued.id)
+}
+
+/** A request that never answers, until its signal aborts it, as fetch does. */
+function stalled(signal: AbortSignal): Promise<never> {
+  return new Promise((_, reject) => {
+    signal.addEventListener('abort', () => reject(signal.reason as Error))
+  })
 }
 
 /** A promise the test resolves by hand. */
@@ -263,6 +271,21 @@ describe('syncOutbox', () => {
     expect(await db.outbox.count()).toBe(1)
   })
 
+  it('stops when its signal aborts the send in flight, counting the attempt', async () => {
+    await db.outbox.bulkAdd([item('t1', { createdAt: 100 }), item('t2', { createdAt: 200 })])
+    const controller = new AbortController()
+    const send = vi.fn<SyncDeps['send']>((_, signal) => stalled(signal))
+    const syncing = syncOutbox(syncDeps({ send, signal: controller.signal }))
+
+    await until(() => send.mock.calls.length === 1)
+    controller.abort()
+
+    expect(await syncing).toEqual({ status: 'done' })
+    expect(sentIds(send)).toEqual(['t1'])
+    // The request may have reached the server, so Desfazer must refuse it from now on.
+    expect(await db.outbox.get('t1')).toMatchObject({ status: 'pending', attempts: 1 })
+  })
+
   it('sends nothing when its signal is aborted while it reads the next item', async () => {
     await db.outbox.add(item('t1'))
     const controller = new AbortController()
@@ -321,7 +344,7 @@ describe('syncOutbox', () => {
 
     const result = await syncOutbox({
       userId: mockState.user.id,
-      send: (sending) => postTransaction(sending.workspaceId, sending.payload),
+      send: (sending, signal) => postTransaction(sending.workspaceId, sending.payload, signal),
       onSent,
     })
 
@@ -580,6 +603,53 @@ describe('startOutboxSync', () => {
       stop()
       other.resolve(viewOf(payload('b1')))
       await otherTab
+    }
+  })
+
+  it('gives up on a send stalled for 15 s, lets go of the lock and tries again (I2)', async () => {
+    useFakeClock()
+    // jsdom's AbortSignal.timeout runs on its own clock; this one runs on the fake one.
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) => {
+      const controller = new AbortController()
+      setTimeout(() => {
+        controller.abort(new DOMException('The operation timed out.', 'TimeoutError'))
+      }, ms)
+      return controller.signal
+    })
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
+    await db.outbox.add(item('t1'))
+    const signals: AbortSignal[] = []
+    const send = vi.fn<SyncDeps['send']>((queued, signal) => {
+      signals.push(signal)
+      return signals.length === 1 ? stalled(signal) : Promise.resolve(viewOf(queued.payload))
+    })
+    const deps = startDeps({ send })
+    const lockHeld = () => withOutboxLock({ ifAvailable: true }, (held) => Promise.resolve(!held))
+    const stop = startOutboxSync(deps)
+
+    try {
+      await until(() => send.mock.calls.length === 1)
+      expect(timeout).toHaveBeenCalledWith(SEND_TIMEOUT_MS)
+      await vi.advanceTimersByTimeAsync(SEND_TIMEOUT_MS - 1)
+      await settle()
+      expect(await lockHeld()).toBe(true)
+
+      await vi.advanceTimersByTimeAsync(1)
+      await settle()
+
+      expect(signals[0].reason).toMatchObject({ name: 'TimeoutError' })
+      expect(await lockHeld()).toBe(false)
+      // A timeout is transient: a backoff, never "Precisa de atenção".
+      expect(await db.outbox.get('t1')).toEqual(
+        item('t1', { attempts: 1, sendAfter: NOW + SEND_TIMEOUT_MS + 2000 }),
+      )
+
+      await vi.advanceTimersByTimeAsync(2000)
+      await until(() => deps.onSent.mock.calls.length === 1)
+      expect(sentIds(send)).toEqual(['t1', 't1'])
+      expect(await db.outbox.count()).toBe(0)
+    } finally {
+      stop()
     }
   })
 

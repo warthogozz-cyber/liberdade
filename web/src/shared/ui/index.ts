@@ -1,4 +1,5 @@
 export { ConfirmDialog } from './ConfirmDialog'
+export { DataAsOf } from './DataAsOf'
 export { Sheet } from './Sheet'
 export { ToastProvider } from './Toast'
 export { useDocumentTitle } from './useDocumentTitle'

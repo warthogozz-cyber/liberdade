@@ -47,11 +47,13 @@ export function getDashboard(ws: string, month: string): Promise<DashboardView> 
 export function postTransaction(
   ws: string,
   payload: CreateTransactionRequest,
+  signal?: AbortSignal,
 ): Promise<TransactionView> {
   return unwrap(
     client.POST('/v1/workspaces/{ws}/transactions', {
       params: { path: { ws }, header: { 'Idempotency-Key': payload.id } },
       body: payload,
+      signal,
     }),
   )
 }
