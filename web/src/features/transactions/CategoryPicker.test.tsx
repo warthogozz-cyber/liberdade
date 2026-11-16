@@ -19,6 +19,26 @@ function category(name: string, archivedAt: string | null = null): CategoryView 
 }
 
 describe('CategoryPicker', () => {
+  it('chipShowsColorDot', () => {
+    const blue = { ...category('Azulada'), icon: '🛒', color: 'BLUE' as const }
+    renderWithProviders(
+      <CategoryPicker
+        categories={[blue, category('Sem')]}
+        value={undefined}
+        onChange={vi.fn()}
+        onSheetChange={vi.fn()}
+      />,
+    )
+
+    const chip = screen.getByRole('radio', { name: /Azulada/ }).closest('label')!
+    const dot = chip.querySelector('[aria-hidden="true"]')!
+    expect(dot.className).toContain('bg-blue-500')
+    // The dot comes before the icon.
+    expect(dot.compareDocumentPosition(chip.lastChild!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    const plain = screen.getByRole('radio', { name: 'Sem' }).closest('label')!
+    expect(plain.querySelector('[aria-hidden="true"]')).toBeNull()
+  })
+
   it('leaves archived categories out of the chips and out of Mais', () => {
     // Archived first, so it would take a chip if the filter were gone.
     const categories = [

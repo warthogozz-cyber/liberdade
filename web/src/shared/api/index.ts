@@ -24,20 +24,26 @@ export {
 } from './hooks'
 export {
   useArchiveAccount,
+  useArchiveCategory,
   useCreateAccount,
+  useCreateCategory,
   useDeleteTransaction,
   useRestoreTransaction,
   useUnarchiveAccount,
+  useUnarchiveCategory,
   useUpdateAccount,
+  useUpdateCategory,
   useUpdateTransaction,
 } from './mutations'
 export type {
   AccountType,
   AccountView,
   ApiMoney,
+  CategoryColor,
   CategoryKind,
   CategoryView,
   CreateAccountRequest,
+  CreateCategoryRequest,
   CreateTransactionRequest,
   DashboardView,
   MeUser,
@@ -47,6 +53,7 @@ export type {
   TransactionKind,
   TransactionView,
   UpdateAccountRequest,
+  UpdateCategoryRequest,
   UpdateTransactionRequest,
   WorkspaceView,
 } from './types'

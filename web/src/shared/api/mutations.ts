@@ -1,15 +1,25 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   archiveAccount,
+  archiveCategory,
   createAccount,
+  createCategory,
   deleteTransaction,
   restoreTransaction,
   unarchiveAccount,
+  unarchiveCategory,
   updateAccount,
+  updateCategory,
   updateTransaction,
 } from './endpoints'
 import { queryKeys } from './queryKeys'
-import type { CreateAccountRequest, UpdateAccountRequest, UpdateTransactionRequest } from './types'
+import type {
+  CreateAccountRequest,
+  CreateCategoryRequest,
+  UpdateAccountRequest,
+  UpdateCategoryRequest,
+  UpdateTransactionRequest,
+} from './types'
 
 /** Every transaction mutation refreshes what the family owns once it ends, however it ends. */
 function useRefreshWorkspace(ws: string) {
@@ -71,6 +81,39 @@ export function useArchiveAccount(ws: string) {
 export function useUnarchiveAccount(ws: string) {
   return useMutation({
     mutationFn: (id: string) => unarchiveAccount(ws, id),
+    onSettled: useRefreshWorkspace(ws),
+  })
+}
+
+/** Creates a category or subcategory. */
+export function useCreateCategory(ws: string) {
+  return useMutation({
+    mutationFn: (body: CreateCategoryRequest) => createCategory(ws, body),
+    onSettled: useRefreshWorkspace(ws),
+  })
+}
+
+/** Changes a category: only the fields in `body`. */
+export function useUpdateCategory(ws: string) {
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateCategoryRequest }) =>
+      updateCategory(ws, id, body),
+    onSettled: useRefreshWorkspace(ws),
+  })
+}
+
+/** Archives a category with its subcategories. */
+export function useArchiveCategory(ws: string) {
+  return useMutation({
+    mutationFn: (id: string) => archiveCategory(ws, id),
+    onSettled: useRefreshWorkspace(ws),
+  })
+}
+
+/** Brings an archived category back. */
+export function useUnarchiveCategory(ws: string) {
+  return useMutation({
+    mutationFn: (id: string) => unarchiveCategory(ws, id),
     onSettled: useRefreshWorkspace(ws),
   })
 }

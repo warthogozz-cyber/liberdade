@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import type { CategoryView } from '@/shared/api'
+import { COLOR_DOT } from '@/features/categories/colorDot'
 import { Sheet } from '@/shared/ui'
 import { categoryLabel } from './listItems'
 
@@ -66,6 +67,12 @@ export function CategoryPicker({
               onChange={() => onChange(category.id)}
               className="sr-only"
             />
+            {category.color && (
+              <span
+                aria-hidden="true"
+                className={`mr-2 size-2.5 shrink-0 rounded-full ring-1 ring-surface ${COLOR_DOT[category.color]}`}
+              />
+            )}
             {label(category)}
           </label>
         ))}

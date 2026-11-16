@@ -32,6 +32,7 @@ export const messages = {
   'nav.newExpense': 'Novo gasto',
   'nav.more': 'Mais',
   'more.accounts': 'Contas',
+  'more.categories': 'Categorias',
   'passkey.create': 'Criar passkey neste aparelho',
   'passkey.defaultLabel': 'Este aparelho',
   'passkey.created': 'Passkey criada.',

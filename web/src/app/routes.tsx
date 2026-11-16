@@ -46,6 +46,13 @@ export const routes: RouteObject[] = [
                     Component: m.AccountsPage,
                   })),
               },
+              {
+                path: '/mais/categorias',
+                lazy: () =>
+                  import('@/features/categories/CategoriesPage').then((m) => ({
+                    Component: m.CategoriesPage,
+                  })),
+              },
             ],
           },
         ],

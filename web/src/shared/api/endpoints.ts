@@ -5,6 +5,8 @@ import type {
   UpdateAccountRequest,
   CategoryKind,
   CategoryView,
+  CreateCategoryRequest,
+  UpdateCategoryRequest,
   CreateTransactionRequest,
   DashboardView,
   MeView,
@@ -120,5 +122,35 @@ export function archiveAccount(ws: string, id: string): Promise<AccountView> {
 export function unarchiveAccount(ws: string, id: string): Promise<AccountView> {
   return unwrap(
     client.POST('/v1/workspaces/{ws}/accounts/{id}/unarchive', { params: { path: { ws, id } } }),
+  )
+}
+
+/** Creates a category or subcategory. A name taken under the same parent is a 409 `category.name-taken`. */
+export function createCategory(ws: string, body: CreateCategoryRequest): Promise<CategoryView> {
+  return unwrap(client.POST('/v1/workspaces/{ws}/categories', { params: { path: { ws } }, body }))
+}
+
+/** Changes the fields sent: the name, the icon or the color. The kind and the parent never change. */
+export function updateCategory(
+  ws: string,
+  id: string,
+  body: UpdateCategoryRequest,
+): Promise<CategoryView> {
+  return unwrap(
+    client.PATCH('/v1/workspaces/{ws}/categories/{id}', { params: { path: { ws, id } }, body }),
+  )
+}
+
+/** Archives a category with its subcategories. The last active one of a kind is a 422 `category.last-active`. */
+export function archiveCategory(ws: string, id: string): Promise<CategoryView> {
+  return unwrap(
+    client.POST('/v1/workspaces/{ws}/categories/{id}/archive', { params: { path: { ws, id } } }),
+  )
+}
+
+/** Brings an archived category back, with the subcategories archived along with it. */
+export function unarchiveCategory(ws: string, id: string): Promise<CategoryView> {
+  return unwrap(
+    client.POST('/v1/workspaces/{ws}/categories/{id}/unarchive', { params: { path: { ws, id } } }),
   )
 }
