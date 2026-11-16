@@ -1,3 +1,4 @@
+export { applySentTransaction } from './applySent'
 export { db, type OutboxItem } from './db'
 export {
   SEND_DELAY_MS,
@@ -12,7 +13,7 @@ export {
 export { persistOptions } from './persister'
 export { clearSession } from './session'
 export {
-  applySentTransaction,
+  FAILED_RUN_RETRY_MS,
   backoffMs,
   startOutboxSync,
   syncOutbox,

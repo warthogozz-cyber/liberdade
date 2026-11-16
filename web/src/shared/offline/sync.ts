@@ -1,12 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query'
-import {
-  ApiError,
-  queryKeys,
-  type ApiMoney,
-  type DashboardView,
-  type TransactionView,
-} from '@/shared/api'
-import { centsToApi, parseCents } from '@/shared/money'
+import { ApiError, type TransactionView } from '@/shared/api'
 import { db, type OutboxItem } from './db'
 import { withOutboxLock } from './lock'
 import { OUTBOX_EVENT, userItems } from './outbox'
@@ -16,6 +8,8 @@ export interface SyncDeps {
   send: (item: OutboxItem) => Promise<TransactionView>
   onSent: (item: OutboxItem, view: TransactionView) => void
   now?: () => number
+  /** Once aborted, the sync sends nothing more and answers `done`. */
+  signal?: AbortSignal
 }
 
 export interface SyncResult {
@@ -25,6 +19,9 @@ export interface SyncResult {
 }
 
 const BUSY_RETRY_MS = 1000
+
+/** How long `startOutboxSync` waits to try again after a run fails outright. */
+export const FAILED_RUN_RETRY_MS = 5000
 
 /** The wait before the next try: doubling from 2 s up to 5 min, spread by ±20%. */
 export function backoffMs(attempts: number, random: () => number = Math.random): number {
@@ -66,63 +63,90 @@ async function recordFailure(
   return { status: 'waiting', nextAt: sendAfter }
 }
 
-/** Sends the user's due items in order, holding the lock, until one is not due or fails. */
-async function sendDue({ userId, send, onSent, now = Date.now }: SyncDeps): Promise<SyncResult> {
-  for (;;) {
-    const item = await userItems(userId)
-      .filter((queued) => queued.status === 'pending')
-      .first()
-    if (!item) return { status: 'done' }
-    if (item.sendAfter > now()) return { status: 'waiting', nextAt: item.sendAfter }
-    let view: TransactionView
-    try {
-      view = await send(item)
-    } catch (error) {
-      const stop = await recordFailure(item, error, now)
-      if (stop) return stop
-      continue
-    }
-    await db.outbox.delete(item.id)
-    onSent(item, view)
+/**
+ * Sends the first of the user's pending items, if it is due. Returns the result that stops the run,
+ * or `undefined` to go on with the next item. The caller holds the lock.
+ */
+async function sendFirst({
+  userId,
+  send,
+  onSent,
+  now = Date.now,
+  signal,
+}: SyncDeps): Promise<SyncResult | undefined> {
+  const item = await userItems(userId)
+    .filter((queued) => queued.status === 'pending')
+    .first()
+  if (!item) return { status: 'done' }
+  if (item.sendAfter > now()) return { status: 'waiting', nextAt: item.sendAfter }
+  // Looked at again here, since the sync may have been stopped while the item was read.
+  if (signal?.aborted) return { status: 'done' }
+  let view: TransactionView
+  try {
+    view = await send(item)
+  } catch (error) {
+    return recordFailure(item, error, now)
   }
+  await db.outbox.delete(item.id)
+  onSent(item, view)
+  return undefined
 }
 
 /**
- * Sends the user's pending items, one at a time and in order. Only one sync runs at a time across
- * tabs: if another holds the lock, this one answers `busy`. Only the user's own items are read, so
- * someone else's queue waits for them (RF2). It does not fire `liberdade:outbox` (T9-no-self-wake).
+ * Sends the user's pending items, one at a time and in order. It takes the lock for each item and
+ * lets go between them, so a cancel that waits for the lock gets in before the next send (D15, D34).
+ * Only one sync sends at a time across tabs: if the lock is held when it comes for an item, it
+ * answers `busy`. Only the user's own items are read, so someone else's queue waits for them (RF2).
+ * It does not fire `liberdade:outbox` (T9-no-self-wake).
  */
-export function syncOutbox(deps: SyncDeps): Promise<SyncResult> {
-  if (!navigator.onLine) return Promise.resolve({ status: 'waiting' })
-  return withOutboxLock({ ifAvailable: true }, (held) =>
-    held ? sendDue(deps) : Promise.resolve<SyncResult>({ status: 'busy' }),
-  )
+export async function syncOutbox(deps: SyncDeps): Promise<SyncResult> {
+  for (;;) {
+    if (deps.signal?.aborted) return { status: 'done' }
+    if (!navigator.onLine) return { status: 'waiting' }
+    const result = await withOutboxLock({ ifAvailable: true }, (held) =>
+      held ? sendFirst(deps) : Promise.resolve<SyncResult>({ status: 'busy' }),
+    )
+    if (result) return result
+  }
 }
 
 /**
  * Runs `syncOutbox` now and again on `online`, `focus`, `liberdade:outbox`, the page becoming
- * visible, the first item's `nextAt`, and 1 s after a `busy`. It keeps at most one timer. Returns the
- * function that stops it all; a run already in flight then schedules nothing.
+ * visible, the first item's `nextAt`, 1 s after a `busy`, and 5 s after a run that fails outright.
+ * It keeps at most one timer. Returns the function that stops it all: a run already in flight then
+ * sends nothing more and schedules nothing.
  */
-export function startOutboxSync(deps: SyncDeps & { onUnauthorized: () => void }): () => void {
+export function startOutboxSync(
+  deps: Omit<SyncDeps, 'signal'> & { onUnauthorized: () => void },
+): () => void {
   const now = deps.now ?? Date.now
+  const controller = new AbortController()
+  const { signal } = controller
   let timer: ReturnType<typeof setTimeout> | undefined
-  let stopped = false
+
+  function schedule(delay: number): void {
+    clearTimeout(timer)
+    timer = setTimeout(run, delay)
+  }
 
   function settle(result: SyncResult): void {
-    if (stopped) return
+    if (signal.aborted) return
     clearTimeout(timer)
     timer = undefined
-    if (result.status === 'busy') timer = setTimeout(run, BUSY_RETRY_MS)
+    if (result.status === 'busy') schedule(BUSY_RETRY_MS)
     else if (result.status === 'waiting' && result.nextAt !== undefined) {
-      timer = setTimeout(run, Math.max(0, result.nextAt - now()))
+      schedule(Math.max(0, result.nextAt - now()))
     } else if (result.status === 'unauthorized') deps.onUnauthorized()
   }
 
+  function retryLater(): void {
+    if (!signal.aborted) schedule(FAILED_RUN_RETRY_MS)
+  }
+
   function run(): void {
-    syncOutbox(deps).then(settle, (error: unknown) => {
-      console.error('The outbox sync failed', error)
-    })
+    syncOutbox({ ...deps, signal })
+      .then(settle)
+      .catch(retryLater)
   }
 
   function runIfVisible(): void {
@@ -136,67 +160,11 @@ export function startOutboxSync(deps: SyncDeps & { onUnauthorized: () => void })
   run()
 
   return () => {
-    stopped = true
+    controller.abort()
     clearTimeout(timer)
     window.removeEventListener('online', run)
     window.removeEventListener('focus', run)
     window.removeEventListener(OUTBOX_EVENT, run)
     document.removeEventListener('visibilitychange', runIfVisible)
   }
-}
-
-/** The API's order for a month's list: newest date, then newest record, then highest id. */
-function newestFirst(a: TransactionView, b: TransactionView): number {
-  return (
-    b.occurredOn.localeCompare(a.occurredOn) ||
-    b.createdAt.localeCompare(a.createdAt) ||
-    b.id.localeCompare(a.id)
-  )
-}
-
-/** The list with `view` where the API would put it; unchanged if a refetch already brought it. */
-function withRow(list: TransactionView[], view: TransactionView): TransactionView[] {
-  if (list.some((row) => row.id === view.id)) return list
-  const index = list.findIndex((row) => newestFirst(view, row) < 0)
-  return index === -1 ? [...list, view] : [...list.slice(0, index), view, ...list.slice(index)]
-}
-
-function shift(money: ApiMoney, cents: bigint): ApiMoney {
-  return { ...money, amount: centsToApi(parseCents(money.amount) + cents) }
-}
-
-/**
- * Puts a sent transaction into the cache before the refetch, so the home screen does not flicker:
- * an expense adds to its month's expenses and leaves every cached balance, an income adds to every
- * cached balance, and either joins its month's list when that list is cached. Nothing new is cached.
- * Then the family's queries are refetched.
- */
-export function applySentTransaction(
-  queryClient: QueryClient,
-  workspaceId: string,
-  view: TransactionView,
-): void {
-  if (view.kind === 'EXPENSE' || view.kind === 'INCOME') {
-    const month = view.occurredOn.slice(0, 7)
-    const cents = parseCents(view.amount.amount)
-    queryClient.setQueriesData<DashboardView>(
-      { queryKey: [...queryKeys.workspace(workspaceId), 'dashboard'] },
-      (dashboard) =>
-        dashboard && {
-          ...dashboard,
-          balance: shift(dashboard.balance, view.kind === 'EXPENSE' ? -cents : cents),
-        },
-    )
-    if (view.kind === 'EXPENSE') {
-      queryClient.setQueryData<DashboardView>(
-        queryKeys.dashboard(workspaceId, month),
-        (dashboard) => dashboard && { ...dashboard, expenses: shift(dashboard.expenses, cents) },
-      )
-    }
-    queryClient.setQueryData<TransactionView[]>(
-      queryKeys.transactions(workspaceId, month),
-      (list) => list && withRow(list, view),
-    )
-  }
-  void queryClient.invalidateQueries({ queryKey: queryKeys.workspace(workspaceId) })
 }

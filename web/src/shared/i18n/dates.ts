@@ -1,14 +1,19 @@
 /** The family's time zone until the API says otherwise. */
 export const DEFAULT_TIMEZONE = 'America/Fortaleza'
 
-/** The calendar date (`YYYY-MM-DD`) at `now` in `timeZone`; en-CA already formats it that way. */
+/**
+ * The calendar date (`YYYY-MM-DD`) at `now` in `timeZone`. It is put together from the formatter's
+ * parts, so it does not depend on how any locale writes a date.
+ */
 export function localDate(now: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', {
+  const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(now)
+  }).formatToParts(now)
+  const { year, month, day } = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
+  return `${year}-${month}-${day}`
 }
 
 /** The month (`YYYY-MM`) at `now` in `timeZone`. */

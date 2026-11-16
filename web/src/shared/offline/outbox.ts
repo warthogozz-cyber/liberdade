@@ -46,23 +46,34 @@ export async function enqueueTransaction(
  * Takes an item back before it is sent. It waits for the outbox lock, so it never races a send in
  * flight (D34); `false` means the item had already left the queue.
  */
-export function cancelOutboxItem(id: string): Promise<boolean> {
-  return withOutboxLock({}, async () => {
-    const deleted = await db.outbox.where('id').equals(id).delete()
-    if (deleted > 0) notify()
-    return deleted > 0
-  })
+export async function cancelOutboxItem(id: string): Promise<boolean> {
+  const deleted = await withOutboxLock({}, () => db.outbox.where('id').equals(id).delete())
+  // Announced once the lock is free, so the sync it wakes is not turned away as busy.
+  if (deleted > 0) notify()
+  return deleted > 0
 }
 
-/** Drops an item the API refused. */
+/**
+ * Drops an item the API refused. Only an item that needs attention can go: the sync never touches
+ * those, so this needs no lock. An item already gone is left at that (a double tap).
+ */
 export async function discardOutboxItem(id: string): Promise<void> {
-  await db.outbox.delete(id)
-  notify()
+  const discarded = await db.transaction('rw', db.outbox, async () => {
+    const item = await db.outbox.get(id)
+    if (!item) return false
+    if (item.status !== 'needs-attention') {
+      throw new Error('Only an outbox item that needs attention can be discarded')
+    }
+    await db.outbox.delete(id)
+    return true
+  })
+  if (discarded) notify()
 }
 
 /**
  * Swaps an item the API refused for its fixed version (D24). The new one has its own id but keeps
- * the old `createdAt`, so it keeps its place in the queue, and starts over as pending.
+ * the old `createdAt`, so it keeps its place in the queue, and starts over as pending. Only an item
+ * that needs attention can be replaced, for the same reason as `discardOutboxItem`.
  */
 export async function replaceOutboxItem(
   oldId: string,
@@ -72,6 +83,9 @@ export async function replaceOutboxItem(
   const item = await db.transaction('rw', db.outbox, async () => {
     const old = await db.outbox.get(oldId)
     if (!old) throw new Error('The outbox item to replace is gone')
+    if (old.status !== 'needs-attention') {
+      throw new Error('Only an outbox item that needs attention can be replaced')
+    }
     const fixed: OutboxItem = {
       id: payload.id,
       userId: old.userId,

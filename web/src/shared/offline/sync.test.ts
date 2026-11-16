@@ -1,16 +1,9 @@
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
+import { ApiError, postTransaction, type TransactionView } from '@/shared/api'
 import {
-  ApiError,
-  postTransaction,
-  queryKeys,
-  type CreateTransactionRequest,
-  type DashboardView,
-  type TransactionView,
-} from '@/shared/api'
-import {
+  FAILED_RUN_RETRY_MS,
   SEND_DELAY_MS,
-  applySentTransaction,
   backoffMs,
   cancelOutboxItem,
   db,
@@ -19,46 +12,16 @@ import {
   syncOutbox,
   type OutboxItem,
   type SyncDeps,
+  type SyncResult,
 } from '@/shared/offline'
-import { createTestQueryClient } from '@/shared/testing'
+import { outboxItem, outboxPayload as payload, transactionView as viewOf } from '@/shared/testing'
+import { withOutboxLock } from './lock'
 
 const NOW = 1_793_700_000_000
 
-function payload(id: string, overrides: Partial<CreateTransactionRequest> = {}) {
-  return {
-    id,
-    kind: 'EXPENSE',
-    amount: { amount: '12.34', currency: 'BRL' },
-    occurredOn: '2026-11-03',
-    accountId: 'account',
-    categoryId: 'category',
-    ...overrides,
-  } satisfies CreateTransactionRequest
-}
-
 /** A pending item of `a` in `ws1`, due at `NOW`. */
 function item(id: string, overrides: Partial<OutboxItem> = {}): OutboxItem {
-  return {
-    id,
-    userId: 'a',
-    workspaceId: 'ws1',
-    type: 'transaction.create',
-    payload: payload(id),
-    createdAt: NOW - SEND_DELAY_MS,
-    sendAfter: NOW,
-    attempts: 0,
-    status: 'pending',
-    ...overrides,
-  }
-}
-
-function viewOf(request: CreateTransactionRequest, createdAt = '2026-11-03T12:00:00Z') {
-  return {
-    ...request,
-    description: request.description ?? null,
-    createdAt,
-    memberId: 'member',
-  } satisfies TransactionView
+  return outboxItem(id, { createdAt: NOW - SEND_DELAY_MS, sendAfter: NOW, ...overrides })
 }
 
 interface TestDeps extends SyncDeps {
@@ -75,6 +38,15 @@ function syncDeps(overrides: Partial<TestDeps> = {}): TestDeps {
     now: () => NOW,
     ...overrides,
   }
+}
+
+/** A `send` that holds `t1` until the test lets it go, and sends anything else at once. */
+function holdingFirst() {
+  const first = deferred<TransactionView>()
+  const send = vi.fn<SyncDeps['send']>((queued) =>
+    queued.id === 't1' ? first.promise : Promise.resolve(viewOf(queued.payload)),
+  )
+  return { send, release: () => first.resolve(viewOf(payload('t1'))) }
 }
 
 function sentIds(send: Mock<SyncDeps['send']>) {
@@ -142,9 +114,12 @@ class FakeLockManager {
   }
 }
 
-afterEach(() => {
+afterEach(async () => {
   vi.useRealTimers()
   vi.restoreAllMocks()
+  // Each test lets go of what it holds in a `finally`; this waits until the last run it left has
+  // also let go of the in-memory lock, so the next test never finds it busy.
+  await withOutboxLock({}, () => Promise.resolve())
 })
 
 describe('syncOutbox', () => {
@@ -278,6 +253,32 @@ describe('syncOutbox', () => {
     expect(deps.send).not.toHaveBeenCalled()
   })
 
+  it('sends nothing once its signal is aborted', async () => {
+    await db.outbox.add(item('t1'))
+    const deps = syncDeps({ signal: AbortSignal.abort() })
+
+    expect(await syncOutbox(deps)).toEqual({ status: 'done' })
+
+    expect(deps.send).not.toHaveBeenCalled()
+    expect(await db.outbox.count()).toBe(1)
+  })
+
+  it('sends nothing when its signal is aborted while it reads the next item', async () => {
+    await db.outbox.add(item('t1'))
+    const controller = new AbortController()
+    // The clock is read once the item is in hand and before it is sent: abort right there.
+    const now = () => {
+      controller.abort()
+      return NOW
+    }
+    const deps = syncDeps({ now, signal: controller.signal })
+
+    expect(await syncOutbox(deps)).toEqual({ status: 'done' })
+
+    expect(deps.send).not.toHaveBeenCalled()
+    expect(await db.outbox.count()).toBe(1)
+  })
+
   it('never sends another person’s items', async () => {
     await db.outbox.bulkAdd([item('t1'), item('t2', { createdAt: NOW })])
     const deps = syncDeps({ userId: 'b' })
@@ -293,10 +294,13 @@ describe('syncOutbox', () => {
     const listener = vi.fn()
     window.addEventListener('liberdade:outbox', listener)
 
-    await syncOutbox(syncDeps())
+    try {
+      await syncOutbox(syncDeps())
 
-    window.removeEventListener('liberdade:outbox', listener)
-    expect(listener).not.toHaveBeenCalled()
+      expect(listener).not.toHaveBeenCalled()
+    } finally {
+      window.removeEventListener('liberdade:outbox', listener)
+    }
   })
 
   it('sends through the API and hands the stored transaction to onSent', async () => {
@@ -373,23 +377,76 @@ describe.each([
   it('makes cancel wait for a send in flight (D34)', async () => {
     installLocks()
     await db.outbox.add(item('t1'))
-    const answer = deferred<TransactionView>()
-    const deps = syncDeps({ send: vi.fn<SyncDeps['send']>(() => answer.promise) })
+    const { send, release } = holdingFirst()
+    const deps = syncDeps({ send })
     const syncing = syncOutbox(deps)
-    await until(() => deps.send.mock.calls.length === 1)
 
-    let cancelled: boolean | undefined
-    const cancelling = cancelOutboxItem('t1').then((result) => (cancelled = result))
-    await settle()
-    expect(cancelled).toBeUndefined()
+    try {
+      await until(() => send.mock.calls.length === 1)
+      let cancelled: boolean | undefined
+      const cancelling = cancelOutboxItem('t1').then((result) => (cancelled = result))
+      await settle()
+      expect(cancelled).toBeUndefined()
 
-    answer.resolve(viewOf(payload('t1')))
+      release()
 
-    expect(await cancelling).toBe(false)
-    expect(await syncing).toEqual({ status: 'done' })
-    expect(deps.send).toHaveBeenCalledTimes(1)
-    expect(deps.onSent).toHaveBeenCalledWith(item('t1'), viewOf(payload('t1')))
-    expectLockUsed()
+      expect(await cancelling).toBe(false)
+      // The cancel holds the lock when the sync comes back for the next item.
+      expect(await syncing).toEqual({ status: 'busy' })
+      expect(send).toHaveBeenCalledTimes(1)
+      expect(deps.onSent).toHaveBeenCalledWith(item('t1'), viewOf(payload('t1')))
+      expectLockUsed()
+    } finally {
+      release()
+      await syncing
+    }
+  })
+
+  it('lets a cancel in between two sends, so it is not stuck behind the queue (D15)', async () => {
+    installLocks()
+    await db.outbox.bulkAdd([item('t1', { createdAt: 100 }), item('t2', { createdAt: 200 })])
+    const { send, release } = holdingFirst()
+    const deps = syncDeps({ send })
+    const syncing = syncOutbox(deps)
+
+    try {
+      await until(() => send.mock.calls.length === 1)
+      let cancelled: boolean | undefined
+      const cancelling = cancelOutboxItem('t2').then((result) => (cancelled = result))
+      await settle()
+      expect(cancelled).toBeUndefined()
+
+      release()
+
+      expect(await cancelling).toBe(true)
+      expect(await syncing).toEqual({ status: 'busy' })
+      expect(await syncOutbox(deps)).toEqual({ status: 'done' })
+      expect(sentIds(send)).toEqual(['t1'])
+      expect(await db.outbox.count()).toBe(0)
+      expectLockUsed()
+    } finally {
+      release()
+      await syncing
+    }
+  })
+
+  it('announces a cancel once the lock is free, so the sync it wakes can run', async () => {
+    installLocks()
+    await db.outbox.add(item('t1', { sendAfter: NOW + 60_000 }))
+    const woken: Promise<SyncResult>[] = []
+    const wake = () => woken.push(syncOutbox(syncDeps()))
+    window.addEventListener('liberdade:outbox', wake)
+
+    try {
+      expect(await cancelOutboxItem('t1')).toBe(true)
+
+      expect(woken).toHaveLength(1)
+      expect(await woken[0]).toEqual({ status: 'done' })
+      expectLockUsed()
+    } finally {
+      window.removeEventListener('liberdade:outbox', wake)
+      await Promise.all(woken)
+    }
   })
 })
 
@@ -413,28 +470,35 @@ describe('backoffMs', () => {
 
 describe('startOutboxSync', () => {
   function startDeps(overrides: Partial<TestDeps> = {}) {
-    return { ...syncDeps({ now: undefined, ...overrides }), onUnauthorized: vi.fn() }
+    return { ...syncDeps({ now: undefined, ...overrides }), onUnauthorized: vi.fn<() => void>() }
+  }
+
+  function useFakeClock() {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(NOW)
   }
 
   it('sends an item when its delay is over, not a millisecond before', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
-    vi.setSystemTime(NOW)
+    useFakeClock()
     await enqueueTransaction({ userId: 'a', workspaceId: 'ws1', payload: payload('t1') })
     const deps = startDeps()
-
     const stop = startOutboxSync(deps)
-    await until(() => vi.getTimerCount() === 1)
-    await vi.advanceTimersByTimeAsync(SEND_DELAY_MS - 1)
-    await settle()
-    expect(deps.send).not.toHaveBeenCalled()
 
-    await vi.advanceTimersByTimeAsync(1)
-    await until(() => deps.onSent.mock.calls.length === 1)
+    try {
+      await until(() => vi.getTimerCount() === 1)
+      await vi.advanceTimersByTimeAsync(SEND_DELAY_MS - 1)
+      await settle()
+      expect(deps.send).not.toHaveBeenCalled()
 
-    expect(Date.now()).toBe(NOW + SEND_DELAY_MS)
-    expect(sentIds(deps.send)).toEqual(['t1'])
-    expect(vi.getTimerCount()).toBe(0)
-    stop()
+      await vi.advanceTimersByTimeAsync(1)
+      await until(() => deps.onSent.mock.calls.length === 1)
+
+      expect(Date.now()).toBe(NOW + SEND_DELAY_MS)
+      expect(sentIds(deps.send)).toEqual(['t1'])
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      stop()
+    }
   })
 
   it('sends when the connection comes back', async () => {
@@ -442,277 +506,249 @@ describe('startOutboxSync', () => {
     await db.outbox.add(item('t1', { sendAfter: 0 }))
     const deps = startDeps()
     const stop = startOutboxSync(deps)
-    await settle()
-    expect(deps.send).not.toHaveBeenCalled()
 
-    onLine.mockReturnValue(true)
-    window.dispatchEvent(new Event('online'))
+    try {
+      await settle()
+      expect(deps.send).not.toHaveBeenCalled()
 
-    await until(() => deps.onSent.mock.calls.length === 1)
-    expect(sentIds(deps.send)).toEqual(['t1'])
-    stop()
+      onLine.mockReturnValue(true)
+      window.dispatchEvent(new Event('online'))
+
+      await until(() => deps.onSent.mock.calls.length === 1)
+      expect(sentIds(deps.send)).toEqual(['t1'])
+    } finally {
+      stop()
+    }
   })
 
   it('runs again on focus, on a new item, and when the page is shown', async () => {
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
     const deps = startDeps()
     const stop = startOutboxSync(deps)
-    await settle()
 
-    await db.outbox.add(item('t1', { sendAfter: 0 }))
-    window.dispatchEvent(new Event('focus'))
-    await until(() => deps.onSent.mock.calls.length === 1)
+    try {
+      await settle()
+      await db.outbox.add(item('t1', { sendAfter: 0 }))
+      window.dispatchEvent(new Event('focus'))
+      await until(() => deps.onSent.mock.calls.length === 1)
 
-    await enqueueTransaction(
-      { userId: 'a', workspaceId: 'ws1', payload: payload('t2') },
-      Date.now() - SEND_DELAY_MS,
-    )
-    await until(() => deps.onSent.mock.calls.length === 2)
+      await enqueueTransaction(
+        { userId: 'a', workspaceId: 'ws1', payload: payload('t2') },
+        Date.now() - SEND_DELAY_MS,
+      )
+      await until(() => deps.onSent.mock.calls.length === 2)
 
-    await db.outbox.add(item('t3', { sendAfter: 0 }))
-    document.dispatchEvent(new Event('visibilitychange'))
-    await settle()
-    expect(deps.onSent).toHaveBeenCalledTimes(2)
+      await db.outbox.add(item('t3', { sendAfter: 0 }))
+      document.dispatchEvent(new Event('visibilitychange'))
+      await settle()
+      expect(deps.onSent).toHaveBeenCalledTimes(2)
 
-    visibility.mockReturnValue('visible')
-    document.dispatchEvent(new Event('visibilitychange'))
-    await until(() => deps.onSent.mock.calls.length === 3)
+      visibility.mockReturnValue('visible')
+      document.dispatchEvent(new Event('visibilitychange'))
+      await until(() => deps.onSent.mock.calls.length === 3)
 
-    expect(sentIds(deps.send)).toEqual(['t1', 't2', 't3'])
-    stop()
+      expect(sentIds(deps.send)).toEqual(['t1', 't2', 't3'])
+    } finally {
+      stop()
+    }
   })
 
   it('tries again 1 s after another tab held the lock', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
-    vi.setSystemTime(NOW)
+    useFakeClock()
     await db.outbox.bulkAdd([item('t1'), item('b1', { userId: 'b' })])
     const other = deferred<TransactionView>()
     const otherSend = vi.fn<SyncDeps['send']>(() => other.promise)
     const otherTab = syncOutbox(syncDeps({ userId: 'b', send: otherSend }))
-    await until(() => otherSend.mock.calls.length === 1)
     const deps = startDeps()
+    let stop = () => {}
 
-    const stop = startOutboxSync(deps)
-    await until(() => vi.getTimerCount() === 1)
-    other.resolve(viewOf(payload('b1')))
-    await otherTab
-    await vi.advanceTimersByTimeAsync(999)
-    await settle()
-    expect(deps.send).not.toHaveBeenCalled()
+    try {
+      await until(() => otherSend.mock.calls.length === 1)
+      stop = startOutboxSync(deps)
+      await until(() => vi.getTimerCount() === 1)
+      other.resolve(viewOf(payload('b1')))
+      await otherTab
+      await vi.advanceTimersByTimeAsync(999)
+      await settle()
+      expect(deps.send).not.toHaveBeenCalled()
 
-    await vi.advanceTimersByTimeAsync(1)
-    await until(() => deps.onSent.mock.calls.length === 1)
+      await vi.advanceTimersByTimeAsync(1)
+      await until(() => deps.onSent.mock.calls.length === 1)
 
-    expect(sentIds(deps.send)).toEqual(['t1'])
-    stop()
+      expect(sentIds(deps.send)).toEqual(['t1'])
+    } finally {
+      stop()
+      other.resolve(viewOf(payload('b1')))
+      await otherTab
+    }
   })
 
   it('reports a 401 once and then waits for the next event', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
-    vi.setSystemTime(NOW)
+    useFakeClock()
     await db.outbox.add(item('t1'))
     const deps = startDeps({
       send: vi.fn<SyncDeps['send']>().mockRejectedValue(new ApiError(401, 'auth.required')),
     })
-
     const stop = startOutboxSync(deps)
-    await until(() => deps.onUnauthorized.mock.calls.length === 1)
 
-    expect(vi.getTimerCount()).toBe(0)
-    expect(await db.outbox.get('t1')).toEqual(item('t1'))
-    stop()
+    try {
+      await until(() => deps.onUnauthorized.mock.calls.length === 1)
+
+      expect(vi.getTimerCount()).toBe(0)
+      expect(await db.outbox.get('t1')).toEqual(item('t1'))
+    } finally {
+      stop()
+    }
   })
 
   it('stops listening, and a run already in flight schedules nothing', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
-    vi.setSystemTime(NOW)
+    useFakeClock()
     await db.outbox.bulkAdd([
       item('t1', { createdAt: 100 }),
       item('t2', { createdAt: 200, sendAfter: NOW + 60_000 }),
     ])
-    const answer = deferred<TransactionView>()
-    const deps = startDeps({ send: vi.fn<SyncDeps['send']>(() => answer.promise) })
+    const { send, release } = holdingFirst()
+    const deps = startDeps({ send })
     const stop = startOutboxSync(deps)
-    await until(() => deps.send.mock.calls.length === 1)
 
-    stop()
-    answer.resolve(viewOf(payload('t1')))
-    await until(() => deps.onSent.mock.calls.length === 1)
-    await settle()
-    expect(vi.getTimerCount()).toBe(0)
+    try {
+      await until(() => send.mock.calls.length === 1)
 
-    window.dispatchEvent(new Event('online'))
-    window.dispatchEvent(new Event('focus'))
-    window.dispatchEvent(new Event('liberdade:outbox'))
-    await vi.advanceTimersByTimeAsync(60_000)
-    await settle()
-    expect(deps.send).toHaveBeenCalledTimes(1)
+      stop()
+      release()
+      await until(() => deps.onSent.mock.calls.length === 1)
+      await settle()
+      expect(vi.getTimerCount()).toBe(0)
+
+      window.dispatchEvent(new Event('online'))
+      window.dispatchEvent(new Event('focus'))
+      window.dispatchEvent(new Event('liberdade:outbox'))
+      await vi.advanceTimersByTimeAsync(60_000)
+      await settle()
+      expect(send).toHaveBeenCalledTimes(1)
+    } finally {
+      stop()
+      release()
+    }
+  })
+
+  it('stops a run in flight before it sends the next item', async () => {
+    await db.outbox.bulkAdd([item('t1', { createdAt: 100 }), item('t2', { createdAt: 200 })])
+    const { send, release } = holdingFirst()
+    const deps = startDeps({ send })
+    const stop = startOutboxSync(deps)
+
+    try {
+      await until(() => send.mock.calls.length === 1)
+
+      stop()
+      release()
+      await until(() => deps.onSent.mock.calls.length > 0)
+      await settle()
+
+      expect(sentIds(send)).toEqual(['t1'])
+      expect(await db.outbox.toArray()).toEqual([item('t2', { createdAt: 200 })])
+    } finally {
+      stop()
+      release()
+    }
+  })
+
+  it('does not try again after stop when the run in flight then fails', async () => {
+    useFakeClock()
+    await db.outbox.add(item('t1'))
+    const { send, release } = holdingFirst()
+    const onSent = vi.fn<SyncDeps['onSent']>(() => {
+      throw new Error('render failed')
+    })
+    const deps = startDeps({ send, onSent })
+    const stop = startOutboxSync(deps)
+
+    try {
+      await until(() => send.mock.calls.length === 1)
+
+      stop()
+      release()
+      await until(() => onSent.mock.calls.length === 1)
+      await settle()
+
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      stop()
+      release()
+    }
   })
 
   it('keeps a single timer when several events wake it', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
-    vi.setSystemTime(NOW)
+    useFakeClock()
     await db.outbox.add(item('t1', { sendAfter: NOW + 60_000 }))
     const deps = startDeps()
     const stop = startOutboxSync(deps)
-    await until(() => vi.getTimerCount() === 1)
 
-    window.dispatchEvent(new Event('focus'))
-    window.dispatchEvent(new Event('online'))
-    await settle()
+    try {
+      await until(() => vi.getTimerCount() === 1)
 
-    expect(vi.getTimerCount()).toBe(1)
-    stop()
-    expect(vi.getTimerCount()).toBe(0)
-  })
+      window.dispatchEvent(new Event('focus'))
+      window.dispatchEvent(new Event('online'))
+      await settle()
 
-  it('logs a run that fails', async () => {
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-    await db.outbox.add(item('t1', { sendAfter: 0 }))
-    const deps = startDeps({
-      onSent: vi.fn<SyncDeps['onSent']>(() => {
-        throw new Error('render failed')
-      }),
-    })
-
-    const stop = startOutboxSync(deps)
-    await until(() => error.mock.calls.length === 1)
-
-    expect(await db.outbox.count()).toBe(0)
-    stop()
-  })
-})
-
-describe('applySentTransaction', () => {
-  const ws = 'ws1'
-
-  function dashboard(month: string, expenses: string, balance: string): DashboardView {
-    return {
-      month,
-      expenses: { amount: expenses, currency: 'BRL' },
-      balance: { amount: balance, currency: 'BRL' },
+      expect(vi.getTimerCount()).toBe(1)
+      stop()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      stop()
     }
-  }
-
-  function row(id: string, occurredOn: string, createdAt = '2026-11-03T12:00:00Z') {
-    return viewOf(payload(id, { occurredOn }), createdAt)
-  }
-
-  it('adds an expense to its month, takes it from the balance and lists it', () => {
-    const queryClient = createTestQueryClient()
-    queryClient.setQueryData(
-      queryKeys.dashboard(ws, '2026-11'),
-      dashboard('2026-11', '10.00', '90.00'),
-    )
-    queryClient.setQueryData(queryKeys.transactions(ws, '2026-11'), [
-      row('newer', '2026-11-05'),
-      row('same-day-later', '2026-11-03', '2026-11-03T13:00:00Z'),
-      row('same-day-earlier', '2026-11-03', '2026-11-03T11:00:00Z'),
-      row('older', '2026-11-01'),
-    ])
-
-    applySentTransaction(queryClient, ws, row('sent', '2026-11-03'))
-
-    expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-11'))).toEqual(
-      dashboard('2026-11', '22.34', '77.66'),
-    )
-    expect(
-      queryClient
-        .getQueryData<TransactionView[]>(queryKeys.transactions(ws, '2026-11'))
-        ?.map((listed) => listed.id),
-    ).toEqual(['newer', 'same-day-later', 'sent', 'same-day-earlier', 'older'])
-    expect(queryClient.getQueryState(queryKeys.dashboard(ws, '2026-11'))?.isInvalidated).toBe(true)
-    expect(queryClient.getQueryState(queryKeys.transactions(ws, '2026-11'))?.isInvalidated).toBe(
-      true,
-    )
   })
 
-  it('takes an expense of another month only from the balance, and caches nothing new', () => {
-    const queryClient = createTestQueryClient()
-    queryClient.setQueryData(
-      queryKeys.dashboard(ws, '2026-11'),
-      dashboard('2026-11', '10.00', '5.00'),
-    )
-
-    applySentTransaction(queryClient, ws, row('sent', '2026-10-31'))
-
-    expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-11'))).toEqual(
-      dashboard('2026-11', '10.00', '-7.34'),
-    )
-    expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
-  })
-
-  it('adds an income to every balance and lists it at the end of an older month', () => {
-    const queryClient = createTestQueryClient()
-    queryClient.setQueryData(
-      queryKeys.dashboard(ws, '2026-10'),
-      dashboard('2026-10', '3.00', '90.00'),
-    )
-    queryClient.setQueryData(
-      queryKeys.dashboard(ws, '2026-11'),
-      dashboard('2026-11', '10.00', '90.00'),
-    )
-    queryClient.setQueryData(queryKeys.transactions(ws, '2026-10'), [row('newer', '2026-10-31')])
-
-    applySentTransaction(queryClient, ws, {
-      ...row('sent', '2026-10-01'),
-      kind: 'INCOME',
+  it('tries again 5 s after a run fails, without logging', async () => {
+    useFakeClock()
+    const log = vi.spyOn(console, 'error')
+    await db.outbox.bulkAdd([item('t1', { createdAt: 100 }), item('t2', { createdAt: 200 })])
+    const onSent = vi.fn<SyncDeps['onSent']>().mockImplementationOnce(() => {
+      throw new Error('render failed')
     })
+    const deps = startDeps({ onSent })
+    const stop = startOutboxSync(deps)
 
-    expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-10'))).toEqual(
-      dashboard('2026-10', '3.00', '102.34'),
-    )
-    expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-11'))).toEqual(
-      dashboard('2026-11', '10.00', '102.34'),
-    )
-    expect(
-      queryClient
-        .getQueryData<TransactionView[]>(queryKeys.transactions(ws, '2026-10'))
-        ?.map((listed) => listed.id),
-    ).toEqual(['newer', 'sent'])
+    try {
+      await until(() => vi.getTimerCount() === 1)
+      expect(sentIds(deps.send)).toEqual(['t1'])
+      await vi.advanceTimersByTimeAsync(FAILED_RUN_RETRY_MS - 1)
+      await settle()
+      expect(deps.send).toHaveBeenCalledTimes(1)
+
+      await vi.advanceTimersByTimeAsync(1)
+      await until(() => onSent.mock.calls.length === 2)
+
+      expect(sentIds(deps.send)).toEqual(['t1', 't2'])
+      expect(await db.outbox.count()).toBe(0)
+      expect(log).not.toHaveBeenCalled()
+    } finally {
+      stop()
+    }
   })
 
-  it('leaves a list that already has the transaction alone', () => {
-    const queryClient = createTestQueryClient()
-    const list = [row('sent', '2026-11-03')]
-    queryClient.setQueryData(queryKeys.transactions(ws, '2026-11'), list)
+  it('tries again 5 s after onUnauthorized throws', async () => {
+    useFakeClock()
+    await db.outbox.add(item('t1'))
+    const deps = startDeps({
+      send: vi.fn<SyncDeps['send']>().mockRejectedValue(new ApiError(401, 'auth.required')),
+    })
+    deps.onUnauthorized.mockImplementationOnce(() => {
+      throw new Error('sign-out failed')
+    })
+    const stop = startOutboxSync(deps)
 
-    applySentTransaction(queryClient, ws, row('sent', '2026-11-03'))
+    try {
+      await until(() => vi.getTimerCount() === 1)
+      expect(deps.onUnauthorized).toHaveBeenCalledTimes(1)
 
-    expect(queryClient.getQueryData(queryKeys.transactions(ws, '2026-11'))).toEqual(list)
-  })
+      await vi.advanceTimersByTimeAsync(FAILED_RUN_RETRY_MS)
+      await until(() => deps.onUnauthorized.mock.calls.length === 2)
 
-  it('only refetches for any other kind', () => {
-    const queryClient = createTestQueryClient()
-    queryClient.setQueryData(
-      queryKeys.dashboard(ws, '2026-11'),
-      dashboard('2026-11', '10.00', '90.00'),
-    )
-    queryClient.setQueryData(queryKeys.transactions(ws, '2026-11'), [])
-
-    applySentTransaction(queryClient, ws, { ...row('sent', '2026-11-03'), kind: 'TRANSFER' })
-
-    expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-11'))).toEqual(
-      dashboard('2026-11', '10.00', '90.00'),
-    )
-    expect(queryClient.getQueryData(queryKeys.transactions(ws, '2026-11'))).toEqual([])
-    expect(queryClient.getQueryState(queryKeys.dashboard(ws, '2026-11'))?.isInvalidated).toBe(true)
-  })
-
-  it('leaves other families alone', () => {
-    const queryClient = createTestQueryClient()
-    queryClient.setQueryData(
-      queryKeys.dashboard('ws2', '2026-11'),
-      dashboard('2026-11', '10.00', '90.00'),
-    )
-
-    applySentTransaction(queryClient, ws, row('sent', '2026-11-03'))
-
-    expect(queryClient.getQueryData(queryKeys.dashboard('ws2', '2026-11'))).toEqual(
-      dashboard('2026-11', '10.00', '90.00'),
-    )
-    expect(queryClient.getQueryState(queryKeys.dashboard('ws2', '2026-11'))?.isInvalidated).toBe(
-      false,
-    )
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      stop()
+    }
   })
 })

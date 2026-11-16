@@ -7,6 +7,8 @@ import { RouterProvider } from 'react-router/dom'
 import { createQueryClient } from '@/shared/api'
 import { locale, messages } from '@/shared/i18n'
 
+export { outboxItem, outboxPayload, transactionView } from './outbox'
+
 /** The app's QueryClient without retries, so a failed call fails the test at once. */
 export function createTestQueryClient(): QueryClient {
   const queryClient = createQueryClient(() => {})

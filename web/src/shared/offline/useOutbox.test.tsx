@@ -1,40 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { CreateTransactionRequest } from '@/shared/api'
-import {
-  db,
-  enqueueTransaction,
-  useOutbox,
-  usePendingTotals,
-  type OutboxItem,
-} from '@/shared/offline'
-
-function payload(id: string, overrides: Partial<CreateTransactionRequest> = {}) {
-  return {
-    id,
-    kind: 'EXPENSE',
-    amount: { amount: '12.34', currency: 'BRL' },
-    occurredOn: '2026-11-03',
-    accountId: 'account',
-    categoryId: 'category',
-    ...overrides,
-  } satisfies CreateTransactionRequest
-}
-
-function item(id: string, overrides: Partial<OutboxItem> = {}): OutboxItem {
-  return {
-    id,
-    userId: 'a',
-    workspaceId: 'ws1',
-    type: 'transaction.create',
-    payload: payload(id),
-    createdAt: 1000,
-    sendAfter: 7000,
-    attempts: 0,
-    status: 'pending',
-    ...overrides,
-  }
-}
+import { db, enqueueTransaction, useOutbox, usePendingTotals } from '@/shared/offline'
+import { outboxItem as item, outboxPayload as payload } from '@/shared/testing'
 
 describe('useOutbox', () => {
   it('shows an item as soon as it is queued', async () => {
