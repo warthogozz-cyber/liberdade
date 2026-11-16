@@ -7,6 +7,7 @@ import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestUsers;
 import jakarta.servlet.http.Cookie;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -193,6 +194,23 @@ class SecurityIT {
                         .header(HttpHeaders.ORIGIN, "https://evil.example")
                         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"))
                 .hasStatus(403);
+    }
+
+    /** The web edits with PATCH and deletes with DELETE, so the preflight for both must pass. */
+    @Test
+    void corsAllowsPatchAndDelete() {
+        for (String method : List.of("PATCH", "DELETE")) {
+            var preflight = mvc.options()
+                    .uri("/v1/me")
+                    .header(HttpHeaders.ORIGIN, WEB_ORIGIN)
+                    .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, method)
+                    .exchange();
+
+            assertThat(preflight).as(method).hasStatusOk();
+            assertThat(preflight.getResponse().getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS))
+                    .as(method)
+                    .contains(method);
+        }
     }
 
     @Test

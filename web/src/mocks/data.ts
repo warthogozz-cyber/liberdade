@@ -16,7 +16,10 @@ export interface MockState {
   accounts: MockAccount[]
   /** In seed order: the 13 expense categories, then the 6 income ones. */
   categories: Schemas['CategoryView'][]
+  /** Every stored transaction, deleted or not: a deleted id stays taken and restorable. */
   transactions: TransactionView[]
+  /** Ids of the deleted transactions, left out of every list and sum. */
+  deletedTransactionIds: Set<string>
 }
 
 // The seed of LedgerSeeder.java: same emojis, names and order.
@@ -58,6 +61,7 @@ function initialState(): MockState {
     accounts: [],
     categories: [],
     transactions: [],
+    deletedTransactionIds: new Set(),
   }
 }
 

@@ -22,15 +22,18 @@ class DashboardController {
 
     private final AccountRepository accounts;
     private final TransactionRepository transactions;
+    private final TransactionService service;
 
-    DashboardController(AccountRepository accounts, TransactionRepository transactions) {
+    DashboardController(AccountRepository accounts, TransactionRepository transactions, TransactionService service) {
         this.accounts = accounts;
         this.transactions = transactions;
+        this.service = service;
     }
 
     @GetMapping("/v1/workspaces/{ws}/dashboard")
     @WorkspaceScoped(allow = {OWNER, ADULT, VIEWER})
     DashboardView dashboard(@RequestParam YearMonth month, WorkspaceMember member) {
+        service.checkMonth(member, month);
         Currency base = member.baseCurrency();
         Money expenses = transactions.expenses(
                 member.workspaceId(), base, month.atDay(1), month.plusMonths(1).atDay(1));

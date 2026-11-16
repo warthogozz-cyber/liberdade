@@ -11,6 +11,7 @@ import br.com.liberdadefamilia.support.TestWorkspaces;
 import br.com.liberdadefamilia.workspace.Role;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -216,6 +217,18 @@ class DashboardIT {
 
         assertThat(dashboard(viewerId, "2026-11")).hasStatusOk();
         assertThat(accounts(viewerId)).hasStatusOk();
+    }
+
+    /** The same month limits as the list: from January 2000 to the month a year and a day ahead. */
+    @Test
+    void monthOutOfRangeIs422() {
+        for (String month : List.of("1999-12", "2999-01")) {
+            var result = dashboard(userId, month);
+            assertThat(result).as(month).hasStatus(422);
+            assertThat(result).as(month).bodyJson().isLenientlyEqualTo("""
+                    {"code":"month.out-of-range","detail":"Escolha um mês entre janeiro de 2000 e o próximo ano."}""");
+        }
+        assertThat(dashboard(userId, "2000-01")).hasStatusOk();
     }
 
     @Test

@@ -42,10 +42,16 @@ interface FieldError {
   code: string
 }
 
-/** A problem answer, shaped like the API's (`application/problem+json`). */
-export function problem(status: number, code: string, detail?: string, errors?: FieldError[]) {
+/** A problem answer, shaped like the API's (`application/problem+json`), with any extra properties. */
+export function problem(
+  status: number,
+  code: string,
+  detail?: string,
+  errors?: FieldError[],
+  properties: Record<string, unknown> = {},
+) {
   return HttpResponse.json(
-    { status, detail, code, ...(errors && { errors }) },
+    { ...properties, status, detail, code, ...(errors && { errors }) },
     { status, headers: { 'Content-Type': 'application/problem+json' } },
   )
 }
@@ -83,15 +89,29 @@ function money(cents: bigint, currency: string): ApiMoney {
   return { amount: centsToApi(cents), currency }
 }
 
-function signedCents({ kind, amount }: TransactionView): bigint {
-  const cents = parseCents(amount.amount)
-  return kind === 'INCOME' ? cents : kind === 'EXPENSE' ? -cents : 0n
+/** The transactions not deleted: the only ones lists and sums see. */
+function activeTransactions(): TransactionView[] {
+  return mockState.transactions.filter(
+    (transaction) => !mockState.deletedTransactionIds.has(transaction.id),
+  )
+}
+
+/** What the transaction moved in the account: income in, expenses out, a transfer out of one and into the other. */
+function signedCents(transaction: TransactionView, accountId: string): bigint {
+  const cents = parseCents(transaction.amount.amount)
+  if (transaction.kind === 'INCOME') return transaction.accountId === accountId ? cents : 0n
+  if (transaction.kind === 'EXPENSE') return transaction.accountId === accountId ? -cents : 0n
+  return (
+    (transaction.toAccountId === accountId ? cents : 0n) -
+    (transaction.accountId === accountId ? cents : 0n)
+  )
 }
 
 function movementCents(accountId: string): bigint {
-  return mockState.transactions
-    .filter((transaction) => transaction.accountId === accountId)
-    .reduce((sum, transaction) => sum + signedCents(transaction), 0n)
+  return activeTransactions().reduce(
+    (sum, transaction) => sum + signedCents(transaction, accountId),
+    0n,
+  )
 }
 
 /** The initial balance plus what the transactions moved, as the API computes it. */
@@ -197,26 +217,35 @@ function validCents(amount: string): bigint | undefined {
   return cents > 0n && cents <= MAX_CENTS ? cents : undefined
 }
 
-/** What the API cannot even read is a 400, not a 422: a bad UUID, date, kind or number. */
-function readable(body: CreateTransactionRequest) {
+type UpdateTransactionRequest = Schemas['UpdateTransactionRequest']
+
+/** What the API cannot even read is a 400, not a 422: a bad UUID, date, kind, number or version. */
+function readable(body: Partial<CreateTransactionRequest & UpdateTransactionRequest>) {
   const isUuid = (value: unknown) =>
     value == null || (typeof value === 'string' && UUID.test(value))
   return (
-    [body.id, body.accountId, body.categoryId].every(isUuid) &&
+    [body.id, body.accountId, body.toAccountId, body.categoryId].every(isUuid) &&
     (body.kind == null || KINDS.includes(body.kind)) &&
     (body.occurredOn == null || DATE.test(body.occurredOn)) &&
-    (body.amount?.amount == null || NUMBER.test(String(body.amount.amount)))
+    (body.amount?.amount == null || NUMBER.test(String(body.amount.amount))) &&
+    (body.version == null || Number.isInteger(body.version))
   )
 }
 
-const REQUIRED = ['id', 'kind', 'amount', 'occurredOn', 'accountId', 'categoryId'] as const
+const CREATE_REQUIRED = ['id', 'kind', 'amount', 'occurredOn', 'accountId'] as const
+const UPDATE_REQUIRED = ['version', 'kind', 'amount', 'occurredOn', 'accountId'] as const
 
-/** The body checks of `CreateTransactionRequest`; the description comes back stripped. */
-function validateTransaction(body: CreateTransactionRequest) {
-  const errors: FieldError[] = REQUIRED.filter((field) => body[field] == null).map((field) => ({
-    field,
-    code: 'NotNull',
-  }))
+/** The body checks of a new or edited transaction; the description comes back stripped. */
+function validateTransaction(
+  body: Partial<CreateTransactionRequest & UpdateTransactionRequest>,
+  required: readonly (keyof CreateTransactionRequest | keyof UpdateTransactionRequest)[],
+) {
+  const errors: FieldError[] = required
+    .filter((field) => body[field] == null)
+    .map((field) => ({
+      field,
+      code: 'NotNull',
+    }))
   const cents = body.amount == null ? undefined : validCents(String(body.amount.amount))
   if (body.amount != null && cents === undefined) {
     errors.push({ field: 'amount', code: 'TransactionAmount' })
@@ -236,9 +265,116 @@ function sameContent(stored: TransactionView, request: TransactionView) {
     stored.amount.amount === request.amount.amount &&
     stored.occurredOn === request.occurredOn &&
     stored.accountId === request.accountId &&
+    stored.toAccountId === request.toAccountId &&
     stored.categoryId === request.categoryId &&
     stored.description === request.description
   )
+}
+
+const MIN_DATE = '2000-01-01'
+const DAYS_AHEAD = 366
+const transactionNotFound = () =>
+  problem(404, 'transaction.not-found', 'Lançamento não encontrado.')
+
+/** The family's date now, in its own time zone, as `YYYY-MM-DD`. */
+function familyToday(workspace: MeWorkspace): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: workspace.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+}
+
+/** The last day a transaction may fall on: 366 days after the family's today. */
+function lastDay(workspace: MeWorkspace): string {
+  const today = Date.parse(`${familyToday(workspace)}T00:00:00Z`)
+  return new Date(today + DAYS_AHEAD * DAY).toISOString().slice(0, 10)
+}
+
+/** The list and the dashboard show January 2000 up to the month of the last day; others are a 422. */
+function monthOutOfRange(workspace: MeWorkspace, month: string): Response | undefined {
+  if (month < MIN_DATE.slice(0, 7) || month > lastDay(workspace).slice(0, 7)) {
+    return rejected('month.out-of-range', 'Escolha um mês entre janeiro de 2000 e o próximo ano.')
+  }
+  return undefined
+}
+
+interface Proposed {
+  kind: TransactionView['kind']
+  amount: ApiMoney
+  occurredOn: string
+  accountId: string
+  toAccountId: string | null
+  categoryId: string | null
+}
+
+/** An account the transaction may use: active, or the one it already had (D10). */
+function usableAccount(accountId: string, keptId: string | null | undefined) {
+  return mockState.accounts.find(
+    (account) => account.id === accountId && (account.archivedAt === null || account.id === keptId),
+  )
+}
+
+/**
+ * The family rules of the API, in its order, the first failure deciding. On an edit, `current` is
+ * the stored transaction: what was archived since may stay, but cannot be chosen anew.
+ */
+function familyRuleFailure(
+  workspace: MeWorkspace,
+  proposed: Proposed,
+  current?: TransactionView,
+): Response | undefined {
+  if (proposed.occurredOn < MIN_DATE || proposed.occurredOn > lastDay(workspace)) {
+    return rejected('transaction.date-out-of-range', 'Escolha uma data entre 2000 e o próximo ano.')
+  }
+  const { toAccountId, categoryId } = proposed
+  const transfer = proposed.kind === 'TRANSFER'
+  const shapeFits = transfer
+    ? toAccountId !== null && toAccountId !== proposed.accountId && categoryId === null
+    : toAccountId === null
+  if (!shapeFits) {
+    return rejected(
+      'transaction.transfer-invalid',
+      'Uma transferência precisa de duas contas diferentes e não leva categoria.',
+    )
+  }
+  if (!transfer && categoryId === null) {
+    return rejected('transaction.category-required', 'Escolha uma categoria.')
+  }
+  const account = usableAccount(proposed.accountId, current?.accountId)
+  const destination =
+    toAccountId === null ? account : usableAccount(toAccountId, current?.toAccountId)
+  if (!account || !destination) {
+    return rejected('transaction.account-not-found', 'Conta não encontrada nesta família.')
+  }
+  if (categoryId !== null) {
+    const category = mockState.categories.find(
+      (existing) =>
+        existing.id === categoryId &&
+        (existing.archivedAt === null || existing.id === current?.categoryId),
+    )
+    if (!category) {
+      return rejected('transaction.category-not-found', 'Categoria não encontrada nesta família.')
+    }
+    if (category.kind !== proposed.kind) {
+      return rejected(
+        'transaction.category-kind-mismatch',
+        'Esta categoria não combina com o tipo do lançamento.',
+      )
+    }
+  }
+  const { currency } = proposed.amount
+  if (currency !== account.currency || currency !== destination.currency) {
+    return rejected('transaction.currency-mismatch', 'A moeda do valor não é a mesma da conta.')
+  }
+  return undefined
+}
+
+/** The transaction with its id, as stored; with whether it is deleted. */
+function storedTransaction(id: string) {
+  const transaction = mockState.transactions.find((existing) => existing.id === id)
+  return transaction && { transaction, deleted: mockState.deletedTransactionIds.has(id) }
 }
 
 /** Newest first: by date, then by creation, then by id, as the API lists them. */
@@ -502,7 +638,7 @@ export const handlers = [
     // stable). Then the archived ones, by name and id.
     const since = new Date(Date.now() - 89 * DAY).toISOString().slice(0, 10)
     const uses = (categoryId: string) =>
-      mockState.transactions.filter(
+      activeTransactions().filter(
         (transaction) => transaction.categoryId === categoryId && transaction.occurredOn >= since,
       ).length
     const ofKind = mockState.categories.filter((category) => category.kind === kind)
@@ -685,11 +821,31 @@ export const handlers = [
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/transactions'), ({ request, params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace
-    const month = new URL(request.url).searchParams.get('month') ?? ''
+    const search = new URL(request.url).searchParams
+    const month = search.get('month') ?? ''
+    const categoryId = search.get('categoryId')
+    const accountId = search.get('accountId')
     if (!MONTH.test(month)) return malformed()
+    if ([categoryId, accountId].some((id) => id !== null && !UUID.test(id))) return malformed()
+    const outOfRange = monthOutOfRange(workspace, month)
+    if (outOfRange) return outOfRange
+    // A category takes its subcategories along; an account, what leaves it and what enters it.
+    const inCategory = new Set(
+      mockState.categories
+        .filter((category) => category.id === categoryId || category.parentId === categoryId)
+        .map((category) => category.id),
+    )
     return HttpResponse.json(
-      mockState.transactions
-        .filter((transaction) => transaction.occurredOn.startsWith(`${month}-`))
+      activeTransactions()
+        .filter(
+          (transaction) =>
+            transaction.occurredOn.startsWith(`${month}-`) &&
+            (categoryId === null ||
+              (transaction.categoryId !== null && inCategory.has(transaction.categoryId))) &&
+            (accountId === null ||
+              transaction.accountId === accountId ||
+              transaction.toAccountId === accountId),
+        )
         .sort(newestFirst),
     )
   }),
@@ -705,7 +861,7 @@ export const handlers = [
     const body = (await readJson(request)) as CreateTransactionRequest | undefined
     if (key === null || !UUID.test(key)) return malformed()
     if (typeof body !== 'object' || body === null || !readable(body)) return malformed()
-    const { errors, cents, description } = validateTransaction(body)
+    const { errors, cents, description } = validateTransaction(body, CREATE_REQUIRED)
     if (errors.length > 0) return invalid(errors)
     if (body.id !== key || !UUID_V7.test(body.id)) {
       return rejected('transaction.invalid-id', 'O identificador do lançamento é inválido.')
@@ -716,49 +872,113 @@ export const handlers = [
       amount: money(cents, body.amount.currency),
       occurredOn: body.occurredOn,
       accountId: body.accountId,
-      categoryId: body.categoryId,
+      toAccountId: body.toAccountId ?? null,
+      categoryId: body.categoryId ?? null,
       description,
       memberId: workspace.membershipId,
       createdAt: new Date().toISOString(),
+      version: 0,
     }
+    // A deleted transaction keeps its id: a resend of it still answers the stored one.
     const stored = mockState.transactions.find((existing) => existing.id === body.id)
     if (stored) {
       return sameContent(stored, transaction)
         ? HttpResponse.json(stored, { status: 200 })
         : problem(409, 'transaction.id-conflict', 'Este lançamento já existe com outros dados.')
     }
-    if (body.kind === 'TRANSFER') {
-      return rejected('transaction.kind-unsupported', 'Transferências ainda não estão disponíveis.')
-    }
-    const account = mockState.accounts.find(
-      (existing) => existing.id === body.accountId && existing.archivedAt === null,
-    )
-    if (!account) {
-      return rejected('transaction.account-not-found', 'Conta não encontrada nesta família.')
-    }
-    const category = mockState.categories.find((existing) => existing.id === body.categoryId)
-    if (!category) {
-      return rejected('transaction.category-not-found', 'Categoria não encontrada nesta família.')
-    }
-    if (category.kind !== body.kind) {
-      return rejected(
-        'transaction.category-kind-mismatch',
-        'Esta categoria não combina com o tipo do lançamento.',
-      )
-    }
-    if (body.amount.currency !== account.currency) {
-      return rejected('transaction.currency-mismatch', 'A moeda do valor não é a mesma da conta.')
-    }
+    const failure = familyRuleFailure(workspace, transaction)
+    if (failure) return failure
     mockState.transactions.push(transaction)
     return HttpResponse.json(transaction, { status: 201 })
   }),
+
+  http.patch<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/transactions/:id'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as UpdateTransactionRequest | undefined
+      if (typeof body !== 'object' || body === null || !readable(body)) return malformed()
+      const { errors, cents, description } = validateTransaction(body, UPDATE_REQUIRED)
+      if (errors.length > 0) return invalid(errors)
+      const stored = storedTransaction(params.id)
+      if (!stored) return transactionNotFound()
+      const { transaction: current, deleted } = stored
+      if (deleted) return problem(409, 'transaction.deleted', 'Este lançamento foi excluído.')
+      // A stale version wins over an invalid payload: the person first needs to see what changed.
+      if (current.version !== body.version) {
+        return problem(
+          409,
+          'transaction.version-conflict',
+          'Este lançamento mudou desde que você abriu.',
+          undefined,
+          { current },
+        )
+      }
+      const edited: TransactionView = {
+        ...current,
+        kind: body.kind,
+        amount: money(cents, body.amount.currency),
+        occurredOn: body.occurredOn,
+        accountId: body.accountId,
+        toAccountId: body.toAccountId ?? null,
+        categoryId: body.categoryId ?? null,
+        description,
+        version: current.version + 1,
+      }
+      const failure = familyRuleFailure(workspace, edited, current)
+      if (failure) return failure
+      Object.assign(current, edited)
+      return HttpResponse.json(current)
+    },
+  ),
+
+  http.delete<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/transactions/:id'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const stored = storedTransaction(params.id)
+      if (!stored) return transactionNotFound()
+      // Deleting it again changes nothing.
+      if (!stored.deleted) {
+        mockState.deletedTransactionIds.add(params.id)
+        stored.transaction.version += 1
+      }
+      return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/transactions/:id/restore'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const stored = storedTransaction(params.id)
+      if (!stored) return transactionNotFound()
+      // An active one comes back unchanged, so a repeated "Desfazer" is harmless.
+      if (stored.deleted) {
+        mockState.deletedTransactionIds.delete(params.id)
+        stored.transaction.version += 1
+      }
+      return HttpResponse.json(stored.transaction)
+    },
+  ),
 
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/dashboard'), ({ request, params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace
     const month = new URL(request.url).searchParams.get('month') ?? ''
     if (!MONTH.test(month)) return malformed()
-    const expenses = mockState.transactions
+    const outOfRange = monthOutOfRange(workspace, month)
+    if (outOfRange) return outOfRange
+    const expenses = activeTransactions()
       .filter(
         (transaction) =>
           transaction.kind === 'EXPENSE' && transaction.occurredOn.startsWith(`${month}-`),

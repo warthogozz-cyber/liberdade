@@ -37,8 +37,11 @@ export function transactionView(
 ): TransactionView {
   return {
     ...request,
+    toAccountId: request.toAccountId ?? null,
+    categoryId: request.categoryId ?? null,
     description: request.description ?? null,
     createdAt,
     memberId: 'member',
+    version: 0,
   }
 }

@@ -99,7 +99,7 @@ function ExpenseForm({ userId, workspace, fixing }: ExpenseFormProps) {
   const categories = useCategories(workspace.id, 'EXPENSE')
   const accounts = useAccounts(workspace.id)
   const [cents, setCents] = useState(() => (fixing ? parseCents(fixing.payload.amount.amount) : 0n))
-  const [categoryId, setCategoryId] = useState(() => fixing?.payload.categoryId)
+  const [categoryId, setCategoryId] = useState(() => fixing?.payload.categoryId ?? undefined)
   const [date, setDate] = useState<ExpenseDate>(
     // The API sends dates as YYYY-MM-DD.
     () => (fixing?.payload.occurredOn as ExpenseDate | undefined) ?? 'today',

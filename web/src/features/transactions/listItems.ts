@@ -22,7 +22,11 @@ function newestFirst(a: ListItem, b: ListItem): number {
 function fromOutbox(item: OutboxItem): ListItem {
   return {
     ...item.payload,
+    toAccountId: item.payload.toAccountId ?? null,
+    categoryId: item.payload.categoryId ?? null,
     description: item.payload.description ?? null,
+    // Not stored yet, so at no version of the API's.
+    version: 0,
     // The API sets the member when it stores the transaction; a queued one is always the user's.
     memberId: '',
     createdAt: new Date(item.createdAt).toISOString(),

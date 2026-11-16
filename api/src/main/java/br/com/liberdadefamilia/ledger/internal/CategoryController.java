@@ -4,6 +4,7 @@ import static br.com.liberdadefamilia.workspace.Role.ADULT;
 import static br.com.liberdadefamilia.workspace.Role.OWNER;
 import static br.com.liberdadefamilia.workspace.Role.VIEWER;
 
+import br.com.liberdadefamilia.ledger.domain.TransactionKind;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import jakarta.validation.Valid;

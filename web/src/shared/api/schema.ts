@@ -212,6 +212,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/transactions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteTransaction"];
+        options?: never;
+        head?: never;
+        patch: operations["updateTransaction"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/transactions/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["restoreTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -268,7 +300,7 @@ export interface components {
             accountId: string;
             amount: components["schemas"]["Money"];
             /** Format: uuid */
-            categoryId: string;
+            categoryId?: string | null;
             description?: string | null;
             /** Format: uuid */
             id: string;
@@ -276,6 +308,8 @@ export interface components {
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
             /** Format: date */
             occurredOn: string;
+            /** Format: uuid */
+            toAccountId?: string | null;
         };
         CreateWorkspaceRequest: {
             name: string;
@@ -324,7 +358,7 @@ export interface components {
             accountId: string;
             amount: components["schemas"]["Money"];
             /** Format: uuid */
-            categoryId: string;
+            categoryId: string | null;
             /** Format: date-time */
             createdAt: string;
             description: string | null;
@@ -336,6 +370,10 @@ export interface components {
             memberId: string;
             /** Format: date */
             occurredOn: string;
+            /** Format: uuid */
+            toAccountId: string | null;
+            /** Format: int64 */
+            version: number;
         };
         UpdateAccountRequest: {
             balance?: components["schemas"]["Money"];
@@ -349,6 +387,22 @@ export interface components {
             color?: "TEAL" | "BLUE" | "INDIGO" | "PURPLE" | "PINK" | "RED" | "ORANGE" | "GREEN" | null;
             icon?: string | null;
             name?: string | null;
+        };
+        UpdateTransactionRequest: {
+            /** Format: uuid */
+            accountId: string;
+            amount: components["schemas"]["Money"];
+            /** Format: uuid */
+            categoryId?: string | null;
+            description?: string | null;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            /** Format: date */
+            occurredOn: string;
+            /** Format: uuid */
+            toAccountId?: string | null;
+            /** Format: int64 */
+            version: number;
         };
         WorkspaceView: {
             /** Format: uuid */
@@ -713,6 +767,8 @@ export interface operations {
         parameters: {
             query: {
                 month: string;
+                categoryId?: string | null;
+                accountId?: string | null;
             };
             header?: never;
             path: {
@@ -763,6 +819,80 @@ export interface operations {
             };
             /** @description Recorded */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionView"];
+                };
+            };
+        };
+    };
+    deleteTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted, or already deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTransactionRequest"];
+            };
+        };
+        responses: {
+            /** @description Edited: the transaction at its new version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionView"];
+                };
+            };
+        };
+    };
+    restoreTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored, or already active: the transaction as it is */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

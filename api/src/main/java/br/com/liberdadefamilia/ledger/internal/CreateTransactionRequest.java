@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.ledger.internal;
 
+import br.com.liberdadefamilia.ledger.domain.TransactionKind;
 import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.shared.TextPatterns;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -11,9 +12,9 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A new transaction as the device sends it. {@code categoryId} is required while transfers do not exist (D23). The
- * description is stripped, and a blank one becomes null, before validation. It may hold any character but U+0000,
- * which PostgreSQL text cannot store.
+ * A new transaction as the device sends it. A transfer has {@code toAccountId} and no {@code categoryId}; income and
+ * expenses have a category and no destination, which the family rules check. The description is stripped, and a blank
+ * one becomes null, before validation. It may hold any character but U+0000, which PostgreSQL text cannot store.
  */
 record CreateTransactionRequest(
         @NotNull UUID id,
@@ -21,7 +22,8 @@ record CreateTransactionRequest(
         @NotNull @TransactionAmount Money amount,
         @NotNull LocalDate occurredOn,
         @NotNull UUID accountId,
-        @NotNull UUID categoryId,
+        @Nullable @Schema(nullable = true) UUID toAccountId,
+        @Nullable @Schema(nullable = true) UUID categoryId,
 
         @Nullable
         @Schema(nullable = true)
@@ -32,11 +34,15 @@ record CreateTransactionRequest(
     static final int MAX_DESCRIPTION_LENGTH = 140;
 
     CreateTransactionRequest {
-        if (description != null) {
-            description = description.strip();
-            if (description.isEmpty()) {
-                description = null;
-            }
+        description = cleanDescription(description);
+    }
+
+    /** The description stripped, or null when nothing is left. */
+    static @Nullable String cleanDescription(@Nullable String description) {
+        if (description == null) {
+            return null;
         }
+        String stripped = description.strip();
+        return stripped.isEmpty() ? null : stripped;
     }
 }

@@ -216,7 +216,7 @@ class SecurityConfig {
     private static CorsConfigurationSource cors(String origin) {
         var config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(origin));
-        config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Content-Type", CSRF_HEADER, "Idempotency-Key"));
         config.setExposedHeaders(List.of("Retry-After"));
         config.setAllowCredentials(true);

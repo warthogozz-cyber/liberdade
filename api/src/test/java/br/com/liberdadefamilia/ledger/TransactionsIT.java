@@ -14,7 +14,12 @@ import com.jayway.jsonpath.JsonPath;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,10 +38,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
@@ -69,6 +77,9 @@ class TransactionsIT {
 
     @Autowired
     TestLedger ledger;
+
+    @Autowired
+    Clock clock;
 
     private Family ana;
 
@@ -322,8 +333,7 @@ class TransactionsIT {
                         Map.of("field", "kind", "code", "NotNull"),
                         Map.of("field", "amount", "code", "NotNull"),
                         Map.of("field", "occurredOn", "code", "NotNull"),
-                        Map.of("field", "accountId", "code", "NotNull"),
-                        Map.of("field", "categoryId", "code", "NotNull"));
+                        Map.of("field", "accountId", "code", "NotNull"));
     }
 
     @Test
@@ -389,28 +399,162 @@ class TransactionsIT {
     }
 
     @Test
-    void incomeIsAccepted() {
+    void recordsIncome() {
         UUID id = TestIds.v7();
-        Map<String, Object> body = expense(id, ana);
+        Map<String, Object> body = expense(id, ana, "5000.00");
         body.put("kind", "INCOME");
         body.put("categoryId", salario(ana).toString());
 
         var result = post(ana, id, body);
 
         assertThat(result).hasStatus(201);
-        assertThat(result).bodyJson().extractingPath("$.kind").isEqualTo("INCOME");
+        assertThat(result).bodyJson().isLenientlyEqualTo("""
+                {"kind":"INCOME","amount":{"amount":"5000.00","currency":"BRL"},"toAccountId":null,"version":0}""");
         assertThat(row(id)).containsEntry("kind", "INCOME");
+        assertThat(balance(ana, ana.walletId())).isEqualTo("5000.00");
     }
 
     @Test
-    void transferIs422() {
+    void recordsTransfer() {
+        UUID bank = account(ana, "Banco", false);
+        UUID id = TestIds.v7();
+
+        var result = post(ana, id, transfer(id, ana, ana.walletId(), bank));
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().isLenientlyEqualTo("""
+                {"kind":"TRANSFER","amount":{"amount":"500.00","currency":"BRL"},
+                 "accountId":"%s","toAccountId":"%s","categoryId":null,"version":0}""".formatted(ana.walletId(), bank));
+        assertThat(balance(ana, ana.walletId())).isEqualTo("-500.00");
+        assertThat(balance(ana, bank)).isEqualTo("500.00");
+    }
+
+    @Test
+    void rejectsTransferWithoutDestination() {
+        UUID id = TestIds.v7();
+        Map<String, Object> body = transfer(id, ana, ana.walletId(), account(ana, "Banco", false));
+        body.remove("toAccountId");
+
+        assertTransferInvalid(post(ana, id, body));
+        assertThat(rowsWithId(id)).isZero();
+    }
+
+    @Test
+    void rejectsTransferToSameAccount() {
+        UUID id = TestIds.v7();
+
+        assertTransferInvalid(post(ana, id, transfer(id, ana, ana.walletId(), ana.walletId())));
+    }
+
+    @Test
+    void rejectsTransferWithCategory() {
+        UUID id = TestIds.v7();
+        Map<String, Object> body = transfer(id, ana, ana.walletId(), account(ana, "Banco", false));
+        body.put("categoryId", ana.mercadoId().toString());
+
+        assertTransferInvalid(post(ana, id, body));
+    }
+
+    @Test
+    void rejectsDestinationOnExpense() {
         UUID id = TestIds.v7();
         Map<String, Object> body = expense(id, ana);
-        body.put("kind", "TRANSFER");
+        body.put("toAccountId", account(ana, "Banco", false).toString());
 
-        var result = post(ana, id, body);
+        assertTransferInvalid(post(ana, id, body));
+    }
 
-        assertRejected(result, "transaction.kind-unsupported", "Transferências ainda não estão disponíveis.");
+    @Test
+    void rejectsExpenseWithoutCategory() {
+        UUID id = TestIds.v7();
+        Map<String, Object> body = expense(id, ana);
+        body.remove("categoryId");
+
+        assertRejected(post(ana, id, body), "transaction.category-required", "Escolha uma categoria.");
+        assertThat(rowsWithId(id)).isZero();
+    }
+
+    @Test
+    void rejectsArchivedDestination() {
+        UUID id = TestIds.v7();
+
+        var result = post(ana, id, transfer(id, ana, ana.walletId(), account(ana, "Banco", true)));
+
+        assertRejected(result, "transaction.account-not-found", "Conta não encontrada nesta família.");
+    }
+
+    @Test
+    void acceptsDateBounds() {
+        assertThat(postOn("2000-01-01")).hasStatus(201);
+        assertThat(postOn(familyToday().plusDays(366).toString())).hasStatus(201);
+    }
+
+    @Test
+    void rejectsDatesOutOfRange() {
+        for (String day : List.of("1999-12-31", familyToday().plusDays(367).toString())) {
+            assertRejected(
+                    postOn(day), "transaction.date-out-of-range", "Escolha uma data entre 2000 e o próximo ano.");
+        }
+    }
+
+    /**
+     * At 02:00 UTC on the 17th it is still 23:00 on the 16th in Fortaleza, so the last day open is 2027-11-17 (the
+     * 16th plus 366 days); a server going by UTC would open 2027-11-18 too.
+     */
+    @Test
+    void usesFamilyTimezoneForToday() {
+        assertThat(LocalDate.now(clock)).isEqualTo(LocalDate.of(2026, 11, 17));
+
+        assertRejected(
+                postOn("2027-11-18"), "transaction.date-out-of-range", "Escolha uma data entre 2000 e o próximo ano.");
+        assertThat(postOn("2027-11-17")).hasStatus(201);
+    }
+
+    @Test
+    void filtersByCategoryIncludingChildren() {
+        UUID feira = jdbc.sql("""
+                        insert into categories (workspace_id, parent_id, kind, name)
+                        values (:workspaceId, :parentId, 'EXPENSE', 'Feira')
+                        returning id""")
+                .param("workspaceId", ana.workspaceId())
+                .param("parentId", ana.mercadoId())
+                .query(UUID.class)
+                .single();
+        UUID atMercado = created(ana, "2026-11-02");
+        UUID atFeira = createdIn(ana, feira);
+        createdIn(ana, ledger.categoryOf(ana.workspaceId(), "EXPENSE", "Lazer"));
+
+        var result = list(ana.userId(), "2026-11&categoryId=" + ana.mercadoId());
+
+        assertThat(result).hasStatusOk();
+        assertThat(ids(result)).containsExactlyInAnyOrder(atMercado.toString(), atFeira.toString());
+    }
+
+    @Test
+    void filtersByAccountBothDirections() {
+        UUID bank = account(ana, "Banco", false);
+        UUID transferId = TestIds.v7();
+        assertThat(post(ana, transferId, transfer(transferId, ana, ana.walletId(), bank)))
+                .hasStatus(201);
+        UUID expenseId = created(ana, "2026-11-02");
+
+        var toBank = list(ana.userId(), "2026-11&accountId=" + bank);
+        var fromWallet = list(ana.userId(), "2026-11&accountId=" + ana.walletId());
+
+        assertThat(ids(toBank)).containsExactly(transferId.toString());
+        assertThat(ids(fromWallet)).containsExactlyInAnyOrder(transferId.toString(), expenseId.toString());
+    }
+
+    @Test
+    void rejectsMonthOutOfRange() {
+        for (String month : List.of("1999-12", "2027-12")) {
+            var result = list(ana.userId(), month);
+            assertThat(result).as(month).hasStatus(422).hasContentType(PROBLEM_JSON);
+            assertThat(result).as(month).bodyJson().isLenientlyEqualTo("""
+                    {"code":"month.out-of-range","detail":"Escolha um mês entre janeiro de 2000 e o próximo ano."}""");
+        }
+        assertThat(list(ana.userId(), "2000-01")).hasStatusOk();
+        assertThat(list(ana.userId(), "2027-11")).hasStatusOk();
     }
 
     @Test
@@ -572,6 +716,69 @@ class TransactionsIT {
 
     private record Family(UUID userId, UUID workspaceId, UUID membershipId, UUID walletId, UUID mercadoId) {}
 
+    /** A BRL checking account of the family with no starting balance, archived or not. */
+    private UUID account(Family family, String name, boolean archived) {
+        return jdbc.sql("""
+                        insert into accounts (workspace_id, name, type, currency, archived_at)
+                        values (:workspaceId, :name, 'CHECKING', 'BRL', case when :archived then now() end)
+                        returning id""")
+                .param("workspaceId", family.workspaceId())
+                .param("name", name)
+                .param("archived", archived)
+                .query(UUID.class)
+                .single();
+    }
+
+    /** The account's balance amount, as {@code GET /accounts} shows it. */
+    private String balance(Family family, UUID accountId) {
+        var result = mvc.get()
+                .uri("/v1/workspaces/" + family.workspaceId() + "/accounts")
+                .with(TestUsers.signedIn(family.userId(), null))
+                .exchange();
+        List<String> balances = JsonPath.read(body(result), "$[?(@.id == '%s')].balance.amount".formatted(accountId));
+        assertThat(balances).hasSize(1);
+        return balances.getFirst();
+    }
+
+    /** "Today" for the family: the date in America/Fortaleza at the test clock's instant. */
+    private LocalDate familyToday() {
+        return LocalDate.now(clock.withZone(ZoneId.of("America/Fortaleza")));
+    }
+
+    /** 500.00 BRL from one account to another, with no category. */
+    private static Map<String, Object> transfer(UUID id, Family family, UUID from, UUID to) {
+        Map<String, Object> body = expense(id, family, "500.00");
+        body.put("kind", "TRANSFER");
+        body.put("accountId", from.toString());
+        body.put("toAccountId", to.toString());
+        body.remove("categoryId");
+        return body;
+    }
+
+    /** Posts Ana's default expense on the given day. */
+    private MvcTestResult postOn(String occurredOn) {
+        UUID id = TestIds.v7();
+        Map<String, Object> body = expense(id, ana);
+        body.put("occurredOn", occurredOn);
+        return post(ana, id, body);
+    }
+
+    /** Posts the default expense in the given category and returns its id. */
+    private UUID createdIn(Family family, UUID categoryId) {
+        UUID id = TestIds.v7();
+        Map<String, Object> body = expense(id, family);
+        body.put("categoryId", categoryId.toString());
+        assertThat(post(family, id, body)).hasStatus(201);
+        return id;
+    }
+
+    private static void assertTransferInvalid(MvcTestResult result) {
+        assertRejected(
+                result,
+                "transaction.transfer-invalid",
+                "Uma transferência precisa de duas contas diferentes e não leva categoria.");
+    }
+
     private Family family(String displayName, String email) {
         UUID userId = users.create(displayName, email);
         UUID workspaceId = workspaces.createFor(userId);
@@ -697,6 +904,17 @@ class TransactionsIT {
             return result.getResponse().getContentAsString(StandardCharsets.UTF_8);
         } catch (UnsupportedEncodingException e) {
             throw new IllegalStateException(e);
+        }
+    }
+
+    /** 02:00 UTC on 2026-11-17: still 23:00 on the 16th in the family's time zone (America/Fortaleza). */
+    @TestConfiguration(proxyBeanMethods = false)
+    static class FixedClock {
+
+        @Bean
+        @Primary
+        Clock fixedClock() {
+            return Clock.fixed(Instant.parse("2026-11-17T02:00:00Z"), ZoneOffset.UTC);
         }
     }
 }

@@ -573,6 +573,26 @@
               "type": "string",
               "example": "2026-11"
             }
+          },
+          {
+            "in": "query",
+            "name": "categoryId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "nullable": true
+            }
+          },
+          {
+            "in": "query",
+            "name": "accountId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -647,6 +667,130 @@
               }
             },
             "description": "Recorded"
+          }
+        },
+        "tags": [
+          "transaction-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/transactions/{id}": {
+      "delete": {
+        "operationId": "deleteTransaction",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted, or already deleted"
+          }
+        },
+        "tags": [
+          "transaction-controller"
+        ]
+      },
+      "patch": {
+        "operationId": "updateTransaction",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTransactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionView"
+                }
+              }
+            },
+            "description": "Edited: the transaction at its new version"
+          }
+        },
+        "tags": [
+          "transaction-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/transactions/{id}/restore": {
+      "post": {
+        "operationId": "restoreTransaction",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionView"
+                }
+              }
+            },
+            "description": "Restored, or already active: the transaction as it is"
           }
         },
         "tags": [
@@ -836,7 +980,6 @@
         "required": [
           "accountId",
           "amount",
-          "categoryId",
           "id",
           "kind",
           "occurredOn"
@@ -852,7 +995,8 @@
           },
           "categoryId": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "nullable": true
           },
           "description": {
             "maxLength": 140,
@@ -876,6 +1020,11 @@
           "occurredOn": {
             "type": "string",
             "format": "date"
+          },
+          "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },
@@ -1018,7 +1167,8 @@
           },
           "categoryId": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "nullable": true
           },
           "createdAt": {
             "type": "string",
@@ -1047,6 +1197,15 @@
           "occurredOn": {
             "type": "string",
             "format": "date"
+          },
+          "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -1111,6 +1270,58 @@
             "pattern": "[^\\x00]*",
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "UpdateTransactionRequest": {
+        "required": [
+          "accountId",
+          "amount",
+          "kind",
+          "occurredOn",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "description": {
+            "maxLength": 140,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
