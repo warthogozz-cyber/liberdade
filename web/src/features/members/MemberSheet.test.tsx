@@ -1,5 +1,5 @@
 import { startAuthentication } from '@simplewebauthn/browser'
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
@@ -34,7 +34,11 @@ function member(overrides: Partial<MemberView> = {}): MemberView {
   }
 }
 
-function renderSheet(target: MemberView, viewerRole: MemberRole = 'OWNER') {
+function renderSheet(
+  target: MemberView,
+  viewerRole: MemberRole = 'OWNER',
+  onClose: () => void = () => {},
+) {
   const workspace = seedMockFamily()
   mockState.members[workspace.id]!.push(target)
   return renderWithProviders(
@@ -42,30 +46,108 @@ function renderSheet(target: MemberView, viewerRole: MemberRole = 'OWNER') {
       workspaceId={workspace.id}
       viewerRole={viewerRole}
       member={target}
-      onClose={() => {}}
+      onClose={onClose}
     />,
   )
 }
 
+const REAUTH = () => problem(403, 'auth.reauthentication-required', 'Confirme que é você.')
+
 describe('MemberSheet', () => {
   it('roleChangeUsesReauth', async () => {
-    let calls = 0
+    const bodies: unknown[] = []
     server.use(
-      http.patch(`${API_URL}/v1/workspaces/:ws/members/:id`, () => {
-        calls += 1
-        return calls === 1
-          ? problem(403, 'auth.reauthentication-required', 'Confirme que é você.')
-          : HttpResponse.json(member({ role: 'VIEWER' }))
+      http.patch(`${API_URL}/v1/workspaces/:ws/members/:id`, async ({ request }) => {
+        bodies.push(await request.json())
+        return bodies.length === 1 ? REAUTH() : HttpResponse.json(member({ role: 'VIEWER' }))
       }),
     )
-    renderSheet(member())
+    const onClose = vi.fn()
+    renderSheet(member(), 'OWNER', onClose)
 
     fireEvent.change(screen.getByLabelText('Papel'), { target: { value: 'VIEWER' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     fireEvent.click(await screen.findByRole('button', { name: 'Usar passkey' }))
 
-    await waitFor(() => expect(calls).toBe(2))
+    // The role changed: the second request carried it, and the sheet reported and closed.
+    expect(await screen.findByText('Alterações salvas.')).toBeInTheDocument()
+    expect(bodies).toHaveLength(2)
+    expect(bodies[1]).toMatchObject({ role: 'VIEWER' })
+    expect(startAuthentication).toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('removeUsesReauth', async () => {
+    let calls = 0
+    server.use(
+      http.delete(`${API_URL}/v1/workspaces/:ws/members/:id`, () => {
+        calls += 1
+        return calls === 1 ? REAUTH() : new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const onClose = vi.fn()
+    renderSheet(member(), 'OWNER', onClose)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remover da família' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover da família' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Usar passkey' }))
+
+    expect(await screen.findByText('Pessoa removida.')).toBeInTheDocument()
+    expect(calls).toBe(2)
+    expect(startAuthentication).toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('removeShowsTheLastOwnerMessage', async () => {
+    server.use(
+      http.delete(`${API_URL}/v1/workspaces/:ws/members/:id`, () =>
+        problem(422, 'member.last-owner', 'Detalhe do servidor.'),
+      ),
+    )
+    const onClose = vi.fn()
+    renderSheet(member({ role: 'OWNER' }), 'OWNER', onClose)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remover da família' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover da família' }))
+
+    expect(await screen.findByText('A família precisa de pelo menos um Dono.')).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('recoveryLinkUsesReauth', async () => {
+    let calls = 0
+    server.use(
+      http.post(`${API_URL}/v1/workspaces/:ws/members/:id/recovery`, () => {
+        calls += 1
+        return calls === 1
+          ? REAUTH()
+          : HttpResponse.json(
+              {
+                id: 'inv-1',
+                kind: 'RECOVERY',
+                nickname: null,
+                role: 'ADULT',
+                createdByName: null,
+                expiresAt: '2026-11-20T12:00:00Z',
+                token: 'R'.repeat(43),
+              },
+              { status: 201 },
+            )
+      }),
+    )
+    renderSheet(member())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gerar link de recuperação' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Usar passkey' }))
+
+    expect(await screen.findByLabelText('Link do convite')).toHaveValue(
+      `${window.location.origin}/convite#${'R'.repeat(43)}`,
+    )
+    expect(
+      screen.getByText('O link vale por 24 horas e funciona uma vez só. Entregue só à própria pessoa.'),
+    ).toBeInTheDocument()
+    expect(calls).toBe(2)
     expect(startAuthentication).toHaveBeenCalled()
   })
 

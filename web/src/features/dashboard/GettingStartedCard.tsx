@@ -9,7 +9,7 @@ import {
 } from '@/shared/api'
 import { useOnline, useOutbox } from '@/shared/offline'
 import { useToast } from '@/shared/ui'
-import { ACCOUNTS_DONE_AT, shouldShowGettingStarted } from './gettingStarted'
+import { ACCOUNTS_DONE_AT, isAskedToInvite, shouldShowGettingStarted } from './gettingStarted'
 import './gettingStarted.register'
 
 interface GettingStartedCardProps {
@@ -45,6 +45,8 @@ export function GettingStartedCard({ workspace, me }: GettingStartedCardProps) {
       dismissedAt: current.gettingStartedDismissedAt,
       accountCount,
       hasPasskey,
+      role: current.role,
+      familyInvited: current.familyInvited,
     })
   ) {
     return null
@@ -64,8 +66,7 @@ export function GettingStartedCard({ workspace, me }: GettingStartedCardProps) {
       to: '/mais',
       done: hasPasskey,
     },
-    // Only an Owner or an Adult can invite, so only they are asked to.
-    ...(current.role === 'OWNER' || current.role === 'ADULT'
+    ...(isAskedToInvite(current.role)
       ? [
           {
             id: 'invite',

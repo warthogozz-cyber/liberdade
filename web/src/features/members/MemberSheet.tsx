@@ -3,12 +3,10 @@ import { useIntl } from 'react-intl'
 import {
   ApiError,
   ReauthCancelledError,
-  useCreateRecoveryLink,
-  useRemoveMember,
-  useUpdateMember,
   type MemberRole,
   type MemberView,
 } from '@/shared/api'
+import { useCreateRecoveryLink, useRemoveMember, useUpdateMember } from '@/shared/api/family'
 import { useReauth } from '@/shared/auth'
 import { useOnline } from '@/shared/offline'
 import { ConfirmDialog, Sheet, useToast } from '@/shared/ui'

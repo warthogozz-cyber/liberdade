@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useIntl } from 'react-intl'
-import { ApiError, useRenameWorkspace, type MeWorkspace } from '@/shared/api'
+import { ApiError, type MeWorkspace } from '@/shared/api'
+import { useRenameWorkspace } from '@/shared/api/family'
 import { useOnline } from '@/shared/offline'
 import { Sheet, useToast } from '@/shared/ui'
 import './register'

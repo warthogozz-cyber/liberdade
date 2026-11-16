@@ -4,15 +4,7 @@ import {
   archiveCategory,
   createAccount,
   createCategory,
-  createInvitation,
-  createRecoveryLink,
-  acceptInvitation,
   deleteTransaction,
-  previewInvitation,
-  removeMember,
-  renameWorkspace,
-  revokeInvitation,
-  updateMember,
   dismissGettingStarted,
   restoreTransaction,
   unarchiveAccount,
@@ -23,10 +15,7 @@ import {
 } from './endpoints'
 import { queryKeys } from './queryKeys'
 import type {
-  AcceptNewUser,
   CreateAccountRequest,
-  CreateInvitationRequest,
-  UpdateMemberRequest,
   CreateCategoryRequest,
   MeView,
   UpdateAccountRequest,
@@ -162,75 +151,5 @@ export function useDismissGettingStarted(options: { onError?: () => void } = {})
       options.onError?.()
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.me }),
-  })
-}
-
-/** The family and the signed-in person's own row both read these, so a change refreshes both. */
-function useRefreshFamily(ws: string) {
-  const queryClient = useQueryClient()
-  return () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.workspace(ws) }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.me }),
-    ])
-}
-
-/** Changes a member's role or nickname. */
-export function useUpdateMember(ws: string) {
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: UpdateMemberRequest }) =>
-      updateMember(ws, id, body),
-    onSettled: useRefreshFamily(ws),
-  })
-}
-
-/** Takes a member out of the family. */
-export function useRemoveMember(ws: string) {
-  return useMutation({
-    mutationFn: (id: string) => removeMember(ws, id),
-    onSettled: useRefreshFamily(ws),
-  })
-}
-
-/** Creates an invitation; the answer carries the link's token once. */
-export function useCreateInvitation(ws: string) {
-  return useMutation({
-    mutationFn: (body: CreateInvitationRequest) => createInvitation(ws, body),
-    onSettled: useRefreshFamily(ws),
-  })
-}
-
-export function useRevokeInvitation(ws: string) {
-  return useMutation({
-    mutationFn: (id: string) => revokeInvitation(ws, id),
-    onSettled: useRefreshFamily(ws),
-  })
-}
-
-/** Makes a recovery link for a member; the answer carries the link's token once. */
-export function useCreateRecoveryLink(ws: string) {
-  return useMutation({ mutationFn: (memberId: string) => createRecoveryLink(ws, memberId) })
-}
-
-export function useRenameWorkspace(ws: string) {
-  return useMutation({
-    mutationFn: (name: string) => renameWorkspace(ws, name),
-    onSettled: useRefreshFamily(ws),
-  })
-}
-
-/**
- * Reads a link. A mutation, not a query: the token travels in the body, and a query would put it in
- * a cache key.
- */
-export function usePreviewInvitation() {
-  return useMutation({ mutationFn: (token: string) => previewInvitation(token) })
-}
-
-/** Joins the family (or recovers access) with a link's token. */
-export function useAcceptInvitation() {
-  return useMutation({
-    mutationFn: ({ token, newUser }: { token: string; newUser?: AcceptNewUser }) =>
-      acceptInvitation(token, newUser),
   })
 }

@@ -4,11 +4,11 @@ import { Link, Navigate } from 'react-router'
 import {
   ApiError,
   ReauthCancelledError,
-  useCreateInvitation,
   useCurrentWorkspace,
   type MeWorkspace,
   type MemberRole,
 } from '@/shared/api'
+import { useCreateInvitation } from '@/shared/api/family'
 import { useReauth } from '@/shared/auth'
 import { useOnline } from '@/shared/offline'
 import { useDocumentTitle } from '@/shared/ui'

@@ -4,13 +4,11 @@ import { Link } from 'react-router'
 import {
   ApiError,
   useCurrentWorkspace,
-  useInvitations,
-  useMembers,
-  useRevokeInvitation,
   type InvitationView,
   type MeWorkspace,
   type MemberView,
 } from '@/shared/api'
+import { useInvitations, useMembers, useRevokeInvitation } from '@/shared/api/family'
 import { useOnline } from '@/shared/offline'
 import { useDocumentTitle, useToast } from '@/shared/ui'
 import { MemberRow } from './MemberRow'
@@ -86,6 +84,10 @@ function FamilyScreen({ workspace }: { workspace: MeWorkspace }) {
           </button>
         )}
       </div>
+
+      {invites && !online && (
+        <p className="text-text-muted">{intl.formatMessage({ id: 'members.offline' })}</p>
+      )}
 
       <ul className="flex flex-col divide-y divide-border">
         {active.map((member) => (
@@ -173,7 +175,9 @@ function PendingInvitations({ workspaceId }: { workspaceId: string }) {
         {pending.map((invitation) => (
           <li key={invitation.id} className="flex min-h-12 items-center justify-between gap-2">
             <span>
-              <span className="block font-medium">{invitation.nickname}</span>
+              <span className="block font-medium">
+                {invitation.nickname ?? intl.formatMessage({ id: 'invite.unnamed' })}
+              </span>
               <span className="block text-sm text-text-muted">
                 {intl.formatMessage({ id: `members.role.${invitation.role}` })}
                 {' · '}

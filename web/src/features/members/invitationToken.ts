@@ -1,3 +1,5 @@
+import { PENDING_PASSKEY_KEY } from '@/shared/offline'
+
 const KEY = 'liberdade.invitationToken'
 
 /** The API's tokens: 32 random bytes, base64url without padding. */
@@ -51,4 +53,33 @@ export function clearInvitationToken(): void {
 /** The link a person opens to accept: the token rides in the fragment, never in the path or query. */
 export function invitationLink(token: string): string {
   return `${window.location.origin}/convite#${token}`
+}
+
+/**
+ * Joined, but the passkey is still to be made: what its label will be, kept in this tab so a reload
+ * (or a failed read after joining) lands on the passkey step again. No token and no ids.
+ */
+export function storePendingPasskey(label: string): void {
+  try {
+    sessionStorage.setItem(PENDING_PASSKEY_KEY, label)
+  } catch {
+    // Without storage the step lives only in the page that is showing it.
+  }
+}
+
+/** The label of the passkey still to be made, or `undefined` when none is waiting. */
+export function readPendingPasskey(): string | undefined {
+  try {
+    return sessionStorage.getItem(PENDING_PASSKEY_KEY) ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function clearPendingPasskey(): void {
+  try {
+    sessionStorage.removeItem(PENDING_PASSKEY_KEY)
+  } catch {
+    // Nothing to forget without storage.
+  }
 }

@@ -169,6 +169,8 @@ export function seedMockInvitation({
   role = 'ADULT',
   createdByName = 'Bia Teste',
   expiresInMs = 7 * 24 * 60 * 60 * 1000,
+  kind = 'INVITE',
+  targetMembershipId,
 }: {
   token: string
   workspaceId?: string
@@ -177,11 +179,13 @@ export function seedMockInvitation({
   role?: Schemas['InvitationView']['role']
   createdByName?: string | null
   expiresInMs?: number
+  kind?: Schemas['InvitationView']['kind']
+  targetMembershipId?: string
 }): MockInvitation {
   const invitation: MockInvitation = {
     view: {
       id: crypto.randomUUID(),
-      kind: 'INVITE',
+      kind,
       nickname,
       role,
       createdByName,
@@ -192,6 +196,7 @@ export function seedMockInvitation({
     status: 'PENDING',
     workspaceId,
     workspaceName,
+    ...(targetMembershipId === undefined ? {} : { targetMembershipId }),
   }
   mockState.invitations.push(invitation)
   return invitation

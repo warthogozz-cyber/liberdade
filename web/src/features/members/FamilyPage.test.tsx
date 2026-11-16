@@ -74,4 +74,29 @@ describe('FamilyPage', () => {
     // The removed person is not among the active members.
     expect(screen.getAllByText('Antiga')).toHaveLength(1)
   })
+
+  it('namesAnInvitationWithoutANickname', async () => {
+    const workspace = seedMockFamily()
+    seedMockInvitation({ token: 'D'.repeat(43), workspaceId: workspace.id, nickname: null })
+    renderFamily()
+
+    expect(await screen.findByText('Convite sem apelido')).toBeInTheDocument()
+  })
+
+  it('explainsWhyRenameAndRevokeAreOffline', async () => {
+    const workspace = seedMockFamily()
+    seedMockInvitation({ token: 'E'.repeat(43), workspaceId: workspace.id })
+    renderFamily()
+    const revoke = await screen.findByRole('button', { name: 'Revogar' })
+    expect(screen.queryByText('Sem conexão. Mudar a família volta com o sinal.')).not.toBeInTheDocument()
+
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    window.dispatchEvent(new Event('offline'))
+
+    expect(
+      await screen.findByText('Sem conexão. Mudar a família volta com o sinal.'),
+    ).toBeInTheDocument()
+    expect(revoke).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Renomear' })).toBeDisabled()
+  })
 })

@@ -7,18 +7,36 @@ import {
   getMe,
   queryKeys,
   selectWorkspace,
-  useAcceptInvitation,
-  usePreviewInvitation,
   type InvitationPreview,
 } from '@/shared/api'
+import { useAcceptInvitation, usePreviewInvitation } from '@/shared/api/family'
 import { startGoogleSignIn } from '@/shared/auth'
 import { registerPasskey } from '@/shared/auth/passkey'
 import { broadcastSignedIn, clearSession, useOnline } from '@/shared/offline'
 import { useDocumentTitle } from '@/shared/ui'
-import { clearInvitationToken, readInvitationToken } from './invitationToken'
+import {
+  clearInvitationToken,
+  clearPendingPasskey,
+  readInvitationToken,
+  readPendingPasskey,
+  storePendingPasskey,
+} from './invitationToken'
 import './register'
 
 type Failure = 'gone' | 'notFound' | 'failed'
+
+/** What the page needs once the API has taken the person in, to finish without asking again. */
+interface Joined {
+  workspaceId: string
+  mustRegisterPasskey: boolean
+  freshSession: boolean
+}
+
+function failureOf(caught: unknown): Failure {
+  if (caught instanceof ApiError && caught.status === 410) return 'gone'
+  if (caught instanceof ApiError && caught.status === 404) return 'notFound'
+  return 'failed'
+}
 
 const button =
   'flex min-h-12 w-full items-center justify-center rounded-field px-4 font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50'
@@ -43,13 +61,19 @@ export function AcceptInvitationPage() {
   const [signedIn, setSignedIn] = useState(false)
   const [failure, setFailure] = useState<Failure | undefined>(token ? undefined : 'notFound')
   const [displayName, setDisplayName] = useState('')
-  const [step, setStep] = useState<'link' | 'passkey'>('link')
+  // A reload after joining has no token left, only the passkey still to be made.
+  const [step, setStep] = useState<'link' | 'passkey'>(() =>
+    !token && readPendingPasskey() !== undefined ? 'passkey' : 'link',
+  )
+  const [retryOpen, setRetryOpen] = useState(false)
+  const [finishFailed, setFinishFailed] = useState(false)
   const [passkeyFailed, setPasskeyFailed] = useState(false)
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
   // The state reaches the buttons only on the next render; the ref stops a second tap before that.
   const working = useRef(false)
   const started = useRef(false)
+  const joined = useRef<Joined | undefined>(undefined)
 
   async function open(value: string) {
     setFailure(undefined)
@@ -66,9 +90,10 @@ export function AcceptInvitationPage() {
       setPreview(opened)
     } catch (caught) {
       clearInvitationToken()
-      if (caught instanceof ApiError && caught.status === 410) setFailure('gone')
-      else if (caught instanceof ApiError && caught.status === 404) setFailure('notFound')
-      else setFailure('failed')
+      const failed = failureOf(caught)
+      setFailure(failed)
+      // Only reading the link failed, so reading it again is worth a try.
+      setRetryOpen(failed === 'failed')
     }
   }
 
@@ -102,20 +127,61 @@ export function AcceptInvitationPage() {
     }
   }
 
-  /** Accepts, then starts the new session's data: what the cache held belonged to someone else. */
+  function passkeyLabel(): string {
+    return (
+      readPendingPasskey() ?? preview?.nickname ?? intl.formatMessage({ id: 'passkey.defaultLabel' })
+    )
+  }
+
+  /**
+   * Accepts. Once the API answers, the link is spent: the token goes and the passkey step is
+   * remembered, so nothing after this can send the person back to a link that no longer works.
+   */
   async function accept(newUser?: { displayName: string }, freshSession = false) {
     if (!token) return
-    const accepted = await acceptInvitation.mutateAsync({ token, newUser })
-    if (freshSession) await clearSession(queryClient)
-    const me = await queryClient.fetchQuery({
-      queryKey: queryKeys.me,
-      queryFn: getMe,
-      staleTime: 0,
-    })
-    if (freshSession) broadcastSignedIn(me.user.id)
-    selectWorkspace(accepted.workspaceId)
+    let accepted
+    try {
+      accepted = await acceptInvitation.mutateAsync({ token, newUser })
+    } catch (caught) {
+      // Whatever went wrong, this link is no use again: it was used, it is gone, or it never was.
+      clearInvitationToken()
+      setFailure(failureOf(caught))
+      setRetryOpen(false)
+      return
+    }
     clearInvitationToken()
-    if (accepted.mustRegisterPasskey) {
+    if (freshSession) {
+      try {
+        // What the cache held belonged to someone else; the refetch below fills it again.
+        await clearSession(queryClient)
+      } catch {
+        // Best effort: the session's data is replaced right after.
+      }
+    }
+    if (accepted.mustRegisterPasskey) storePendingPasskey(passkeyLabel())
+    joined.current = {
+      workspaceId: accepted.workspaceId,
+      mustRegisterPasskey: accepted.mustRegisterPasskey,
+      freshSession,
+    }
+    await finish()
+  }
+
+  /** Starts the new session's data. Never accepts again: a failure here is retried from here. */
+  async function finish() {
+    const done = joined.current
+    if (!done) return
+    let me
+    try {
+      me = await queryClient.fetchQuery({ queryKey: queryKeys.me, queryFn: getMe, staleTime: 0 })
+    } catch {
+      setFinishFailed(true)
+      return
+    }
+    setFinishFailed(false)
+    if (done.freshSession) broadcastSignedIn(me.user.id)
+    selectWorkspace(done.workspaceId)
+    if (done.mustRegisterPasskey) {
       setStep('passkey')
       return
     }
@@ -149,13 +215,12 @@ export function AcceptInvitationPage() {
     await guarded(async () => {
       setPasskeyFailed(false)
       try {
-        await registerPasskey(
-          preview?.nickname ?? intl.formatMessage({ id: 'passkey.defaultLabel' }),
-        )
+        await registerPasskey(passkeyLabel())
       } catch {
         setPasskeyFailed(true)
         return
       }
+      clearPendingPasskey()
       await queryClient.invalidateQueries({ queryKey: queryKeys.me })
       void navigate('/inicio', { replace: true })
     })
@@ -179,6 +244,19 @@ export function AcceptInvitationPage() {
         <button type="button" disabled={busy || !online} onClick={() => void createPasskey()} className={primary}>
           {intl.formatMessage({ id: passkeyFailed ? 'accept.passkeyRetry' : 'accept.passkeyCreate' })}
         </button>
+        {!online && (
+          <p className="text-text-muted">{intl.formatMessage({ id: 'accept.passkeyOffline' })}</p>
+        )}
+      </section>
+    )
+  } else if (finishFailed) {
+    content = (
+      <section className="flex flex-col gap-4">
+        <h1 className="text-2xl font-semibold">{intl.formatMessage({ id: 'accept.title' })}</h1>
+        <p role="alert">{intl.formatMessage({ id: 'accept.failed' })}</p>
+        <button type="button" disabled={busy} onClick={() => void guarded(finish)} className={primary}>
+          {intl.formatMessage({ id: 'accept.retry' })}
+        </button>
       </section>
     )
   } else if (failure) {
@@ -186,9 +264,9 @@ export function AcceptInvitationPage() {
       <section className="flex flex-col gap-4">
         <h1 className="text-2xl font-semibold">{intl.formatMessage({ id: 'accept.title' })}</h1>
         <p role="alert">{intl.formatMessage({ id: `accept.${failure}` })}</p>
-        {failure === 'failed' && token ? (
+        {failure === 'failed' && retryOpen && token ? (
           <button type="button" onClick={retry} className={primary}>
-            {intl.formatMessage({ id: 'accept.passkeyRetry' })}
+            {intl.formatMessage({ id: 'accept.retry' })}
           </button>
         ) : (
           <Link to="/" className={outline}>
@@ -268,6 +346,9 @@ export function AcceptInvitationPage() {
               </button>
             </form>
           </>
+        )}
+        {!online && (
+          <p className="text-text-muted">{intl.formatMessage({ id: 'accept.offline' })}</p>
         )}
         {error && (
           <p role="alert" className="text-negative">

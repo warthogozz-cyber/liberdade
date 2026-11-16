@@ -86,6 +86,8 @@ function HomeContent({ me, workspace }: HomeContentProps) {
       dismissedAt: workspace.gettingStartedDismissedAt,
       accountCount: accounts.length,
       hasPasskey: me.user.passkeyCreatedAt != null,
+      role: workspace.role,
+      familyInvited: workspace.familyInvited,
     })
 
   let totals

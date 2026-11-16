@@ -1,12 +1,22 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import { http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily, seedMockInvitation } from '@/mocks/data'
-import { registerPasskey } from '@/shared/auth/passkey'
+import { problem } from '@/mocks/handlers'
+import { server } from '@/mocks/server'
+import { API_URL } from '@/shared/api'
 import { readSelectedWorkspaceId } from '@/shared/api/workspaceChoice'
+import { registerPasskey } from '@/shared/auth/passkey'
+import { broadcastSignedIn } from '@/shared/offline'
 import { renderWithProviders } from '@/shared/testing'
 import { AcceptInvitationPage } from './AcceptInvitationPage'
 
 const assign = vi.hoisted(() => vi.fn<(url: string) => void>())
+
+vi.mock('@/shared/offline', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/offline')>()
+  return { ...actual, broadcastSignedIn: vi.fn() }
+})
 
 vi.mock('@/shared/auth/passkey', () => ({ registerPasskey: vi.fn() }))
 // The real function, saving the return path as it does; only the page change is replaced.
@@ -21,6 +31,9 @@ vi.mock('@/shared/auth/google', async (importOriginal) => {
 
 const TOKEN = 'C'.repeat(43)
 const TOKEN_KEY = 'liberdade.invitationToken'
+const PENDING_KEY = 'liberdade.pendingPasskey'
+const ACCEPT = `${API_URL}/v1/invitations/accept`
+const ME = `${API_URL}/v1/me`
 
 beforeEach(() => {
   sessionStorage.setItem(TOKEN_KEY, TOKEN)
@@ -29,6 +42,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
   vi.clearAllMocks()
   sessionStorage.clear()
   localStorage.clear()
@@ -76,6 +90,10 @@ describe('AcceptInvitationPage', () => {
     ).toBeInTheDocument()
     expect(mockState.user.displayName).toBe('Ana Teste')
     expect(screen.queryByRole('link', { name: 'Ir para o início' })).not.toBeInTheDocument()
+    // A new session: the other tabs hear of it, and the family it joined is the chosen one.
+    expect(broadcastSignedIn).toHaveBeenCalledWith(mockState.user.id)
+    expect(readSelectedWorkspaceId()).toBe('ws-b')
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Criar passkey' }))
 
@@ -136,5 +154,172 @@ describe('AcceptInvitationPage', () => {
     // The way back lands on /convite, which finds the token where the page left it.
     expect(sessionStorage.getItem('liberdade.returnPath')).toBe('/convite')
     expect(sessionStorage.getItem(TOKEN_KEY)).toBe(TOKEN)
+  })
+
+  it('goneAtAcceptClearsTheToken', async () => {
+    mockState.signedIn = false
+    seedMockInvitation({ token: TOKEN })
+    server.use(http.post(ACCEPT, () => problem(410, 'invitation.gone', 'Detalhe do servidor.')))
+    renderAccept()
+
+    fireEvent.change(await screen.findByLabelText('Como você se chama?'), {
+      target: { value: 'Ana Teste' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Criar passkey neste aparelho' }))
+
+    expect(
+      await screen.findByText('Este convite não vale mais. Peça um novo para quem convidou.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Detalhe do servidor.')).not.toBeInTheDocument()
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
+  })
+
+  it('notFoundAtAcceptClearsTheToken', async () => {
+    mockState.signedIn = false
+    seedMockInvitation({ token: TOKEN })
+    server.use(http.post(ACCEPT, () => problem(404, 'invitation.not-found', 'Detalhe do servidor.')))
+    renderAccept()
+
+    fireEvent.change(await screen.findByLabelText('Como você se chama?'), {
+      target: { value: 'Ana Teste' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Criar passkey neste aparelho' }))
+
+    expect(await screen.findByText('Convite não encontrado.')).toBeInTheDocument()
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
+  })
+
+  it('otherAcceptFailureClearsTheTokenAndOffersHome', async () => {
+    seedMockFamily()
+    seedMockInvitation({ token: TOKEN })
+    server.use(
+      http.post(ACCEPT, () => problem(409, 'invitation.already-member', 'Detalhe do servidor.')),
+    )
+    renderAccept()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Entrar na família' }))
+
+    expect(
+      await screen.findByText('Não deu para entrar na família agora. Tente de novo.'),
+    ).toBeInTheDocument()
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
+    // The link is gone, so trying again would only fail: the way out is the start.
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ir para o início' })).toBeInTheDocument()
+  })
+
+  it('retryAfterAcceptOnlyRefetchesMe', async () => {
+    mockState.signedIn = false
+    seedMockInvitation({ token: TOKEN })
+    let accepts = 0
+    let meReads = 0
+    server.use(
+      http.post(ACCEPT, () => {
+        accepts += 1
+        return undefined
+      }),
+      http.get(ME, () => {
+        meReads += 1
+        // The first read is the page looking for a session; the second is right after accept.
+        return meReads === 2 ? problem(500, 'internal.error', 'Falhou.') : undefined
+      }),
+    )
+    renderAccept()
+
+    fireEvent.change(await screen.findByLabelText('Como você se chama?'), {
+      target: { value: 'Ana Teste' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Criar passkey neste aparelho' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Crie sua passkey para voltar depois' }),
+    ).toBeInTheDocument()
+    expect(accepts).toBe(1)
+    expect(meReads).toBe(3)
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
+    expect(broadcastSignedIn).toHaveBeenCalledWith(mockState.user.id)
+    expect(readSelectedWorkspaceId()).toBe('ws-b')
+  })
+
+  it('reloadKeepsThePasskeyStep', async () => {
+    sessionStorage.removeItem(TOKEN_KEY)
+    sessionStorage.setItem(PENDING_KEY, 'Convidada')
+    renderAccept()
+
+    expect(
+      await screen.findByRole('heading', { name: 'Crie sua passkey para voltar depois' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Criar passkey' }))
+
+    expect(await screen.findByText('Início da família')).toBeInTheDocument()
+    expect(registerPasskey).toHaveBeenCalledWith('Convidada')
+    expect(sessionStorage.getItem(PENDING_KEY)).toBeNull()
+  })
+
+  it('acceptKeepsThePendingPasskeyUntilItIsCreated', async () => {
+    mockState.signedIn = false
+    seedMockInvitation({ token: TOKEN })
+    renderAccept()
+
+    fireEvent.change(await screen.findByLabelText('Como você se chama?'), {
+      target: { value: 'Ana Teste' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Criar passkey neste aparelho' }))
+
+    await screen.findByRole('heading', { name: 'Crie sua passkey para voltar depois' })
+    expect(sessionStorage.getItem(PENDING_KEY)).toBe('Convidada')
+  })
+
+  it('recoveryGoesStraightToThePasskey', async () => {
+    mockState.signedIn = false
+    mockState.members['ws-b'] = [
+      {
+        id: 'm-bia',
+        displayName: 'Bia Teste',
+        nickname: 'Bia',
+        role: 'ADULT',
+        status: 'ACTIVE',
+        you: false,
+        passkeyOnly: true,
+        joinedAt: '2026-11-01T12:00:00Z',
+      },
+    ]
+    seedMockInvitation({
+      token: TOKEN,
+      kind: 'RECOVERY',
+      nickname: null,
+      targetMembershipId: 'm-bia',
+    })
+    renderAccept()
+
+    expect(await screen.findByRole('heading', { name: 'Recuperar acesso de Bia' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Entrar com Google' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Como você se chama?')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recuperar acesso' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Crie sua passkey para voltar depois' }),
+    ).toBeInTheDocument()
+    expect(broadcastSignedIn).toHaveBeenCalledWith(mockState.user.id)
+    expect(readSelectedWorkspaceId()).toBe('ws-b')
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Criar passkey' }))
+    expect(await screen.findByText('Início da família')).toBeInTheDocument()
+    expect(registerPasskey).toHaveBeenCalledWith('Bia')
+  })
+
+  it('explainsWhyTheButtonsAreOffline', async () => {
+    seedMockFamily()
+    seedMockInvitation({ token: TOKEN })
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderAccept()
+
+    expect(await screen.findByRole('button', { name: 'Entrar na família' })).toBeDisabled()
+    expect(
+      screen.getByText('Sem conexão. Dá para entrar quando o sinal voltar.'),
+    ).toBeInTheDocument()
   })
 })

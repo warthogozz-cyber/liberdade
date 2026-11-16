@@ -102,7 +102,8 @@ describe('GettingStartedCard', () => {
   })
 
   it('hiddenWhenAllDone', async () => {
-    family({ active: 1 })
+    const workspace = family({ active: 1 })
+    workspace.familyInvited = true
     mockState.user.passkeyCreatedAt = '2026-11-01T12:00:00Z'
     renderCard()
 
@@ -174,5 +175,33 @@ describe('GettingStartedCard invite step', () => {
     renderCard()
     await screen.findByRole('heading', { name: 'Primeiros passos' })
     expect(screen.queryByText('Convidar a família')).not.toBeInTheDocument()
+  })
+
+  it('inviteStepKeepsTheCardUntilDone', async () => {
+    // Accounts and passkey are done; an Owner who invited nobody is still asked to.
+    const workspace = family({ active: 1 })
+    mockState.user.passkeyCreatedAt = '2026-11-01T12:00:00Z'
+    const view = renderCard()
+
+    const invite = (await screen.findByText('Convidar a família')).closest('li')!
+    expect(invite).not.toHaveTextContent('Feito')
+
+    // Once someone is invited, nothing is left and the card goes.
+    view.unmount()
+    workspace.familyInvited = true
+    renderCard()
+    await waitFor(() => expect(screen.queryByText('Primeiros passos')).not.toBeInTheDocument())
+  })
+
+  it('viewerIsNotHeldByTheInviteStep', async () => {
+    // A Viewer cannot invite, so the step never keeps their card open.
+    const workspace = family({ active: 1 })
+    workspace.role = 'VIEWER'
+    mockState.user.passkeyCreatedAt = '2026-11-01T12:00:00Z'
+    renderCard()
+
+    await waitFor(() => expect(screen.queryByText('Primeiros passos')).not.toBeInTheDocument())
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
   })
 })

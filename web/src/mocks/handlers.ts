@@ -76,7 +76,6 @@ function invitationGone(invitation: MockInvitation): boolean {
   return invitation.status !== 'PENDING' || Date.parse(invitation.view.expiresAt) <= Date.now()
 }
 
-/** The member a RECOVERY link is for. */
 /** Puts the family in the signed-in person's `me`, as joining it does, when it is not there yet. */
 function joinWorkspace(
   invitation: MockInvitation,
@@ -99,6 +98,7 @@ function joinWorkspace(
   })
 }
 
+/** The member a RECOVERY link is for. */
 function recoveryTargetOf(invitation: MockInvitation) {
   return mockState.members[invitation.workspaceId]?.find(
     (member) => member.id === invitation.targetMembershipId,
