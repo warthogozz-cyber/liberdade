@@ -75,10 +75,22 @@ class ConsentRepository {
 
     /** Closes the person's open acceptance of the document: the version in force now is about to replace it. */
     void supersedeOpenPersonal(UUID userId, ConsentPurpose purpose) {
-        jdbc.sql("""
-                        update consents set superseded_at = now()
-                        where user_id = :userId and workspace_id is null and purpose = :purpose
-                          and revoked_at is null and superseded_at is null""").param("userId", userId).param("purpose", purpose.name()).update();
+        String sql = """
+                update consents set superseded_at = now()
+                where user_id = :userId and workspace_id is null and purpose = :purpose
+                  and revoked_at is null and superseded_at is null""";
+        JdbcClient.StatementSpec statement = jdbc.sql(sql);
+        statement.param("userId", userId);
+        statement.param("purpose", purpose.name());
+        statement.update();
+    }
+
+    /** Serializes the person's acceptances: held until the transaction ends, so a second request waits its turn. */
+    void lockAcceptancesOf(UUID userId) {
+        jdbc.sql("select pg_advisory_xact_lock(hashtextextended('documents:' || :userId, 0))")
+                .param("userId", userId.toString())
+                .query()
+                .singleRow();
     }
 
     /** The person's open acceptances of the terms and the privacy policy. */

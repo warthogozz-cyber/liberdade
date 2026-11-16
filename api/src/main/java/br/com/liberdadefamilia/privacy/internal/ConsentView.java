@@ -7,7 +7,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A consent as its subject or its granter sees it. {@code subjectName} is the youth's nickname and
- * {@code grantedByName} the guardian's, both in that family; null once the account is gone.
+ * {@code grantedByName} the guardian's, both in that family; null once the account is gone. A family-less acceptance
+ * of a document has no workspace.
  */
 record ConsentView(
         UUID id,

@@ -44,7 +44,7 @@ class ConsentService {
         this.trail = trail;
     }
 
-    /** The parental consents of the person, for the screen that lists them; the legal acceptances are not part of it. */
+    /** The parental consents of the person, for the screen that lists them. Document acceptances are left out. */
     @Transactional(readOnly = true)
     List<ConsentView> list(UUID userId) {
         return views(userId, false);

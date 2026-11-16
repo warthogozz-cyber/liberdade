@@ -10,9 +10,15 @@ import br.com.liberdadefamilia.support.TestWorkspaces;
 import com.jayway.jsonpath.JsonPath;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -103,6 +109,45 @@ class LegalDocumentsIT {
         assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("documents.version-outdated");
         assertThat(rows(ana)).isEmpty();
         assertThat(auditCount(ana)).isZero();
+    }
+
+    @Test
+    void outdatedPrivacyRejectedToo() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+
+        MvcTestResult result = accept(ana, TERMS, "privacy-2026-10");
+
+        assertThat(result).hasStatus(409);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("documents.version-outdated");
+        assertThat(rows(ana)).isEmpty();
+        assertThat(auditCount(ana)).isZero();
+    }
+
+    @Test
+    void concurrentAcceptsRecordOnce() throws Exception {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        int callers = 4;
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(callers);
+        try {
+            List<Future<MvcTestResult>> calls = new ArrayList<>();
+            for (int i = 0; i < callers; i++) {
+                calls.add(pool.submit(() -> {
+                    start.await();
+                    return accept(ana, TERMS, PRIVACY);
+                }));
+            }
+            start.countDown();
+            for (Future<MvcTestResult> call : calls) {
+                assertThat(call.get(30, TimeUnit.SECONDS)).hasStatus(204);
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+
+        assertThat(rows(ana)).hasSize(2);
+        assertThat(rows(ana)).allSatisfy(row -> assertThat(row).containsEntry("superseded", false));
+        assertThat(auditCount(ana)).isOne();
     }
 
     @Test

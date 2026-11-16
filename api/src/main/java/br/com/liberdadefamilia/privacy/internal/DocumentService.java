@@ -49,6 +49,8 @@ class DocumentService {
                 throw new PrivacyRejectedException(409, "documents.version-outdated", OUTDATED_DETAIL);
             }
         }
+        // One accept at a time per person; the one that waited re-reads below and finds nothing left to do.
+        consents.lockAcceptancesOf(userId);
         Map<ConsentPurpose, ConsentRepository.Row> open = openAcceptances(userId);
         boolean recorded = false;
         for (ConsentPurpose purpose : LegalDocuments.LISTED) {
