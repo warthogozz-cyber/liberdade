@@ -220,8 +220,9 @@ export function AcceptInvitationPage() {
 
   async function withGoogle() {
     await guarded(async () => {
-      // The token stays in this tab's storage, so the page can read it again on the way back.
       await clearSession(queryClient)
+      // Kept in this tab's storage again, so the page can read it on the way back.
+      if (token) rememberInvitationToken(token)
       startGoogleSignIn({ returnTo: '/convite' })
     })
   }

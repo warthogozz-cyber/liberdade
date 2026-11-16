@@ -1,6 +1,4 @@
-import { PENDING_PASSKEY_KEY } from '@/shared/offline'
-
-const KEY = 'liberdade.invitationToken'
+import { INVITATION_TOKEN_KEY as KEY, PENDING_PASSKEY_KEY } from '@/shared/offline'
 
 /** The API's tokens: 32 random bytes, base64url without padding. */
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/
