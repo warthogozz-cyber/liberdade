@@ -40,7 +40,12 @@ describe('ActivityPage', () => {
   it('tellsEachEntryFromThePersonSide', async () => {
     seedMockFamily()
     mockState.activity = []
-    add({ action: 'member.role_changed', byMe: true, actorName: 'Ana Teste', metadata: { to: 'VIEWER' } })
+    add({
+      action: 'member.role_changed',
+      byMe: true,
+      actorName: 'Ana Teste',
+      metadata: { to: 'VIEWER' },
+    })
     add({ action: 'member.role_changed', actorName: 'Bia Teste', metadata: { to: 'VIEWER' } })
     add({ action: 'member.removed', actorName: null })
     add({ action: 'module.toggled', byMe: true, metadata: { key: 'planning', enabled: 'true' } })
@@ -65,7 +70,11 @@ describe('ActivityPage', () => {
     seedMockFamily()
     mockState.activity = []
     add({ action: 'auth.signed_in', byMe: true, metadata: { method: 'PASSKEY' } })
-    add({ action: 'member.removed', actorName: 'Bia Teste', metadata: { reason: 'CONSENT_REVOKED' } })
+    add({
+      action: 'member.removed',
+      actorName: 'Bia Teste',
+      metadata: { reason: 'CONSENT_REVOKED' },
+    })
     add({ action: 'recovery.used', actorName: null })
     renderActivity()
 
@@ -88,7 +97,11 @@ describe('ActivityPage', () => {
   it('omitsTheDeviceWhenOneHalfIsMissing', async () => {
     seedMockFamily()
     mockState.activity = []
-    add({ action: 'auth.signed_in', byMe: true, metadata: { method: 'PASSKEY', browser: 'Chrome' } })
+    add({
+      action: 'auth.signed_in',
+      byMe: true,
+      metadata: { method: 'PASSKEY', browser: 'Chrome' },
+    })
     add({ action: 'auth.signed_in', byMe: true, metadata: { method: 'GOOGLE', os: 'Android' } })
     renderActivity()
 

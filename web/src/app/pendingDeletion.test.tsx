@@ -31,7 +31,9 @@ describe('pending account deletion', () => {
     mockState.user.deletionScheduledFor = SCHEDULED
     renderWithProviders(null, { routes, route: '/inicio' })
 
-    expect(await screen.findByText('Sua conta será excluída em 16 de dezembro de 2026.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Sua conta será excluída em 16 de dezembro de 2026.'),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Baixar meus dados' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument()
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
@@ -44,7 +46,9 @@ describe('pending account deletion', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Cancelar exclusão' }))
 
-    expect(await screen.findByRole('navigation', { name: 'Navegação principal' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('navigation', { name: 'Navegação principal' }),
+    ).toBeInTheDocument()
     await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
     expect(mockState.user.deletionScheduledFor).toBeNull()
   })
@@ -77,9 +81,7 @@ describe('pending account deletion', () => {
     let refuse = true
     server.use(
       http.post(`${API_URL}/v1/workspaces/:ws/transactions`, () =>
-        refuse
-          ? problem(403, 'account.deletion-pending', 'Sua conta será excluída.')
-          : undefined,
+        refuse ? problem(403, 'account.deletion-pending', 'Sua conta será excluída.') : undefined,
       ),
     )
     await db.outbox.add(
@@ -152,7 +154,9 @@ describe('pending family deletion', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Cancelar exclusão' }))
 
-    expect(await screen.findByRole('navigation', { name: 'Navegação principal' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('navigation', { name: 'Navegação principal' }),
+    ).toBeInTheDocument()
     expect(screen.queryByText(/será excluída/)).not.toBeInTheDocument()
     expect(workspace.deletionScheduledFor).toBeNull()
   })

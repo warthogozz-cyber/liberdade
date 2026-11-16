@@ -33,7 +33,10 @@ export function ActivityPage() {
                     ? intl.formatMessage({ id: 'activity.byMe' })
                     : intl.formatMessage(
                         { id: 'activity.by' },
-                        { name: item.actorName ?? intl.formatMessage({ id: 'activity.formerMember' }) },
+                        {
+                          name:
+                            item.actorName ?? intl.formatMessage({ id: 'activity.formerMember' }),
+                        },
                       )}
                 </span>
                 {browser && os && (

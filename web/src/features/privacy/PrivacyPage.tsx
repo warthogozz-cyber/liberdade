@@ -23,7 +23,9 @@ export function PrivacyPage() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
-      {!online && <p className="text-text-muted">{intl.formatMessage({ id: 'privacy.offline' })}</p>}
+      {!online && (
+        <p className="text-text-muted">{intl.formatMessage({ id: 'privacy.offline' })}</p>
+      )}
       <ExportButtons workspace={workspace} />
       <Link to="/mais/privacidade/atividade" className={outlineButton}>
         {intl.formatMessage({ id: 'privacy.activity' })}

@@ -90,9 +90,7 @@ describe('PrivacyPage', () => {
     renderPrivacy()
 
     // The family button appears once `me` has loaded.
-    expect(
-      await screen.findByRole('button', { name: 'Baixar os dados da família' }),
-    ).toBeDisabled()
+    expect(await screen.findByRole('button', { name: 'Baixar os dados da família' })).toBeDisabled()
     expect(await screen.findByRole('button', { name: 'Baixar meus dados' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Baixar os dados da família' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Excluir a família' })).toBeDisabled()

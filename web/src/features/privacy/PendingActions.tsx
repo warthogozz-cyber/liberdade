@@ -53,7 +53,9 @@ function PendingActionsView({ workspaceId, cancel, onCancelled }: ViewProps) {
           {error}
         </p>
       )}
-      {!online && <p className="text-text-muted">{intl.formatMessage({ id: 'privacy.offline' })}</p>}
+      {!online && (
+        <p className="text-text-muted">{intl.formatMessage({ id: 'privacy.offline' })}</p>
+      )}
     </div>
   )
 }

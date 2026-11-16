@@ -80,7 +80,9 @@ function ModuleList({ workspace }: { workspace: MeWorkspace }) {
               <div>
                 <p className="font-medium">{name}</p>
                 <p id={`module-${key}`} className="text-sm text-text-muted">
-                  {intl.formatMessage({ id: `modules.${key}.description` as 'modules.planning.description' })}
+                  {intl.formatMessage({
+                    id: `modules.${key}.description` as 'modules.planning.description',
+                  })}
                 </p>
               </div>
               {!available && (

@@ -61,10 +61,14 @@ export function setModuleEnabled(ws: string, key: ModuleKey, enabled: boolean) {
  * POSTs to an export route and returns the zip with the name the API gave it. A failed answer
  * throws its ApiError (status 0 when there was no answer).
  */
-export async function postExport(path: string): Promise<{ blob: Blob; disposition: string | null }> {
+export async function postExport(
+  path: string,
+): Promise<{ blob: Blob; disposition: string | null }> {
   let response: Response
   try {
-    response = await csrfFetch(new Request(`${API_URL}${path}`, { method: 'POST', credentials: 'include' }))
+    response = await csrfFetch(
+      new Request(`${API_URL}${path}`, { method: 'POST', credentials: 'include' }),
+    )
   } catch (error) {
     throw fromFetchFailure(error)
   }

@@ -12,8 +12,7 @@ export const modulesMessages = {
   'modules.gamification': 'Conquistas',
   'modules.gamification.description': 'Metas pequenas e marcos, sem pressão para gastar.',
   'modules.ventures': 'Projetos',
-  'modules.ventures.description':
-    'Renda extra e pequenos negócios, separados das contas da casa.',
+  'modules.ventures.description': 'Renda extra e pequenos negócios, separados das contas da casa.',
   'modules.offline': 'Sem conexão. Ligar e desligar módulos volta com o sinal.',
   'modules.loadFailed': 'Não deu para carregar os módulos. Tente de novo.',
 } as const
