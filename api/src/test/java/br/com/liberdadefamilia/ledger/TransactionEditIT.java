@@ -196,6 +196,66 @@ class TransactionEditIT {
         assertThat(result).bodyJson().extractingPath("$.description").isEqualTo("Feira");
     }
 
+    /** R9: an archived destination may stay where it is (D10, per field). */
+    @Test
+    void keepsArchivedDestinationWhenUnchanged() {
+        UUID bank = account("Banco", false);
+        UUID id = transferTo(bank);
+        archive("accounts", bank);
+        Map<String, Object> body = transferUpdate(1, walletId, bank);
+        body.put("description", "Reserva");
+
+        var result = patch(id, body);
+
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().isLenientlyEqualTo("""
+                {"toAccountId":"%s","description":"Reserva","version":2}""".formatted(bank));
+    }
+
+    /** R9: the archived destination cannot become the source: it would be chosen anew in another field. */
+    @Test
+    void rejectsSwappingArchivedDestinationIntoSource() {
+        UUID bank = account("Banco", false);
+        UUID id = transferTo(bank);
+        archive("accounts", bank);
+
+        var result = patch(id, transferUpdate(1, bank, walletId));
+
+        assertThat(result).hasStatus(422).hasContentType(PROBLEM_JSON);
+        assertThat(result).bodyJson().isLenientlyEqualTo("""
+                {"code":"transaction.account-not-found","detail":"Conta não encontrada nesta família."}""");
+    }
+
+    /** R9: restoring is not choosing the account again, so an account archived since does not block it. */
+    @Test
+    void restoresWhenAccountArchivedAfterDelete() {
+        UUID id = expense();
+        assertThat(delete(id)).hasStatus(204);
+        archive("accounts", walletId);
+
+        var result = restore(id);
+
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().isLenientlyEqualTo("""
+                {"id":"%s","accountId":"%s","version":2}""".formatted(id, walletId));
+    }
+
+    /** R9: an archived category other than the one the transaction holds cannot be chosen. */
+    @Test
+    void rejectsMovingToAnotherArchivedCategory() {
+        UUID id = expense();
+        UUID transporte = ledger.categoryOf(workspaceId, "EXPENSE", "Transporte");
+        archive("categories", transporte);
+        Map<String, Object> body = update(0);
+        body.put("categoryId", transporte.toString());
+
+        var result = patch(id, body);
+
+        assertThat(result).hasStatus(422).hasContentType(PROBLEM_JSON);
+        assertThat(result).bodyJson().isLenientlyEqualTo("""
+                {"code":"transaction.category-not-found","detail":"Categoria não encontrada nesta família."}""");
+    }
+
     @Test
     void deleteIsIdempotent() {
         BigDecimal before = familyTotal();
@@ -344,6 +404,23 @@ class TransactionEditIT {
         body.put("occurredOn", "2026-11-02");
         body.put("accountId", walletId.toString());
         body.put("categoryId", mercadoId.toString());
+        return body;
+    }
+
+    /** The default expense, edited into a transfer from the wallet to {@code destination}; it is then at version 1. */
+    private UUID transferTo(UUID destination) {
+        UUID id = expense();
+        assertThat(patch(id, transferUpdate(0, walletId, destination))).hasStatusOk();
+        return id;
+    }
+
+    /** The full replacement for a 12.34 BRL transfer on 2026-11-02, at the given version. */
+    private Map<String, Object> transferUpdate(long version, UUID from, UUID to) {
+        Map<String, Object> body = update(version);
+        body.put("kind", "TRANSFER");
+        body.put("accountId", from.toString());
+        body.put("toAccountId", to.toString());
+        body.put("categoryId", null);
         return body;
     }
 
