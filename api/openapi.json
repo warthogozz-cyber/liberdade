@@ -422,6 +422,7 @@
           "name": {
             "maxLength": 60,
             "minLength": 0,
+            "pattern": "[^\\x00]*",
             "type": "string"
           },
           "timezone": {

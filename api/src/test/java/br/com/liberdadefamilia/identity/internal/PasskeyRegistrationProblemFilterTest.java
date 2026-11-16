@@ -6,6 +6,9 @@ import jakarta.servlet.FilterChain;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -17,6 +20,7 @@ import org.springframework.web.servlet.ModelAndView;
  * The paths of the registration problem filter that a full ceremony cannot reach cheaply; {@code PasskeyIT} covers the
  * rejections end to end.
  */
+@ExtendWith(OutputCaptureExtension.class)
 class PasskeyRegistrationProblemFilterTest {
 
     private final MockHttpServletRequest request = new MockHttpServletRequest("POST", "/webauthn/register");
@@ -34,6 +38,23 @@ class PasskeyRegistrationProblemFilterTest {
         new PasskeyRegistrationProblemFilter(resolver).doFilter(request, response, failingWith(outage));
 
         assertThat(resolved).containsExactly(outage);
+    }
+
+    @Test
+    void nullOrArgumentFailureIsARejectionLoggedAtWarnWithTheTypeOnly(CapturedOutput output) throws Exception {
+        var filter = new PasskeyRegistrationProblemFilter(resolver);
+
+        filter.doFilter(request, response, failingWith(new NullPointerException("credential-id-secret")));
+        filter.doFilter(
+                new MockHttpServletRequest("POST", "/webauthn/register"),
+                new MockHttpServletResponse(),
+                failingWith(new IllegalArgumentException("user-handle-secret")));
+
+        assertThat(resolved).hasSize(2).allMatch(PasskeyRejectedException.class::isInstance);
+        assertThat(output)
+                .containsPattern("WARN .*PasskeyRegistrationProblemFilter.*NullPointerException")
+                .containsPattern("WARN .*PasskeyRegistrationProblemFilter.*IllegalArgumentException")
+                .doesNotContain("credential-id-secret", "user-handle-secret");
     }
 
     @Test

@@ -49,11 +49,16 @@ final class PasskeyRegistrationProblemFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         try {
             chain.doFilter(request, response);
-        } catch (WebAuthnException | JacksonException | IllegalArgumentException | NullPointerException rejected) {
+        } catch (WebAuthnException | JacksonException rejected) {
             // From the credential the client sent: webauthn4j rejects a bad attestation, signature, challenge, origin
-            // or rpId, and lets Jackson's error through for client data that is not JSON. Spring does not check the
-            // credential for missing parts, so an incomplete one fails on a null, and a known one on an argument.
+            // or rpId, and lets Jackson's error through for client data that is not JSON.
             reject(request, response, rejected.getClass().getSimpleName());
+            return;
+        } catch (IllegalArgumentException | NullPointerException rejected) {
+            // Spring does not check the credential for missing parts, so an incomplete one fails on a null, and a known
+            // one on an argument. Either could also be a bug of ours, so it is logged at WARN, by its type only.
+            log.warn("Passkey registration rejected: {}", rejected.getClass().getSimpleName());
+            resolve(request, response, new PasskeyRejectedException(), HttpStatus.BAD_REQUEST);
             return;
         } catch (RuntimeException failure) {
             resolve(request, response, failure, HttpStatus.INTERNAL_SERVER_ERROR);

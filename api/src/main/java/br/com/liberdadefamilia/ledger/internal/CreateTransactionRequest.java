@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.shared.TextPatterns;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -25,13 +26,10 @@ record CreateTransactionRequest(
         @Nullable
         @Schema(nullable = true)
         @Size(max = CreateTransactionRequest.MAX_DESCRIPTION_LENGTH)
-        @Pattern(regexp = CreateTransactionRequest.WITHOUT_NUL)
+        @Pattern(regexp = TextPatterns.WITHOUT_NUL)
         String description) {
 
     static final int MAX_DESCRIPTION_LENGTH = 140;
-
-    /** Any text without U+0000. A negated class also matches line breaks, which "." would not. */
-    static final String WITHOUT_NUL = "[^\\x00]*";
 
     CreateTransactionRequest {
         if (description != null) {

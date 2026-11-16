@@ -119,6 +119,19 @@ class WorkspaceIT {
     }
 
     @Test
+    void nulInNameIs422() {
+        UUID userId = users.create("Ana Teste", "ana@example.com");
+
+        // Postgres cannot store U+0000 in text; without the check it would be a 500.
+        var result = create(userId, "{\"name\":\"Fam\\u0000Teste\"}");
+
+        assertThat(result).hasStatus(422).hasContentType(PROBLEM_JSON);
+        assertThat(result).bodyJson().isLenientlyEqualTo("""
+                {"code":"request.invalid","errors":[{"field":"name","code":"Pattern"}]}""");
+        assertThat(activeMemberships(userId)).isZero();
+    }
+
+    @Test
     void nameUpTo60() {
         UUID userId = users.create("Ana Teste", "ana@example.com");
         UUID otherId = users.create("Bia Teste", "bia@example.com");

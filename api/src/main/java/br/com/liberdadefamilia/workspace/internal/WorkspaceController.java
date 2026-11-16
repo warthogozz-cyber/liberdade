@@ -1,10 +1,12 @@
 package br.com.liberdadefamilia.workspace.internal;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
+import br.com.liberdadefamilia.shared.TextPatterns;
 import br.com.liberdadefamilia.workspace.Role;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.ZoneId;
 import java.util.UUID;
@@ -39,7 +41,9 @@ class WorkspaceController {
 
     /** @param timezone the browser's IANA time zone */
     record CreateWorkspaceRequest(
-            @NotBlank @Size(max = MAX_NAME_LENGTH) String name,
+            @NotBlank @Size(max = MAX_NAME_LENGTH) @Pattern(regexp = TextPatterns.WITHOUT_NUL)
+            String name,
+
             @Nullable @Schema(nullable = true) String timezone) {
 
         CreateWorkspaceRequest {

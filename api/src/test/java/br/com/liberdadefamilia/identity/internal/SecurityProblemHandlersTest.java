@@ -35,6 +35,19 @@ class SecurityProblemHandlersTest {
     }
 
     @Test
+    void unresolvedFailureOnACommittedResponseSendsNothing() throws Exception {
+        var handlers = new SecurityProblemHandlers((request, response, handler, exception) -> null);
+        response.setStatus(200);
+        response.setCommitted(true);
+
+        // sendError would throw IllegalStateException on a committed response.
+        handlers.commence(request, response, new InsufficientAuthenticationException("sign in"));
+        handlers.handle(request, response, new AccessDeniedException("denied"));
+
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    @Test
     void resolvedFailuresAreLeftToTheResolver() throws Exception {
         var handlers = new SecurityProblemHandlers((request, response, handler, exception) -> {
             response.setStatus(418);

@@ -22,8 +22,11 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
  */
 final class LoginRateLimitFilter extends OncePerRequestFilter {
 
-    private static final RequestMatcher NAVIGATION =
-            new OrRequestMatcher(pathPattern("/oauth2/authorization/**"), pathPattern("/login/oauth2/code/**"));
+    /**
+     * Only the start of a Google sign-in counts. The callback is left out (FR-M5-limiter): {@code state} and PKCE
+     * already protect it, and counting it made each sign-in cost two attempts.
+     */
+    private static final RequestMatcher NAVIGATION = pathPattern("/oauth2/authorization/**");
 
     private static final RequestMatcher XHR =
             new OrRequestMatcher(pathPattern("/webauthn/authenticate/options"), pathPattern("/login/webauthn"));

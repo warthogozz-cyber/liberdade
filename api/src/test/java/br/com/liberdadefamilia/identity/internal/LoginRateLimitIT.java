@@ -88,15 +88,19 @@ class LoginRateLimitIT {
         assertThat(mvc.get().uri("/oauth2/authorization/google").with(from("10.0.0.22")))
                 .hasStatus(302)
                 .hasRedirectedUrl(WEB_ORIGIN + "/entrar?erro=limite");
+        // The callback is not counted (FR-M5-limiter): state and PKCE already protect it, so it answers as usual.
         assertThat(mvc.get().uri("/login/oauth2/code/google").with(from("10.0.0.22")))
                 .hasStatus(302)
-                .hasRedirectedUrl(WEB_ORIGIN + "/entrar?erro=limite");
+                .hasRedirectedUrl(WEB_ORIGIN + "/entrar?erro=login");
     }
 
     @Test
     void otherPathsAreNotLimited() {
         for (int i = 0; i < 25; i++) {
             assertThat(mvc.get().uri("/v1/csrf").with(from("10.0.0.23"))).hasStatusOk();
+            assertThat(mvc.get().uri("/login/oauth2/code/google").with(from("10.0.0.23")))
+                    .hasStatus(302)
+                    .hasRedirectedUrl(WEB_ORIGIN + "/entrar?erro=login");
         }
     }
 

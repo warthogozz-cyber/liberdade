@@ -14,7 +14,7 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 /**
  * Hands the failures raised inside the security filters to Spring MVC, so they get the same problem responses as
  * everything else, and never a redirect to a login page. Should no resolver take the exception, the status alone is
- * sent, never an empty 200.
+ * sent, never an empty 200; on a response already committed, nothing more can be sent.
  */
 @Component
 class SecurityProblemHandlers implements AuthenticationEntryPoint, AccessDeniedHandler {
@@ -29,7 +29,7 @@ class SecurityProblemHandlers implements AuthenticationEntryPoint, AccessDeniedH
     public void commence(
             HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
             throws IOException {
-        if (resolver.resolveException(request, response, null, authException) == null) {
+        if (resolver.resolveException(request, response, null, authException) == null && !response.isCommitted()) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
         }
     }
@@ -38,7 +38,8 @@ class SecurityProblemHandlers implements AuthenticationEntryPoint, AccessDeniedH
     public void handle(
             HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException)
             throws IOException {
-        if (resolver.resolveException(request, response, null, accessDeniedException) == null) {
+        if (resolver.resolveException(request, response, null, accessDeniedException) == null
+                && !response.isCommitted()) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN);
         }
     }
