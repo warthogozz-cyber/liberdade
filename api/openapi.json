@@ -211,6 +211,52 @@
         ]
       }
     },
+    "/v1/me/documents": {
+      "get": {
+        "operationId": "listMyDocuments",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentStatus"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "document-controller"
+        ]
+      }
+    },
+    "/v1/me/documents/accept": {
+      "post": {
+        "operationId": "acceptDocuments",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptDocumentsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "document-controller"
+        ]
+      }
+    },
     "/v1/me/export": {
       "post": {
         "operationId": "exportMyData",
@@ -1604,6 +1650,23 @@
   },
   "components": {
     "schemas": {
+      "AcceptDocumentsRequest": {
+        "required": [
+          "privacy",
+          "terms"
+        ],
+        "type": "object",
+        "properties": {
+          "privacy": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "terms": {
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      },
       "AcceptInvitationRequest": {
         "required": [
           "token"
@@ -2077,6 +2140,31 @@
           "deletionScheduledFor": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "DocumentStatus": {
+        "type": "object",
+        "properties": {
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "acceptedVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "currentVersion": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "TERMS",
+              "PRIVACY",
+              "PARENTAL"
+            ]
           }
         }
       },

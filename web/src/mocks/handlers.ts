@@ -730,6 +730,57 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  http.get(url('/v1/me/documents'), () => {
+    if (!mockState.signedIn) return authRequired()
+    return HttpResponse.json(
+      (['TERMS', 'PRIVACY'] as const).map((purpose) => {
+        const accepted = mockState.acceptedDocuments[purpose]
+        return {
+          purpose,
+          currentVersion: mockState.currentDocuments[purpose],
+          acceptedVersion: accepted?.version ?? null,
+          acceptedAt: accepted?.at ?? null,
+        }
+      }),
+    )
+  }),
+
+  http.post(url('/v1/me/documents/accept'), async ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    if (!mockState.signedIn) return authRequired()
+    const body = (await readJson(request)) as { terms?: unknown; privacy?: unknown } | undefined
+    if (typeof body !== 'object' || body === null) return malformed()
+    const errors: FieldError[] = []
+    if (typeof body.terms !== 'string' || body.terms.trim() === '') {
+      errors.push({ field: 'terms', code: 'invalid' })
+    }
+    if (typeof body.privacy !== 'string' || body.privacy.trim() === '') {
+      errors.push({ field: 'privacy', code: 'invalid' })
+    }
+    if (errors.length > 0) return invalid(errors)
+    if (
+      body.terms !== mockState.currentDocuments.TERMS ||
+      body.privacy !== mockState.currentDocuments.PRIVACY
+    ) {
+      return problem(
+        409,
+        'documents.version-outdated',
+        'Os termos mudaram. Leia a versão atual e aceite de novo.',
+      )
+    }
+    const now = new Date().toISOString()
+    for (const purpose of ['TERMS', 'PRIVACY'] as const) {
+      const accepted = mockState.acceptedDocuments[purpose]
+      if (accepted?.version !== mockState.currentDocuments[purpose]) {
+        mockState.acceptedDocuments[purpose] = {
+          version: mockState.currentDocuments[purpose],
+          at: now,
+        }
+      }
+    }
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.get(url('/v1/me/consents'), () => {
     if (!mockState.signedIn) return authRequired()
     return HttpResponse.json(

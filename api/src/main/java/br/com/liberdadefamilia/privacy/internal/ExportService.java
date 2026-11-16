@@ -73,8 +73,8 @@ class ExportService {
             UUID id,
             ConsentPurpose purpose,
             String documentVersion,
-            UUID workspaceId,
-            String familyName,
+            @Nullable UUID workspaceId,
+            @Nullable String familyName,
             @Nullable String subjectName,
             @Nullable String grantedByName,
             Instant grantedAt,
@@ -211,7 +211,7 @@ class ExportService {
                 .thenComparing(PersonalTransaction::id)
                 .reversed());
 
-        List<PersonalConsent> consentRows = consents.list(userId).stream()
+        List<PersonalConsent> consentRows = consents.listForExport(userId).stream()
                 .map(c -> new PersonalConsent(
                         c.id(),
                         c.purpose(),

@@ -44,9 +44,23 @@ class ConsentService {
         this.trail = trail;
     }
 
+    /** The parental consents of the person, for the screen that lists them; the legal acceptances are not part of it. */
     @Transactional(readOnly = true)
     List<ConsentView> list(UUID userId) {
+        return views(userId, false);
+    }
+
+    /** Everything the person consented to, the acceptances of the terms and the privacy policy included. */
+    @Transactional(readOnly = true)
+    List<ConsentView> listForExport(UUID userId) {
+        return views(userId, true);
+    }
+
+    private List<ConsentView> views(UUID userId, boolean withDocuments) {
         List<ConsentRepository.Row> rows = new ArrayList<>(consents.involving(userId));
+        if (!withDocuments) {
+            rows.removeIf(row -> row.purpose() != ConsentPurpose.PARENTAL);
+        }
         rows.addAll(leftByTheirGranter(userId, rows));
         if (rows.isEmpty()) {
             return List.of();
@@ -56,7 +70,9 @@ class ConsentService {
         Set<UUID> userIds = new HashSet<>();
         userIds.add(userId);
         for (ConsentRepository.Row row : rows) {
-            workspaceIds.add(row.workspaceId());
+            if (row.workspaceId() != null) {
+                workspaceIds.add(row.workspaceId());
+            }
             userIds.add(row.userId());
             if (row.grantedBy() != null) {
                 userIds.add(row.grantedBy());
@@ -71,7 +87,7 @@ class ConsentService {
                     row.purpose(),
                     row.documentVersion(),
                     row.workspaceId(),
-                    workspaceNames.get(row.workspaceId()),
+                    row.workspaceId() == null ? null : workspaceNames.get(row.workspaceId()),
                     nicknameOf(members, row.workspaceId(), row.userId()),
                     row.grantedBy() == null ? null : nicknameOf(members, row.workspaceId(), row.grantedBy()),
                     row.grantedAt(),
@@ -86,9 +102,14 @@ class ConsentService {
     void revoke(UUID userId, UUID consentId) {
         ConsentRepository.Row consent = consents.lock(consentId)
                 .orElseThrow(() -> new PrivacyRejectedException(404, "consent.not-found", NOT_FOUND_DETAIL));
+        // Only the parental consent is the guardian's to take back; an acceptance of a document is not listed here.
+        UUID workspaceId = consent.workspaceId();
+        if (consent.purpose() != ConsentPurpose.PARENTAL || workspaceId == null) {
+            throw new PrivacyRejectedException(404, "consent.not-found", NOT_FOUND_DETAIL);
+        }
         boolean granter = userId.equals(consent.grantedBy());
         Map<String, MemberSummary> members = membersByKey(
-                List.of(consent.workspaceId()),
+                List.of(workspaceId),
                 consent.grantedBy() == null ? List.of(userId) : List.of(userId, consent.grantedBy()));
         if (!granter && !mayStepIn(consent, userId, members)) {
             if (userId.equals(consent.userId())) {
@@ -100,19 +121,19 @@ class ConsentService {
         if (!consent.open()) {
             return;
         }
-        if (granter && !isActiveGuardian(members.get(key(consent.workspaceId(), userId)))) {
+        if (granter && !isActiveGuardian(members.get(key(workspaceId, userId)))) {
             throw forbidden();
         }
         consents.markRevoked(consentId);
         // The membership row outlives the youth's removal, so it is always there while the consent is.
-        MemberSummary youth = memberships.membersOf(List.of(consent.workspaceId()), List.of(consent.userId())).stream()
+        MemberSummary youth = memberships.membersOf(List.of(workspaceId), List.of(consent.userId())).stream()
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("A consent without its membership"));
         // Only a member still YOUTH goes; the check is part of the update, so a promotion in between wins.
         memberships.removeIfRole(
-                consent.workspaceId(), youth.membershipId(), Role.YOUTH, userId, MemberRemoved.Reason.CONSENT_REVOKED);
+                workspaceId, youth.membershipId(), Role.YOUTH, userId, MemberRemoved.Reason.CONSENT_REVOKED);
         trail.record(new AuditEntry(
-                consent.workspaceId(),
+                workspaceId,
                 userId,
                 "consent.revoked",
                 "MEMBERSHIP",
@@ -157,11 +178,12 @@ class ConsentService {
     }
 
     private static boolean canRevoke(ConsentRepository.Row row, UUID me, Map<String, MemberSummary> members) {
-        if (!row.open()) {
+        UUID workspaceId = row.workspaceId();
+        if (!row.open() || workspaceId == null) {
             return false;
         }
         if (me.equals(row.grantedBy())) {
-            return isActiveGuardian(members.get(key(row.workspaceId(), me)));
+            return isActiveGuardian(members.get(key(workspaceId, me)));
         }
         return mayStepIn(row, me, members);
     }
@@ -171,13 +193,14 @@ class ConsentService {
      * an active Owner of it. The youth the consent is about never may.
      */
     private static boolean mayStepIn(ConsentRepository.Row row, UUID me, Map<String, MemberSummary> members) {
-        if (me.equals(row.userId()) || !isActiveOwner(members.get(key(row.workspaceId(), me)))) {
+        UUID workspaceId = row.workspaceId();
+        if (workspaceId == null || me.equals(row.userId()) || !isActiveOwner(members.get(key(workspaceId, me)))) {
             return false;
         }
         if (row.grantedBy() == null) {
             return true;
         }
-        MemberSummary granter = members.get(key(row.workspaceId(), row.grantedBy()));
+        MemberSummary granter = members.get(key(workspaceId, row.grantedBy()));
         return granter == null || granter.status() != MembershipStatus.ACTIVE;
     }
 
@@ -191,7 +214,11 @@ class ConsentService {
                 && (member.role() == Role.OWNER || member.role() == Role.ADULT);
     }
 
-    private static @Nullable String nicknameOf(Map<String, MemberSummary> members, UUID workspaceId, UUID userId) {
+    private static @Nullable String nicknameOf(
+            Map<String, MemberSummary> members, @Nullable UUID workspaceId, UUID userId) {
+        if (workspaceId == null) {
+            return null;
+        }
         MemberSummary member = members.get(key(workspaceId, userId));
         return member == null ? null : member.nickname();
     }

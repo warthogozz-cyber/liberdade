@@ -45,6 +45,25 @@ export interface MockState {
   activity: Schemas['ActivityItem'][]
   /** The consents the signed-in person gave or received, newest first. */
   consents: MockConsent[]
+  /** The versions of the terms and the privacy policy in force. */
+  currentDocuments: Record<'TERMS' | 'PRIVACY', string>
+  /** The versions the signed-in person accepted; null while a document is still pending. */
+  acceptedDocuments: Record<'TERMS' | 'PRIVACY', { version: string; at: string } | null>
+}
+
+/** The versions in force, the same as LegalDocuments.java. */
+const CURRENT_DOCUMENTS: MockState['currentDocuments'] = {
+  TERMS: 'terms-2026-11',
+  PRIVACY: 'privacy-2026-11',
+}
+
+/** The person starts with both documents accepted, so previews open straight into the app. */
+function acceptedDocuments(): MockState['acceptedDocuments'] {
+  const at = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  return {
+    TERMS: { version: CURRENT_DOCUMENTS.TERMS, at },
+    PRIVACY: { version: CURRENT_DOCUMENTS.PRIVACY, at },
+  }
 }
 
 // The seed of LedgerSeeder.java: same emojis, names and order.
@@ -150,6 +169,8 @@ function initialState(): MockState {
     modules: {},
     activity: initialActivity(),
     consents: initialConsents(),
+    currentDocuments: { ...CURRENT_DOCUMENTS },
+    acceptedDocuments: acceptedDocuments(),
   }
 }
 
@@ -158,6 +179,11 @@ export const mockState: MockState = initialState()
 
 export function resetMockData(): void {
   Object.assign(mockState, initialState())
+}
+
+/** The `pendingDocuments` scenario: the person has accepted neither document, so the acceptance screen shows. */
+export function seedPendingDocuments(): void {
+  mockState.acceptedDocuments = { TERMS: null, PRIVACY: null }
 }
 
 /** Seeds a pending INVITE link to another family, as an Owner of it would have made. */
