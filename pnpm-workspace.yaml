@@ -32,3 +32,10 @@ overrides:
   regjsparser: 0.13.4
   resolve: 1.22.13
   rollup: 4.65.1
+  # The one exception to the cutoff, approved by the maintainer: workbox-build's glob 11 has
+  # GHSA-3g3m-2fjr-6pw4 (moderate), fixed first in 14.0.2, published on 2026-10-27. workbox-build
+  # only calls globSync, whose API is the same in glob 14. Its new dependencies are pinned to
+  # versions also published on 2026-10-27, so the exception covers one day.
+  glob: 14.0.2
+  'glob>minimatch': 11.0.1
+  '@isaacs/nonrecursive-glob-match': 1.0.1
