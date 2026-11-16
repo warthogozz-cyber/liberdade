@@ -362,7 +362,7 @@ mensal = 300 × 2,70 − 270,00 = **R$ 540,00**; payback = **2 meses** (540,00 n
 | Escopo gigante | Nunca entregar | Versões pequenas e usáveis; cada fase com spec próprio |
 | Regulação CVM | Sanção se virar recomendação | Tom educativo, aviso visível, revisão da norma antes da fase 4 |
 | Dados de menores (LGPD art. 14) | Tratamento irregular | Consentimento parental, apelido em vez de nome, sem e-mail obrigatório |
-| Custo da AWS | ≈ R$ 311/mês sem retorno direto | AWS só liga no fim da v0.1; reserva de 1 ano reduz para ≈ R$ 220 |
+| Custo da AWS | ≈ R$ 329/mês sem retorno direto | AWS só liga no fim da v0.1; reserva de 1 ano reduz para ≈ R$ 228 ([ADR-0014](adr/0014-dns-cloudflare-and-costs.md)) |
 | Nome "Liberdade" é palavra comum | Marca fraca no INPI, buscas poluídas | Sem impacto no uso familiar; revisar antes de abrir ao público |
 | Instância única | Queda derruba o app | Backups com restauração pontual; recriação por IaC; migração para ECS documentada |
 | Dependência do Google | Sem login se o Google cair | Passkeys como segundo caminho |

@@ -104,6 +104,7 @@ erDiagram
     uuid created_by FK
     timestamptz expires_at
     timestamptz used_at
+    uuid used_by FK "quem aceitou (Plano 5)"
     timestamptz revoked_at
   }
   workspace_modules {
@@ -166,12 +167,13 @@ erDiagram
   consents {
     uuid id PK
     uuid user_id FK
-    uuid workspace_id FK
-    text purpose "PARENTAL na v0.1; TERMS e PRIVACY no Plano 5"
+    uuid workspace_id FK "nulo em TERMS e PRIVACY"
+    text purpose "PARENTAL, TERMS ou PRIVACY"
     text document_version
-    uuid granted_by FK "responsável, no PARENTAL"
+    uuid granted_by FK "responsável, no PARENTAL; a própria pessoa nos aceites"
     timestamptz granted_at
     timestamptz revoked_at
+    timestamptz superseded_at "versão nova aceita"
   }
 ```
 
@@ -192,6 +194,8 @@ Spring Security, por isso fogem das convenções acima. O diagrama mostra só as
 | Autoria | `memberships.user_id`, `memberships.parental_consent_by`, `invitations.created_by`, `invitations.parental_consent_by`, `workspace_modules.updated_by` e `audit_events.actor_user_id` usam `ON DELETE SET NULL`: apagar a conta de alguém não apaga o que a família registrou |
 | `user_entities`, `user_credentials` | `UNIQUE (name)` em `user_entities`; as credenciais são apagadas junto com o `user_entities` (`ON DELETE CASCADE`) |
 | `invitations` | Guarda só o **hash** do token; uso único; convite expira em 7 dias e recuperação em 24 h |
+| `invitations` | `used_by` aponta para `users` com `ON DELETE SET NULL`: o mesmo convite aceito de novo pela mesma pessoa, já membro ativo, devolve o mesmo resultado em vez de `410` |
+| `consents` | `CHECK ((purpose = 'PARENTAL') = (workspace_id IS NOT NULL))`; um registro aberto por pessoa, família e finalidade: índice único `(user_id, workspace_id, purpose) NULLS NOT DISTINCT` com `revoked_at IS NULL AND superseded_at IS NULL` |
 | `transactions` | `amount > 0`; `TRANSFER` ⇔ `to_account_id IS NOT NULL` e `category_id IS NULL`; `to_account_id <> account_id`; moeda igual à das contas |
 | `transactions` | Reenvio com id já existente: mesma família e mesmo conteúdo → devolve o registro (`200`); qualquer outro caso → `409 transaction.id-conflict`, sem revelar nada do registro existente |
 | `transactions` | Índices `(workspace_id, occurred_on)`, `(workspace_id, account_id, occurred_on)` e `(workspace_id, category_id, occurred_on)` |
@@ -214,6 +218,11 @@ Spring Security, por isso fogem das convenções acima. O diagrama mostra só as
 - **Jovem** pode não ter e-mail (`users.email` nulo) e entra só por passkey. O consentimento
   parental dado no convite é copiado para `memberships` e `consents` (`PARENTAL`) quando o convite
   é aceito. Revogar esse consentimento tira o Jovem da família.
+- **Aceite dos termos e da política** (Plano 5) fica em `consents` com `purpose` `TERMS` ou
+  `PRIVACY`, sem família, com a versão aceita. A base legal do serviço é a execução de contrato
+  (LGPD art. 7º, V); o aceite registra que a pessoa foi informada e concordou. Uma versão nova
+  fecha a anterior com `superseded_at`. O aceite não se revoga pelo app: quem não concorda mais
+  exclui a conta.
 - **Conta apagada de vez**: os vínculos viram `REMOVED` com `user_id` nulo, e os lançamentos ficam
   com o apelido. As passkeys (`user_entities`), as sessões, as identidades e os consentimentos da
   pessoa são apagados.
