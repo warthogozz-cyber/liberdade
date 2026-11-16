@@ -30,6 +30,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web build
+        # The preview has no API, so it runs on the mocks.
+        env:
+          VITE_API_MOCKS: "true"
       - name: Deploy to Cloudflare Pages
         id: deploy
         uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3

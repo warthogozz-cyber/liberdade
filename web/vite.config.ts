@@ -50,6 +50,9 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
+  // The E2E suite expects this port; a busy port fails instead of moving elsewhere.
+  server: { port: 5173, strictPort: true },
+  preview: { port: 5173, strictPort: true },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],

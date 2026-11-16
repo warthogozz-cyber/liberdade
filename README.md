@@ -6,7 +6,7 @@ cálculo é rigoroso, mas o que aparece na tela é claro e sem jargão.
 
 ## Status
 
-Em construção — Fase 0.
+Em construção — Fase 1 (v0.1 Núcleo).
 
 ## Como rodar
 
@@ -71,6 +71,19 @@ Testes da web:
 ```bash
 corepack pnpm --filter web test
 ```
+
+## Testes de ponta a ponta
+
+Os testes de ponta a ponta usam o Playwright, a API no Docker e o login de teste no lugar do Google.
+Suba a stack, instale o navegador do Playwright (uma vez só) e rode a suíte:
+
+```bash
+docker compose -f compose.yaml -f compose.e2e.yaml up -d --build --wait
+corepack pnpm --filter web exec playwright install chromium
+corepack pnpm --filter web e2e
+```
+
+A suíte usa a porta 5173, então pare o `dev` da web antes de rodar.
 
 ## Documentação
 
