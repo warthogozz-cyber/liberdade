@@ -467,3 +467,61 @@ describe('TransactionsPage, viewing and organizing', () => {
     expect(await toasts.findByText('Lançamento restaurado.')).toBeInTheDocument()
   })
 })
+
+describe('TransactionsPage, account filter and undo offline', () => {
+  it('filtersByAccountFromUrl', async () => {
+    const workspace = seedMockFamily()
+    const banco = {
+      ...mockState.accounts[0],
+      id: '0192f3a4-0000-7000-8000-0000000000a2',
+      name: 'Banco',
+    }
+    mockState.accounts.push(banco)
+    storeOnServer(workspace, request(MERCADO_ID, 'Mercado', { occurredOn: '2026-11-15' }))
+    storeOnServer(
+      workspace,
+      request(PENDING_ID, 'Transporte', { accountId: banco.id, occurredOn: '2026-11-14' }),
+    )
+    const { router } = renderWithProviders(<TransactionsPage />, {
+      path: '/lancamentos',
+      route: `/lancamentos?conta=${banco.id}`,
+    })
+
+    expect(await screen.findByText('🚌 Transporte')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('🛒 Mercado')).not.toBeInTheDocument())
+    expect(screen.getByText('Banco')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar Banco' }))
+
+    expect(await screen.findByText('🛒 Mercado')).toBeInTheDocument()
+    expect(router.state.location.search).toBe('')
+  })
+
+  it('restoreOffline', async () => {
+    const workspace = seedMockFamily()
+    storeOnServer(workspace, request(MERCADO_ID, 'Mercado', { occurredOn: '2026-11-15' }))
+    let restores = 0
+    server.use(
+      http.post(`${API_URL}/v1/workspaces/:ws/transactions/:id/restore`, () => {
+        restores += 1
+        return HttpResponse.error()
+      }),
+    )
+    renderWithProviders(<TransactionsPage />, { path: '/lancamentos' })
+
+    fireEvent.click(await within(await day('Hoje')).findByRole('button', { name: /Mercado/ }))
+    const sheet = screen.getByRole('dialog', { name: '🛒 Mercado' })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Excluir' }))
+    const confirm = await screen.findByRole('alertdialog', { name: 'Excluir este lançamento?' })
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Excluir' }))
+    const toasts = within(screen.getByRole('region', { name: 'Notificações' }))
+    const undo = await toasts.findByRole('button', { name: 'Desfazer' })
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    fireEvent.click(undo)
+
+    expect(
+      await toasts.findByText('Sem internet agora. Tente desfazer quando a conexão voltar.'),
+    ).toBeInTheDocument()
+    expect(restores).toBe(0)
+  })
+})

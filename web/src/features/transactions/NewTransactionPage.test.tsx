@@ -6,10 +6,16 @@ import { NewTransactionPage } from '@/features/transactions/NewTransactionPage'
 import { mockState, seedMockFamily, type MockAccount } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
-import { API_URL, postTransaction, type MeWorkspace } from '@/shared/api'
+import { API_URL, postTransaction, queryKeys, type MeWorkspace } from '@/shared/api'
 import { localDate } from '@/shared/i18n'
 import { db, syncOutbox } from '@/shared/offline'
-import { outboxItem, outboxPayload, renderWithProviders, transactionView } from '@/shared/testing'
+import {
+  createTestQueryClient,
+  outboxItem,
+  outboxPayload,
+  renderWithProviders,
+  transactionView,
+} from '@/shared/testing'
 
 afterEach(() => {
   cleanup()
@@ -939,5 +945,55 @@ describe('NewTransactionPage, editing', () => {
       await screen.findByText('Sem conexão. Lançar funciona; editar volta com o sinal.'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Salvar' })).not.toBeInTheDocument()
+  })
+})
+
+describe('NewTransactionPage, editing: what is on offer and when it is gone', () => {
+  it('editHidesOtherArchived', async () => {
+    const workspace = seedMockFamily()
+    const own = addAccount(workspace, 'Banco antigo', 'CHECKING', '2026-10-01T00:00:00Z')
+    addAccount(workspace, 'Poupança velha', 'SAVINGS', '2026-10-01T00:00:00Z')
+    const mercado = category('Mercado')
+    const base = { ...mercado, archivedAt: null }
+    const ownCategory = {
+      ...base,
+      id: crypto.randomUUID(),
+      name: 'Feira velha',
+      archivedAt: '2026-10-01T00:00:00Z',
+    }
+    const otherCategory = {
+      ...base,
+      id: crypto.randomUUID(),
+      name: 'Padaria velha',
+      archivedAt: '2026-10-01T00:00:00Z',
+    }
+    mockState.categories.push(ownCategory, otherCategory)
+    storeForEdit(workspace, { accountId: own.id, categoryId: ownCategory.id })
+    await openEdit()
+
+    expect(await screen.findByRole('radio', { name: /Feira velha \(arquivada\)/ })).toBeChecked()
+    expect(screen.queryByRole('radio', { name: /Padaria velha/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Banco antigo \(arquivada\)/ }))
+    const sheet = screen.getByRole('dialog', { name: 'Data e conta' })
+    expect(
+      within(sheet).getByRole('radio', { name: 'Banco antigo (arquivada)' }),
+    ).toBeInTheDocument()
+    expect(within(sheet).queryByRole('radio', { name: /Poupança velha/ })).not.toBeInTheDocument()
+  })
+
+  it('editWaitsForTheServerBeforeSayingDeleted', async () => {
+    const workspace = seedMockFamily()
+    storeForEdit(workspace)
+    // The cached month lacks the transaction, which the server has.
+    const queryClient = createTestQueryClient()
+    queryClient.setQueryData(queryKeys.transactions(workspace.id, '2026-11'), [])
+    renderWithProviders(<NewTransactionPage />, {
+      path: '/lancar',
+      route: `/lancar?editar=${EDIT_ID}&mes=2026-11`,
+      queryClient,
+    })
+
+    await waitFor(() => expect(amount()).toHaveTextContent('R$ 12,34'))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 })
