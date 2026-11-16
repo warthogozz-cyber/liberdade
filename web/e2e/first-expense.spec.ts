@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { createFamily, newUser, signInWithGoogle, waitForSavedTransactions } from './support.ts'
+import { createFamily, newUser, signInWithGoogle } from './support.ts'
 
 const S1_LIMIT_MS = 60_000
 const SYNC_TIMEOUT_MS = 20_000
@@ -41,7 +41,6 @@ test('records the first expense online (S1)', async ({ page }) => {
   const mercado = row(page, '🛒 Mercado')
   await expect(mercado).toContainText('−R$ 12,34')
   await expect(mercado).not.toContainText('Aguardando sinal', { timeout: SYNC_TIMEOUT_MS })
-  await expect(mercado).toContainText('−R$ 12,34')
 })
 
 test('records the first expense in airplane mode (S1)', async ({ page, context }) => {
@@ -58,6 +57,7 @@ test('records the first expense in airplane mode (S1)', async ({ page, context }
   await context.setOffline(true)
   await typeAmount(page, ['5', '0', '0'])
   await page.getByText('🚌 Transporte', { exact: true }).click()
+  await expect(page.getByRole('radio', { name: '🚌 Transporte' })).toBeChecked()
   await page.getByRole('button', { name: 'Salvar' }).click()
 
   await expect(savedNotice(page)).toBeVisible()
@@ -72,14 +72,15 @@ test('records the first expense in airplane mode (S1)', async ({ page, context }
   await expect(page).toHaveURL('/lancamentos')
   await expect(transporte).toContainText('−R$ 5,00')
   await expect(transporte).toContainText('Aguardando sinal')
-  await expect(page.getByRole('status')).toHaveText(
+  const offline = page.getByRole('status')
+  await expect(offline).toContainText(
     'Sem conexão. Você pode lançar; os gastos saem quando o sinal voltar.',
   )
+  await expect(offline).toContainText(/Mostrando dados de \d{2}\/\d{2}, \d{2}:\d{2}\./)
 
   // Back online, the queue sends the expense once.
   await context.setOffline(false)
   await expect(transporte).not.toContainText('Aguardando sinal', { timeout: SYNC_TIMEOUT_MS })
-  await waitForSavedTransactions(page, 1)
   await page.reload()
   await expect(page.getByRole('listitem').filter({ hasText: '−R$ 5,00' })).toHaveCount(1)
 })

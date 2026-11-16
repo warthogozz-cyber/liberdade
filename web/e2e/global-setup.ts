@@ -1,10 +1,11 @@
 const READINESS_URL = 'http://localhost:8080/actuator/health/readiness'
 const INTERVAL_MS = 2_000
 const TIMEOUT_MS = 120_000
+const REQUEST_TIMEOUT_MS = 5_000
 
 async function isReady(): Promise<boolean> {
   try {
-    const response = await fetch(READINESS_URL)
+    const response = await fetch(READINESS_URL, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
     if (!response.ok) return false
     const body = (await response.json()) as { status?: unknown }
     return body.status === 'UP'

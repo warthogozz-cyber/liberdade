@@ -85,6 +85,10 @@ corepack pnpm --filter web e2e
 
 A suíte usa a porta 5173, então pare o `dev` da web antes de rodar.
 
+A API aceita 20 tentativas de login por minuto por IP, e a suíte toda gasta 7. Rodar a suíte várias
+vezes seguidas no mesmo minuto pode bater no limite: o login volta com "Muitas tentativas" (429).
+Nesse caso, espere um minuto e rode de novo.
+
 ## Documentação
 
 - [Documentação do projeto](docs/README.md)
