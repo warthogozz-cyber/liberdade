@@ -43,6 +43,10 @@ export interface MockState {
   modules: Record<string, Partial<Record<Schemas['ModuleView']['key'], boolean>>>
   /** The signed-in person's own history, newest first (LGPD audit trail). */
   activity: Schemas['ActivityItem'][]
+  /** The signed-in person's own passkeys, newest first. */
+  passkeys: Schemas['PasskeyView'][]
+  /** Whether the person also signs in with Google; without it, the last passkey cannot be removed. */
+  hasGoogle: boolean
   /** The consents the signed-in person gave or received, newest first. */
   consents: MockConsent[]
   /** The versions of the terms and the privacy policy in force. */
@@ -128,6 +132,20 @@ function initialActivity(): Schemas['ActivityItem'][] {
   ]
 }
 
+/** Two passkeys, so the list shows a removal that is allowed. */
+function initialPasskeys(): Schemas['PasskeyView'][] {
+  const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+  return [
+    {
+      id: 'mock-passkey-notebook',
+      label: 'Notebook',
+      createdAt: daysAgo(3),
+      lastUsedAt: daysAgo(1),
+    },
+    { id: 'mock-passkey-celular', label: 'Celular', createdAt: daysAgo(20), lastUsedAt: null },
+  ]
+}
+
 /** Ana vouched for a youth: she can take the consent back. */
 function initialConsents(): MockConsent[] {
   return [
@@ -168,6 +186,8 @@ function initialState(): MockState {
     invitations: [],
     modules: {},
     activity: initialActivity(),
+    passkeys: initialPasskeys(),
+    hasGoogle: true,
     consents: initialConsents(),
     currentDocuments: { ...CURRENT_DOCUMENTS },
     acceptedDocuments: acceptedDocuments(),

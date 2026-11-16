@@ -674,6 +674,38 @@ export const handlers = [
     return HttpResponse.json(mockState.activity)
   }),
 
+  http.get(url('/v1/me/passkeys'), () => {
+    if (!mockState.signedIn) return authRequired()
+    return HttpResponse.json(mockState.passkeys)
+  }),
+
+  http.delete<{ id: string }>(url('/v1/me/passkeys/:id'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    if (!mockState.signedIn) return authRequired()
+    const passkey = mockState.passkeys.find((candidate) => candidate.id === params.id)
+    if (!passkey) return problem(404, 'passkey.not-found', 'Passkey não encontrada.')
+    if (mockState.passkeys.length === 1 && !mockState.hasGoogle) {
+      return rejected(
+        'passkey.last-method',
+        'Esta é a sua única forma de entrar. Cadastre outra passkey antes de remover esta.',
+      )
+    }
+    mockState.passkeys = mockState.passkeys.filter((candidate) => candidate !== passkey)
+    mockState.activity = [
+      {
+        id: crypto.randomUUID(),
+        action: 'passkey.removed',
+        occurredAt: new Date().toISOString(),
+        workspaceId: null,
+        actorName: mockState.user.displayName,
+        byMe: true,
+        metadata: {},
+      },
+      ...mockState.activity,
+    ]
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.post(url('/v1/me/export'), ({ request }) => {
     if (withoutToken(request)) return csrfInvalid()
     if (!mockState.signedIn) return authRequired()

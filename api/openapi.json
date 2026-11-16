@@ -311,6 +311,52 @@
         ]
       }
     },
+    "/v1/me/passkeys": {
+      "get": {
+        "operationId": "listMyPasskeys",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PasskeyView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "passkey-controller"
+        ]
+      }
+    },
+    "/v1/me/passkeys/{id}": {
+      "delete": {
+        "operationId": "removePasskey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "passkey-controller"
+        ]
+      }
+    },
     "/v1/workspaces": {
       "post": {
         "operationId": "createWorkspace",
@@ -2425,6 +2471,26 @@
           }
         },
         "nullable": true
+      },
+      "PasskeyView": {
+        "type": "object",
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
       },
       "PreviewInvitationRequest": {
         "required": [
