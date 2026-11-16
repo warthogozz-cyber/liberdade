@@ -1,6 +1,9 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import { http } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
+import { server } from '@/mocks/server'
+import { API_URL } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
 import { AdjustBalanceSheet } from './AdjustBalanceSheet'
 
@@ -10,6 +13,12 @@ describe('AdjustBalanceSheet', () => {
   it('saves a negative balance and closes', async () => {
     const workspace = seedMockFamily()
     const stored = mockState.accounts[0]
+    const captured: { body?: unknown } = {}
+    server.use(
+      http.patch(`${API_URL}/v1/workspaces/:ws/accounts/:id`, async ({ request }) => {
+        captured.body = await request.clone().json()
+      }),
+    )
     const onClose = vi.fn()
     renderWithProviders(
       <AdjustBalanceSheet
@@ -26,6 +35,6 @@ describe('AdjustBalanceSheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() => expect(onClose).toHaveBeenCalled())
-    expect(mockState.accounts[0].initialBalance.amount).toBe('-1.00')
+    expect(captured.body).toEqual({ balance: { amount: '-1.00', currency: workspace.currency } })
   })
 })

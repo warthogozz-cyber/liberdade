@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
 import {
@@ -58,6 +58,7 @@ function AccountsScreen({ workspace }: { workspace: MeWorkspace }) {
   const accounts = useAccounts(workspace.id)
   const archive = useArchiveAccount(workspace.id)
   const unarchive = useUnarchiveAccount(workspace.id)
+  const archiving = useRef(false)
   const [view, setView] = useState<View | null>(null)
   const [archiveError, setArchiveError] = useState<string>()
   const [unarchiveError, setUnarchiveError] = useState<string>()
@@ -75,13 +76,16 @@ function AccountsScreen({ workspace }: { workspace: MeWorkspace }) {
   }
 
   async function confirmArchive(account: AccountView) {
-    if (archive.isPending) return
+    if (archiving.current || archive.isPending) return
+    archiving.current = true
     try {
       await archive.mutateAsync(account.id)
     } catch (failure) {
       setArchiveError(failureText(failure, generic))
       setView({ kind: 'edit', id: account.id })
       return
+    } finally {
+      archiving.current = false
     }
     toast.show({ message: intl.formatMessage({ id: 'accounts.archivedToast' }) })
     setView(null)
@@ -237,8 +241,12 @@ function AccountsScreen({ workspace }: { workspace: MeWorkspace }) {
             body={archiveBody(intl.formatMessage, selected)}
             confirmLabel={<FormattedMessage id="accounts.archive" />}
             cancelLabel={<FormattedMessage id="accounts.cancel" />}
+            confirmDisabled={archive.isPending}
             onConfirm={() => void confirmArchive(selected)}
-            onCancel={() => setView({ kind: 'edit', id: selected.id })}
+            onCancel={() => {
+              setArchiveError(undefined)
+              setView({ kind: 'edit', id: selected.id })
+            }}
           />
         </>
       )}

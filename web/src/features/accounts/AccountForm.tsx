@@ -43,6 +43,7 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
   const ids = useId()
   const nameErrorId = `${ids}-name-error`
   const hintId = `${ids}-hint`
+  const typeLegendId = `${ids}-type-legend`
   const pending = create.isPending || update.isPending
 
   const trimmed = name.trim()
@@ -112,8 +113,13 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
           </span>
         )}
       </label>
-      <fieldset className="flex flex-col gap-2" aria-describedby={hintId}>
-        <legend className="mb-1 font-medium">
+      <fieldset
+        role="radiogroup"
+        className="flex flex-col gap-2"
+        aria-labelledby={typeLegendId}
+        aria-describedby={hintId}
+      >
+        <legend id={typeLegendId} className="mb-1 font-medium">
           {intl.formatMessage({ id: 'accounts.field.type' })}
         </legend>
         <div className="grid grid-cols-2 gap-2">

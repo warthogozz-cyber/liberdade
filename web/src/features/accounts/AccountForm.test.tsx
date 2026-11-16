@@ -26,6 +26,16 @@ describe('AccountForm', () => {
     expect(screen.queryByText('Para o dia a dia: salário, contas, Pix.')).not.toBeInTheDocument()
   })
 
+  it('names the type group and describes it with the hint', () => {
+    renderForm()
+
+    fireEvent.click(screen.getByRole('radio', { name: /Cartão de crédito/ }))
+
+    expect(screen.getByRole('radiogroup', { name: 'Tipo' })).toHaveAccessibleDescription(
+      'Os gastos deixam o saldo negativo. Pagar a fatura é uma transferência de outra conta para o cartão.',
+    )
+  })
+
   it('does not save without a name', () => {
     renderForm()
 

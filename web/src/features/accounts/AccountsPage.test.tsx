@@ -234,6 +234,63 @@ describe('AccountsPage', () => {
     expect(stored!.archivedAt).not.toBeNull()
   })
 
+  it('archive question cites a negative balance with its sign', async () => {
+    seedMockFamily()
+    addAccount({ name: 'Cartão Teste', initialBalance: balance('-50.00') })
+    renderAccounts()
+
+    fireEvent.click(await row('Cartão Teste'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Arquivar' }))
+
+    const confirm = await screen.findByRole('alertdialog', { name: 'Arquivar Cartão Teste?' })
+    expect(confirm).toHaveTextContent('−R$ 50,00')
+  })
+
+  it('sends one archive call for a double click', async () => {
+    seedMockFamily()
+    addAccount({ name: 'Banco Teste' })
+    let calls = 0
+    server.use(
+      http.post(`${API_URL}/v1/workspaces/:ws/accounts/:id/archive`, async () => {
+        calls += 1
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }),
+    )
+    renderAccounts()
+
+    fireEvent.click(await row('Banco Teste'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Arquivar' }))
+    const confirm = await screen.findByRole('alertdialog')
+    const button = within(confirm).getByRole('button', { name: 'Arquivar' })
+    fireEvent.click(button)
+    fireEvent.click(button)
+
+    await waitFor(() => expect(calls).toBeGreaterThan(0))
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(calls).toBe(1)
+  })
+
+  it('does not keep an archive error after Cancelar', async () => {
+    seedMockFamily()
+    renderAccounts()
+
+    fireEvent.click(await row('Carteira'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Arquivar' }))
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Arquivar' }),
+    )
+    const sheet = await screen.findByRole('dialog', { name: 'Carteira' })
+    expect(await within(sheet).findByRole('alert')).toBeInTheDocument()
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Arquivar' }))
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Cancelar' }),
+    )
+
+    const again = await screen.findByRole('dialog', { name: 'Carteira' })
+    expect(within(again).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('lastActiveExplains', async () => {
     seedMockFamily()
     renderAccounts()
