@@ -5,7 +5,7 @@ import type { AccountView, CategoryView, MeWorkspace } from '@/shared/api'
 import { firstName } from '@/shared/i18n'
 import { formatBRL, parseCents } from '@/shared/money'
 import { discardOutboxItem } from '@/shared/offline'
-import { ConfirmDialog, Sheet } from '@/shared/ui'
+import { ConfirmDialog, Sheet, useToast } from '@/shared/ui'
 import { categoryLabel, type ListItem } from './listItems'
 
 interface TransactionRowProps {
@@ -25,6 +25,7 @@ export function TransactionRow({
   displayName,
 }: TransactionRowProps) {
   const intl = useIntl()
+  const toast = useToast()
   const [step, setStep] = useState<'closed' | 'sheet' | 'confirm'>('closed')
   const category = item.categoryId ? categories.get(item.categoryId) : undefined
   const cents = parseCents(item.amount.amount)
@@ -100,7 +101,10 @@ export function TransactionRow({
             cancelLabel={<FormattedMessage id="transactions.discardNo" />}
             onConfirm={() => {
               setStep('closed')
-              void discardOutboxItem(item.id)
+              discardOutboxItem(item.id).catch((error: unknown) => {
+                console.error(error)
+                toast.show({ message: intl.formatMessage({ id: 'common.error' }) })
+              })
             }}
             onCancel={() => setStep('closed')}
           />

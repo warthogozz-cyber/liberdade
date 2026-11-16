@@ -97,11 +97,15 @@ function TransactionList({ userId, displayName, workspace }: TransactionListProp
           <FormattedMessage id="transactions.empty" />
         </p>
       )}
-      {groups.length === 0 && !transactions.data && !transactions.isError && (
-        <p>
-          <FormattedMessage id="common.loading" />
-        </p>
-      )}
+      {/* Paused offline without a cache, it would load forever; the offline status says why. */}
+      {groups.length === 0 &&
+        !transactions.data &&
+        !transactions.isError &&
+        transactions.fetchStatus !== 'paused' && (
+          <p>
+            <FormattedMessage id="common.loading" />
+          </p>
+        )}
       {groups.map((group) => (
         <section key={group.date}>
           <h2 id={`day-${group.date}`} className="text-sm font-semibold text-text-muted">

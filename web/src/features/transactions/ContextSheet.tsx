@@ -3,7 +3,7 @@ import type { AccountView } from '@/shared/api'
 import { Sheet } from '@/shared/ui'
 
 /** Hoje and Ontem stay words until saving, which works out the date then (Review Focus 4). */
-export type ExpenseDate = 'today' | 'yesterday' | string
+export type ExpenseDate = 'today' | 'yesterday' | `${number}-${number}-${number}`
 
 interface ContextSheetProps {
   open: boolean
@@ -65,7 +65,12 @@ export function ContextSheet({
             <FormattedMessage id="common.yesterday" />
           </label>
           <label className={option}>
-            <input type="radio" name="date" checked={other} onChange={() => onDateChange(today)} />
+            <input
+              type="radio"
+              name="date"
+              checked={other}
+              onChange={() => onDateChange(today as ExpenseDate)}
+            />
             {otherDate}
           </label>
           {other && (
@@ -75,7 +80,8 @@ export function ContextSheet({
               value={date}
               required
               onChange={(event) => {
-                if (event.target.value) onDateChange(event.target.value)
+                // A date input's value is empty or YYYY-MM-DD.
+                if (event.target.value) onDateChange(event.target.value as ExpenseDate)
               }}
               className="mt-2 min-h-12 w-full rounded-field border border-text-muted/30 px-3"
             />

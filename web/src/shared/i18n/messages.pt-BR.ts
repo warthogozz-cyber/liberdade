@@ -67,6 +67,7 @@ export const messages = {
   'expense.undoAlt': 'Desfazer o último gasto',
   'expense.undone': 'Gasto desfeito',
   'expense.undoTooLate': 'Este gasto já foi salvo e não dá mais para desfazer.',
+  'expense.saveFailed': 'Não foi possível salvar o gasto. Tente de novo.',
   'expense.noCategories': 'Abra o app com internet uma vez para carregar suas categorias.',
   'home.expensesIn': 'Gastos em {month}',
   'home.totalBalance': 'Saldo total',

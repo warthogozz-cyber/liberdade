@@ -1,8 +1,10 @@
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
+import type { ExpenseDate } from '@/features/transactions/ContextSheet'
 import { NewExpensePage } from '@/features/transactions/NewExpensePage'
 import { mockState, seedMockFamily } from '@/mocks/data'
+import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
 import { localDate } from '@/shared/i18n'
@@ -164,9 +166,35 @@ describe('NewExpensePage', () => {
 
     press('1', '2', '3', '4')
     fireEvent.click(screen.getByRole('radio', { name: '🛒 Mercado' }))
-    fireEvent.click(saveButton())
+    const button = saveButton()
+    // Both taps land before React renders, so the button is still enabled for the second one.
+    act(() => {
+      button.click()
+      button.click()
+    })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
+    expect(await db.outbox.count()).toBe(1)
+  })
+
+  it('says the save failed and lets Salvar try again', async () => {
+    seedMockFamily()
+    const { router } = await openForm()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(db.outbox, 'add').mockRejectedValueOnce(new Error('QuotaExceededError'))
+
+    press('1', '2', '3', '4')
+    fireEvent.click(screen.getByRole('radio', { name: '🛒 Mercado' }))
     fireEvent.click(saveButton())
 
+    expect(
+      await within(toastRegion()).findByText('Não foi possível salvar o gasto. Tente de novo.'),
+    ).toBeInTheDocument()
+    expect(consoleError).toHaveBeenCalled()
+    expect(router.state.location.pathname).toBe('/lancar')
+    await waitFor(() => expect(saveButton()).toBeEnabled())
+
+    fireEvent.click(saveButton())
     await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
     expect(await db.outbox.count()).toBe(1)
   })
@@ -272,6 +300,21 @@ describe('NewExpensePage', () => {
     expect(await db.outbox.count()).toBe(0)
   })
 
+  it('says something went wrong when Desfazer fails', async () => {
+    seedMockFamily()
+    const { router } = await openForm()
+    await saveExpense(router)
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(db, 'transaction').mockRejectedValueOnce(new Error('broken'))
+
+    fireEvent.click(await within(toastRegion()).findByRole('button', { name: 'Desfazer' }))
+
+    expect(
+      await within(toastRegion()).findByText('Não deu para carregar. Tente de novo.'),
+    ).toBeInTheDocument()
+    expect(consoleError).toHaveBeenCalled()
+  })
+
   it('says it is too late when the expense already left the queue', async () => {
     seedMockFamily()
     const { router } = await openForm()
@@ -325,6 +368,31 @@ describe('NewExpensePage', () => {
         occurredOn: '2026-11-03',
       },
     })
+    // Desfazer would delete the fix and, with it, the refused expense (Ruling T11-correction-undo).
+    expect(await within(toastRegion()).findByText('Gasto salvo')).toBeInTheDocument()
+    expect(
+      within(toastRegion()).queryByRole('button', { name: 'Desfazer' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps Salvar disabled when the category to fix is not offered', async () => {
+    const workspace = seedMockFamily()
+    await db.outbox.add(
+      outboxItem('0192f3a4-0000-7000-8000-0000000000f1', {
+        userId: mockState.user.id,
+        workspaceId: workspace.id,
+        status: 'needs-attention',
+        attempts: 1,
+        payload: outboxPayload('0192f3a4-0000-7000-8000-0000000000f1', {
+          accountId: mockState.accounts[0].id,
+          categoryId: '0192f3a4-0000-7000-8000-0000000000c9',
+        }),
+      }),
+    )
+    await openForm('/lancar?corrigir=0192f3a4-0000-7000-8000-0000000000f1')
+
+    await waitFor(() => expect(amount()).toHaveTextContent('R$ 12,34'))
+    expect(saveButton()).toBeDisabled()
   })
 
   it('opens empty when the item to fix is not in the queue', async () => {
@@ -346,5 +414,49 @@ describe('NewExpensePage', () => {
     ).toBeInTheDocument()
     press('5')
     expect(saveButton()).toBeDisabled()
+  })
+
+  it('offers to try again when the categories fail online', async () => {
+    seedMockFamily()
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/categories`, () => problem(500, 'internal.error'), {
+        once: true,
+      }),
+    )
+    renderNewExpense()
+
+    expect(await screen.findByText('Não deu para carregar. Tente de novo.')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Abra o app com internet uma vez para carregar suas categorias.'),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+
+    expect(await screen.findByRole('radio', { name: '🛒 Mercado' })).toBeInTheDocument()
+  })
+
+  it('ignores the keyboard while a sheet is open or with Ctrl, Alt or Meta', async () => {
+    seedMockFamily()
+    await openForm()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mais' }))
+    const sheet = screen.getByRole('dialog', { name: 'Todas as categorias' })
+    fireEvent.keyDown(document.body, { key: '5' })
+    expect(amount()).toHaveTextContent('R$ 0,00')
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    for (const modifier of ['ctrlKey', 'altKey', 'metaKey']) {
+      fireEvent.keyDown(document.body, { key: '5', [modifier]: true })
+    }
+    expect(amount()).toHaveTextContent('R$ 0,00')
+    fireEvent.keyDown(document.body, { key: '5' })
+    expect(amount()).toHaveTextContent('R$ 0,05')
+  })
+})
+
+describe('ExpenseDate', () => {
+  it('is a preset or a YYYY-MM-DD date', () => {
+    expectTypeOf<'2026-11-03'>().toExtend<ExpenseDate>()
+    expectTypeOf<'amanhã'>().not.toExtend<ExpenseDate>()
   })
 })

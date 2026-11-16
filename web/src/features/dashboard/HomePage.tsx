@@ -17,7 +17,7 @@ function readDismissed(): boolean {
   }
 }
 
-/** The home screen: the month's totals with the user's queue in them (D25, wireframe 2). */
+/** The home screen: the month's totals with the user's queue in them (D25, wireframe 4). */
 export function HomePage() {
   const intl = useIntl()
   useDocumentTitle(intl.formatMessage({ id: 'nav.home' }))

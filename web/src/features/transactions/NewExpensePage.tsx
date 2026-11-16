@@ -16,6 +16,7 @@ import {
   cancelOutboxItem,
   enqueueTransaction,
   replaceOutboxItem,
+  useOnline,
   useOutbox,
   type OutboxItem,
 } from '@/shared/offline'
@@ -94,11 +95,15 @@ function ExpenseForm({ userId, workspace, fixing }: ExpenseFormProps) {
   const intl = useIntl()
   const navigate = useNavigate()
   const toast = useToast()
+  const online = useOnline()
   const categories = useCategories(workspace.id, 'EXPENSE')
   const accounts = useAccounts(workspace.id)
   const [cents, setCents] = useState(() => (fixing ? parseCents(fixing.payload.amount.amount) : 0n))
   const [categoryId, setCategoryId] = useState(() => fixing?.payload.categoryId)
-  const [date, setDate] = useState<ExpenseDate>(() => fixing?.payload.occurredOn ?? 'today')
+  const [date, setDate] = useState<ExpenseDate>(
+    // The API sends dates as YYYY-MM-DD.
+    () => (fixing?.payload.occurredOn as ExpenseDate | undefined) ?? 'today',
+  )
   const [chosenAccountId, setChosenAccountId] = useState(
     () => fixing?.payload.accountId ?? readLastAccount(workspace.id),
   )
@@ -111,10 +116,14 @@ function ExpenseForm({ userId, workspace, fixing }: ExpenseFormProps) {
   const accountList = accounts.data ?? []
   const account = accountList.find(({ id }) => id === chosenAccountId) ?? accountList.at(0)
   const categoryList = categories.data ?? []
+  // Without a cache, only being offline means the categories cannot come; an online error retries.
   const noCategories = categories.data
     ? categories.data.length === 0
-    : categories.fetchStatus !== 'fetching'
-  const canSave = cents > 0n && categoryId !== undefined && account !== undefined && !saving
+    : !online || categories.fetchStatus === 'paused'
+  const categoryError = !categories.data && !noCategories && categories.isError
+  // A fix can carry a category that is archived or not cached: it has no chip, so it cannot go.
+  const categoryKnown = categoryList.some(({ id }) => id === categoryId)
+  const canSave = cents > 0n && !noCategories && categoryKnown && account !== undefined && !saving
   const today = localDate(new Date(), workspace.timezone)
   const dateLabel =
     date === 'today' || date === 'yesterday'
@@ -128,41 +137,55 @@ function ExpenseForm({ userId, workspace, fixing }: ExpenseFormProps) {
     })
   }
 
+  function undoFailed(error: unknown) {
+    console.error(error)
+    toast.show({ message: intl.formatMessage({ id: 'common.error' }) })
+  }
+
   async function save() {
     if (!canSave || !account || categoryId === undefined || savingRef.current) return
     savingRef.current = true
     setSaving(true)
+    // Hoje and Ontem become dates now, in the family's time zone (Review Focus 4).
+    const savedToday = localDate(new Date(), workspace.timezone)
+    const occurredOn =
+      date === 'today' ? savedToday : date === 'yesterday' ? addDays(savedToday, -1) : date
+    const payload: CreateTransactionRequest = {
+      id: v7(),
+      kind: 'EXPENSE',
+      amount: { amount: centsToApi(cents), currency: workspace.currency },
+      occurredOn,
+      accountId: account.id,
+      categoryId,
+      description: description.trim() || null,
+    }
     try {
-      // Hoje and Ontem become dates now, in the family's time zone (Review Focus 4).
-      const savedToday = localDate(new Date(), workspace.timezone)
-      const occurredOn =
-        date === 'today' ? savedToday : date === 'yesterday' ? addDays(savedToday, -1) : date
-      const payload: CreateTransactionRequest = {
-        id: v7(),
-        kind: 'EXPENSE',
-        amount: { amount: centsToApi(cents), currency: workspace.currency },
-        occurredOn,
-        accountId: account.id,
-        categoryId,
-        description: description.trim() || null,
-      }
       if (fixing) await replaceOutboxItem(fixing.id, payload)
       else await enqueueTransaction({ userId, workspaceId: workspace.id, payload })
-      writeLastAccount(workspace.id, account.id)
-      toast.show({
-        message: intl.formatMessage({ id: 'expense.saved' }),
-        action: {
-          label: intl.formatMessage({ id: 'expense.undo' }),
-          altText: intl.formatMessage({ id: 'expense.undoAlt' }),
-          onClick: () => void undo(payload.id),
-        },
-      })
-      await navigate('/inicio')
-    } catch {
-      // The queue is on this device; a failure here leaves the form as it was, to try again.
+    } catch (error) {
+      // Nothing was queued, so Salvar can try again (Ruling T11-save-failed).
+      console.error(error)
       savingRef.current = false
       setSaving(false)
+      toast.show({ message: intl.formatMessage({ id: 'expense.saveFailed' }) })
+      return
     }
+    // The expense is queued: the guard stays up, so nothing after this can queue it twice.
+    writeLastAccount(workspace.id, account.id)
+    toast.show({
+      message: intl.formatMessage({ id: 'expense.saved' }),
+      // Undoing a fix would delete the refused expense too (Ruling T11-correction-undo).
+      action: fixing
+        ? undefined
+        : {
+            label: intl.formatMessage({ id: 'expense.undo' }),
+            altText: intl.formatMessage({ id: 'expense.undoAlt' }),
+            onClick: () => {
+              undo(payload.id).catch(undoFailed)
+            },
+          },
+    })
+    await navigate('/inicio')
   }
 
   return (
@@ -178,6 +201,19 @@ function ExpenseForm({ userId, workspace, fixing }: ExpenseFormProps) {
         <p className="rounded-card bg-surface p-4">
           <FormattedMessage id="expense.noCategories" />
         </p>
+      ) : categoryError ? (
+        <div className="flex flex-col items-start gap-2">
+          <p>
+            <FormattedMessage id="common.error" />
+          </p>
+          <button
+            type="button"
+            onClick={() => void categories.refetch()}
+            className="min-h-12 rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            <FormattedMessage id="common.retry" />
+          </button>
+        </div>
       ) : (
         <CategoryPicker
           categories={categoryList}

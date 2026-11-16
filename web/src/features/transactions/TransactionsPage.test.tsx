@@ -1,10 +1,20 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { onlineManager } from '@tanstack/react-query'
+import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TransactionsPage } from '@/features/transactions/TransactionsPage'
 import { mockState, seedMockFamily } from '@/mocks/data'
-import type { CreateTransactionRequest, MeWorkspace } from '@/shared/api'
+import { problem } from '@/mocks/handlers'
+import { server } from '@/mocks/server'
+import { API_URL, type CreateTransactionRequest, type MeWorkspace } from '@/shared/api'
 import { db } from '@/shared/offline'
-import { outboxItem, outboxPayload, renderWithProviders, transactionView } from '@/shared/testing'
+import {
+  createTestQueryClient,
+  outboxItem,
+  outboxPayload,
+  renderWithProviders,
+  transactionView,
+} from '@/shared/testing'
 
 const MERCADO_ID = '0192f3a4-0000-7000-8000-0000000000b1'
 const PENDING_ID = '0192f3a4-0000-7000-8000-0000000000b2'
@@ -177,6 +187,25 @@ describe('TransactionsPage', () => {
     expect(await db.outbox.count()).toBe(0)
   })
 
+  it('says something went wrong when discarding fails', async () => {
+    const workspace = seedMockFamily()
+    const { sheet } = await openAttention(workspace)
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Descartar' }))
+    const dialog = await screen.findByRole('alertdialog', { name: 'Descartar este gasto?' })
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(db, 'transaction').mockRejectedValueOnce(new Error('broken'))
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descartar' }))
+
+    expect(
+      await within(screen.getByRole('region', { name: 'Notificações' })).findByText(
+        'Não deu para carregar. Tente de novo.',
+      ),
+    ).toBeInTheDocument()
+    expect(consoleError).toHaveBeenCalled()
+    expect(await db.outbox.count()).toBe(1)
+  })
+
   it('keeps a refused expense with Manter', async () => {
     const workspace = seedMockFamily()
     const { sheet } = await openAttention(workspace)
@@ -198,6 +227,58 @@ describe('TransactionsPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Sem conexão. Você pode lançar; os gastos saem quando o sinal voltar.',
     )
+  })
+
+  it('does not keep loading while offline without a cache', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    seedMockFamily()
+    server.use(http.get(`${API_URL}/v1/workspaces/:ws/transactions`, () => HttpResponse.error()))
+    // The app retries, and a retry while offline pauses the query instead of failing it.
+    const queryClient = createTestQueryClient()
+    queryClient.setDefaultOptions({
+      queries: { ...queryClient.getDefaultOptions().queries, retry: 1, retryDelay: 0 },
+    })
+    onlineManager.setOnline(false)
+    try {
+      renderWithProviders(<TransactionsPage />, { path: '/lancamentos', queryClient })
+
+      expect(await screen.findByRole('status')).toBeInTheDocument()
+      await waitFor(() =>
+        expect(
+          queryClient
+            .getQueryCache()
+            .getAll()
+            .some((query) => query.state.fetchStatus === 'paused'),
+        ).toBe(true),
+      )
+      expect(screen.queryByText('Carregando…')).not.toBeInTheDocument()
+    } finally {
+      onlineManager.setOnline(true)
+    }
+  })
+
+  it('offers to try again when the list fails, keeping the queue listed', async () => {
+    const workspace = seedMockFamily()
+    storeOnServer(workspace, request(MERCADO_ID, 'Mercado', { occurredOn: '2026-11-15' }))
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/transactions`, () => problem(500, 'internal.error'), {
+        once: true,
+      }),
+    )
+    await db.outbox.add(
+      queue(workspace, PENDING_ID, {
+        payload: request(PENDING_ID, 'Transporte', { occurredOn: '2026-11-14' }),
+      }),
+    )
+    renderTransactions()
+
+    expect(await screen.findByText('Não deu para carregar. Tente de novo.')).toBeInTheDocument()
+    expect(within(await day('Ontem')).getByText('🚌 Transporte')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+
+    expect(within(await day('Hoje')).getByText('🛒 Mercado')).toBeInTheDocument()
+    expect(screen.queryByText('Não deu para carregar. Tente de novo.')).not.toBeInTheDocument()
+    expect(screen.getByText('🚌 Transporte')).toBeInTheDocument()
   })
 
   it('says there is nothing this month', async () => {
