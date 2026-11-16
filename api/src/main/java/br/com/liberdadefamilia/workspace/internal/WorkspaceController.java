@@ -1,9 +1,11 @@
 package br.com.liberdadefamilia.workspace.internal;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
+import br.com.liberdadefamilia.identity.SignInHints;
 import br.com.liberdadefamilia.shared.TextPatterns;
 import br.com.liberdadefamilia.workspace.Role;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -27,15 +29,20 @@ class WorkspaceController {
     static final ZoneId DEFAULT_TIMEZONE = ZoneId.of("America/Fortaleza");
 
     private final WorkspaceService service;
+    private final SignInHints signInHints;
 
-    WorkspaceController(WorkspaceService service) {
+    WorkspaceController(WorkspaceService service, SignInHints signInHints) {
         this.service = service;
+        this.signInHints = signInHints;
     }
 
     @PostMapping("/v1/workspaces")
     @ResponseStatus(HttpStatus.CREATED)
-    WorkspaceView createWorkspace(@Valid @RequestBody CreateWorkspaceRequest request, CurrentUser user) {
+    WorkspaceView createWorkspace(
+            @Valid @RequestBody CreateWorkspaceRequest request, CurrentUser user, HttpServletRequest httpRequest) {
         UUID id = service.create(user, request.name(), request.zoneOrDefault());
+        // The family name hint only suggested this family's name; the session need not keep it any longer.
+        signInHints.forgetFamilyName(httpRequest);
         return new WorkspaceView(id, request.name(), Role.OWNER);
     }
 

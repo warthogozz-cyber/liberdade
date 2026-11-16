@@ -1,23 +1,29 @@
 package br.com.liberdadefamilia.support;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 
-import br.com.liberdadefamilia.identity.internal.LiberdadeOidcUser;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import br.com.liberdadefamilia.identity.internal.SessionSignInHints;
+import br.com.liberdadefamilia.identity.internal.SessionUser;
+import br.com.liberdadefamilia.identity.internal.SessionUserAuthentication;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
-import org.springframework.security.oauth2.core.oidc.OidcIdToken;
-import org.springframework.security.oauth2.core.oidc.StandardClaimNames;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.web.filter.OncePerRequestFilter;
 
-/** Creates users straight in the database and signs requests in as them, the way a Google login would. */
+/**
+ * Creates users straight in the database and signs requests in as them, with the minimal authentication a real sign-in
+ * leaves in the session.
+ */
 public class TestUsers {
+
+    /** Carries the family name hint from {@link #signedIn} to {@link FamilyNameHintFilter}. */
+    private static final String FAMILY_NAME_HINT = TestUsers.class.getName() + ".familyNameHint";
 
     private final JdbcClient jdbc;
 
@@ -33,16 +39,30 @@ public class TestUsers {
                 .single();
     }
 
+    /** Signs the request in as the user and, when there is a family name, puts it in the session as Google's hint. */
     public static RequestPostProcessor signedIn(UUID userId, @Nullable String familyName) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put(IdTokenClaimNames.SUB, "google-" + userId);
-        if (familyName != null) {
-            claims.put(StandardClaimNames.FAMILY_NAME, familyName);
+        RequestPostProcessor signIn = authentication(new SessionUserAuthentication(new SessionUser(userId)));
+        return request -> {
+            if (familyName != null) {
+                request.setAttribute(FAMILY_NAME_HINT, familyName);
+            }
+            return signIn.postProcessRequest(request);
+        };
+    }
+
+    /**
+     * Puts the hint {@link #signedIn} carries into the session the request ends up with. A post-processor cannot do it
+     * itself: it only sees the mock request's own session, and Spring Session hands the application a JDBC one.
+     */
+    public static class FamilyNameHintFilter extends OncePerRequestFilter {
+
+        @Override
+        protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+                throws ServletException, IOException {
+            if (request.getAttribute(FAMILY_NAME_HINT) instanceof String familyName) {
+                request.getSession().setAttribute(SessionSignInHints.FAMILY_NAME_HINT, familyName);
+            }
+            chain.doFilter(request, response);
         }
-        Instant now = Instant.now();
-        OidcIdToken idToken = new OidcIdToken("test-id-token", now, now.plusSeconds(3600), claims);
-        return oidcLogin()
-                .oidcUser(
-                        new LiberdadeOidcUser(userId, List.of(new SimpleGrantedAuthority("OIDC_USER")), idToken, null));
     }
 }

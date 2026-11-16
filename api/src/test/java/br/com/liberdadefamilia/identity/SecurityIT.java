@@ -120,6 +120,13 @@ class SecurityIT {
     }
 
     @Test
+    void anonymousCookieHasNoMaxAge() {
+        var result = mvc.get().uri("/v1/csrf").exchange();
+
+        assertThat(sessionSetCookie(result)).doesNotContain("Max-Age");
+    }
+
+    @Test
     void postWithoutCsrfIs403() {
         var result = mvc.post().uri("/logout").exchange();
         assertThat(result).hasStatus(403).hasContentType(PROBLEM_JSON);
@@ -137,6 +144,21 @@ class SecurityIT {
                         .with(TestUsers.signedIn(userId, "Teste"))
                         .with(csrf))
                 .hasStatus(204);
+    }
+
+    @Test
+    void logoutExpiresCookie() {
+        UUID userId = users.create("Ana Teste", "ana@example.com");
+        var csrf = CsrfSession.start(mvc, TestUsers.signedIn(userId, null));
+
+        var logout = mvc.post()
+                .uri("/logout")
+                .with(TestUsers.signedIn(userId, null))
+                .with(csrf)
+                .exchange();
+
+        assertThat(logout).hasStatus(204);
+        assertThat(sessionSetCookie(logout)).startsWith(SESSION_COOKIE + "=;").contains("Max-Age=0");
     }
 
     @Test
@@ -195,6 +217,13 @@ class SecurityIT {
                 .param("name", AUTHORIZATION_REQUEST)
                 .query(Long.class)
                 .single();
+    }
+
+    private static String sessionSetCookie(MvcTestResult result) {
+        return result.getResponse().getHeaders(HttpHeaders.SET_COOKIE).stream()
+                .filter(header -> header.startsWith(SESSION_COOKIE + "="))
+                .findFirst()
+                .orElseThrow();
     }
 
     private static String sessionIdOf(MvcTestResult result) {

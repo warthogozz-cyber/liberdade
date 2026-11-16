@@ -12,7 +12,7 @@ import org.testcontainers.utility.DockerImageName;
 
 // The test helpers live here so every IT shares one context (and one container) and can inject them.
 @TestConfiguration(proxyBeanMethods = false)
-@Import({TestUsers.class, TestWorkspaces.class, TestLedger.class})
+@Import({TestUsers.class, TestUsers.FamilyNameHintFilter.class, TestWorkspaces.class, TestLedger.class})
 public class TestcontainersConfiguration {
 
     @Bean

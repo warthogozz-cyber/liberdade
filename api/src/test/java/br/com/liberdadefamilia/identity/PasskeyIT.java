@@ -3,11 +3,15 @@ package br.com.liberdadefamilia.identity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
+import br.com.liberdadefamilia.identity.internal.SessionUser;
+import br.com.liberdadefamilia.identity.internal.SessionUserAuthentication;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.SoftwareAuthenticator;
 import br.com.liberdadefamilia.support.TestUsers;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
+import java.io.ByteArrayInputStream;
+import java.io.ObjectInputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -21,8 +25,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.web.webauthn.api.Bytes;
 import org.springframework.security.web.webauthn.api.ImmutableCredentialRecord;
 import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCose;
@@ -141,34 +147,12 @@ class PasskeyIT {
         assertThat(passkeys.latestCreatedAt(otherId)).isEmpty();
     }
 
-    /**
-     * The whole ceremony, with a software authenticator: register a passkey while signed in with Google, then sign in
-     * with it from a new anonymous session, which must come out under a new id and last as long as a Google one.
-     */
+    /** A passkey sign-in from a new anonymous session must come out under a new id and last as long as a Google one. */
     @Test
     void passkeySignInRotatesTheSessionAndKeepsItFor30Days() {
         UUID userId = users.create("Ana Teste", "ana@example.com");
-        var authenticator = new SoftwareAuthenticator("localhost", WEB_ORIGIN);
-        var google = CsrfSession.start(mvc, TestUsers.signedIn(userId, null));
-        var registration = mvc.post()
-                .uri("/webauthn/register")
-                .with(TestUsers.signedIn(userId, null))
-                .with(google)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(authenticator.register(body(registerOptions(userId, google)), "Celular"))
-                .exchange();
-        assertThat(registration).hasStatusOk();
-
         var anonymous = CsrfSession.start(mvc);
-        var options =
-                mvc.post().uri("/webauthn/authenticate/options").with(anonymous).exchange();
-        assertThat(options).hasStatusOk();
-        var login = mvc.post()
-                .uri("/login/webauthn")
-                .with(anonymous)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(authenticator.authenticate(body(options)))
-                .exchange();
+        var login = signInWithPasskey(userId, anonymous);
 
         assertThat(login).hasStatusOk();
         assertThat(login).bodyJson().isStrictlyEqualTo("{\"redirectUrl\":\"/\",\"authenticated\":true}");
@@ -193,6 +177,38 @@ class PasskeyIT {
         var again = mvc.post().uri("/webauthn/register/options").with(signedIn).exchange();
         assertThat(again).hasStatusOk();
         assertThat(again).bodyJson().extractingPath("$.user.name").isEqualTo("ana@example.com");
+    }
+
+    @Test
+    void passkeySignInStoresMinimalContext() throws Exception {
+        UUID userId = users.create("Ana Teste", "ana@example.com");
+
+        var login = signInWithPasskey(userId, CsrfSession.start(mvc));
+
+        assertThat(login).hasStatusOk();
+        assertThat(login.getResponse().getHeaders(HttpHeaders.SET_COOKIE).stream()
+                        .filter(header -> header.startsWith(CsrfSession.SESSION_COOKIE + "="))
+                        .findFirst()
+                        .orElseThrow())
+                .contains("Max-Age=2592000");
+        Cookie session = login.getResponse().getCookie(CsrfSession.SESSION_COOKIE);
+        assertThat(session).isNotNull();
+        byte[] stored = jdbc.sql("""
+                        select a.attribute_bytes from spring_session_attributes a
+                        join spring_session s on s.primary_id = a.session_primary_id
+                        where s.session_id = :id and a.attribute_name = 'SPRING_SECURITY_CONTEXT'""")
+                .param("id", CsrfSession.sessionIdOf(session))
+                .query(byte[].class)
+                .single();
+        Object context;
+        try (var in = new ObjectInputStream(new ByteArrayInputStream(stored))) {
+            context = in.readObject();
+        }
+        assertThat(context)
+                .isInstanceOfSatisfying(
+                        SecurityContext.class,
+                        restored -> assertThat(restored.getAuthentication())
+                                .isEqualTo(new SessionUserAuthentication(new SessionUser(userId))));
     }
 
     @Test
@@ -245,6 +261,33 @@ class PasskeyIT {
 
         assertThat(result).hasStatus(403).hasContentType(PROBLEM_JSON);
         assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("csrf.invalid");
+    }
+
+    /**
+     * The whole ceremony, with a software authenticator: register a passkey while signed in with Google, then sign in
+     * with it from the given anonymous session. Answers the sign-in's response.
+     */
+    private MvcTestResult signInWithPasskey(UUID userId, CsrfSession anonymous) {
+        var authenticator = new SoftwareAuthenticator("localhost", WEB_ORIGIN);
+        var google = CsrfSession.start(mvc, TestUsers.signedIn(userId, null));
+        var registration = mvc.post()
+                .uri("/webauthn/register")
+                .with(TestUsers.signedIn(userId, null))
+                .with(google)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(authenticator.register(body(registerOptions(userId, google)), "Celular"))
+                .exchange();
+        assertThat(registration).hasStatusOk();
+
+        var options =
+                mvc.post().uri("/webauthn/authenticate/options").with(anonymous).exchange();
+        assertThat(options).hasStatusOk();
+        return mvc.post()
+                .uri("/login/webauthn")
+                .with(anonymous)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(authenticator.authenticate(body(options)))
+                .exchange();
     }
 
     private MvcTestResult registerOptions(UUID userId, CsrfSession csrf) {

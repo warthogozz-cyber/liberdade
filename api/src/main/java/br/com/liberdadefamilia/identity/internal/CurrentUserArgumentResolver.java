@@ -2,6 +2,8 @@ package br.com.liberdadefamilia.identity.internal;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
 import br.com.liberdadefamilia.identity.internal.UserAccounts.UserRecord;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
@@ -11,13 +13,12 @@ import org.springframework.security.authentication.AuthenticationTrustResolverIm
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
-/** Resolves {@link CurrentUser} parameters from the session's authentication and the database. */
+/** Resolves {@link CurrentUser} parameters from the session (the user id and the sign-in hint) and the database. */
 class CurrentUserArgumentResolver implements HandlerMethodArgumentResolver {
 
     private final AuthenticationTrustResolver trust = new AuthenticationTrustResolverImpl();
@@ -44,9 +45,15 @@ class CurrentUserArgumentResolver implements HandlerMethodArgumentResolver {
         }
         UserRecord user = accounts.findActive(userIdOf(authentication))
                 .orElseThrow(() -> new InsufficientAuthenticationException("User is gone or asked for deletion"));
-        String familyNameHint =
-                authentication.getPrincipal() instanceof OidcUser oidcUser ? oidcUser.getFamilyName() : null;
-        return new CurrentUser(user.id(), user.displayName(), familyNameHint);
+        return new CurrentUser(user.id(), user.displayName(), familyNameHintOf(webRequest));
+    }
+
+    private static @Nullable String familyNameHintOf(NativeWebRequest webRequest) {
+        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
+        HttpSession session = request == null ? null : request.getSession(false);
+        return session != null && session.getAttribute(SessionSignInHints.FAMILY_NAME_HINT) instanceof String hint
+                ? hint
+                : null;
     }
 
     private static UUID userIdOf(Authentication authentication) {
