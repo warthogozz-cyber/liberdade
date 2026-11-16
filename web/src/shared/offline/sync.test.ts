@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { ApiError, postTransaction, type TransactionView } from '@/shared/api'
 import {
@@ -353,6 +353,72 @@ describe('syncOutbox', () => {
     expect(mockState.transactions[0]).toMatchObject({ id, amount: { amount: '12.34' } })
     expect(onSent).toHaveBeenCalledWith(queued, mockState.transactions[0])
     expect(await db.outbox.count()).toBe(0)
+  })
+  it('lets postTransaction give up when its signal aborts, sending nothing', async () => {
+    const workspace = seedMockFamily()
+    const request = payload('0192f3a4-1111-7000-8000-000000000002', {
+      accountId: mockState.accounts[0].id,
+      categoryId: mockState.categories[0].id,
+    })
+
+    await expect(postTransaction(workspace.id, request, AbortSignal.abort())).rejects.toMatchObject(
+      { name: 'AbortError' },
+    )
+
+    expect(mockState.transactions).toHaveLength(0)
+  })
+
+  describe('without AbortSignal.any (iOS before 17.4)', () => {
+    let any: PropertyDescriptor | undefined
+
+    beforeEach(() => {
+      any = Object.getOwnPropertyDescriptor(AbortSignal, 'any')
+      Reflect.deleteProperty(AbortSignal, 'any')
+    })
+
+    afterEach(() => {
+      if (any) Object.defineProperty(AbortSignal, 'any', any)
+    })
+
+    it('still sends', async () => {
+      await db.outbox.add(item('t1'))
+      const deps = syncDeps()
+
+      expect(await syncOutbox({ ...deps, signal: new AbortController().signal })).toEqual({
+        status: 'done',
+      })
+
+      expect(sentIds(deps.send)).toEqual(['t1'])
+      expect(await db.outbox.count()).toBe(0)
+    })
+
+    it('still aborts the send in flight when the sync stops', async () => {
+      await db.outbox.add(item('t1'))
+      const controller = new AbortController()
+      const send = vi.fn<SyncDeps['send']>((_, signal) => stalled(signal))
+      const syncing = syncOutbox(syncDeps({ send, signal: controller.signal }))
+
+      await until(() => send.mock.calls.length === 1)
+      controller.abort()
+
+      expect(await syncing).toEqual({ status: 'done' })
+      expect(send.mock.calls[0][1].aborted).toBe(true)
+    })
+
+    it('still aborts the send in flight when it times out', async () => {
+      await db.outbox.add(item('t1'))
+      const timer = new AbortController()
+      vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timer.signal)
+      const send = vi.fn<SyncDeps['send']>((_, signal) => stalled(signal))
+      const syncing = syncOutbox(syncDeps({ send, signal: new AbortController().signal }))
+
+      await until(() => send.mock.calls.length === 1)
+      timer.abort(new DOMException('The operation timed out.', 'TimeoutError'))
+
+      expect(await syncing).toMatchObject({ status: 'waiting' })
+      expect(send.mock.calls[0][1].reason).toMatchObject({ name: 'TimeoutError' })
+      expect(await db.outbox.get('t1')).toMatchObject({ status: 'pending', attempts: 1 })
+    })
   })
 })
 

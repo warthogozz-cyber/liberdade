@@ -75,6 +75,23 @@ function untilAborted(signal: AbortSignal): Promise<never> {
 }
 
 /**
+ * `AbortSignal.any`, or the same built by hand where it is missing: iOS before 17.4, which the PRD
+ * supports (iOS 16.4+). It aborts with the reason of the first signal that aborts.
+ */
+function anySignal(signals: AbortSignal[]): AbortSignal {
+  if ('any' in AbortSignal) return AbortSignal.any(signals)
+  const controller = new AbortController()
+  for (const source of signals) {
+    if (source.aborted) {
+      controller.abort(source.reason)
+      break
+    }
+    source.addEventListener('abort', () => controller.abort(source.reason), { once: true })
+  }
+  return controller.signal
+}
+
+/**
  * Sends the first of the user's pending items, if it is due. Returns the result that stops the run,
  * or `undefined` to go on with the next item. The caller holds the lock.
  *
@@ -98,7 +115,7 @@ async function sendFirst({
   // Looked at again here, since the sync may have been stopped while the item was read.
   if (signal?.aborted) return { status: 'done' }
   const timeout = AbortSignal.timeout(SEND_TIMEOUT_MS)
-  const sendSignal = signal ? AbortSignal.any([signal, timeout]) : timeout
+  const sendSignal = signal ? anySignal([signal, timeout]) : timeout
   let view: TransactionView
   try {
     view = await Promise.race([send(item, sendSignal), untilAborted(timeout)])
