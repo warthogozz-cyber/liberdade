@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { Navigate, Outlet, useNavigate } from 'react-router'
+import { PendingGate } from '@/app/PendingGate'
 import { ApiError, postTransaction, queryKeys, useMe, type MeView } from '@/shared/api'
 import {
   applySentTransaction,
@@ -60,7 +61,7 @@ export function SessionLayout() {
     return <Navigate to="/entrar" replace />
   }
   // Offline with a cached `me`, the screens open with the cache.
-  if (me.data) return <Outlet />
+  if (me.data) return me.data.user.deletionScheduledFor ? <PendingGate /> : <Outlet />
   if (me.isError) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">

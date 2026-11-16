@@ -45,6 +45,22 @@ describe('MorePage', () => {
     expect(screen.getByRole('link', { name: 'Categorias' })).toBeInTheDocument()
   })
 
+  it.each(['OWNER', 'ADULT', 'VIEWER', 'YOUTH'] as const)(
+    'linksToModulesAndPrivacyFor%s',
+    async (role) => {
+      const workspace = seedMockFamily()
+      workspace.role = role
+      renderWithProviders(<MorePage />, { path: '/mais' })
+
+      expect(await screen.findByText(workspace.name)).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Módulos' })).toHaveAttribute('href', '/mais/modulos')
+      expect(screen.getByRole('link', { name: 'Privacidade' })).toHaveAttribute(
+        'href',
+        '/mais/privacidade',
+      )
+    },
+  )
+
   it('switcherWithTwoFamilies', async () => {
     seedMockFamily()
     const other = createFamily('Família Bia Teste', 'America/Fortaleza')

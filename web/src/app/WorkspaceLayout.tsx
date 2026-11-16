@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Navigate, Outlet } from 'react-router'
+import { PendingGate } from '@/app/PendingGate'
 import { prefetchWorkspace, useCurrentWorkspace } from '@/shared/api'
 import { currentMonth } from '@/shared/i18n'
 import { saveQueryCacheNow } from '@/shared/offline'
@@ -22,5 +23,7 @@ export function WorkspaceLayout() {
   }, [queryClient, workspaceId, timezone])
 
   if (!workspace) return <Navigate to="/boas-vindas" replace />
+  // Every route of the family gives way to the card while its deletion is pending.
+  if (workspace.deletionScheduledFor) return <PendingGate workspace={workspace} />
   return <Outlet />
 }

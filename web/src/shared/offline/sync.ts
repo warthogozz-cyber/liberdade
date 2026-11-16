@@ -40,7 +40,8 @@ function isTransient(error: ApiError): boolean {
     error.status === 408 ||
     error.status === 429 ||
     error.status >= 500 ||
-    (error.status === 403 && error.code === 'csrf.invalid')
+    // A stale token, or an account waiting to be deleted: the item stays queued either way.
+    (error.status === 403 && /^(csrf\.invalid|account\.deletion-pending)$/.test(error.code))
   )
 }
 

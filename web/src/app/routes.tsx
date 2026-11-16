@@ -83,6 +83,21 @@ export const routes: RouteObject[] = [
                   })),
               },
               {
+                path: '/mais/modulos',
+                lazy: () =>
+                  import('@/features/modules/ModulesPage').then((m) => ({
+                    Component: m.ModulesPage,
+                  })),
+              },
+              {
+                // The privacy centre and its activity page share one lazy chunk and route.
+                path: '/mais/privacidade/*',
+                lazy: () =>
+                  import('@/features/privacy/PrivacyRoutes').then((m) => ({
+                    Component: m.PrivacyRoutes,
+                  })),
+              },
+              {
                 path: '/mais/categorias',
                 lazy: () =>
                   import('@/features/categories/CategoriesPage').then((m) => ({
