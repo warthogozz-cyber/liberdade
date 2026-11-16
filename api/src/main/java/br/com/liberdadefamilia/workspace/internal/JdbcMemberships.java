@@ -75,6 +75,18 @@ class JdbcMemberships implements Memberships {
     }
 
     @Override
+    public List<MemberSummary> membersOf(Collection<UUID> workspaceIds, Collection<UUID> userIds) {
+        if (workspaceIds.isEmpty() || userIds.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.sql(SELECT + " where workspace_id in (:workspaceIds) and user_id in (:userIds)")
+                .param("workspaceIds", workspaceIds)
+                .param("userIds", userIds)
+                .query((rs, row) -> summary(rs))
+                .list();
+    }
+
+    @Override
     public Map<UUID, String> workspaceNames(Collection<UUID> workspaceIds) {
         if (workspaceIds.isEmpty()) {
             return Map.of();

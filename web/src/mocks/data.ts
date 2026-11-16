@@ -36,6 +36,8 @@ export interface MockState {
   invitations: MockInvitation[]
   /** The modules each family switched on, by workspace id. A module with no entry is off. */
   modules: Record<string, Partial<Record<Schemas['ModuleView']['key'], boolean>>>
+  /** The signed-in person's own history, newest first (LGPD audit trail). */
+  activity: Schemas['ActivityItem'][]
 }
 
 // The seed of LedgerSeeder.java: same emojis, names and order.
@@ -64,6 +66,42 @@ const INCOME_CATEGORIES: [icon: string, name: string][] = [
   ['📦', 'Outros'],
 ]
 
+const MOCK_WORKSPACE_ID = '0192f3a4-0000-7000-8000-0000000000a1'
+
+/** A few realistic lines: what Ana did, and what was done to her account. */
+function initialActivity(): Schemas['ActivityItem'][] {
+  const hoursAgo = (hours: number) => new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
+  return [
+    {
+      id: '0192f3a4-0000-7000-8000-0000000000c3',
+      action: 'auth.signed_in',
+      occurredAt: hoursAgo(1),
+      workspaceId: null,
+      actorName: 'Ana Teste',
+      byMe: true,
+      metadata: { method: 'PASSKEY', browser: 'Chrome', os: 'Android' },
+    },
+    {
+      id: '0192f3a4-0000-7000-8000-0000000000c2',
+      action: 'member.role_changed',
+      occurredAt: hoursAgo(30),
+      workspaceId: MOCK_WORKSPACE_ID,
+      actorName: 'Bia',
+      byMe: false,
+      metadata: { from: 'VIEWER', to: 'ADULT' },
+    },
+    {
+      id: '0192f3a4-0000-7000-8000-0000000000c1',
+      action: 'invitation.created',
+      occurredAt: hoursAgo(72),
+      workspaceId: MOCK_WORKSPACE_ID,
+      actorName: 'Ana Teste',
+      byMe: true,
+      metadata: { role: 'ADULT' },
+    },
+  ]
+}
+
 function initialState(): MockState {
   return {
     signedIn: true,
@@ -81,6 +119,7 @@ function initialState(): MockState {
     members: {},
     invitations: [],
     modules: {},
+    activity: initialActivity(),
   }
 }
 

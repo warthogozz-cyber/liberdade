@@ -626,6 +626,11 @@ export const handlers = [
     })
   }),
 
+  http.get(url('/v1/me/activity'), () => {
+    if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
+    return HttpResponse.json(mockState.activity)
+  }),
+
   http.patch(url('/v1/workspaces/:ws'), async ({ request, params }) => {
     if (withoutToken(request)) {
       return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')

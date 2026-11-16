@@ -21,6 +21,9 @@ public interface Memberships {
     /** Every membership of the person, active and removed. */
     List<MemberSummary> membershipsOf(UUID userId);
 
+    /** The memberships of these people in these families, active or removed, in one query. */
+    List<MemberSummary> membersOf(Collection<UUID> workspaceIds, Collection<UUID> userIds);
+
     /** The names of the families, in one query. A family that does not exist is left out. */
     Map<UUID, String> workspaceNames(Collection<UUID> workspaceIds);
 

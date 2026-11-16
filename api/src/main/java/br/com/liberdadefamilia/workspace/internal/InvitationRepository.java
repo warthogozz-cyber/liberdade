@@ -203,6 +203,15 @@ class InvitationRepository {
                 rs.getObject("created_by", UUID.class));
     }
 
+    /** Removes the invitations whose last event (used, revoked or expiry) came before the instant. */
+    int purgeEndedBefore(Instant cutoff) {
+        return jdbc.sql("""
+                        delete from invitations
+                        where coalesce(used_at, revoked_at, expires_at) < :cutoff""")
+                .param("cutoff", OffsetDateTime.ofInstant(cutoff, ZoneOffset.UTC))
+                .update();
+    }
+
     record InvitationRow(
             UUID id,
             UUID workspaceId,

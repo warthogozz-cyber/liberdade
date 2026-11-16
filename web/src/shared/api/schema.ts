@@ -68,6 +68,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMyActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/getting-started/dismiss": {
         parameters: {
             query?: never;
@@ -466,6 +482,20 @@ export interface components {
             /** @enum {string} */
             type: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT";
         };
+        ActivityItem: {
+            action: string;
+            actorName: string | null;
+            byMe: boolean;
+            /** Format: uuid */
+            id: string;
+            metadata: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: uuid */
+            workspaceId: string | null;
+        };
         CategoryView: {
             /** Format: date-time */
             archivedAt: string | null;
@@ -801,6 +831,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeView"];
+                };
+            };
+        };
+    };
+    listMyActivity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityItem"][];
                 };
             };
         };
