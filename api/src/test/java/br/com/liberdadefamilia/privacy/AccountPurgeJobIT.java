@@ -225,6 +225,8 @@ class AccountPurgeJobIT {
                 .isEqualTo(1);
         assertThat(count("select count(*) from memberships where id = :id and user_id is not null", failing.membership))
                 .isEqualTo(1);
+        assertThat(count("select count(*) from memberships where id = :id and status <> 'REMOVED'", failing.membership))
+                .isEqualTo(1);
         assertThat(count("select count(*) from users where id = :id", fine.bia)).isZero();
     }
 
