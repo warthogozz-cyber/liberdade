@@ -529,10 +529,15 @@ describe('NewTransactionPage', () => {
 
     press('8', '7', '9', '0')
     fireEvent.click(screen.getByRole('radio', { name: '🛒 Mercado' }))
+    const sheet = openContext()
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Ontem' }))
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('tab', { name: 'Receita' }))
 
     await screen.findByRole('radio', { name: '💼 Salário' })
     expect(amount()).toHaveTextContent('R$ 87,90')
+    expect(screen.getByRole('button', { name: 'Ontem · Carteira · Eu' })).toBeInTheDocument()
     expect(
       screen.getAllByRole('radio').filter((radio) => (radio as HTMLInputElement).checked),
     ).toHaveLength(0)
@@ -540,6 +545,40 @@ describe('NewTransactionPage', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Gasto' }))
     expect(await screen.findByRole('radio', { name: '🛒 Mercado' })).not.toBeChecked()
+  })
+
+  it('titleFollowsKind', async () => {
+    seedMockFamily()
+    await openForm()
+    const heading = () => screen.getByRole('heading', { level: 1 })
+
+    expect(heading()).toHaveTextContent('Novo gasto')
+    expect(document.title).toContain('Novo gasto')
+    fireEvent.click(screen.getByRole('tab', { name: 'Receita' }))
+    expect(heading()).toHaveTextContent('Nova receita')
+    expect(document.title).toContain('Nova receita')
+    fireEvent.click(screen.getByRole('tab', { name: 'Transferência' }))
+    expect(heading()).toHaveTextContent('Nova transferência')
+    expect(document.title).toContain('Nova transferência')
+  })
+
+  it('memberLineOnlyOnExpense', async () => {
+    const workspace = seedMockFamily()
+    addAccount(workspace, 'Banco')
+    await openForm()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Receita' }))
+    await screen.findByRole('radio', { name: '💼 Salário' })
+    const income = openContext()
+    expect(within(income).queryByText('Quem gastou: Eu')).not.toBeInTheDocument()
+    fireEvent.click(within(income).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Transferência' }))
+    await screen.findByRole('group', { name: 'Para' })
+    fireEvent.click(screen.getByRole('button', { name: /· Eu$/ }))
+    const transfer = screen.getByRole('dialog', { name: 'Data' })
+    expect(within(transfer).queryByText('Quem gastou: Eu')).not.toBeInTheDocument()
   })
 
   it('datePickerBounds', async () => {

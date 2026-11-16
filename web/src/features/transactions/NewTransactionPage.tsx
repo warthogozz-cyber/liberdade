@@ -63,6 +63,12 @@ const SAVED_MESSAGE = {
   TRANSFER: 'transaction.saved.transfer',
 } as const satisfies Record<TransactionKind, string>
 
+const TITLE = {
+  EXPENSE: 'transaction.title.expense',
+  INCOME: 'transaction.title.income',
+  TRANSFER: 'transaction.title.transfer',
+} as const satisfies Record<TransactionKind, string>
+
 const UNDO_MESSAGE = {
   undone: 'transaction.undone',
   offline: 'transaction.undoOffline',
@@ -75,9 +81,6 @@ const UNDO_MESSAGE = {
  * `?corrigir=<id>`, it fixes a refused one.
  */
 export function NewTransactionPage() {
-  const intl = useIntl()
-  const title = intl.formatMessage({ id: 'nav.newExpense' })
-  useDocumentTitle(title)
   const userId = useMe().data?.user.id
   const workspace = useCurrentWorkspace()
   const [params] = useSearchParams()
@@ -86,34 +89,47 @@ export function NewTransactionPage() {
   const fixing = outbox?.find((item) => item.id === fixId && item.status === 'needs-attention')
   // A fix waits for the queue, so the form opens filled in rather than filling in later.
   const ready = userId !== undefined && workspace && (fixId === null || outbox !== undefined)
+  const initialKind = KIND_PARAMS[params.get('tipo') ?? ''] ?? 'EXPENSE'
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-4 p-4">
-      <header className="flex items-center gap-2">
-        <Link
-          to="/inicio"
-          aria-label={intl.formatMessage({ id: 'expense.back' })}
-          className="flex size-12 items-center justify-center rounded-field text-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        >
-          <span aria-hidden="true">←</span>
-        </Link>
-        <h1 className="text-xl font-semibold">{title}</h1>
-      </header>
       {ready ? (
         <TransactionForm
           key={fixing?.id ?? 'new'}
           userId={userId}
           workspace={workspace}
           fixing={fixing}
-          initialKind={KIND_PARAMS[params.get('tipo') ?? ''] ?? 'EXPENSE'}
+          initialKind={initialKind}
           initialToAccountId={params.get('para')}
         />
       ) : (
-        <p>
-          <FormattedMessage id="common.loading" />
-        </p>
+        <>
+          <PageHeader kind={initialKind} />
+          <p>
+            <FormattedMessage id="common.loading" />
+          </p>
+        </>
       )}
     </main>
+  )
+}
+
+/** The way back and the title, which names the kind being recorded (Ruling R17). */
+function PageHeader({ kind }: { kind: TransactionKind }) {
+  const intl = useIntl()
+  const title = intl.formatMessage({ id: TITLE[kind] })
+  useDocumentTitle(title)
+  return (
+    <header className="flex items-center gap-2">
+      <Link
+        to="/inicio"
+        aria-label={intl.formatMessage({ id: 'expense.back' })}
+        className="flex size-12 items-center justify-center rounded-field text-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <span aria-hidden="true">←</span>
+      </Link>
+      <h1 className="text-xl font-semibold">{title}</h1>
+    </header>
   )
 }
 
@@ -288,6 +304,7 @@ function TransactionForm({
 
   return (
     <div className="flex flex-1 flex-col gap-4">
+      <PageHeader kind={kind} />
       <KindTabs value={kind} onChange={changeKind} panelId={panelId} />
       <div
         role="tabpanel"
@@ -386,6 +403,7 @@ function TransactionForm({
                 transfer
                   ? undefined
                   : {
+                      member: kind === 'EXPENSE',
                       accounts: activeAccounts,
                       accountId: account?.id,
                       onAccountChange: setChosenAccountId,

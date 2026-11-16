@@ -17,6 +17,8 @@ interface ContextSheetProps {
   max: string
   /** The account to choose; left out for a transfer, which picks its two accounts on the form. */
   account?: {
+    /** Whether "Quem gastou" shows: only an expense has someone who spent it (Ruling R17). */
+    member: boolean
     accounts: AccountView[]
     accountId: string | undefined
     onAccountChange: (accountId: string) => void
@@ -115,9 +117,11 @@ export function ContextSheet({
                 </label>
               ))}
             </fieldset>
-            <p className="text-text-muted">
-              <FormattedMessage id="expense.member" />
-            </p>
+            {account.member && (
+              <p className="text-text-muted">
+                <FormattedMessage id="expense.member" />
+              </p>
+            )}
           </>
         )}
       </div>

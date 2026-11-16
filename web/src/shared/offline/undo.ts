@@ -24,6 +24,7 @@ export async function undoRecorded({
   remove: (workspaceId: string, id: string) => Promise<void>
 }): Promise<UndoResult> {
   if (await cancelOutboxItem(id)) return 'undone'
+  // Safe outside the lock: this path changes nothing in the queue, so there is no send to race.
   if (!online) return 'offline'
 
   const discarded = await withOutboxLock({}, () => discardOutboxItem(id, { lockHeld: true }))
