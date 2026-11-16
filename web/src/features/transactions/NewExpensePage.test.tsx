@@ -310,7 +310,7 @@ describe('NewExpensePage', () => {
     fireEvent.click(await within(toastRegion()).findByRole('button', { name: 'Desfazer' }))
 
     expect(
-      await within(toastRegion()).findByText('Não deu para carregar. Tente de novo.'),
+      await within(toastRegion()).findByText('Não deu certo. Tente de novo.'),
     ).toBeInTheDocument()
     expect(consoleError).toHaveBeenCalled()
   })

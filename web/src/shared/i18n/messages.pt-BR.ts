@@ -6,6 +6,7 @@ export const messages = {
   'common.loading': 'Carregando…',
   'common.error': 'Não deu para carregar. Tente de novo.',
   'common.retry': 'Tentar de novo',
+  'common.actionFailed': 'Não deu certo. Tente de novo.',
   'signIn.pageTitle': 'Entrar',
   'signIn.tagline': 'As finanças da sua família, simples e em paz.',
   'signIn.google': 'Entrar com Google',

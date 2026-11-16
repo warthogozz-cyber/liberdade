@@ -103,7 +103,7 @@ export function TransactionRow({
               setStep('closed')
               discardOutboxItem(item.id).catch((error: unknown) => {
                 console.error(error)
-                toast.show({ message: intl.formatMessage({ id: 'common.error' }) })
+                toast.show({ message: intl.formatMessage({ id: 'common.actionFailed' }) })
               })
             }}
             onCancel={() => setStep('closed')}

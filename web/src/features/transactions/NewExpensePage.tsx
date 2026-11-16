@@ -139,7 +139,7 @@ function ExpenseForm({ userId, workspace, fixing }: ExpenseFormProps) {
 
   function undoFailed(error: unknown) {
     console.error(error)
-    toast.show({ message: intl.formatMessage({ id: 'common.error' }) })
+    toast.show({ message: intl.formatMessage({ id: 'common.actionFailed' }) })
   }
 
   async function save() {

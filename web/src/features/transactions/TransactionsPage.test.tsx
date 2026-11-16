@@ -199,7 +199,7 @@ describe('TransactionsPage', () => {
 
     expect(
       await within(screen.getByRole('region', { name: 'Notificações' })).findByText(
-        'Não deu para carregar. Tente de novo.',
+        'Não deu certo. Tente de novo.',
       ),
     ).toBeInTheDocument()
     expect(consoleError).toHaveBeenCalled()
