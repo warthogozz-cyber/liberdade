@@ -180,6 +180,27 @@
         ]
       }
     },
+    "/v1/me/export": {
+      "post": {
+        "operationId": "exportMyData",
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "description": "A zip with the person's data."
+          }
+        },
+        "tags": [
+          "export-controller"
+        ]
+      }
+    },
     "/v1/me/getting-started/dismiss": {
       "post": {
         "operationId": "dismiss",
@@ -794,6 +815,39 @@
         },
         "tags": [
           "dashboard-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/export": {
+      "post": {
+        "operationId": "exportFamilyData",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "description": "A zip with the family's data."
+          }
+        },
+        "tags": [
+          "export-controller"
         ]
       }
     },

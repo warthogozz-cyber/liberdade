@@ -50,17 +50,23 @@ class AuditRepository {
                 .update();
     }
 
-    /** What the person did, what was done to them and what was done to their memberships, since the instant. */
-    List<Row> activityOf(UUID userId, Collection<UUID> membershipIds, OffsetDateTime since, int limit) {
+    /**
+     * What the person did, what was done to them and what was done to their memberships, since the instant. Every
+     * row when {@code limit} is null.
+     */
+    List<Row> activityOf(UUID userId, Collection<UUID> membershipIds, OffsetDateTime since, @Nullable Integer limit) {
         String viaMembership =
                 membershipIds.isEmpty() ? "" : " or (target_type = 'MEMBERSHIP' and target_id in (:membershipIds))";
         String sql = """
                 select id, action, occurred_at, workspace_id, actor_user_id, metadata::text as metadata
                 from audit_events
                 where occurred_at >= :since
-                  and (actor_user_id = :userId or (target_type = 'USER' and target_id = :userId)""" + viaMembership + ")\n order by occurred_at desc, id desc\n limit :limit";
-        JdbcClient.StatementSpec statement =
-                jdbc.sql(sql).param("since", since).param("userId", userId).param("limit", limit);
+                  and (actor_user_id = :userId or (target_type = 'USER' and target_id = :userId)""" + viaMembership + ")\n order by occurred_at desc, id desc"
+                + (limit == null ? "" : "\n limit :limit");
+        JdbcClient.StatementSpec statement = jdbc.sql(sql).param("since", since).param("userId", userId);
+        if (limit != null) {
+            statement = statement.param("limit", limit);
+        }
         if (!membershipIds.isEmpty()) {
             statement = statement.param("membershipIds", membershipIds);
         }

@@ -118,7 +118,8 @@ class RoleMatrixIT {
                         memberRows(),
                         invitationRows(),
                         workspaceRows(),
-                        moduleRows())
+                        moduleRows(),
+                        exportRows())
                 .flatMap(group -> group);
     }
 
@@ -353,6 +354,10 @@ class RoleMatrixIT {
                                 Outcome.OK),
                         ownerAndAdult("PUT " + W + "/modules/{key}", W + "/modules/planning", "{\"enabled\":true}"))
                 .flatMap(group -> group);
+    }
+
+    static Stream<Row> exportRows() {
+        return ownerOnly("POST " + W + "/export", W + "/export", null);
     }
 
     // --- row builders ---

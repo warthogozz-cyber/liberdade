@@ -108,6 +108,21 @@ const rejected = (code: string, detail: string) => problem(422, code, detail)
 const url = (path: string) => `${API_URL}${path}`
 
 /** The API answers 403 `csrf.invalid` to any write without the token. */
+// An empty but valid zip: just the end-of-central-directory record.
+const EMPTY_ZIP = new Uint8Array([0x50, 0x4b, 0x05, 0x06, ...new Array<number>(18).fill(0)])
+
+function zipResponse(prefix: string) {
+  const day = new Date().toISOString().slice(0, 10)
+  return new HttpResponse(EMPTY_ZIP, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="${prefix}-${day}.zip"`,
+      'Cache-Control': 'no-store',
+    },
+  })
+}
+
 function withoutToken(request: Request) {
   return request.headers.get(CSRF.headerName) !== CSRF.token
 }
@@ -629,6 +644,20 @@ export const handlers = [
   http.get(url('/v1/me/activity'), () => {
     if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
     return HttpResponse.json(mockState.activity)
+  }),
+
+  http.post(url('/v1/me/export'), ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    if (!mockState.signedIn) return authRequired()
+    return zipResponse('liberdade-meus-dados')
+  }),
+
+  http.post<{ ws: string }>(url('/v1/workspaces/:ws/export'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER') return roleDenied()
+    return zipResponse('liberdade-familia')
   }),
 
   http.get(url('/v1/me/consents'), () => {

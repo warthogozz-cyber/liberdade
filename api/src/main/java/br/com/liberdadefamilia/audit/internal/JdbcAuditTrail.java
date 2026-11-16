@@ -49,13 +49,22 @@ class JdbcAuditTrail implements AuditTrail {
         if (limit <= 0) {
             return List.of();
         }
+        return history(userId, Math.min(limit, MAX_ITEMS));
+    }
+
+    @Override
+    public List<ActivityItem> allActivityOf(UUID userId) {
+        return history(userId, null);
+    }
+
+    /** The last {@value #KEEP_MONTHS} months, newest first; every item when {@code limit} is null. */
+    private List<ActivityItem> history(UUID userId, @Nullable Integer limit) {
         List<UUID> membershipIds = memberships.membershipsOf(userId).stream()
                 .map(MemberSummary::membershipId)
                 .toList();
         OffsetDateTime since =
                 OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC).minusMonths(KEEP_MONTHS);
-        List<AuditRepository.Row> rows =
-                repository.activityOf(userId, membershipIds, since, Math.min(limit, MAX_ITEMS));
+        List<AuditRepository.Row> rows = repository.activityOf(userId, membershipIds, since, limit);
         Map<Key, String> names = actorNames(rows);
         return rows.stream()
                 .map(row -> new ActivityItem(

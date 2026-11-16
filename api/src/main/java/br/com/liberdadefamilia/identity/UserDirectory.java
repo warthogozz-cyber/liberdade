@@ -12,4 +12,7 @@ public interface UserDirectory {
 
     /** Creates a person with no email and no sign-in method yet: they add a passkey right after. */
     UUID createPasskeyOnlyUser(String displayName);
+
+    /** The person's own record, email included, for their data export. Fails when there is no such person. */
+    UserProfile profileOf(UUID userId);
 }

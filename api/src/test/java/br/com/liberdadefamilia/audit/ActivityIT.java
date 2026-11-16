@@ -229,6 +229,18 @@ class ActivityIT {
     }
 
     @Test
+    void allActivityIsNotLimited() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        Instant base = Instant.now().minus(30, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MICROS);
+        for (int i = 0; i < 120; i++) {
+            record(null, ana, "auth.signed_in", "USER", ana, base.plusSeconds(i * 60L));
+        }
+
+        assertThat(trail.allActivityOf(ana)).hasSize(120);
+        assertThat(trail.allActivityOf(ana).getFirst().occurredAt()).isEqualTo(base.plusSeconds(119 * 60L));
+    }
+
+    @Test
     void onlyTheLast12Months() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         Instant now = Instant.now();

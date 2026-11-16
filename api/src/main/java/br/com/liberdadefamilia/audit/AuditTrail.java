@@ -14,4 +14,7 @@ public interface AuditTrail {
      * was done to any of their memberships, active or not. At most 100 items, whatever {@code limit} says.
      */
     List<ActivityItem> activityOf(UUID userId, int limit);
+
+    /** The same history as {@link #activityOf}, with no cap on the number of items: for the person's data export. */
+    List<ActivityItem> allActivityOf(UUID userId);
 }
