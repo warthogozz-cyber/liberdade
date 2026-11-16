@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.identity.internal;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.Optional;
@@ -44,11 +45,22 @@ public class UserAccounts {
         }
     }
 
-    /** The user, unless they do not exist or asked for their account to be deleted. */
+    /**
+     * The user, unless they do not exist. Someone who asked for their account to be deleted is still found, with the
+     * instant of the request: they may sign in during the grace, and {@link PendingDeletionFilter} decides what they
+     * reach.
+     */
     public Optional<UserRecord> findActive(UUID id) {
-        return jdbc.sql("select id, display_name, email from users where id = :id and deletion_requested_at is null")
+        return jdbc.sql("select id, display_name, email, deletion_requested_at from users where id = :id")
                 .param("id", id)
-                .query(UserRecord.class)
+                .query((rs, row) -> {
+                    OffsetDateTime requested = rs.getObject("deletion_requested_at", OffsetDateTime.class);
+                    return new UserRecord(
+                            rs.getObject("id", UUID.class),
+                            rs.getString("display_name"),
+                            rs.getString("email"),
+                            requested == null ? null : requested.toInstant());
+                })
                 .optional();
     }
 
@@ -97,5 +109,8 @@ public class UserAccounts {
     }
 
     public record UserRecord(
-            UUID id, String displayName, @Nullable String email) {}
+            UUID id,
+            String displayName,
+            @Nullable String email,
+            @Nullable Instant deletionRequestedAt) {}
 }

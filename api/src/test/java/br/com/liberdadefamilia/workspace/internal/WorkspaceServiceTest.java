@@ -21,7 +21,7 @@ class WorkspaceServiceTest {
     private final WorkspaceRepository workspaces = mock(WorkspaceRepository.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private final WorkspaceService service = new WorkspaceService(workspaces, events);
-    private final CurrentUser user = new CurrentUser(UUID.randomUUID(), "Ana Teste", null);
+    private final CurrentUser user = new CurrentUser(UUID.randomUUID(), "Ana Teste", null, null);
 
     @Test
     void locksBeforeOwnerCheck() {

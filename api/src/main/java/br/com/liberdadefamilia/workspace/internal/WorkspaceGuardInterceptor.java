@@ -26,8 +26,8 @@ import org.springframework.web.servlet.HandlerMapping;
  * <ol>
  *   <li>a handler without {@link WorkspaceScoped}: 403;
  *   <li>a {@code {ws}} that is not a UUID: 404;
- *   <li>no ACTIVE membership in that family, or a family that asked for deletion: 404, so nobody learns whether it
- *       exists;
+ *   <li>no ACTIVE membership in that family, or a family that asked for deletion (unless the route sets
+ *       {@code includePendingDeletion} and the caller is an Owner): 404, so nobody learns whether it exists;
  *   <li>a role that {@code allow} does not list: 403;
  *   <li>a handler marked {@link RequiresModule} whose module the family has off: 403 {@code module.disabled}. It
  *       comes after the role check, so a role that may not use the route never learns whether the module is on.
@@ -58,7 +58,7 @@ class WorkspaceGuardInterceptor implements HandlerInterceptor {
             throw new AccessDeniedException("Family route without @WorkspaceScoped");
         }
         WorkspaceMember member = workspaces
-                .activeMember(workspaceIdOf(request), currentUserId())
+                .activeMember(workspaceIdOf(request), currentUserId(), scope.includePendingDeletion())
                 .orElseThrow(WorkspaceNotFoundException::new);
         if (!Arrays.asList(scope.allow()).contains(member.role())) {
             throw new AccessDeniedException("Role not allowed on this route");

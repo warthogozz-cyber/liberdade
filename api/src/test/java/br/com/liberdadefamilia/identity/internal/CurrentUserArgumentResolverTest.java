@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
 import br.com.liberdadefamilia.identity.internal.UserAccounts.UserRecord;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -95,7 +96,7 @@ class CurrentUserArgumentResolverTest {
     }
 
     @Test
-    void userWhoAskedForDeletionFails() {
+    void userWhoIsGoneFails() {
         when(accounts.findActive(USER_ID)).thenReturn(Optional.empty());
         signIn(sessionUser(USER_ID));
 
@@ -103,30 +104,40 @@ class CurrentUserArgumentResolverTest {
     }
 
     @Test
+    void userWhoAskedForDeletionIsResolvedWithTheDate() throws Exception {
+        Instant requested = Instant.parse("2026-11-01T12:00:00Z");
+        when(accounts.findActive(USER_ID))
+                .thenReturn(Optional.of(new UserRecord(USER_ID, "Ana Teste", null, requested)));
+        signIn(sessionUser(USER_ID));
+
+        assertThat(resolve()).isEqualTo(new CurrentUser(USER_ID, "Ana Teste", null, requested));
+    }
+
+    @Test
     void sessionWithHintGivesFamilyNameHint() throws Exception {
         when(accounts.findActive(USER_ID))
-                .thenReturn(Optional.of(new UserRecord(USER_ID, "Ana Teste", "ana@example.com")));
+                .thenReturn(Optional.of(new UserRecord(USER_ID, "Ana Teste", "ana@example.com", null)));
         signIn(sessionUser(USER_ID));
         request.getSession().setAttribute(SessionSignInHints.FAMILY_NAME_HINT, "Teste");
 
-        assertThat(resolve()).isEqualTo(new CurrentUser(USER_ID, "Ana Teste", "Teste"));
+        assertThat(resolve()).isEqualTo(new CurrentUser(USER_ID, "Ana Teste", "Teste", null));
     }
 
     @Test
     void sessionWithoutHintHasNoFamilyNameHint() throws Exception {
         when(accounts.findActive(USER_ID))
-                .thenReturn(Optional.of(new UserRecord(USER_ID, "Ana Teste", "ana@example.com")));
+                .thenReturn(Optional.of(new UserRecord(USER_ID, "Ana Teste", "ana@example.com", null)));
         signIn(sessionUser(USER_ID));
         request.getSession();
 
-        assertThat(resolve()).isEqualTo(new CurrentUser(USER_ID, "Ana Teste", null));
+        assertThat(resolve()).isEqualTo(new CurrentUser(USER_ID, "Ana Teste", null, null));
     }
 
     @Test
     void passkeyUserHasNoFamilyNameHint() throws Exception {
-        when(accounts.findActive(USER_ID)).thenReturn(Optional.of(new UserRecord(USER_ID, "Ana Teste", null)));
+        when(accounts.findActive(USER_ID)).thenReturn(Optional.of(new UserRecord(USER_ID, "Ana Teste", null, null)));
         signIn(passkey(USER_ID.toString()));
 
-        assertThat(resolve()).isEqualTo(new CurrentUser(USER_ID, "Ana Teste", null));
+        assertThat(resolve()).isEqualTo(new CurrentUser(USER_ID, "Ana Teste", null, null));
     }
 }

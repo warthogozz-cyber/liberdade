@@ -116,6 +116,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["requestAccountDeletion"];
+        delete: operations["cancelAccountDeletion"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/export": {
         parameters: {
             query?: never;
@@ -335,6 +351,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["requestFamilyDeletion"];
+        delete: operations["cancelFamilyDeletion"];
         options?: never;
         head?: never;
         patch?: never;
@@ -663,6 +695,10 @@ export interface components {
             month: string;
             result: components["schemas"]["Money"];
         };
+        DeletionScheduled: {
+            /** Format: date-time */
+            deletionScheduledFor: string;
+        };
         InvitationPreview: {
             invitedBy: string | null;
             /** @enum {string} */
@@ -686,6 +722,8 @@ export interface components {
             token: string | null;
         };
         MeUser: {
+            /** Format: date-time */
+            deletionScheduledFor: string | null;
             displayName: string;
             /** Format: uuid */
             id: string;
@@ -699,6 +737,8 @@ export interface components {
         };
         MeWorkspace: {
             currency: string;
+            /** Format: date-time */
+            deletionScheduledFor: string | null;
             familyInvited: boolean;
             /** Format: date-time */
             gettingStartedDismissedAt: string | null;
@@ -965,6 +1005,44 @@ export interface operations {
             path: {
                 id: string;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestAccountDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionScheduled"];
+                };
+            };
+        };
+    };
+    cancelAccountDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -1375,6 +1453,50 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DashboardView"];
                 };
+            };
+        };
+    };
+    requestFamilyDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionScheduled"];
+                };
+            };
+        };
+    };
+    cancelFamilyDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

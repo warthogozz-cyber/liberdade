@@ -180,6 +180,37 @@
         ]
       }
     },
+    "/v1/me/deletion": {
+      "delete": {
+        "operationId": "cancelAccountDeletion",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "account-deletion-controller"
+        ]
+      },
+      "post": {
+        "operationId": "requestAccountDeletion",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionScheduled"
+                }
+              }
+            },
+            "description": "Accepted"
+          }
+        },
+        "tags": [
+          "account-deletion-controller"
+        ]
+      }
+    },
     "/v1/me/export": {
       "post": {
         "operationId": "exportMyData",
@@ -824,6 +855,61 @@
         },
         "tags": [
           "dashboard-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/deletion": {
+      "delete": {
+        "operationId": "cancelFamilyDeletion",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "family-deletion-controller"
+        ]
+      },
+      "post": {
+        "operationId": "requestFamilyDeletion",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionScheduled"
+                }
+              }
+            },
+            "description": "Accepted"
+          }
+        },
+        "tags": [
+          "family-deletion-controller"
         ]
       }
     },
@@ -1985,6 +2071,15 @@
           }
         }
       },
+      "DeletionScheduled": {
+        "type": "object",
+        "properties": {
+          "deletionScheduledFor": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "InvitationPreview": {
         "type": "object",
         "properties": {
@@ -2061,6 +2156,11 @@
       "MeUser": {
         "type": "object",
         "properties": {
+          "deletionScheduledFor": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "displayName": {
             "type": "string"
           },
@@ -2097,6 +2197,11 @@
         "properties": {
           "currency": {
             "type": "string"
+          },
+          "deletionScheduledFor": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "familyInvited": {
             "type": "boolean"

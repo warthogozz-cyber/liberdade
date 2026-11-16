@@ -47,7 +47,8 @@ class MeController {
                 new MeUser(
                         user.id(),
                         user.displayName(),
-                        passkeys.latestCreatedAt(user.id()).orElse(null)),
+                        passkeys.latestCreatedAt(user.id()).orElse(null),
+                        user.deletionScheduledFor()),
                 active,
                 suggestedName(familyNameHint));
     }
@@ -76,5 +77,6 @@ class MeController {
     record MeUser(
             UUID id,
             String displayName,
-            @Nullable @Schema(nullable = true) Instant passkeyCreatedAt) {}
+            @Nullable @Schema(nullable = true) Instant passkeyCreatedAt,
+            @Nullable @Schema(nullable = true) Instant deletionScheduledFor) {}
 }

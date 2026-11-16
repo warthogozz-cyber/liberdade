@@ -27,7 +27,7 @@ class InvitationRepository {
                    i.target_membership_id, t.nickname as target_nickname, t.status as target_status,
                    t.role as target_role, i.created_by
             from invitations i
-            join workspaces w on w.id = i.workspace_id
+            join workspaces w on w.id = i.workspace_id and w.deletion_requested_at is null
             left join memberships c on c.workspace_id = i.workspace_id and c.user_id = i.created_by
             left join memberships t on t.workspace_id = i.workspace_id and t.id = i.target_membership_id
             where i.token_hash = :hash""";

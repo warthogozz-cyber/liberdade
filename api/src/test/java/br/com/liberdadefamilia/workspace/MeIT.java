@@ -100,17 +100,23 @@ class MeIT {
     }
 
     @Test
-    void meHidesFamilyBeingDeleted() {
+    void meShowsFamilyBeingDeletedOnlyToItsOwners() {
         UUID userId = users.create("Ana Teste", "ana@example.com");
+        UUID adultId = users.create("Bia Teste", "bia@example.com");
         UUID workspaceId = workspaces.createFor(userId);
+        workspaces.addMember(workspaceId, adultId, Role.ADULT, "Bibi");
         jdbc.sql("update workspaces set deletion_requested_at = now() where id = :id")
                 .param("id", workspaceId)
                 .update();
-
-        var result = me(userId, "Teste");
-
-        assertThat(result).hasStatusOk();
-        assertThat(result).bodyJson().extractingPath("$.workspaces").asArray().isEmpty();
+        var owner = me(userId, "Teste");
+        var adult = me(adultId, "Teste");
+        assertThat(owner).hasStatusOk();
+        assertThat(owner)
+                .bodyJson()
+                .extractingPath("$.workspaces[0].deletionScheduledFor")
+                .isNotNull();
+        assertThat(adult).hasStatusOk();
+        assertThat(adult).bodyJson().extractingPath("$.workspaces").asArray().isEmpty();
     }
 
     @Test

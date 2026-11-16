@@ -16,4 +16,7 @@ import java.lang.annotation.Target;
 public @interface WorkspaceScoped {
 
     Role[] allow();
+
+    /** Lets an Owner reach a family that asked for deletion; for the routes that export or cancel it. */
+    boolean includePendingDeletion() default false;
 }

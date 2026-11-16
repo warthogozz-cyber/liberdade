@@ -50,8 +50,9 @@ class CurrentUserArgumentResolver implements HandlerMethodArgumentResolver {
             throw new AuthenticationCredentialsNotFoundException("Not signed in");
         }
         UserRecord user = accounts.findActive(userIdOf(authentication))
-                .orElseThrow(() -> new InsufficientAuthenticationException("User is gone or asked for deletion"));
-        CurrentUser current = new CurrentUser(user.id(), user.displayName(), familyNameHintOf(webRequest));
+                .orElseThrow(() -> new InsufficientAuthenticationException("User is gone"));
+        CurrentUser current = new CurrentUser(
+                user.id(), user.displayName(), familyNameHintOf(webRequest), user.deletionRequestedAt());
         return optional ? Optional.of(current) : current;
     }
 

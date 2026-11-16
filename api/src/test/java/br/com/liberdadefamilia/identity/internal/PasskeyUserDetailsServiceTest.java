@@ -33,7 +33,7 @@ class PasskeyUserDetailsServiceTest {
     @Test
     void loadsActiveUser() {
         when(accounts.findActive(userId))
-                .thenReturn(Optional.of(new UserRecord(userId, "Ana Teste", "ana@example.com")));
+                .thenReturn(Optional.of(new UserRecord(userId, "Ana Teste", "ana@example.com", null)));
 
         UserDetails user = service.loadUserByUsername(userId.toString());
 

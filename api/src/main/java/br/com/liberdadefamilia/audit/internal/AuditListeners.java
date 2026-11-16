@@ -12,6 +12,8 @@ import br.com.liberdadefamilia.workspace.MemberRoleChanged;
 import br.com.liberdadefamilia.workspace.ModuleToggled;
 import br.com.liberdadefamilia.workspace.RecoveryCreated;
 import br.com.liberdadefamilia.workspace.RecoveryUsed;
+import br.com.liberdadefamilia.workspace.WorkspaceDeletionCancelled;
+import br.com.liberdadefamilia.workspace.WorkspaceDeletionRequested;
 import br.com.liberdadefamilia.workspace.WorkspaceRenamed;
 import java.util.Map;
 import java.util.UUID;
@@ -86,6 +88,28 @@ class AuditListeners {
                 event.workspaceId(),
                 event.actorUserId(),
                 "workspace.renamed",
+                "WORKSPACE",
+                event.workspaceId(),
+                Map.of());
+    }
+
+    @EventListener
+    void on(WorkspaceDeletionRequested event) {
+        record(
+                event.workspaceId(),
+                event.actorUserId(),
+                "workspace.deletion_requested",
+                "WORKSPACE",
+                event.workspaceId(),
+                Map.of());
+    }
+
+    @EventListener
+    void on(WorkspaceDeletionCancelled event) {
+        record(
+                event.workspaceId(),
+                event.actorUserId(),
+                "workspace.deletion_cancelled",
                 "WORKSPACE",
                 event.workspaceId(),
                 Map.of());

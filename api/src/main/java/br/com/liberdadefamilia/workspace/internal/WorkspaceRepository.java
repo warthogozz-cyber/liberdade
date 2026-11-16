@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.workspace.internal;
 
 import br.com.liberdadefamilia.workspace.FamilyActivity;
+import br.com.liberdadefamilia.workspace.FamilyDeletion;
 import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.sql.ResultSet;
@@ -99,7 +100,7 @@ class WorkspaceRepository {
     private List<MeWorkspace> meWorkspaces(UUID userId, @Nullable UUID workspaceId) {
         List<MeRow> rows = jdbc.sql("""
                         select w.id, w.name, m.role, m.id as membership_id, w.timezone, w.base_currency,
-                               m.getting_started_dismissed_at, m.recovered_at,
+                               m.getting_started_dismissed_at, m.recovered_at, w.deletion_requested_at,
                                ((select count(*) from memberships o
                                  where o.workspace_id = w.id and o.status = 'ACTIVE') >= 2
                                 or exists (select 1 from invitations i
@@ -110,7 +111,7 @@ class WorkspaceRepository {
                         join workspaces w on w.id = m.workspace_id
                         where m.user_id = :userId
                           and m.status = 'ACTIVE'
-                          and w.deletion_requested_at is null
+                          and (w.deletion_requested_at is null or m.role = 'OWNER')
                           and (cast(:workspaceId as uuid) is null or w.id = cast(:workspaceId as uuid))
                         order by m.created_at, m.id""")
                 .param("userId", userId)
@@ -131,13 +132,17 @@ class WorkspaceRepository {
                         r.dismissedAt(),
                         withTransactions.contains(r.id()),
                         r.familyInvited(),
-                        r.recoveredAt()))
+                        r.recoveredAt(),
+                        r.deletionRequestedAt() == null
+                                ? null
+                                : r.deletionRequestedAt().plus(FamilyDeletion.GRACE)))
                 .toList();
     }
 
     private static MeRow toRow(ResultSet rs) throws SQLException {
         OffsetDateTime dismissed = rs.getObject("getting_started_dismissed_at", OffsetDateTime.class);
         OffsetDateTime recovered = rs.getObject("recovered_at", OffsetDateTime.class);
+        OffsetDateTime requested = rs.getObject("deletion_requested_at", OffsetDateTime.class);
         return new MeRow(
                 rs.getObject("id", UUID.class),
                 rs.getString("name"),
@@ -147,10 +152,16 @@ class WorkspaceRepository {
                 rs.getString("base_currency"),
                 dismissed == null ? null : dismissed.toInstant(),
                 rs.getBoolean("family_invited"),
-                recovered == null ? null : recovered.toInstant());
+                recovered == null ? null : recovered.toInstant(),
+                requested == null ? null : requested.toInstant());
     }
 
     Optional<WorkspaceMember> activeMember(UUID workspaceId, UUID userId) {
+        return activeMember(workspaceId, userId, false);
+    }
+
+    /** With {@code includePendingDeletion}, an Owner still reaches a family that asked for deletion. */
+    Optional<WorkspaceMember> activeMember(UUID workspaceId, UUID userId, boolean includePendingDeletion) {
         return jdbc.sql("""
                         select m.id, m.role, w.timezone, w.base_currency
                         from memberships m
@@ -158,9 +169,10 @@ class WorkspaceRepository {
                         where m.workspace_id = :workspaceId
                           and m.user_id = :userId
                           and m.status = 'ACTIVE'
-                          and w.deletion_requested_at is null""")
+                          and (w.deletion_requested_at is null or (:includePending and m.role = 'OWNER'))""")
                 .param("workspaceId", workspaceId)
                 .param("userId", userId)
+                .param("includePending", includePendingDeletion)
                 .query((rs, row) -> new WorkspaceMember(
                         workspaceId,
                         rs.getObject("id", UUID.class),
@@ -202,5 +214,6 @@ class WorkspaceRepository {
             String currency,
             @Nullable Instant dismissedAt,
             boolean familyInvited,
-            @Nullable Instant recoveredAt) {}
+            @Nullable Instant recoveredAt,
+            @Nullable Instant deletionRequestedAt) {}
 }

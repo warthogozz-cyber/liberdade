@@ -108,7 +108,7 @@ class RoleMatrixIT {
 
     // --- the matrix ---
 
-    /** Every row. Tasks 10 and 11 add their groups here (export, deletion). */
+    /** Every row. Later tasks add their groups here. */
     static Stream<Row> rows() {
         return Stream.of(
                         accountRows(),
@@ -119,7 +119,8 @@ class RoleMatrixIT {
                         invitationRows(),
                         workspaceRows(),
                         moduleRows(),
-                        exportRows())
+                        exportRows(),
+                        deletionRows())
                 .flatMap(group -> group);
     }
 
@@ -358,6 +359,13 @@ class RoleMatrixIT {
 
     static Stream<Row> exportRows() {
         return ownerOnly("POST " + W + "/export", W + "/export", null);
+    }
+
+    static Stream<Row> deletionRows() {
+        return Stream.of(
+                        ownerOnly("POST " + W + "/deletion", W + "/deletion", null),
+                        ownerOnly("DELETE " + W + "/deletion", W + "/deletion", null))
+                .flatMap(group -> group);
     }
 
     // --- row builders ---

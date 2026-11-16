@@ -59,7 +59,9 @@ class ExportController {
     /** Everything the family has, for its owner. */
     @RequiresRecentSignIn
     @PostMapping("/v1/workspaces/{ws}/export")
-    @WorkspaceScoped(allow = {OWNER})
+    @WorkspaceScoped(
+            allow = {OWNER},
+            includePendingDeletion = true)
     @ApiResponse(
             responseCode = "200",
             description = "A zip with the family's data.",

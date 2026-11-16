@@ -20,6 +20,7 @@ const workspace: MeWorkspace = {
   hasTransactions: false,
   familyInvited: false,
   recoveredAt: null,
+  deletionScheduledFor: null,
 }
 
 const me: MeView = {
@@ -27,6 +28,7 @@ const me: MeView = {
     id: '0192f3a4-0000-7000-8000-000000000001',
     displayName: 'Ana Teste',
     passkeyCreatedAt: null,
+    deletionScheduledFor: null,
   },
   workspaces: [],
   suggestedWorkspaceName: 'Família Teste',

@@ -135,6 +135,7 @@ function initialState(): MockState {
       id: '0192f3a4-0000-7000-8000-000000000001',
       displayName: 'Ana Teste',
       passkeyCreatedAt: null,
+      deletionScheduledFor: null,
     },
     suggestedWorkspaceName: 'Família Teste',
     workspaces: [],
@@ -170,6 +171,7 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
     hasTransactions: false,
     familyInvited: false,
     recoveredAt: null,
+    deletionScheduledFor: null,
   }
   mockState.workspaces.push(workspace)
   mockState.members[workspace.id] = [

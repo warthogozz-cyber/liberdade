@@ -7,7 +7,12 @@ import { createTestQueryClient } from '@/shared/testing'
 const userId = '0192f3a4-0000-7000-8000-000000000001'
 
 const me: MeView = {
-  user: { id: userId, displayName: 'Ana Teste', passkeyCreatedAt: null },
+  user: {
+    id: userId,
+    displayName: 'Ana Teste',
+    passkeyCreatedAt: null,
+    deletionScheduledFor: null,
+  },
   workspaces: [],
   suggestedWorkspaceName: 'Família Teste',
 }

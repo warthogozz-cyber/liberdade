@@ -10,6 +10,7 @@ import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -48,7 +49,7 @@ class UserAccountsIT {
     void findsAnActiveUser() {
         UUID id = users.create("Ana Teste", "ana@example.com");
 
-        assertThat(accounts.findActive(id)).contains(new UserRecord(id, "Ana Teste", "ana@example.com"));
+        assertThat(accounts.findActive(id)).contains(new UserRecord(id, "Ana Teste", "ana@example.com", null));
     }
 
     @Test
@@ -57,15 +58,15 @@ class UserAccountsIT {
     }
 
     @Test
-    void doesNotFindAUserWhoAskedForDeletion() {
+    void findsAUserWhoAskedForDeletionWithTheInstant() {
         UUID id = users.create("Ana Teste", "ana@example.com");
-        jdbc.sql("update users set deletion_requested_at = now() where id = :id")
+        jdbc.sql("update users set deletion_requested_at = '2026-11-01T12:00:00Z' where id = :id")
                 .param("id", id)
                 .update();
 
-        assertThat(accounts.findActive(id)).isEmpty();
+        assertThat(accounts.findActive(id))
+                .contains(new UserRecord(id, "Ana Teste", "ana@example.com", Instant.parse("2026-11-01T12:00:00Z")));
     }
-
     /**
      * Two first sign-ins race: another sign-in commits the same Google identity after this one looked for it and
      * before it inserted it. The insert hits the unique key and the retry finds the winner's user, also when a caller

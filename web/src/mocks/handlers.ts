@@ -660,6 +660,48 @@ export const handlers = [
     return zipResponse('liberdade-familia')
   }),
 
+  http.post(url('/v1/me/deletion'), ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    if (!mockState.signedIn) return authRequired()
+    const scheduled = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    mockState.user = {
+      ...mockState.user,
+      deletionScheduledFor: mockState.user.deletionScheduledFor ?? scheduled,
+    }
+    return HttpResponse.json(
+      { deletionScheduledFor: mockState.user.deletionScheduledFor },
+      { status: 202 },
+    )
+  }),
+
+  http.delete(url('/v1/me/deletion'), ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    if (!mockState.signedIn) return authRequired()
+    mockState.user = { ...mockState.user, deletionScheduledFor: null }
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post<{ ws: string }>(url('/v1/workspaces/:ws/deletion'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER') return roleDenied()
+    const scheduled =
+      workspace.deletionScheduledFor ??
+      new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    workspace.deletionScheduledFor = scheduled
+    return HttpResponse.json({ deletionScheduledFor: scheduled }, { status: 202 })
+  }),
+
+  http.delete<{ ws: string }>(url('/v1/workspaces/:ws/deletion'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER') return roleDenied()
+    workspace.deletionScheduledFor = null
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.get(url('/v1/me/consents'), () => {
     if (!mockState.signedIn) return authRequired()
     return HttpResponse.json(
@@ -689,7 +731,9 @@ export const handlers = [
     // The youth the consent covers leaves the family, as the API does when the member is still a youth.
     const youth = (mockState.members[consent.workspaceId] ?? []).find(
       (member) =>
-        member.nickname === consent.subjectName && member.role === 'YOUTH' && member.status === 'ACTIVE',
+        member.nickname === consent.subjectName &&
+        member.role === 'YOUTH' &&
+        member.status === 'ACTIVE',
     )
     if (youth) youth.status = 'REMOVED'
     mockState.activity.unshift(
@@ -996,7 +1040,10 @@ export const handlers = [
       if (target?.status !== 'ACTIVE') return invitationGoneProblem()
       invitation.status = 'USED'
       mockState.signedIn = true
-      mockState.user = { ...mockState.user, displayName: target.displayName ?? mockState.user.displayName }
+      mockState.user = {
+        ...mockState.user,
+        displayName: target.displayName ?? mockState.user.displayName,
+      }
       return HttpResponse.json({ workspaceId, membershipId: target.id, mustRegisterPasskey: true })
     }
     const signedIn = mockState.signedIn
@@ -1530,18 +1577,15 @@ export const handlers = [
     },
   ),
 
-  http.get<{ ws: string; id: string }>(
-    url('/v1/workspaces/:ws/transactions/:id'),
-    ({ params }) => {
-      const workspace = guard(params.ws)
-      if (workspace instanceof Response) return workspace
-      if (!UUID.test(params.id)) return malformed()
-      const stored = storedTransaction(params.id)
-      if (!stored) return transactionNotFound()
-      if (stored.deleted) return problem(409, 'transaction.deleted', 'Este lançamento foi excluído.')
-      return HttpResponse.json(stored.transaction)
-    },
-  ),
+  http.get<{ ws: string; id: string }>(url('/v1/workspaces/:ws/transactions/:id'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!UUID.test(params.id)) return malformed()
+    const stored = storedTransaction(params.id)
+    if (!stored) return transactionNotFound()
+    if (stored.deleted) return problem(409, 'transaction.deleted', 'Este lançamento foi excluído.')
+    return HttpResponse.json(stored.transaction)
+  }),
 
   http.delete<{ ws: string; id: string }>(
     url('/v1/workspaces/:ws/transactions/:id'),
