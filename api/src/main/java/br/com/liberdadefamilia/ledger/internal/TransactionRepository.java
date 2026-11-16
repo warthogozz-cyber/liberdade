@@ -168,7 +168,8 @@ class TransactionRepository {
 
     /**
      * Marks an active transaction that the caller may change under the scope as deleted at {@code now}. Whether one
-     * was; false when absent, already deleted or not the caller's.
+     * was; false when absent, already deleted or not the caller's. The OWN condition here is the delete's only guard,
+     * not a repetition of a check made elsewhere.
      */
     boolean softDelete(UUID workspaceId, UUID id, AccountScope scope, UUID caller, Instant now) {
         return jdbc.sql("""
@@ -191,7 +192,8 @@ class TransactionRepository {
 
     /**
      * Brings back a deleted transaction that the caller may change under the scope. Empty when it is absent, not
-     * deleted or not the caller's.
+     * deleted or not the caller's. The OWN condition here is the restore's primary guard, not a repetition of a check
+     * made elsewhere.
      */
     Optional<TransactionView> restore(UUID workspaceId, UUID id, AccountScope scope, UUID caller) {
         return jdbc.sql("""

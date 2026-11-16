@@ -273,6 +273,21 @@ class YouthScopeIT {
         assertProblem(post(leo, walletExpense), 409, "transaction.id-conflict");
     }
 
+    /**
+     * Even a resend that repeats the allowance to the letter, Dona as its member included, is a conflict: he can see
+     * it, but he did not send it, and a resend returns before the rule that he records only for himself.
+     */
+    @Test
+    void youthExactResendOfAllowanceIsAConflict() {
+        UUID allowance = allowance();
+        Map<String, Object> exactAllowance = transfer(corrente, wallet, "50.00");
+        exactAllowance.put("id", allowance.toString());
+        exactAllowance.put("memberId", anaMembership.toString());
+
+        assertProblem(post(leo, exactAllowance), 409, "transaction.id-conflict");
+        assertThat(post(ana, exactAllowance)).hasStatusOk();
+    }
+
     @Test
     void youthDashboardIsScoped() {
         allowance();

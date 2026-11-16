@@ -214,7 +214,9 @@ class RoleMatrixIT {
                         Stream.of(
                                 new Row(YOUTH, one, W + "/transactions/{allowance}", null, Outcome.OK),
                                 new Row(YOUTH, one, W + "/transactions/{familyExpense}", null, Outcome.NOT_FOUND),
-                                new Row(YOUTH, one, W + "/transactions/{familyDeleted}", null, Outcome.NOT_FOUND)),
+                                new Row(YOUTH, one, W + "/transactions/{familyDeleted}", null, Outcome.NOT_FOUND),
+                                new Row(YOUTH, one, W + "/transactions/{youthOnFamily}", null, Outcome.NOT_FOUND),
+                                new Row(YOUTH, one, W + "/transactions/{youthTransferOut}", null, Outcome.OK)),
                         notYouth(record, W + "/transactions", expense("{corrente}"), Outcome.FORBIDDEN),
                         Stream.of(
                                 new Row(YOUTH, record, W + "/transactions", expense("{wallet}"), Outcome.OK),
@@ -251,13 +253,32 @@ class RoleMatrixIT {
                                         edit,
                                         W + "/transactions/{adultInWallet}",
                                         edit("{wallet}"),
+                                        Outcome.NOT_FOUND),
+                                new Row(
+                                        YOUTH,
+                                        edit,
+                                        W + "/transactions/{youthOnFamily}",
+                                        edit("{wallet}"),
+                                        Outcome.NOT_FOUND),
+                                new Row(
+                                        YOUTH,
+                                        edit,
+                                        W + "/transactions/{youthTransferOut}",
+                                        edit("{wallet}"),
                                         Outcome.NOT_FOUND)),
                         notYouth(delete, W + "/transactions/{familyExpense}", null, Outcome.FORBIDDEN),
                         Stream.of(
                                 new Row(YOUTH, delete, W + "/transactions/{youthOwn}", null, Outcome.OK),
                                 new Row(YOUTH, delete, W + "/transactions/{familyExpense}", null, Outcome.NOT_FOUND),
                                 new Row(YOUTH, delete, W + "/transactions/{allowance}", null, Outcome.NOT_FOUND),
-                                new Row(YOUTH, delete, W + "/transactions/{adultInWallet}", null, Outcome.NOT_FOUND)),
+                                new Row(YOUTH, delete, W + "/transactions/{adultInWallet}", null, Outcome.NOT_FOUND),
+                                new Row(YOUTH, delete, W + "/transactions/{youthOnFamily}", null, Outcome.NOT_FOUND),
+                                new Row(
+                                        YOUTH,
+                                        delete,
+                                        W + "/transactions/{youthTransferOut}",
+                                        null,
+                                        Outcome.NOT_FOUND)),
                         notYouth(restore, W + "/transactions/{familyDeleted}/restore", null, Outcome.FORBIDDEN),
                         Stream.of(
                                 new Row(YOUTH, restore, W + "/transactions/{youthDeleted}/restore", null, Outcome.OK),
@@ -271,6 +292,18 @@ class RoleMatrixIT {
                                         YOUTH,
                                         restore,
                                         W + "/transactions/{allowance}/restore",
+                                        null,
+                                        Outcome.NOT_FOUND),
+                                new Row(
+                                        YOUTH,
+                                        restore,
+                                        W + "/transactions/{youthOnFamilyDeleted}/restore",
+                                        null,
+                                        Outcome.NOT_FOUND),
+                                new Row(
+                                        YOUTH,
+                                        restore,
+                                        W + "/transactions/{youthTransferOutDeleted}/restore",
                                         null,
                                         Outcome.NOT_FOUND)))
                 .flatMap(group -> group);
@@ -378,7 +411,10 @@ class RoleMatrixIT {
         assertThat(family.snapshot()).as("the family's data after %s", row).isEqualTo(before);
     }
 
-    /** Every route under {@code /v1/workspaces/{ws}} has a row for each of the four roles, and every row a route. */
+    /**
+     * Every route under {@code /v1/workspaces/{ws}} has a row for each of the four roles, and every row a route. A
+     * mapping with no HTTP method answers every method, and is listed as {@code * pattern}, which no row matches.
+     */
     @Test
     void everyFamilyRouteHasEveryRole() {
         Set<String> mapped = new TreeSet<>();
@@ -386,9 +422,13 @@ class RoleMatrixIT {
                 .keySet()
                 .forEach(info -> info.getPatternValues().stream()
                         .filter(pattern -> pattern.equals(W) || pattern.startsWith(W + "/"))
-                        .forEach(pattern -> info.getMethodsCondition()
-                                .getMethods()
-                                .forEach(method -> mapped.add(method.name() + " " + pattern))));
+                        .forEach(pattern -> {
+                            var methods = info.getMethodsCondition().getMethods();
+                            if (methods.isEmpty()) {
+                                mapped.add("* " + pattern);
+                            }
+                            methods.forEach(method -> mapped.add(method.name() + " " + pattern));
+                        }));
         Map<String, Set<Role>> covered = new TreeMap<>();
         rows().forEach(row -> covered.computeIfAbsent(row.route(), route -> EnumSet.noneOf(Role.class))
                 .add(row.role()));
@@ -457,6 +497,18 @@ class RoleMatrixIT {
         ids.put("youthDeleted", transaction(ws, ids.get("wallet"), null, ids.get("mercado"), leoMembership, true));
         ids.put("adultInWallet", transaction(ws, ids.get("wallet"), null, ids.get("mercado"), biaMembership, false));
         ids.put("allowance", transaction(ws, ids.get("corrente"), ids.get("wallet"), null, anaMembership, false));
+        // Recorded by Leo but touching the family account (as when he was an adult, or an adult changed it since): his
+        // name on it does not make it his to change.
+        ids.put("youthOnFamily", transaction(ws, ids.get("corrente"), null, ids.get("mercado"), leoMembership, false));
+        ids.put(
+                "youthOnFamilyDeleted",
+                transaction(ws, ids.get("corrente"), null, ids.get("mercado"), leoMembership, true));
+        ids.put(
+                "youthTransferOut",
+                transaction(ws, ids.get("wallet"), ids.get("corrente"), null, leoMembership, false));
+        ids.put(
+                "youthTransferOutDeleted",
+                transaction(ws, ids.get("wallet"), ids.get("corrente"), null, leoMembership, true));
         byte[] tokenHash = new byte[32];
         RANDOM.nextBytes(tokenHash);
         ids.put(

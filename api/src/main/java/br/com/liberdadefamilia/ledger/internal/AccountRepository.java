@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -63,7 +62,7 @@ class AccountRepository {
         if (member.role() != Role.YOUTH) {
             return AccountScope.all();
         }
-        return new AccountScope(Set.copyOf(jdbc.sql("""
+        return new AccountScope(jdbc.sql("""
                         select id
                         from accounts
                         where workspace_id = :workspaceId
@@ -71,7 +70,7 @@ class AccountRepository {
                 .param("workspaceId", member.workspaceId())
                 .param("membershipId", member.membershipId())
                 .query(UUID.class)
-                .list()));
+                .set());
     }
 
     UUID insert(

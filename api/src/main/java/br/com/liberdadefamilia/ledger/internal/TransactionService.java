@@ -51,7 +51,8 @@ class TransactionService {
      * new transaction is checked first, the first failure deciding.
      *
      * @throws LedgerRejectedException when a check fails
-     * @throws TransactionIdConflictException when the id is taken by other data or by another family
+     * @throws TransactionIdConflictException when the id is taken by other data or by another family, or, for the
+     *     youth, by a transaction they did not record
      */
     Recorded record(WorkspaceMember member, UUID idempotencyKey, CreateTransactionRequest request) {
         UUID workspaceId = member.workspaceId();
@@ -89,7 +90,12 @@ class TransactionService {
      * Replaces the transaction with what the edit screen sends. A stale version wins over an invalid payload: the
      * person first needs to see what changed.
      *
-     * @throws LedgerNotFoundException when the family has no such transaction
+     * <p>The youth edits only what they recorded with every account in their scope; anything else answers as absent.
+     * They record only for themselves (D15), and this method reads D15 at edit time: an edit may keep the
+     * {@code memberId} the transaction already has, even another member an adult set on the youth's own row, so that
+     * the youth can still fix their own transaction. They can never choose another member anew.
+     *
+     * @throws LedgerNotFoundException when the family has no such transaction, or the member may not change it
      * @throws LedgerConflictException when it was deleted, or changed since the screen opened (with {@code current})
      * @throws LedgerRejectedException when a family rule fails
      */
@@ -134,6 +140,10 @@ class TransactionService {
     /**
      * Deletes the transaction; it stays restorable until the nightly purge. Deleting it again changes nothing.
      *
+     * <p>The own-transaction rule in the UPDATE's WHERE ({@link TransactionRepository#softDelete}) is the primary and
+     * only guard: the update runs first, and {@code findOwn} afterwards only chooses between "already deleted" and 404.
+     * It is not redundant: removing it lets the youth delete what is not theirs.
+     *
      * @throws LedgerNotFoundException when the family has no such transaction, it was purged, or the member may not
      *     change it
      */
@@ -149,6 +159,10 @@ class TransactionService {
     /**
      * Brings a deleted transaction back, as it was. An active one comes back unchanged, so a repeated "Desfazer" is
      * harmless. Whether its account was archived since does not matter: restoring is not choosing it again.
+     *
+     * <p>The own-transaction rule in the UPDATE's WHERE ({@link TransactionRepository#restore}) is the primary guard:
+     * the update runs first, and {@code findOwn} afterwards only answers for an active transaction or 404. It is not
+     * redundant: removing it lets the youth restore what is not theirs.
      *
      * @throws LedgerNotFoundException when the family has no such transaction, it was purged, or the member may not
      *     change it
