@@ -22,6 +22,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,woff2}'],
         // MSW's worker ships in `public/` for `dev:mocks`; the app's worker never caches it.
         globIgnores: ['**/mockServiceWorker.js'],
+        // The first visit is controlled as soon as the worker activates, so a screen opened offline right
+        // after it (a lazy chunk never fetched online) still comes from the precache.
+        clientsClaim: true,
       },
       manifest: {
         name: 'Liberdade',

@@ -94,6 +94,20 @@ export async function createFamily(page: Page, firstName = 'Ana'): Promise<void>
   await page.waitForURL('**/lancar')
 }
 
+/**
+ * Waits until the service worker controls the page: only then do the screens that load later (lazy
+ * chunks) come from the precache once the test goes offline.
+ */
+export async function waitForOfflineReady(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready
+    if (navigator.serviceWorker.controller) return
+    await new Promise((resolve) => {
+      navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })
+    })
+  })
+}
+
 /** A virtual passkey device on the page's browser context, so WebAuthn works without a person. */
 export async function addVirtualAuthenticator(
   page: Page,
