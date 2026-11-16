@@ -266,7 +266,7 @@ function TransactionList({
       message: intl.formatMessage({ id: 'transactions.deleted' }),
       action: {
         label: intl.formatMessage({ id: 'transaction.undo' }),
-        altText: intl.formatMessage({ id: 'transaction.undoAlt' }),
+        altText: intl.formatMessage({ id: 'transactions.restoreAlt' }),
         onClick: () => {
           undo(id).catch(failed)
         },

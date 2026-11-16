@@ -63,6 +63,18 @@ describe('charts', () => {
     }
   })
 
+  it('comparisonLabelsFitNarrowScreens', () => {
+    const option = comparisonOption(
+      categorySlices(rows(2, false), named),
+      { current: 'nov.', previous: 'out.' },
+      { animate: false, textColor: '#000000' },
+    )
+    // Long category names are cut and tilted instead of overlapping on a phone; the table has them all.
+    expect(option.xAxis).toMatchObject({
+      axisLabel: { interval: 0, rotate: 30, width: 72, overflow: 'truncate' },
+    })
+  })
+
   it('lineHasEveryDay', () => {
     const days = Array.from({ length: 30 }, (_, index) => ({
       day: `2026-11-${String(index + 1).padStart(2, '0')}`,

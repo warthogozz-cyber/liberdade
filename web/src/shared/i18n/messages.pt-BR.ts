@@ -89,10 +89,6 @@ export const messages = {
   'transaction.undoOffline':
     'Sem internet agora. Para desfazer, exclua em Lançamentos quando a conexão voltar.',
   'transaction.undoFailed': 'Não deu para desfazer. Tente excluir em Lançamentos.',
-  'problem.transaction.date-out-of-range': 'Escolha uma data entre 2000 e o próximo ano.',
-  'problem.transaction.transfer-invalid':
-    'Uma transferência precisa de duas contas diferentes e não leva categoria.',
-  'problem.transaction.category-required': 'Escolha uma categoria.',
   'home.expensesIn': 'Gastos em {month}',
   'home.totalBalance': 'Saldo total',
   'home.addAccountsHint': 'Adicione suas contas para ver o saldo real.',
@@ -127,6 +123,7 @@ export const messages = {
   'transactions.deleteConfirm.body': 'Você pode desfazer logo depois.',
   'transactions.deleted': 'Lançamento excluído.',
   'transactions.restored': 'Lançamento restaurado.',
+  'transactions.restoreAlt': 'Restaurar o lançamento excluído',
   'transactions.restoreOffline': 'Sem internet agora. Tente desfazer quando a conexão voltar.',
   'transactions.detail.kind': 'Tipo',
   'transactions.detail.amount': 'Valor',

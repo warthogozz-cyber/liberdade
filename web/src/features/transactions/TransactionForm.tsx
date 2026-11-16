@@ -193,7 +193,11 @@ export function TransactionForm({
     : !online || categories.fetchStatus === 'paused'
   const categoryError = !categories.data && !noCategories && categories.isError
   // A fix can carry a category that is archived or not cached: it has no chip, so it cannot go.
-  const categoryKnown = categoryList.some(({ id }) => id === categoryId)
+  // Only an edit keeps its own archived category on offer (see keepArchivedId).
+  const keepArchivedId = editing?.kind === kind ? (editing.categoryId ?? undefined) : undefined
+  const categoryKnown = categoryList.some(
+    ({ id, archivedAt }) => id === categoryId && (archivedAt === null || id === keepArchivedId),
+  )
 
   const now = new Date()
   const today = localDate(now, workspace.timezone)
@@ -379,9 +383,7 @@ export function TransactionForm({
                 key={kind}
                 categories={categoryList}
                 value={categoryId}
-                keepArchivedId={
-                  editing?.kind === kind ? (editing.categoryId ?? undefined) : undefined
-                }
+                keepArchivedId={keepArchivedId}
                 onChange={setCategoryId}
                 onSheetChange={(open) => setSheet(open ? 'categories' : null)}
               />

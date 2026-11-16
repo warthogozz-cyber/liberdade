@@ -105,7 +105,17 @@ export function comparisonOption(
         ...slices.map((slice) => [slice.label, reais(slice.previous), reais(slice.current)]),
       ],
     },
-    xAxis: { type: 'category', axisLabel: { color: opts.textColor, interval: 0 } },
+    xAxis: {
+      type: 'category',
+      // Long names are cut and tilted so they do not overlap on a phone; the table has them all.
+      axisLabel: {
+        color: opts.textColor,
+        interval: 0,
+        rotate: 30,
+        width: 72,
+        overflow: 'truncate',
+      },
+    },
     yAxis: {
       type: 'value',
       ...axisStyle(opts.textColor),

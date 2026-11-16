@@ -461,6 +461,12 @@ describe('TransactionsPage, viewing and organizing', () => {
     expect(await screen.findByText('Nenhum lançamento neste mês.')).toBeInTheDocument()
     const toasts = within(screen.getByRole('region', { name: 'Notificações' }))
     expect(await toasts.findByText('Lançamento excluído.')).toBeInTheDocument()
+    // The screen reader hears what the button does: it restores the deleted one.
+    expect(toasts.getByRole('button', { name: 'Desfazer' })).toBeInTheDocument()
+    expect(document.querySelector('[data-radix-toast-announce-alt]')).toHaveAttribute(
+      'data-radix-toast-announce-alt',
+      'Restaurar o lançamento excluído',
+    )
     fireEvent.click(toasts.getByRole('button', { name: 'Desfazer' }))
 
     expect(await within(await day('Hoje')).findByText('🛒 Mercado')).toBeInTheDocument()

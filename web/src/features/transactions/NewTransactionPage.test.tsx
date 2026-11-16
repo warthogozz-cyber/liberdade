@@ -711,6 +711,28 @@ describe('NewTransactionPage', () => {
     expect(saveButton()).toBeDisabled()
   })
 
+  it('keeps Salvar disabled when the category to fix was archived meanwhile', async () => {
+    const workspace = seedMockFamily()
+    category('Mercado').archivedAt = '2026-11-01T12:00:00Z'
+    await db.outbox.add(
+      outboxItem('0192f3a4-0000-7000-8000-0000000000f1', {
+        userId: mockState.user.id,
+        workspaceId: workspace.id,
+        status: 'needs-attention',
+        attempts: 1,
+        payload: outboxPayload('0192f3a4-0000-7000-8000-0000000000f1', {
+          accountId: mockState.accounts[0].id,
+          categoryId: category('Mercado').id,
+        }),
+      }),
+    )
+    renderPage('/lancar?corrigir=0192f3a4-0000-7000-8000-0000000000f1')
+    await screen.findByRole('radio', { name: '🍽️ Alimentação fora' })
+
+    await waitFor(() => expect(amount()).toHaveTextContent('R$ 12,34'))
+    expect(saveButton()).toBeDisabled()
+  })
+
   it('opens empty when the item to fix is not in the queue', async () => {
     seedMockFamily()
     await openForm('/lancar?corrigir=0192f3a4-0000-7000-8000-0000000000f1')

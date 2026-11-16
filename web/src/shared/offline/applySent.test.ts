@@ -129,6 +129,48 @@ describe('applySentTransaction', () => {
     expect(listedIds(queryClient, '2026-10')).toEqual(['newer', 'sent'])
   })
 
+  it('leaves the balance of earlier months alone, since it closes each month', () => {
+    const queryClient = createTestQueryClient()
+    queryClient.setQueryData(
+      queryKeys.dashboard(ws, '2026-10'),
+      dashboard('2026-10', { balance: '50.00' }),
+    )
+    queryClient.setQueryData(
+      queryKeys.dashboard(ws, '2026-12'),
+      dashboard('2026-12', { balance: '50.00' }),
+    )
+
+    applySentTransaction(queryClient, ws, row('sent', '2026-11-03'))
+
+    expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-10'))).toEqual(
+      dashboard('2026-10', { balance: '50.00' }),
+    )
+    expect(queryClient.getQueryData(queryKeys.dashboard(ws, '2026-12'))).toEqual(
+      dashboard('2026-12', { balance: '37.66' }),
+    )
+  })
+
+  it('marks the workspace as having transactions in the cached me, and no other', () => {
+    const queryClient = createTestQueryClient()
+    const base = { name: 'Família', timezone: 'America/Sao_Paulo', gettingStartedDismissedAt: null }
+    queryClient.setQueryData(queryKeys.me, {
+      workspaces: [
+        { ...base, id: ws, hasTransactions: false },
+        { ...base, id: 'ws2', hasTransactions: false },
+      ],
+    })
+
+    applySentTransaction(queryClient, ws, row('sent', '2026-11-03'))
+
+    const me = queryClient.getQueryData<{ workspaces: { id: string; hasTransactions: boolean }[] }>(
+      queryKeys.me,
+    )
+    expect(me?.workspaces.map(({ id, hasTransactions }) => [id, hasTransactions])).toEqual([
+      [ws, true],
+      ['ws2', false],
+    ])
+  })
+
   it('leaves a list that already has the transaction alone', () => {
     const queryClient = createTestQueryClient()
     const list = [row('sent', '2026-11-03')]
