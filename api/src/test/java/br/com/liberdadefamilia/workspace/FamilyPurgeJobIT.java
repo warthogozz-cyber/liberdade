@@ -15,9 +15,12 @@ import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -30,6 +33,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, FamilyPurgeJobIT.Config.class})
+@ExtendWith(OutputCaptureExtension.class)
 class FamilyPurgeJobIT {
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -125,5 +129,61 @@ class FamilyPurgeJobIT {
                         .query(Long.class)
                         .single())
                 .isEqualTo(2);
+    }
+
+    @Test
+    void oneFailureDoesNotStopTheOthers(CapturedOutput output) {
+        UUID failing = scheduledFamily();
+        UUID fine = scheduledFamily();
+        // The database turns down this one family's delete, whatever the job does.
+        jdbc.sql("""
+                        create function block_family_purge() returns trigger language plpgsql as $$
+                        begin
+                            if old.id = '%s' then
+                                raise exception 'boom';
+                            end if;
+                            return old;
+                        end $$""".formatted(failing)).update();
+        jdbc.sql("""
+                        create trigger block_family_purge before delete on workspaces
+                        for each row execute function block_family_purge()""").update();
+        try {
+            clock.freeze(Instant.now().plus(Duration.ofDays(30)).plusSeconds(60));
+            job.purge();
+        } finally {
+            jdbc.sql("drop trigger block_family_purge on workspaces").update();
+            jdbc.sql("drop function block_family_purge()").update();
+        }
+
+        assertThat(familyCount(failing)).isOne();
+        assertThat(jdbc.sql("select count(*) from memberships where workspace_id = :ws")
+                        .param("ws", failing)
+                        .query(Long.class)
+                        .single())
+                .isOne();
+        assertThat(familyCount(fine)).isZero();
+        assertThat(output).contains("Could not purge family " + failing);
+        assertThat(output).doesNotContain("boom");
+        assertThat(output).contains("Purged 1 families past their deletion grace");
+    }
+
+    private UUID scheduledFamily() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID ws = workspaces.createFor(ana);
+        RequestPostProcessor session = TestUsers.signedIn(ana, null);
+        assertThat(mvc.post()
+                        .uri("/v1/workspaces/" + ws + "/deletion")
+                        .with(session)
+                        .with(CsrfSession.start(mvc, session))
+                        .exchange())
+                .hasStatus(202);
+        return ws;
+    }
+
+    private long familyCount(UUID ws) {
+        return jdbc.sql("select count(*) from workspaces where id = :ws")
+                .param("ws", ws)
+                .query(Long.class)
+                .single();
     }
 }
