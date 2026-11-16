@@ -4,6 +4,8 @@ import br.com.liberdadefamilia.identity.CurrentUser;
 import br.com.liberdadefamilia.identity.SignInHints;
 import br.com.liberdadefamilia.shared.TextPatterns;
 import br.com.liberdadefamilia.workspace.Role;
+import br.com.liberdadefamilia.workspace.WorkspaceMember;
+import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -14,12 +16,13 @@ import java.time.ZoneId;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Creates the family on first sign-in. Responds 201 with no {@code Location}: there is no route to read it (D22). */
+/** Creates the family on first sign-in and renames it. Creating responds 201 with no {@code Location} (D22). */
 @RestController
 class WorkspaceController {
 
@@ -44,6 +47,12 @@ class WorkspaceController {
         // The family name hint only suggested this family's name; the session need not keep it any longer.
         signInHints.forgetFamilyName(httpRequest);
         return new WorkspaceView(id, request.name(), Role.OWNER);
+    }
+
+    @PatchMapping("/v1/workspaces/{ws}")
+    @WorkspaceScoped(allow = Role.OWNER)
+    MeWorkspace renameWorkspace(@Valid @RequestBody RenameWorkspaceRequest request, WorkspaceMember member) {
+        return service.rename(member, request.name());
     }
 
     /** @param timezone the browser's IANA time zone */

@@ -5,11 +5,13 @@ import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -30,12 +32,32 @@ class WorkspaceRepository {
         this.activity = activity;
     }
 
-    /** Whether the user has an ACTIVE membership in any family, even one being deleted. */
-    boolean hasActiveMembership(UUID userId) {
-        return jdbc.sql("select exists (select 1 from memberships where user_id = :userId and status = 'ACTIVE')")
+    /**
+     * Holds a lock named after the user until the transaction ends. Two requests that create a family for the same
+     * person queue here, so the second one finds the first one's family. It stands in for a unique index now that a
+     * person may belong to several families, and it leaves the {@code users} table, which {@code identity} owns,
+     * alone.
+     */
+    void lockFamilyCreation(UUID userId) {
+        jdbc.sql("select pg_advisory_xact_lock(hashtextextended(:userId::text, 0))")
                 .param("userId", userId)
-                .query(Boolean.class)
-                .single();
+                .query()
+                .listOfRows();
+    }
+
+    /** Whether the user is an ACTIVE OWNER of a family, even one being deleted. */
+    boolean isActiveOwnerOfAnyFamily(UUID userId) {
+        return jdbc.sql("""
+                        select exists (
+                            select 1 from memberships
+                            where user_id = :userId and role = 'OWNER' and status = 'ACTIVE')""").param("userId", userId).query(Boolean.class).single();
+    }
+
+    void rename(UUID workspaceId, String name) {
+        jdbc.sql("update workspaces set name = :name, updated_at = now(), version = version + 1 where id = :id")
+                .param("name", name)
+                .param("id", workspaceId)
+                .update();
     }
 
     NewWorkspace insert(String name, ZoneId timezone) {
@@ -47,7 +69,6 @@ class WorkspaceRepository {
                 .single();
     }
 
-    /** Throws {@code DuplicateKeyException} when the user already has an ACTIVE membership somewhere. */
     UUID insertOwner(UUID workspaceId, UUID userId, @Nullable String nickname) {
         return jdbc.sql("""
                         insert into memberships (workspace_id, user_id, role, nickname)
@@ -61,24 +82,52 @@ class WorkspaceRepository {
                 .single();
     }
 
+    /** The families the user is an active member of: one query for the memberships, one for the activity. */
     List<MeWorkspace> activeWorkspacesOf(UUID userId) {
-        return jdbc.sql("""
+        return meWorkspaces(userId, null);
+    }
+
+    /** One of those families, or empty when the user is not an active member of it. */
+    Optional<MeWorkspace> activeWorkspaceOf(UUID userId, UUID workspaceId) {
+        return meWorkspaces(userId, workspaceId).stream().findFirst();
+    }
+
+    private List<MeWorkspace> meWorkspaces(UUID userId, @Nullable UUID workspaceId) {
+        List<MeRow> rows = jdbc.sql("""
                         select w.id, w.name, m.role, m.id as membership_id, w.timezone, w.base_currency,
-                               m.getting_started_dismissed_at
+                               m.getting_started_dismissed_at,
+                               (select count(*) from memberships o
+                                where o.workspace_id = w.id and o.status = 'ACTIVE') >= 2 as family_invited
                         from memberships m
                         join workspaces w on w.id = m.workspace_id
                         where m.user_id = :userId
                           and m.status = 'ACTIVE'
                           and w.deletion_requested_at is null
+                          and (cast(:workspaceId as uuid) is null or w.id = cast(:workspaceId as uuid))
                         order by m.created_at, m.id""")
                 .param("userId", userId)
-                .query((rs, row) -> toMeWorkspace(rs))
+                .param("workspaceId", workspaceId)
+                .query((rs, row) -> toRow(rs))
                 .list();
+        Set<UUID> withTransactions =
+                activity.withTransactions(rows.stream().map(MeRow::id).toList());
+        return rows.stream()
+                .map(r -> new MeWorkspace(
+                        r.id(),
+                        r.name(),
+                        r.role(),
+                        r.membershipId(),
+                        r.timezone(),
+                        r.currency(),
+                        r.dismissedAt(),
+                        withTransactions.contains(r.id()),
+                        r.familyInvited()))
+                .toList();
     }
 
-    private MeWorkspace toMeWorkspace(ResultSet rs) throws SQLException {
+    private static MeRow toRow(ResultSet rs) throws SQLException {
         OffsetDateTime dismissed = rs.getObject("getting_started_dismissed_at", OffsetDateTime.class);
-        return new MeWorkspace(
+        return new MeRow(
                 rs.getObject("id", UUID.class),
                 rs.getString("name"),
                 Role.valueOf(rs.getString("role")),
@@ -86,7 +135,7 @@ class WorkspaceRepository {
                 rs.getString("timezone"),
                 rs.getString("base_currency"),
                 dismissed == null ? null : dismissed.toInstant(),
-                activity.hasTransactions(rs.getObject("id", UUID.class)));
+                rs.getBoolean("family_invited"));
     }
 
     Optional<WorkspaceMember> activeMember(UUID workspaceId, UUID userId) {
@@ -131,4 +180,14 @@ class WorkspaceRepository {
     }
 
     record NewWorkspace(UUID id, Currency baseCurrency) {}
+
+    private record MeRow(
+            UUID id,
+            String name,
+            Role role,
+            UUID membershipId,
+            String timezone,
+            String currency,
+            @Nullable Instant dismissedAt,
+            boolean familyInvited) {}
 }

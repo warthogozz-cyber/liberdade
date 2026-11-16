@@ -68,6 +68,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["renameWorkspace"];
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/accounts": {
         parameters: {
             query?: never;
@@ -210,6 +226,38 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/members/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeMember"];
+        options?: never;
+        head?: never;
+        patch: operations["updateMember"];
         trace?: never;
     };
     "/v1/workspaces/{ws}/transactions": {
@@ -369,6 +417,7 @@ export interface components {
         };
         MeWorkspace: {
             currency: string;
+            familyInvited: boolean;
             /** Format: date-time */
             gettingStartedDismissedAt: string | null;
             hasTransactions: boolean;
@@ -381,11 +430,28 @@ export interface components {
             role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
             timezone: string;
         };
+        MemberView: {
+            displayName: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            joinedAt: string;
+            nickname: string | null;
+            passkeyOnly: boolean;
+            /** @enum {string} */
+            role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
+            /** @enum {string} */
+            status: "ACTIVE" | "REMOVED";
+            you: boolean;
+        };
         Money: {
             /** @example 12.34 */
             amount: string;
             /** @example BRL */
             currency: string;
+        };
+        RenameWorkspaceRequest: {
+            name: string;
         };
         TransactionView: {
             /** Format: uuid */
@@ -421,6 +487,12 @@ export interface components {
             color?: "TEAL" | "BLUE" | "INDIGO" | "PURPLE" | "PINK" | "RED" | "ORANGE" | "GREEN" | null;
             icon?: string | null;
             name?: string | null;
+        };
+        UpdateMemberRequest: {
+            nickname?: string | null;
+            parentalConsent?: boolean | null;
+            /** @enum {string|null} */
+            role?: "OWNER" | "ADULT" | "YOUTH" | "VIEWER" | null;
         };
         UpdateTransactionRequest: {
             /** Format: uuid */
@@ -534,6 +606,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceView"];
+                };
+            };
+        };
+    };
+    renameWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameWorkspaceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeWorkspace"];
                 };
             };
         };
@@ -813,6 +912,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardView"];
+                };
+            };
+        };
+    };
+    listMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberView"][];
+                };
+            };
+        };
+    };
+    removeMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberView"];
                 };
             };
         };

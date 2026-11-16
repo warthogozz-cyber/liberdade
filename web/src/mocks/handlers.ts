@@ -565,6 +565,18 @@ export const handlers = [
     })
   }),
 
+  http.patch(url('/v1/workspaces/:ws'), async ({ request, params }) => {
+    if (withoutToken(request)) {
+      return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
+    }
+    if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
+    const workspace = mockState.workspaces.find((candidate) => candidate.id === params.ws)
+    if (!workspace) return problem(404, 'workspace.not-found', 'Família não encontrada.')
+    const body = (await request.json()) as { name?: string }
+    workspace.name = (body.name ?? '').trim()
+    return HttpResponse.json(workspace)
+  }),
+
   http.post(url('/v1/me/getting-started/dismiss'), ({ request }) => {
     if (withoutToken(request)) {
       return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')

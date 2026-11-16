@@ -83,6 +83,7 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
     timezone,
     gettingStartedDismissedAt: null,
     hasTransactions: false,
+    familyInvited: false,
   }
   mockState.workspaces.push(workspace)
   mockState.accounts.push({

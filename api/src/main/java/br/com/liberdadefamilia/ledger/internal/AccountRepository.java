@@ -210,21 +210,6 @@ class AccountRepository {
                 .single();
     }
 
-    /** Whether the membership is an ACTIVE one of this family. */
-    boolean isActiveMembership(UUID workspaceId, UUID membershipId) {
-        return jdbc.sql("""
-                        select exists (
-                            select 1
-                            from memberships
-                            where workspace_id = :workspaceId
-                              and id = :membershipId
-                              and status = 'ACTIVE')""")
-                .param("workspaceId", workspaceId)
-                .param("membershipId", membershipId)
-                .query(Boolean.class)
-                .single();
-    }
-
     private static AccountView view(ResultSet rs, int row) throws SQLException {
         Currency currency = Currency.getInstance(rs.getString("currency"));
         Timestamp archivedAt = rs.getTimestamp("archived_at");

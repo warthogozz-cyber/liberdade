@@ -18,6 +18,7 @@ const workspace: MeWorkspace = {
   timezone: 'America/Fortaleza',
   gettingStartedDismissedAt: null,
   hasTransactions: false,
+  familyInvited: false,
 }
 
 const me: MeView = {

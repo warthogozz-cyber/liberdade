@@ -1,6 +1,9 @@
 package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.workspace.FamilyActivity;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -16,13 +19,16 @@ class LedgerFamilyActivity implements FamilyActivity {
     }
 
     @Override
-    public boolean hasTransactions(UUID workspaceId) {
-        return jdbc.sql("""
-                        select exists (
-                            select 1 from transactions
-                            where workspace_id = :workspaceId and deleted_at is null)""")
-                .param("workspaceId", workspaceId)
-                .query(Boolean.class)
-                .single();
+    public Set<UUID> withTransactions(Collection<UUID> workspaceIds) {
+        if (workspaceIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(jdbc.sql("""
+                        select distinct workspace_id
+                        from transactions
+                        where workspace_id in (:workspaceIds) and deleted_at is null""")
+                .param("workspaceIds", workspaceIds)
+                .query(UUID.class)
+                .list());
     }
 }

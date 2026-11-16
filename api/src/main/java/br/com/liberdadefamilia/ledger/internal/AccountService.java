@@ -2,6 +2,7 @@ package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.ledger.internal.AccountRepository.AccountChoice;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.workspace.Memberships;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.time.Clock;
 import java.util.UUID;
@@ -18,10 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 class AccountService {
 
     private final AccountRepository accounts;
+    private final Memberships memberships;
     private final Clock clock;
 
-    AccountService(AccountRepository accounts, Clock clock) {
+    AccountService(AccountRepository accounts, Memberships memberships, Clock clock) {
         this.accounts = accounts;
+        this.memberships = memberships;
         this.clock = clock;
     }
 
@@ -36,7 +39,7 @@ class AccountService {
             throw unsupportedCurrency();
         }
         UUID owner = request.ownerMembershipId();
-        if (owner != null && !accounts.isActiveMembership(workspaceId, owner)) {
+        if (owner != null && !memberships.isActive(workspaceId, owner)) {
             throw new LedgerRejectedException("account.owner-not-found", "Essa pessoa não faz parte da família.");
         }
         UUID id = nameTakenIfDuplicate(
