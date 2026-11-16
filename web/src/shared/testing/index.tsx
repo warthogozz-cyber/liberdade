@@ -2,7 +2,7 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
 import { render, renderHook } from '@testing-library/react'
 import type { ReactElement, ReactNode } from 'react'
 import { IntlProvider } from 'react-intl'
-import { createMemoryRouter } from 'react-router'
+import { createMemoryRouter, type RouteObject } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { createQueryClient } from '@/shared/api'
 import { locale, messages } from '@/shared/i18n'
@@ -37,15 +37,17 @@ interface RenderOptions {
   /** The route pattern `ui` answers on; `/` by default. Any other URL renders nothing. */
   path?: string
   queryClient?: QueryClient
+  /** The app's own route objects, instead of `ui` at `path`: needed for lazy routes. */
+  routes?: RouteObject[]
 }
 
 /** Renders `ui` inside the app's providers and a memory router. */
 export function renderWithProviders(
-  ui: ReactElement,
-  { route, path = '/', queryClient = createTestQueryClient() }: RenderOptions = {},
+  ui: ReactElement | null,
+  { route, path = '/', queryClient = createTestQueryClient(), routes }: RenderOptions = {},
 ) {
   const router = createMemoryRouter(
-    [
+    routes ?? [
       { path, element: ui },
       { path: '*', element: null },
     ],
