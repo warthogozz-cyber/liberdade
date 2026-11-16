@@ -81,6 +81,8 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
     role: 'OWNER',
     currency: 'BRL',
     timezone,
+    gettingStartedDismissedAt: null,
+    hasTransactions: false,
   }
   mockState.workspaces.push(workspace)
   mockState.accounts.push({

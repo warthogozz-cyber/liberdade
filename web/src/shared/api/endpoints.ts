@@ -20,6 +20,13 @@ export function getMe(): Promise<MeView> {
   return unwrap(client.GET('/v1/me'))
 }
 
+/** Closes the getting-started card for the signed-in member. A repeat keeps the first date. */
+export async function dismissGettingStarted(workspaceId: string): Promise<void> {
+  await unwrap(
+    client.POST('/v1/me/getting-started/dismiss', { params: { query: { workspaceId } } }),
+  )
+}
+
 /** Creates the family in the browser's time zone (D28). */
 export function createWorkspace(name: string): Promise<WorkspaceView> {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone

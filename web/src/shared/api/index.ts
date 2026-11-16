@@ -28,6 +28,7 @@ export {
   useCreateAccount,
   useCreateCategory,
   useDeleteTransaction,
+  useDismissGettingStarted,
   useRestoreTransaction,
   useUnarchiveAccount,
   useUnarchiveCategory,

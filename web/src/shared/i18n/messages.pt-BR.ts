@@ -99,10 +99,6 @@ export const messages = {
   'home.openDashboard': 'Ver painel do mês',
   'offline.dataAsOf': 'Mostrando dados de {when}.',
   'home.offlineNoData': 'Sem conexão. Os totais aparecem quando o sinal voltar.',
-  'home.firstSteps': 'Primeiros passos',
-  'home.dismissFirstSteps': 'Fechar primeiros passos',
-  'home.passkeyStep': 'Crie uma passkey para entrar mais rápido, sem senha.',
-  'home.passkeyStepLink': 'Criar passkey',
   'home.needsAttention':
     '{count, plural, one {# gasto precisa de atenção} other {# gastos precisam de atenção}}',
   'transactions.offline': 'Sem conexão. Você pode lançar; os gastos saem quando o sinal voltar.',

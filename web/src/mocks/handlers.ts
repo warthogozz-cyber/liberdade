@@ -554,9 +554,28 @@ export const handlers = [
     if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
     return HttpResponse.json({
       user: mockState.user,
-      workspaces: mockState.workspaces,
+      workspaces: mockState.workspaces.map((workspace) => ({
+        ...workspace,
+        // The family has a transaction once one is stored and not deleted.
+        hasTransactions:
+          workspace.hasTransactions ||
+          mockState.transactions.some((tx) => !mockState.deletedTransactionIds.has(tx.id)),
+      })),
       suggestedWorkspaceName: mockState.suggestedWorkspaceName,
     })
+  }),
+
+  http.post(url('/v1/me/getting-started/dismiss'), ({ request }) => {
+    if (withoutToken(request)) {
+      return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')
+    }
+    if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
+    const id = new URL(request.url).searchParams.get('workspaceId')
+    const workspace = mockState.workspaces.find((candidate) => candidate.id === id)
+    if (!workspace) return problem(404, 'workspace.not-found', 'Família não encontrada.')
+    // A repeat keeps the first date.
+    workspace.gettingStartedDismissedAt ??= new Date().toISOString()
+    return new HttpResponse(null, { status: 204 })
   }),
 
   http.post(url('/v1/workspaces'), async ({ request }) => {

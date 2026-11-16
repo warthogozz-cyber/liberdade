@@ -1,7 +1,11 @@
 package br.com.liberdadefamilia.workspace.internal;
 
+import br.com.liberdadefamilia.workspace.FamilyActivity;
 import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Currency;
 import java.util.List;
@@ -19,9 +23,11 @@ import org.springframework.stereotype.Component;
 class WorkspaceRepository {
 
     private final JdbcClient jdbc;
+    private final FamilyActivity activity;
 
-    WorkspaceRepository(JdbcClient jdbc) {
+    WorkspaceRepository(JdbcClient jdbc, FamilyActivity activity) {
         this.jdbc = jdbc;
+        this.activity = activity;
     }
 
     /** Whether the user has an ACTIVE membership in any family, even one being deleted. */
@@ -57,7 +63,8 @@ class WorkspaceRepository {
 
     List<MeWorkspace> activeWorkspacesOf(UUID userId) {
         return jdbc.sql("""
-                        select w.id, w.name, m.role, m.id as membership_id, w.timezone, w.base_currency
+                        select w.id, w.name, m.role, m.id as membership_id, w.timezone, w.base_currency,
+                               m.getting_started_dismissed_at
                         from memberships m
                         join workspaces w on w.id = m.workspace_id
                         where m.user_id = :userId
@@ -65,14 +72,21 @@ class WorkspaceRepository {
                           and w.deletion_requested_at is null
                         order by m.created_at, m.id""")
                 .param("userId", userId)
-                .query((rs, row) -> new MeWorkspace(
-                        rs.getObject("id", UUID.class),
-                        rs.getString("name"),
-                        Role.valueOf(rs.getString("role")),
-                        rs.getObject("membership_id", UUID.class),
-                        rs.getString("timezone"),
-                        rs.getString("base_currency")))
+                .query((rs, row) -> toMeWorkspace(rs))
                 .list();
+    }
+
+    private MeWorkspace toMeWorkspace(ResultSet rs) throws SQLException {
+        OffsetDateTime dismissed = rs.getObject("getting_started_dismissed_at", OffsetDateTime.class);
+        return new MeWorkspace(
+                rs.getObject("id", UUID.class),
+                rs.getString("name"),
+                Role.valueOf(rs.getString("role")),
+                rs.getObject("membership_id", UUID.class),
+                rs.getString("timezone"),
+                rs.getString("base_currency"),
+                dismissed == null ? null : dismissed.toInstant(),
+                activity.hasTransactions(rs.getObject("id", UUID.class)));
     }
 
     Optional<WorkspaceMember> activeMember(UUID workspaceId, UUID userId) {
@@ -94,6 +108,26 @@ class WorkspaceRepository {
                         ZoneId.of(rs.getString("timezone")),
                         Currency.getInstance(rs.getString("base_currency"))))
                 .optional();
+    }
+
+    /**
+     * Stamps the member's dismissal once: a repeat keeps the first date. Returns whether the user has an active
+     * membership in that family, which is also the whole access check for this route.
+     */
+    boolean dismissGettingStarted(UUID workspaceId, UUID userId) {
+        return jdbc.sql("""
+                        update memberships m
+                        set getting_started_dismissed_at = coalesce(m.getting_started_dismissed_at, now())
+                        from workspaces w
+                        where w.id = m.workspace_id
+                          and m.workspace_id = :workspaceId
+                          and m.user_id = :userId
+                          and m.status = 'ACTIVE'
+                          and w.deletion_requested_at is null""")
+                        .param("workspaceId", workspaceId)
+                        .param("userId", userId)
+                        .update()
+                == 1;
     }
 
     record NewWorkspace(UUID id, Currency baseCurrency) {}

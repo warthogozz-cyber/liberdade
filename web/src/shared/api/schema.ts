@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/getting-started/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["dismiss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces": {
         parameters: {
             query?: never;
@@ -353,6 +369,9 @@ export interface components {
         };
         MeWorkspace: {
             currency: string;
+            /** Format: date-time */
+            gettingStartedDismissedAt: string | null;
+            hasTransactions: boolean;
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -472,6 +491,26 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MeView"];
                 };
+            };
+        };
+    };
+    dismiss: {
+        parameters: {
+            query: {
+                workspaceId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

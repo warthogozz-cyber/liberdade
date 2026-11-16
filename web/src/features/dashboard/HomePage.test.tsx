@@ -134,37 +134,53 @@ describe('HomePage', () => {
     expect(screen.queryByRole('link', { name: /atenção/ })).not.toBeInTheDocument()
   })
 
-  it('shows the first steps, with the link to create a passkey', async () => {
-    seedMockFamily()
+  it('showsGettingStartedAfterFirstTransaction', async () => {
+    const workspace = seedMockFamily()
+    workspace.hasTransactions = true
     renderHome()
 
     expect(await screen.findByRole('heading', { name: 'Primeiros passos' })).toBeInTheDocument()
-    expect(
-      screen.getByText('Crie uma passkey para entrar mais rápido, sem senha.'),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Criar passkey' })).toHaveAttribute('href', '/mais')
+    expect(screen.getByRole('link', { name: 'Criar passkey neste aparelho' })).toHaveAttribute(
+      'href',
+      '/mais',
+    )
   })
 
-  it('keeps the first steps closed once dismissed', async () => {
-    seedMockFamily()
-    const { unmount } = renderHome()
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Fechar primeiros passos' }))
-    expect(screen.queryByRole('heading', { name: 'Primeiros passos' })).not.toBeInTheDocument()
-    unmount()
-
-    renderHome()
-    expect(await screen.findByText('R$ 10,00')).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Primeiros passos' })).not.toBeInTheDocument()
-  })
-
-  it('leaves the first steps out once there is a passkey', async () => {
-    seedMockFamily()
-    mockState.user.passkeyCreatedAt = '2026-11-01T12:00:00Z'
+  it('keepsGettingStartedClosedOnceDismissed', async () => {
+    const workspace = seedMockFamily()
+    workspace.hasTransactions = true
+    workspace.gettingStartedDismissedAt = '2026-11-10T12:00:00Z'
     renderHome()
 
     expect(await screen.findByText('R$ 10,00')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Primeiros passos' })).not.toBeInTheDocument()
+  })
+
+  it('hidesGettingStartedBeforeFirstTransaction', async () => {
+    seedMockFamily()
+    renderHome()
+
+    expect(await screen.findByText('R$ 10,00')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Primeiros passos' })).not.toBeInTheDocument()
+  })
+
+  it('dropsLegacyKey', async () => {
+    const workspace = seedMockFamily()
+    workspace.hasTransactions = true
+    localStorage.setItem('liberdade:first-steps-dismissed', '1')
+    let posts = 0
+    server.use(
+      http.post(`${API_URL}/v1/me/getting-started/dismiss`, () => {
+        posts += 1
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    renderHome()
+
+    // The old dismissal does not carry over: the new card has other items and another rule.
+    expect(await screen.findByRole('heading', { name: 'Primeiros passos' })).toBeInTheDocument()
+    expect(localStorage.getItem('liberdade:first-steps-dismissed')).toBeNull()
+    expect(posts).toBe(0)
   })
 
   it('says the totals wait for the signal when offline without a cache', async () => {

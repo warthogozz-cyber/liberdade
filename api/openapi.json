@@ -50,6 +50,30 @@
         ]
       }
     },
+    "/v1/me/getting-started/dismiss": {
+      "post": {
+        "operationId": "dismiss",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "getting-started-controller"
+        ]
+      }
+    },
     "/v1/workspaces": {
       "post": {
         "operationId": "createWorkspace",
@@ -1156,6 +1180,14 @@
         "properties": {
           "currency": {
             "type": "string"
+          },
+          "gettingStartedDismissedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "hasTransactions": {
+            "type": "boolean"
           },
           "id": {
             "type": "string",

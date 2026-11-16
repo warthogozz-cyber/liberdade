@@ -5,6 +5,7 @@ import {
   createAccount,
   createCategory,
   deleteTransaction,
+  dismissGettingStarted,
   restoreTransaction,
   unarchiveAccount,
   unarchiveCategory,
@@ -16,6 +17,7 @@ import { queryKeys } from './queryKeys'
 import type {
   CreateAccountRequest,
   CreateCategoryRequest,
+  MeView,
   UpdateAccountRequest,
   UpdateCategoryRequest,
   UpdateTransactionRequest,
@@ -115,5 +117,39 @@ export function useUnarchiveCategory(ws: string) {
   return useMutation({
     mutationFn: (id: string) => unarchiveCategory(ws, id),
     onSettled: useRefreshWorkspace(ws),
+  })
+}
+
+/**
+ * Closes the getting-started card. The cached `me` shows it dismissed at once and goes back if the
+ * call fails; `onError` runs even after the card is gone, which is when a failure matters.
+ */
+export function useDismissGettingStarted(options: { onError?: () => void } = {}) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (workspaceId: string) => dismissGettingStarted(workspaceId),
+    onMutate: async (workspaceId) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.me })
+      const previous = queryClient.getQueryData<MeView>(queryKeys.me)
+      const now = new Date().toISOString()
+      queryClient.setQueryData<MeView>(
+        queryKeys.me,
+        (me) =>
+          me && {
+            ...me,
+            workspaces: me.workspaces.map((workspace) =>
+              workspace.id === workspaceId && workspace.gettingStartedDismissedAt === null
+                ? { ...workspace, gettingStartedDismissedAt: now }
+                : workspace,
+            ),
+          },
+      )
+      return { previous }
+    },
+    onError: (_error, _workspaceId, context) => {
+      queryClient.setQueryData(queryKeys.me, context?.previous)
+      options.onError?.()
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.me }),
   })
 }
