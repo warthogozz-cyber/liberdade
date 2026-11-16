@@ -28,7 +28,10 @@ final class ForwardedHeadersClient {
                 HttpRequest.newBuilder(URI.create(base + "/v1/csrf")).GET().build(),
                 HttpResponse.BodyHandlers.ofString());
         assertThat(csrf.statusCode()).isEqualTo(200);
-        String setCookie = csrf.headers().firstValue("Set-Cookie").orElseThrow();
+        String setCookie = csrf.headers().allValues("Set-Cookie").stream()
+                .filter(value -> value.startsWith("__Host-sid="))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("GET /v1/csrf did not set the __Host-sid cookie"));
         this.cookie = setCookie.substring(0, setCookie.indexOf(';'));
         this.csrfHeader = JsonPath.read(csrf.body(), "$.headerName");
         this.csrfToken = JsonPath.read(csrf.body(), "$.token");
