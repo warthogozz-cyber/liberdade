@@ -6,6 +6,7 @@ import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
+import br.com.liberdadefamilia.workspace.Role;
 import com.jayway.jsonpath.JsonPath;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
@@ -107,6 +108,67 @@ class YouthWalletIT {
         join(ana, ws, vera, "VIEWER", "Vera");
 
         assertThat(walletNames(ws)).containsExactly("Carteira");
+    }
+
+    @Test
+    void promotedYouthGetsWallet() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID teo = users.create("Teo Teste", "teo@example.com");
+        UUID ws = workspaces.createFor(ana);
+        UUID teoMembership = workspaces.addMember(ws, teo, Role.ADULT, "Teco");
+
+        assertThat(setRole(ana, ws, teoMembership, "YOUTH")).hasStatusOk();
+
+        assertThat(walletsHeldBy(ws, teoMembership)).containsExactly("Carteira de Teco");
+    }
+
+    @Test
+    void promotedYouthWithAccountKeepsIt() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID teo = users.create("Teo Teste", "teo@example.com");
+        UUID ws = workspaces.createFor(ana);
+        UUID teoMembership = workspaces.addMember(ws, teo, Role.ADULT, "Teco");
+        jdbc.sql("""
+                        insert into accounts (workspace_id, name, type, currency, initial_balance, owner_membership_id)
+                        values (:ws, 'Conta do Teco', 'CASH', 'BRL', 0, :membership)""").param("ws", ws).param("membership", teoMembership).update();
+
+        assertThat(setRole(ana, ws, teoMembership, "YOUTH")).hasStatusOk();
+
+        assertThat(walletsHeldBy(ws, teoMembership)).containsExactly("Conta do Teco");
+        assertThat(walletNames(ws)).containsExactlyInAnyOrder("Carteira", "Conta do Teco");
+    }
+
+    @Test
+    void repeatedPromotionNoDuplicate() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID teo = users.create("Teo Teste", "teo@example.com");
+        UUID ws = workspaces.createFor(ana);
+        UUID teoMembership = workspaces.addMember(ws, teo, Role.ADULT, "Teco");
+
+        assertThat(setRole(ana, ws, teoMembership, "YOUTH")).hasStatusOk();
+        assertThat(setRole(ana, ws, teoMembership, "ADULT")).hasStatusOk();
+        assertThat(setRole(ana, ws, teoMembership, "YOUTH")).hasStatusOk();
+
+        assertThat(walletsHeldBy(ws, teoMembership)).containsExactly("Carteira de Teco");
+    }
+
+    private MvcTestResult setRole(UUID ownerId, UUID ws, UUID membershipId, String role) {
+        RequestPostProcessor owner = TestUsers.signedIn(ownerId, null);
+        return mvc.patch()
+                .uri("/v1/workspaces/" + ws + "/members/" + membershipId)
+                .with(owner)
+                .with(CsrfSession.start(mvc, owner))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"role\":\"" + role + "\",\"parentalConsent\":true}")
+                .exchange();
+    }
+
+    private List<String> walletsHeldBy(UUID ws, UUID membershipId) {
+        return jdbc.sql("select name from accounts where workspace_id = :ws and owner_membership_id = :membership")
+                .param("ws", ws)
+                .param("membership", membershipId)
+                .query(String.class)
+                .list();
     }
 
     private List<String> walletNames(UUID ws) {

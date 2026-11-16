@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily, seedMockInvitation } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
-import { API_URL, type MeView } from '@/shared/api'
+import { API_URL, postJson, type MeView } from '@/shared/api'
 import { readSelectedWorkspaceId } from '@/shared/api/workspaceChoice'
 import { registerPasskey } from '@/shared/auth/passkey'
 import { broadcastSignedIn, broadcastSignedOut, db } from '@/shared/offline'
@@ -351,6 +351,34 @@ describe('AcceptInvitationPage', () => {
 
     await screen.findByRole('heading', { name: 'Crie sua passkey para voltar depois' })
     expect(sessionStorage.getItem(PENDING_KEY)).toBe('Convidada')
+  })
+
+  // A guard, not a fix: the cache is cleared after a fresh session, and that already drops the token.
+  it('newSessionAsksForANewCsrfToken', async () => {
+    const csrfAsks: string[] = []
+    const record = ({ request }: { request: Request }) => {
+      if (new URL(request.url).pathname === '/v1/csrf') csrfAsks.push(request.url)
+    }
+    server.events.on('request:start', record)
+    try {
+      mockState.signedIn = false
+      seedMockInvitation({ token: TOKEN })
+      renderAccept()
+
+      fireEvent.change(await screen.findByLabelText('Como você se chama?'), {
+        target: { value: 'Ana Teste' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Criar passkey neste aparelho' }))
+      await screen.findByRole('heading', { name: 'Crie sua passkey para voltar depois' })
+      // The accept itself used the token of the anonymous session.
+      expect(csrfAsks).toHaveLength(1)
+
+      await postJson('/logout')
+
+      expect(csrfAsks).toHaveLength(2)
+    } finally {
+      server.events.removeListener('request:start', record)
+    }
   })
 
   it('recoveryGoesStraightToThePasskey', async () => {

@@ -3,6 +3,9 @@ package br.com.liberdadefamilia.ledger.internal;
 import br.com.liberdadefamilia.ledger.domain.TransactionKind;
 import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.workspace.MemberJoined;
+import br.com.liberdadefamilia.workspace.MemberRoleChanged;
+import br.com.liberdadefamilia.workspace.MemberSummary;
+import br.com.liberdadefamilia.workspace.Memberships;
 import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceCreated;
 import java.util.Currency;
@@ -51,10 +54,12 @@ class LedgerSeeder {
 
     private final AccountRepository accounts;
     private final CategoryRepository categories;
+    private final Memberships memberships;
 
-    LedgerSeeder(AccountRepository accounts, CategoryRepository categories) {
+    LedgerSeeder(AccountRepository accounts, CategoryRepository categories, Memberships memberships) {
         this.accounts = accounts;
         this.categories = categories;
+        this.memberships = memberships;
     }
 
     @EventListener
@@ -79,14 +84,32 @@ class LedgerSeeder {
         if (event.role() != Role.YOUTH) {
             return;
         }
-        UUID workspaceId = event.workspaceId();
+        createYouthWallet(event.workspaceId(), event.membershipId(), event.nickname());
+    }
+
+    /**
+     * An ADULT or a VIEWER who becomes a YOUTH gets the wallet too, unless they already hold an account of the family:
+     * going back and forth between roles never piles wallets up. Inside the role-changing transaction, like joining.
+     */
+    @EventListener
+    void on(MemberRoleChanged event) {
+        if (event.to() != Role.YOUTH || accounts.holdsAny(event.workspaceId(), event.membershipId())) {
+            return;
+        }
+        String nickname = memberships
+                .find(event.workspaceId(), event.membershipId())
+                .map(MemberSummary::nickname)
+                .orElse(null);
+        createYouthWallet(event.workspaceId(), event.membershipId(), nickname == null ? "Jovem" : nickname);
+    }
+
+    private void createYouthWallet(UUID workspaceId, UUID membershipId, String nickname) {
         Currency currency = accounts.firstCurrency(workspaceId).orElse(DEFAULT_CURRENCY);
-        String base = YOUTH_WALLET_PREFIX + event.nickname();
+        String base = YOUTH_WALLET_PREFIX + nickname;
         // The insert answers a taken name with no row, so two people joining at once cannot both take one name.
         for (int n = 1; n <= MAX_WALLET_NAMES; n++) {
             String name = n == 1 ? base : base + " " + n;
-            if (accounts.insertIfNameFree(
-                            workspaceId, name, AccountType.CASH, Money.zero(currency), event.membershipId())
+            if (accounts.insertIfNameFree(workspaceId, name, AccountType.CASH, Money.zero(currency), membershipId)
                     .isPresent()) {
                 return;
             }

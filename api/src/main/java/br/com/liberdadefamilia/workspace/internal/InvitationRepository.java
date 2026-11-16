@@ -23,7 +23,7 @@ class InvitationRepository {
 
     private static final String SELECT_BY_HASH = """
             select i.id, i.workspace_id, w.name as workspace_name, i.kind, i.role, i.nickname,
-                   i.parental_consent_at, i.parental_consent_by, i.expires_at, i.used_at, i.revoked_at, c.nickname as created_by_name,
+                   i.parental_consent_at, i.parental_consent_by, i.expires_at, i.used_at, i.used_by, i.revoked_at, c.nickname as created_by_name,
                    i.target_membership_id, t.nickname as target_nickname, t.status as target_status,
                    t.role as target_role, i.created_by
             from invitations i
@@ -168,9 +168,11 @@ class InvitationRepository {
                 .single();
     }
 
-    void markUsed(UUID invitationId, Instant now) {
-        jdbc.sql("update invitations set used_at = :now where id = :id")
+    /** Marks the link used, and by whom, so that the same person repeating the request can be told apart. */
+    void markUsed(UUID invitationId, UUID userId, Instant now) {
+        jdbc.sql("update invitations set used_at = :now, used_by = :userId where id = :id")
                 .param("now", utc(now))
+                .param("userId", userId)
                 .param("id", invitationId)
                 .update();
     }
@@ -194,6 +196,7 @@ class InvitationRepository {
                 rs.getObject("parental_consent_by", UUID.class),
                 rs.getObject("expires_at", OffsetDateTime.class).toInstant(),
                 used != null,
+                rs.getObject("used_by", UUID.class),
                 revoked != null,
                 rs.getString("created_by_name"),
                 rs.getObject("target_membership_id", UUID.class),
@@ -223,6 +226,7 @@ class InvitationRepository {
             @Nullable UUID consentBy,
             Instant expiresAt,
             boolean used,
+            @Nullable UUID usedBy,
             boolean revoked,
             @Nullable String createdByName,
             @Nullable UUID targetMembershipId,

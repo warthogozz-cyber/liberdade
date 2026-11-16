@@ -4,7 +4,14 @@ import { flushSync } from 'react-dom'
 import { useIntl } from 'react-intl'
 import { Link, useNavigate } from 'react-router'
 import { SignOutButton } from '@/features/auth/SignOutButton'
-import { ApiError, getMe, queryKeys, selectWorkspace, type InvitationPreview } from '@/shared/api'
+import {
+  ApiError,
+  getMe,
+  queryKeys,
+  resetCsrf,
+  selectWorkspace,
+  type InvitationPreview,
+} from '@/shared/api'
 import { useAcceptInvitation, usePreviewInvitation } from '@/shared/api/family'
 import { startGoogleSignIn } from '@/shared/auth'
 import { registerPasskey } from '@/shared/auth/passkey'
@@ -166,6 +173,8 @@ export function AcceptInvitationPage() {
     }
     clearInvitationToken()
     if (freshSession) {
+      // The API swapped the session, so the token of the anonymous one is dead; the next write asks again.
+      resetCsrf()
       try {
         // What the cache held belonged to someone else; the refetch below fills it again.
         await clearSession(queryClient)
