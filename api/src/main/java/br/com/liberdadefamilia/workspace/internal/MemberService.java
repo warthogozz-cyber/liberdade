@@ -25,19 +25,25 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Lists the family's people and lets an owner change or remove them. Error messages and logs never carry a name. The
- * rule that a family always keeps an owner is checked with the owners' rows locked, so two requests cannot both pass it.
+ * rule that a family always keeps an active Owner is checked by {@link ActiveOwners}, with the Owners' rows locked.
  */
 @Service
 class MemberService {
 
     private final MemberRepository members;
+    private final ActiveOwners activeOwners;
     private final Memberships memberships;
     private final UserDirectory users;
     private final ApplicationEventPublisher events;
 
     MemberService(
-            MemberRepository members, Memberships memberships, UserDirectory users, ApplicationEventPublisher events) {
+            MemberRepository members,
+            ActiveOwners activeOwners,
+            Memberships memberships,
+            UserDirectory users,
+            ApplicationEventPublisher events) {
         this.members = members;
+        this.activeOwners = activeOwners;
         this.memberships = memberships;
         this.users = users;
         this.events = events;
@@ -55,14 +61,14 @@ class MemberService {
      * {@code requireRecentSignIn} runs only when the role really changes, decided here with the owners locked.
      *
      * @throws MemberNotFoundException when the membership is not in the family
-     * @throws WorkspaceRejectedException when the member is gone, the last owner would step down, or a YOUTH role
+     * @throws WorkspaceRejectedException when the member is gone, the last active Owner would step down, or a YOUTH role
      *     comes without the guardian's consent
      */
     @Transactional
     MemberView update(
             WorkspaceMember caller, UUID membershipId, UpdateMemberRequest request, Runnable requireRecentSignIn) {
         UUID workspaceId = caller.workspaceId();
-        List<UUID> owners = members.lockActiveOwners(workspaceId);
+        List<ActiveOwners.Owner> owners = activeOwners.lock(List.of(workspaceId));
         MemberRow target = members.find(workspaceId, membershipId).orElseThrow(MemberNotFoundException::new);
         if (target.status() == MembershipStatus.REMOVED) {
             throw new WorkspaceRejectedException("member.removed", "Essa pessoa já saiu da família.");
@@ -72,7 +78,7 @@ class MemberService {
         if (roleChanges) {
             requireRecentSignIn.run();
         }
-        if (roleChanges && target.role() == Role.OWNER && owners.size() <= 1) {
+        if (roleChanges && target.role() == Role.OWNER && noOtherOwner(owners, membershipId)) {
             throw lastOwner();
         }
         UUID consentBy = null;
@@ -101,20 +107,25 @@ class MemberService {
      * Removes the member. Removing one who is already gone changes nothing.
      *
      * @throws MemberNotFoundException when the membership is not in the family
-     * @throws WorkspaceRejectedException when it is the family's last owner
+     * @throws WorkspaceRejectedException when it is the family's last active Owner
      */
     @Transactional
     void remove(WorkspaceMember caller, UUID membershipId) {
         UUID workspaceId = caller.workspaceId();
-        List<UUID> owners = members.lockActiveOwners(workspaceId);
+        List<ActiveOwners.Owner> owners = activeOwners.lock(List.of(workspaceId));
         MemberRow target = members.find(workspaceId, membershipId).orElseThrow(MemberNotFoundException::new);
         if (target.status() == MembershipStatus.REMOVED) {
             return;
         }
-        if (target.role() == Role.OWNER && owners.size() <= 1) {
+        if (target.role() == Role.OWNER && noOtherOwner(owners, membershipId)) {
             throw lastOwner();
         }
         memberships.remove(workspaceId, membershipId, caller.userId(), MemberRemoved.Reason.BY_OWNER);
+    }
+
+    /** Whether the family would be left without an active Owner once this member is not one. */
+    private static boolean noOtherOwner(List<ActiveOwners.Owner> owners, UUID membershipId) {
+        return owners.stream().allMatch(owner -> owner.membershipId().equals(membershipId));
     }
 
     private static WorkspaceRejectedException lastOwner() {

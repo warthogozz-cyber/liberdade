@@ -119,17 +119,6 @@ class MemberRepository {
                 .update();
     }
 
-    /**
-     * Locks the family's ACTIVE owners until the transaction ends and returns their ids. Two requests that could each
-     * take away an owner queue here, and the second sees what the first left.
-     */
-    List<UUID> lockActiveOwners(UUID workspaceId) {
-        return jdbc.sql("""
-                        select id from memberships
-                        where workspace_id = :workspaceId and role = 'OWNER' and status = 'ACTIVE'
-                        for update""").param("workspaceId", workspaceId).query(UUID.class).list();
-    }
-
     /** Applies what is not null. {@code consentBy}, when given, stamps the parental consent now. */
     void update(
             UUID workspaceId,

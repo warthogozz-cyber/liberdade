@@ -27,10 +27,12 @@ class JdbcMemberships implements Memberships {
             from memberships""";
 
     private final JdbcClient jdbc;
+    private final ActiveOwners activeOwners;
     private final ApplicationEventPublisher events;
 
-    JdbcMemberships(JdbcClient jdbc, ApplicationEventPublisher events) {
+    JdbcMemberships(JdbcClient jdbc, ActiveOwners activeOwners, ApplicationEventPublisher events) {
         this.jdbc = jdbc;
+        this.activeOwners = activeOwners;
         this.events = events;
     }
 
@@ -101,23 +103,25 @@ class JdbcMemberships implements Memberships {
     }
 
     @Override
+    @Transactional
     public boolean isSoleActiveOwnerOfLiveFamily(UUID userId) {
-        return jdbc.sql("""
-                        select exists (
-                            select 1
-                            from memberships m
-                            join workspaces w on w.id = m.workspace_id
-                            where m.user_id = :userId
-                              and m.role = 'OWNER'
-                              and m.status = 'ACTIVE'
-                              and w.deletion_requested_at is null
-                              and not exists (
-                                  select 1
-                                  from memberships other
-                                  where other.workspace_id = m.workspace_id
-                                    and other.id <> m.id
-                                    and other.role = 'OWNER'
-                                    and other.status = 'ACTIVE'))""").param("userId", userId).query(Boolean.class).single();
+        List<UUID> families =
+                jdbc.sql("""
+                        select m.workspace_id
+                        from memberships m
+                        join workspaces w on w.id = m.workspace_id
+                        where m.user_id = :userId
+                          and m.role = 'OWNER'
+                          and m.status = 'ACTIVE'
+                          and w.deletion_requested_at is null""").param("userId", userId).query(UUID.class).list();
+        List<ActiveOwners.Owner> owners = activeOwners.lock(families);
+        return families.stream().anyMatch(family -> {
+            List<ActiveOwners.Owner> here = owners.stream()
+                    .filter(owner -> owner.workspaceId().equals(family))
+                    .toList();
+            return here.stream().anyMatch(owner -> owner.userId().equals(userId))
+                    && here.stream().allMatch(owner -> owner.userId().equals(userId));
+        });
     }
 
     @Override

@@ -7,7 +7,9 @@ import br.com.liberdadefamilia.identity.UserSummary;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -48,6 +50,17 @@ class JdbcUserDirectory implements UserDirectory {
                 .param("displayName", displayName)
                 .query(UUID.class)
                 .single();
+    }
+
+    @Override
+    public Set<UUID> pendingDeletion(Collection<UUID> userIds) {
+        if (userIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(jdbc.sql("select id from users where id in (:ids) and deletion_requested_at is not null")
+                .param("ids", userIds)
+                .query(UUID.class)
+                .list());
     }
 
     @Override

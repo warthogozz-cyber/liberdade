@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.privacy;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
@@ -18,8 +19,12 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,6 +37,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
@@ -46,6 +53,8 @@ import org.testcontainers.utility.DockerImageName;
 class AccountDeletionIT {
 
     private static final String SESSION_COOKIE = "__Host-sid";
+
+    private static final int TIMEOUT_SECONDS = 20;
 
     private static final GenericContainer<?> GOOGLE = new GenericContainer<>(
                     DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:6.1.3"))
@@ -72,6 +81,9 @@ class AccountDeletionIT {
 
     @Autowired
     TestWorkspaces workspaces;
+
+    @Autowired
+    PlatformTransactionManager transactionManager;
 
     @Test
     void adultSchedulesDeletion() {
@@ -137,6 +149,86 @@ class AccountDeletionIT {
                 .update();
 
         assertThat(request(f.ana, 0)).hasStatus(202);
+    }
+
+    @Test
+    void coOwnersCannotBothLeave() {
+        Family f = family();
+        makeOwner(f);
+        assertThat(request(f.ana, 0)).hasStatus(202);
+
+        MvcTestResult refused = request(f.bia, 0);
+
+        assertThat(refused).hasStatus(409);
+        assertThat(refused).bodyJson().extractingPath("$.code").isEqualTo("account.sole-owner");
+        // Taking the first request back gives the family its Owner again.
+        assertThat(delete(f.ana)).hasStatus(204);
+        assertThat(request(f.bia, 0)).hasStatus(202);
+    }
+
+    @Test
+    void concurrentDeletionsKeepAnOwner() throws Exception {
+        Family f = family();
+        makeOwner(f);
+
+        // A transaction of the test holds the owners' rows, so both requests are stopped inside the database before
+        // either one can finish: the interleaving is forced, not hoped for.
+        ExecutorService pool =
+                Executors.newFixedThreadPool(2, Thread.ofPlatform().daemon().factory());
+        List<Integer> statuses = new ArrayList<>();
+        List<String> codes = new ArrayList<>();
+        try {
+            List<Future<MvcTestResult>> calls = new ArrayList<>();
+            new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                jdbc.sql("select id from memberships where workspace_id = :ws and role = 'OWNER' for update")
+                        .param("ws", f.ws)
+                        .query(UUID.class)
+                        .list();
+                calls.add(pool.submit(() -> request(f.ana, 0)));
+                calls.add(pool.submit(() -> request(f.bia, 0)));
+                awaitWaitingRequests(2);
+            });
+            for (Future<MvcTestResult> call : calls) {
+                MvcTestResult result = call.get(TIMEOUT_SECONDS, SECONDS);
+                statuses.add(result.getResponse().getStatus());
+                if (result.getResponse().getStatus() == 409) {
+                    codes.add(JsonPath.read(body(result), "$.code"));
+                }
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+
+        assertThat(statuses).containsExactlyInAnyOrder(202, 409);
+        assertThat(codes).containsExactly("account.sole-owner");
+        assertThat(jdbc.sql("""
+                                select count(*) from users
+                                where id in (:ids) and deletion_requested_at is not null""")
+                        .param("ids", List.of(f.ana, f.bia))
+                        .query(Long.class)
+                        .single())
+                .isOne();
+    }
+
+    @Test
+    void ownerLeavingCountsAsGone() {
+        Family f = family();
+        makeOwner(f);
+        UUID biaMembership = workspaces.membershipOf(f.ws, f.bia);
+        assertThat(request(f.ana, 0)).hasStatus(202);
+
+        MvcTestResult demoted = patchMember(f.bia, f.ws, biaMembership, "{\"role\":\"ADULT\"}");
+        MvcTestResult removed = deleteMember(f.bia, f.ws, biaMembership);
+
+        assertThat(demoted).hasStatus(422);
+        assertThat(demoted).bodyJson().extractingPath("$.code").isEqualTo("member.last-owner");
+        assertThat(removed).hasStatus(422);
+        assertThat(removed).bodyJson().extractingPath("$.code").isEqualTo("member.last-owner");
+        assertThat(jdbc.sql("select role || '/' || status from memberships where id = :id")
+                        .param("id", biaMembership)
+                        .query(String.class)
+                        .single())
+                .isEqualTo("OWNER/ACTIVE");
     }
 
     @Test
@@ -295,6 +387,49 @@ class AccountDeletionIT {
         UUID ws = workspaces.createFor(ana);
         workspaces.addMember(ws, bia, Role.ADULT, "Bibi");
         return new Family(ana, bia, ws);
+    }
+
+    /** Bia becomes an Owner too. */
+    private void makeOwner(Family f) {
+        jdbc.sql("update memberships set role = 'OWNER' where workspace_id = :ws and user_id = :bia")
+                .param("ws", f.ws)
+                .param("bia", f.bia)
+                .update();
+    }
+
+    private MvcTestResult patchMember(UUID user, UUID ws, UUID membershipId, String json) {
+        RequestPostProcessor session = session(user, 0);
+        return mvc.patch()
+                .uri("/v1/workspaces/" + ws + "/members/" + membershipId)
+                .with(session)
+                .with(CsrfSession.start(mvc, session))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(json)
+                .exchange();
+    }
+
+    private MvcTestResult deleteMember(UUID user, UUID ws, UUID membershipId) {
+        RequestPostProcessor session = session(user, 0);
+        return mvc.delete()
+                .uri("/v1/workspaces/" + ws + "/members/" + membershipId)
+                .with(session)
+                .with(CsrfSession.start(mvc, session))
+                .exchange();
+    }
+
+    /** Waits until that many requests are stopped on a database lock. */
+    private void awaitWaitingRequests(int expected) {
+        long deadline = System.nanoTime() + SECONDS.toNanos(TIMEOUT_SECONDS);
+        while (System.nanoTime() < deadline) {
+            Long waiting = jdbc.sql("""
+                            select count(*) from pg_stat_activity
+                            where datname = current_database() and wait_event_type = 'Lock'""").query(Long.class).single();
+            if (waiting >= expected) {
+                return;
+            }
+            Thread.onSpinWait();
+        }
+        throw new IllegalStateException("The requests never reached the lock");
     }
 
     private MvcTestResult request(UUID user, int minutesAgo) {

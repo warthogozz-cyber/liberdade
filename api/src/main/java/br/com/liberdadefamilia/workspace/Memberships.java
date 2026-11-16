@@ -27,7 +27,11 @@ public interface Memberships {
     /** The names of the families, in one query. A family that does not exist is left out. */
     Map<UUID, String> workspaceNames(Collection<UUID> workspaceIds);
 
-    /** Whether some family without a pending deletion has this person as its only active OWNER. */
+    /**
+     * Whether some family without a pending deletion has this person as its only active Owner: no other active OWNER
+     * membership whose person keeps their account. Locks those families' Owner rows until the caller's transaction
+     * ends, so two co-owners asking at once cannot both leave the family without one.
+     */
     boolean isSoleActiveOwnerOfLiveFamily(UUID userId);
 
     /**
