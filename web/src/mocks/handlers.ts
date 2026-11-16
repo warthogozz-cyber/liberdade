@@ -127,13 +127,17 @@ function withoutToken(request: Request) {
   return request.headers.get(CSRF.headerName) !== CSRF.token
 }
 
-/** The signed-in user, then their family `ws`, guard every route under a family. */
-function guard(ws: string): MeWorkspace | Response {
+/**
+ * The signed-in user, then their family `ws`, guard every route under a family. A family being deleted is hidden
+ * (404) like the API does, except to its Owners on the two routes that opt in.
+ */
+function guard(ws: string, includePendingDeletion = false): MeWorkspace | Response {
   if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
-  return (
-    mockState.workspaces.find((workspace) => workspace.id === ws) ??
-    problem(404, 'workspace.not-found', 'Família não encontrada.')
-  )
+  const workspace = mockState.workspaces.find((candidate) => candidate.id === ws)
+  const visible =
+    workspace &&
+    (!workspace.deletionScheduledFor || (includePendingDeletion && workspace.role === 'OWNER'))
+  return visible ? workspace : problem(404, 'workspace.not-found', 'Família não encontrada.')
 }
 
 async function readJson(request: Request): Promise<unknown> {
@@ -630,13 +634,15 @@ export const handlers = [
     if (!mockState.signedIn) return problem(401, 'auth.required', 'Entre para continuar.')
     return HttpResponse.json({
       user: mockState.user,
-      workspaces: mockState.workspaces.map((workspace) => ({
-        ...workspace,
-        // The family has a transaction once one is stored and not deleted.
-        hasTransactions:
-          workspace.hasTransactions ||
-          mockState.transactions.some((tx) => !mockState.deletedTransactionIds.has(tx.id)),
-      })),
+      workspaces: mockState.workspaces
+        .filter((workspace) => !workspace.deletionScheduledFor || workspace.role === 'OWNER')
+        .map((workspace) => ({
+          ...workspace,
+          // The family has a transaction once one is stored and not deleted.
+          hasTransactions:
+            workspace.hasTransactions ||
+            mockState.transactions.some((tx) => !mockState.deletedTransactionIds.has(tx.id)),
+        })),
       suggestedWorkspaceName: mockState.suggestedWorkspaceName,
     })
   }),
@@ -654,7 +660,7 @@ export const handlers = [
 
   http.post<{ ws: string }>(url('/v1/workspaces/:ws/export'), ({ request, params }) => {
     if (withoutToken(request)) return csrfInvalid()
-    const workspace = guard(String(params.ws))
+    const workspace = guard(String(params.ws), true)
     if (workspace instanceof Response) return workspace
     if (workspace.role !== 'OWNER') return roleDenied()
     return zipResponse('liberdade-familia')
@@ -695,7 +701,7 @@ export const handlers = [
 
   http.delete<{ ws: string }>(url('/v1/workspaces/:ws/deletion'), ({ request, params }) => {
     if (withoutToken(request)) return csrfInvalid()
-    const workspace = guard(String(params.ws))
+    const workspace = guard(String(params.ws), true)
     if (workspace instanceof Response) return workspace
     if (workspace.role !== 'OWNER') return roleDenied()
     workspace.deletionScheduledFor = null

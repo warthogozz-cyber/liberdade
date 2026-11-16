@@ -15,10 +15,19 @@ public interface UserDeletion {
      * Marks the account for deletion and returns the day it will be erased: the request plus {@link #GRACE}. Asking
      * again keeps the first request, so the date does not move.
      */
-    Instant schedule(UUID userId);
+    Scheduled schedule(UUID userId);
 
-    /** Takes the request back. Nothing happens when none is pending. */
-    void cancel(UUID userId);
+    /** Takes the request back; true when one was pending, false when nothing happened. */
+    boolean cancel(UUID userId);
+
+    /** The day the account will be erased, and whether this call is the one that made the request. */
+    record Scheduled(Instant date, boolean changed) {}
+
+    /**
+     * Locks the account and says whether its request is still more than {@link #GRACE} old at {@code now}. Called
+     * first in the purge transaction, so a cancellation that landed after {@link #dueForPurge} is honoured.
+     */
+    boolean lockIfDue(UUID userId, Instant now);
 
     /** The accounts whose request is more than {@link #GRACE} old at {@code now}. */
     List<UUID> dueForPurge(Instant now);

@@ -120,7 +120,9 @@ class SecurityConfig {
                 // Added before the problem filter below, so that one still runs right before the registration filter.
                 .addFilterAfter(new SessionCookieRefreshFilter(clock, cookies), AuthorizationFilter.class)
                 // Runs after the authorization check, and before Spring's passkey registration filter.
-                .addFilterAfter(new PendingDeletionFilter(accounts, resolver), AuthorizationFilter.class)
+                // Early enough to be ahead of Spring's passkey registration filters too, so those are shut for them as
+                // well.
+                .addFilterBefore(new PendingDeletionFilter(accounts, resolver), ExceptionTranslationFilter.class)
                 // Spring adds its registration filter at this same position later, while the chain is built; the
                 // sort is stable, so this one runs right before it.
                 .addFilterAfter(new PasskeyRegistrationProblemFilter(resolver), AuthorizationFilter.class)

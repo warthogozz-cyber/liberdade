@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.support.CsrfSession;
-import br.com.liberdadefamilia.support.TestLedger;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
 import br.com.liberdadefamilia.workspace.Role;
@@ -73,9 +72,6 @@ class AccountDeletionIT {
 
     @Autowired
     TestWorkspaces workspaces;
-
-    @Autowired
-    TestLedger ledger;
 
     @Test
     void adultSchedulesDeletion() {
@@ -146,22 +142,75 @@ class AccountDeletionIT {
     @Test
     void pendingAccountIsLockedDown() {
         Family f = family();
-        UUID category = ledger.categoryOf(f.ws, "EXPENSE", "Mercado");
-        assertThat(get(f.bia, "/v1/workspaces/" + f.ws + "/accounts")).hasStatusOk();
-        assertThat(category).isNotNull();
+        String transactions = "/v1/workspaces/" + f.ws + "/transactions?month=2026-11";
+        assertThat(get(f.bia, transactions)).hasStatusOk();
         request(f.bia, 0);
 
-        MvcTestResult locked = get(f.bia, "/v1/workspaces/" + f.ws + "/accounts");
+        MvcTestResult locked = get(f.bia, transactions);
 
-        assertThat(locked).hasStatus(403);
-        assertThat(locked).bodyJson().extractingPath("$.code").isEqualTo("account.deletion-pending");
+        assertPending(locked);
         assertThat(locked).bodyJson().extractingPath("$.detail").isEqualTo("Sua conta está marcada para exclusão.");
         assertThat(get(f.bia, "/v1/me")).hasStatusOk();
         assertThat(get(f.bia, "/v1/csrf")).hasStatusOk();
         assertThat(post(f.bia, "/v1/me/export", 0)).hasStatusOk();
         assertThat(post(f.bia, "/logout", 0).getResponse().getStatus()).isLessThan(400);
-        assertThat(post(f.bia, "/webauthn/register", 0).getResponse().getStatus())
-                .isEqualTo(403);
+        assertPending(post(f.bia, "/webauthn/register", 0));
+        assertPending(post(f.bia, "/webauthn/register/options", 0));
+        // Joining a family is not on the short list either.
+        assertPending(post(f.bia, "/v1/invitations/accept", 0));
+    }
+
+    @Test
+    void encodedPathsDoNotSlipPast() {
+        Family f = family();
+        request(f.bia, 0);
+
+        // "%76" is a "v": the same route for MVC, a different string for a raw prefix check.
+        MvcTestResult encoded = mvc.get()
+                .uri(java.net.URI.create("/%761/workspaces/" + f.ws + "/accounts"))
+                .with(session(f.bia, 0))
+                .exchange();
+
+        assertPending(encoded);
+    }
+
+    @Test
+    void pendingAccountCannotJoinAnotherFamily() {
+        Family f = family();
+        UUID cara = users.create("Cara Teste", "cara@example.com");
+        RequestPostProcessor owner = TestUsers.signedIn(f.ana, null);
+        MvcTestResult created = mvc.post()
+                .uri("/v1/workspaces/" + f.ws + "/invitations")
+                .with(owner)
+                .with(CsrfSession.start(mvc, owner))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"role\":\"VIEWER\",\"nickname\":\"Vovo\"}")
+                .exchange();
+        assertThat(created).hasStatus(201);
+        String token = JsonPath.read(body(created), "$.token");
+        request(cara, 0);
+
+        RequestPostProcessor session = TestUsers.signedIn(cara, null);
+        MvcTestResult accept = mvc.post()
+                .uri("/v1/invitations/accept")
+                .with(session)
+                .with(CsrfSession.start(mvc, session))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"" + token + "\"}")
+                .exchange();
+
+        assertPending(accept);
+        assertThat(count("select count(*) from memberships where user_id = :id", cara))
+                .isZero();
+    }
+
+    private static void assertPending(MvcTestResult result) {
+        assertThat(result).hasStatus(403);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("account.deletion-pending");
+    }
+
+    private long count(String sql, UUID id) {
+        return jdbc.sql(sql).param("id", id).query(Long.class).single();
     }
 
     @Test

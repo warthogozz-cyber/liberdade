@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.privacy.internal;
 import br.com.liberdadefamilia.identity.UserDeletion;
 import br.com.liberdadefamilia.workspace.Memberships;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,16 +38,24 @@ public class AccountPurgeJob {
     @Scheduled(cron = "0 45 3 * * *", zone = "America/Fortaleza")
     public void purge() {
         int purged = 0;
-        for (UUID id : deletion.dueForPurge(clock.instant())) {
+        Instant now = clock.instant();
+        for (UUID id : deletion.dueForPurge(now)) {
             try {
                 tx.executeWithoutResult(status -> {
+                    // A cancellation that landed after the list was read wins: nothing changes for this person.
+                    if (!deletion.lockIfDue(id, now)) {
+                        return;
+                    }
                     memberships.detachUser(id);
                     deletion.purge(id);
                 });
                 purged++;
             } catch (RuntimeException failure) {
                 // The id only: the exception message could carry a value.
-                log.error("Could not purge account {}", id);
+                log.error(
+                        "Could not purge account {} ({})",
+                        id,
+                        failure.getClass().getName());
             }
         }
         log.info("Purged {} accounts past their deletion grace", purged);

@@ -18,6 +18,7 @@ import org.springframework.security.authentication.AuthenticationTrustResolver;
 import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
@@ -25,24 +26,25 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 /**
  * During the 30-day grace of a deletion request (D23) the person can still sign in, see who they are, cancel the
  * request and export their data, and nothing else: any other {@code /v1} route, and passkey registration, answers 403
- * {@code account.deletion-pending}. Runs after authentication, so anonymous requests pass untouched. The sign-in and
+ * {@code account.deletion-pending}. Runs on authenticated requests only, so anonymous requests pass untouched. The sign-in and
  * logout routes live outside both prefixes, so they are never in its way.
  */
 final class PendingDeletionFilter extends OncePerRequestFilter {
 
     /**
      * What a person with a pending deletion may still call. Repeating the request is one of them: it answers the same
-     * date. The two invitation routes are how a recovery link signs a person back in; they are the only sign-in
-     * routes under {@code /v1}.
+     * date.
      */
     static final List<RequestMatcher> ALLOWED = List.of(
             pathPattern(HttpMethod.GET, "/v1/me"),
             pathPattern(HttpMethod.POST, "/v1/me/deletion"),
             pathPattern(HttpMethod.DELETE, "/v1/me/deletion"),
             pathPattern(HttpMethod.POST, "/v1/me/export"),
-            pathPattern(HttpMethod.GET, "/v1/csrf"),
-            pathPattern(HttpMethod.POST, "/v1/invitations/preview"),
-            pathPattern(HttpMethod.POST, "/v1/invitations/accept"));
+            pathPattern(HttpMethod.GET, "/v1/csrf"));
+
+    /** Every API route, and passkey registration. */
+    private static final RequestMatcher SCOPE =
+            new OrRequestMatcher(pathPattern("/v1/**"), pathPattern("/webauthn/register/**"));
 
     private final AuthenticationTrustResolver trust = new AuthenticationTrustResolverImpl();
     private final UserAccounts accounts;
@@ -55,8 +57,8 @@ final class PendingDeletionFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        return !(path.startsWith("/v1/") || path.startsWith("/webauthn/register"));
+        // On the decoded, normalized path (the same one MVC routes on), never on the raw URI.
+        return !SCOPE.matches(request);
     }
 
     @Override

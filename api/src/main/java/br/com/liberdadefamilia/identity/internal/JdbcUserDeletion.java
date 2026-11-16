@@ -24,26 +24,33 @@ class JdbcUserDeletion implements UserDeletion {
 
     @Override
     @Transactional
-    public Instant schedule(UUID userId) {
-        jdbc.sql("""
+    public Scheduled schedule(UUID userId) {
+        int changed = jdbc.sql("""
                         update users
                         set deletion_requested_at = :now, updated_at = :now, version = version + 1
-                        where id = :id and deletion_requested_at is null""").param("now", utc(clock.instant())).param("id", userId).update();
-        return jdbc.sql("select deletion_requested_at from users where id = :id")
+                        where id = :id and deletion_requested_at is null""")
+                .param("now", utc(clock.instant()))
+                .param("id", userId)
+                .update();
+        Instant requested = jdbc.sql("select deletion_requested_at from users where id = :id")
                 .param("id", userId)
                 .query(OffsetDateTime.class)
                 .single()
-                .toInstant()
-                .plus(GRACE);
+                .toInstant();
+        return new Scheduled(requested.plus(GRACE), changed == 1);
     }
 
     @Override
     @Transactional
-    public void cancel(UUID userId) {
-        jdbc.sql("""
+    public boolean cancel(UUID userId) {
+        return jdbc.sql("""
                         update users
                         set deletion_requested_at = null, updated_at = :now, version = version + 1
-                        where id = :id and deletion_requested_at is not null""").param("now", utc(clock.instant())).param("id", userId).update();
+                        where id = :id and deletion_requested_at is not null""")
+                        .param("now", utc(clock.instant()))
+                        .param("id", userId)
+                        .update()
+                == 1;
     }
 
     @Override
@@ -55,6 +62,19 @@ class JdbcUserDeletion implements UserDeletion {
                 .param("cutoff", utc(now.minus(GRACE)))
                 .query(UUID.class)
                 .list();
+    }
+
+    @Override
+    public boolean lockIfDue(UUID userId, Instant now) {
+        return !jdbc.sql("""
+                        select id from users
+                        where id = :id and deletion_requested_at is not null and deletion_requested_at < :cutoff
+                        for update""")
+                .param("id", userId)
+                .param("cutoff", utc(now.minus(GRACE)))
+                .query(UUID.class)
+                .list()
+                .isEmpty();
     }
 
     @Override

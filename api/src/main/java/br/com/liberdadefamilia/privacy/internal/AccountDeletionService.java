@@ -40,9 +40,11 @@ class AccountDeletionService {
         if (memberships.isSoleActiveOwnerOfLiveFamily(user.id())) {
             throw new PrivacyRejectedException(409, "account.sole-owner", SOLE_OWNER_DETAIL);
         }
-        Instant scheduled = deletion.schedule(user.id());
-        record(user, "account.deletion_requested");
-        return scheduled;
+        UserDeletion.Scheduled scheduled = deletion.schedule(user.id());
+        if (scheduled.changed()) {
+            record(user, "account.deletion_requested");
+        }
+        return scheduled.date();
     }
 
     /** Nothing pending: nothing happens. */
@@ -51,8 +53,9 @@ class AccountDeletionService {
         if (user.deletionRequestedAt() == null) {
             return;
         }
-        deletion.cancel(user.id());
-        record(user, "account.deletion_cancelled");
+        if (deletion.cancel(user.id())) {
+            record(user, "account.deletion_cancelled");
+        }
     }
 
     private void record(CurrentUser user, String action) {

@@ -1,8 +1,12 @@
 package br.com.liberdadefamilia.privacy;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
+import br.com.liberdadefamilia.identity.UserDeletion;
 import br.com.liberdadefamilia.privacy.internal.AccountPurgeJob;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestClock;
@@ -13,6 +17,7 @@ import br.com.liberdadefamilia.workspace.Role;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +29,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
@@ -54,6 +60,9 @@ class AccountPurgeJobIT {
 
     @Autowired
     AccountPurgeJob job;
+
+    @MockitoSpyBean
+    UserDeletion deletion;
 
     @Autowired
     TestUsers users;
@@ -92,6 +101,8 @@ class AccountPurgeJobIT {
                 .singleRow();
         assertThat(membership.get("status")).isEqualTo("REMOVED");
         assertThat(membership.get("user_id")).isNull();
+        assertThat(count("select count(*) from consents where workspace_id = :id", gone.ws))
+                .isZero();
         // The people who stay are untouched.
         assertThat(count("select count(*) from users where id = :id", gone.ana)).isEqualTo(1);
     }
@@ -169,6 +180,48 @@ class AccountPurgeJobIT {
         assertThat(count("select count(*) from users where id = :id", gone.bia)).isEqualTo(1);
     }
 
+    @Test
+    void cancelledBetweenTheListAndThePurgeChangesNothing() {
+        Gone gone = leaver();
+        requestDeletion(gone.bia);
+        RequestPostProcessor session = TestUsers.signedIn(gone.bia, null);
+        mvc.delete()
+                .uri("/v1/me/deletion")
+                .with(session)
+                .with(CsrfSession.start(mvc, session))
+                .exchange();
+        clock.freeze(Instant.now().plus(Duration.ofDays(31)));
+        // The list was read while the request still stood.
+        doReturn(List.of(gone.bia)).when(deletion).dueForPurge(any());
+
+        job.purge();
+
+        assertThat(count("select count(*) from users where id = :id", gone.bia)).isEqualTo(1);
+        assertThat(count("select count(*) from memberships where id = :id and user_id is not null", gone.membership))
+                .isEqualTo(1);
+        assertThat(count("select count(*) from memberships where id = :id and status <> 'REMOVED'", gone.membership))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void oneFailureDoesNotStopTheOthers() {
+        Gone failing = leaver();
+        Gone fine = leaver();
+        requestDeletion(failing.bia);
+        requestDeletion(fine.bia);
+        clock.freeze(Instant.now().plus(Duration.ofDays(30)).plusSeconds(60));
+        doThrow(new IllegalStateException("boom")).when(deletion).purge(failing.bia);
+
+        job.purge();
+
+        // The failed person is untouched, memberships included: the whole transaction rolled back.
+        assertThat(count("select count(*) from users where id = :id", failing.bia))
+                .isEqualTo(1);
+        assertThat(count("select count(*) from memberships where id = :id and user_id is not null", failing.membership))
+                .isEqualTo(1);
+        assertThat(count("select count(*) from users where id = :id", fine.bia)).isZero();
+    }
+
     // --- helpers ---
 
     private record Gone(UUID ana, UUID bia, UUID ws, UUID membership) {}
@@ -196,6 +249,9 @@ class AccountPurgeJobIT {
                 .param("entity", "entity-" + bia)
                 .param("key", new byte[] {1, 2, 3})
                 .update();
+        jdbc.sql("""
+                        insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
+                        values (:user, :ws, 'PARENTAL', 'v1', :ana)""").param("user", bia).param("ws", ws).param("ana", ana).update();
         long now = System.currentTimeMillis();
         jdbc.sql("""
                         insert into spring_session

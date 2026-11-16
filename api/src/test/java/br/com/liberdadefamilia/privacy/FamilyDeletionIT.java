@@ -91,11 +91,11 @@ class FamilyDeletionIT {
     void repeatingTheRequestKeepsTheDateAndRecordsOnce() {
         Family f = family();
 
-        MvcTestResult first = request(
-                f.ana, f.ws); // The route itself hides a pending family from the guard (404); asking again reaches the
-        // service.        Instant again = deletion.schedule(f.ws, f.ana);
-        // assertThat(again).isEqualTo(Instant.parse(JsonPath.read(body(first),
-        // "$.deletionScheduledFor")));
+        MvcTestResult first = request(f.ana, f.ws);
+        // The route hides a pending family from the guard (404), so asking again goes through the service.
+        Instant again = deletion.schedule(f.ws, f.ana);
+
+        assertThat(again).isEqualTo(Instant.parse(JsonPath.read(body(first), "$.deletionScheduledFor")));
         assertThat(actions(f.ws)).containsExactly("workspace.deletion_requested");
     }
 
