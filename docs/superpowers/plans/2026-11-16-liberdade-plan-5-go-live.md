@@ -14,7 +14,7 @@ PostgreSQL 18 privada guarda um banco por ambiente. O pipeline publica a imagem 
 cada push na `main`, faz o deploy do staging por SSM Run Command e, quando o release-please cria uma
 versão, faz o deploy da produção com aprovação manual. O front vai para o Cloudflare Pages, um
 projeto por ambiente, com cabeçalhos de segurança gerados no build. O DNS passa para o Cloudflare
-(ADR-0014, proposto aqui). Na API entram o perfil `prod` (proxy confiável e logs em JSON), o aceite
+(ADR-0014, aceita pelo mantenedor em 2026-11-16). Na API entram o perfil `prod` (proxy confiável e logs em JSON), o aceite
 dos termos e da política e a gestão de passkeys. No web entram as páginas públicas `/privacidade` e
 `/termos`, o aceite antes do primeiro uso e a lista de passkeys em Privacidade.
 
@@ -123,8 +123,8 @@ OpenTofu usam `mock_provider`.
 - **PR 1** (docs, branch `docs/plan-5`): sem código. Leva:
   - este plano;
   - o README dos planos, com o Plano 4 "Concluído" e o Plano 5 "Em execução" e com link;
-  - a ADR-0014 (DNS no Cloudflare e custos atualizados), com status **Proposto** até o mantenedor
-    aprovar, e a linha dela no README das ADRs;
+  - a ADR-0014 (DNS no Cloudflare e custos atualizados), **Aceita** pelo mantenedor no próprio PR,
+    e a linha dela no README das ADRs;
   - na arquitetura: as rotas novas na seção 6 (`GET /v1/me/documents`,
     `POST /v1/me/documents/accept`, `GET /v1/me/passkeys`, `DELETE /v1/me/passkeys/{id}`), as
     páginas públicas `/privacidade` e `/termos`, e as seções 8 a 10 com o DNS no Cloudflare, os
@@ -140,8 +140,7 @@ OpenTofu usam `mock_provider`.
   `docs/runbooks/go-live.md`; o staging sobe pelo pipeline, o runbook do iPhone roda, a v0.1.0 sai
   pelo release-please e a produção sobe com aprovação.
 - **PR 3** (docs, branch `docs/go-live-record`): os resultados do iPhone, do teste de restauração e
-  do teste S1 com 2 pessoas, o custo real da primeira semana, a ADR-0014 "Aceito" e o Plano 5
-  "Concluído".
+  do teste S1 com 2 pessoas, o custo real da primeira semana e o Plano 5 "Concluído".
 
 ### Itens herdados
 
@@ -168,7 +167,7 @@ OpenTofu usam `mock_provider`.
 
 O spec deixa estes pontos em aberto, e o plano decide:
 
-- **D1. DNS no Cloudflare (ADR-0014, proposta).** A zona `liberdadefamilia.com.br` vai para o
+- **D1. DNS no Cloudflare (ADR-0014, aceita).** A zona `liberdadefamilia.com.br` vai para o
   plano gratuito do Cloudflare, e não para o Route 53. Motivos, conferidos em 2026-11-16:
   - o domínio de topo e o encaminhamento de e-mail (Email Routing, hoje dentro do "Email Service",
     disponível no plano gratuito) exigem a zona no Cloudflare;
@@ -181,8 +180,8 @@ O spec deixa estes pontos em aberto, e o plano decide:
     `https://app.liberdadefamilia.com.br`.
   - O registro continua no Registro.br; só os servidores de nome mudam.
   - A ADR-0004 continua aceita no resto; a ADR-0014 substitui a linha de DNS e a tabela de custos
-    dela. Se o mantenedor recusar, o plano troca a zona para o Route 53 (US$ 0,50 por mês) e o
-    e-mail `privacidade@` passa a ser o SES de entrada em `sa-east-1`; nada mais muda.
+    dela. O plano B (Route 53 por US$ 0,50 por mês e SES de entrada em `sa-east-1` para o
+    `privacidade@`) fica registrado na ADR, caso o Cloudflare precise ser trocado.
 - **D2. Nomes.** Os ambientes se chamam `staging` e `production` em todo lugar: GitHub Environments,
   caminhos do SSM, serviços do Compose, grupos de log e bancos.
 
@@ -352,7 +351,9 @@ Preços da AWS Price List API para `sa-east-1`, 730 horas por mês, dólar pela 
 | Total com reserva de 1 ano da EC2 (US$ 0,0154/h) e da RDS (US$ 0,0213/h) | | 39,26 na AWS | **228,38** |
 
 - **Créditos:** os US$ 200 de crédito de conta nova (R$ 1.146,48) cobrem ≈ 3,5 meses de AWS sob
-  demanda.
+  demanda: US$ 100 na criação e US$ 20 por atividade de boas-vindas (EC2, RDS, Lambda, Bedrock e
+  AWS Budgets). A conta é criada no plano **pago**: a do plano gratuito fecha quando os créditos
+  acabam ou em 6 meses, e a produção cairia junto (ADR-0014).
 - **Reserva:** economiza R$ 100,84 por mês. Recomendação: ficar sob demanda enquanto houver crédito
   e decidir a reserva depois das 2 semanas de uso da família, com o custo real do Cost Explorer.
 - **ROI e payback:** ROI mensal = (economia mensal que o app ajuda a família a fazer − R$ 329,22) ÷
@@ -1476,8 +1477,9 @@ git commit -m "test(e2e): legal pages, acceptance, passkey management and a CSP 
   1. comprar o domínio no Registro.br;
   2. criar a zona no Cloudflare e trocar os servidores de nome no Registro.br; conferir com
      `dig NS liberdadefamilia.com.br`;
-  3. criar a conta da AWS com 2FA no usuário raiz, um usuário administrador com 2FA para o dia a
-     dia, e conferir os créditos;
+  3. criar a conta da AWS no plano pago (Paid), com 2FA no usuário raiz e um usuário administrador
+     com 2FA para o dia a dia; concluir as 5 atividades de boas-vindas (US$ 20 cada), apagando o que
+     elas criarem, e conferir os créditos em Billing;
   4. `tofu apply` em `infra/bootstrap`, depois `backend.hcl` e `terraform.tfvars` a partir dos
      exemplos, e `tofu init` e `tofu apply` em `infra/live`; anotar os outputs;
   5. confirmar a assinatura do e-mail de alertas do SNS;
@@ -1543,7 +1545,7 @@ ficam no chat.
 | 4 | Mantenedor | Runbook do iPhone e teste de restauração | resultados anotados no PR 3 |
 | 5 | Mantenedor | Aprovar o PR de release (v0.1.0) e o deploy da produção | `smoke.sh` verde na produção |
 | 6 | Mantenedor | Teste S1 com 2 pessoas e 2 semanas de uso | anotados no PR 3 |
-| 7 | Agente | PR 3: resultados, custo real, ADR-0014 "Aceito", Plano 5 "Concluído" | merge com checks verdes |
+| 7 | Agente | PR 3: resultados, custo real, Plano 5 "Concluído" | merge com checks verdes |
 
 ## Critérios de saída
 

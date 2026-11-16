@@ -1,6 +1,6 @@
 # ADR-0014: DNS no Cloudflare e custos atualizados
 
-- **Status:** Proposto
+- **Status:** Aceito
 - **Data:** 2026-11-16
 
 ## Contexto
@@ -52,7 +52,14 @@ PTAX de venda de 16/11/2026 (R$ 5,7324).
 | **Total sob demanda** | | | **≈ R$ 329/mês** |
 | Com EC2 (US$ 0,0154/h) e RDS (US$ 0,0213/h) reservadas por 1 ano | | 39,26 na AWS | **≈ R$ 228/mês** |
 
-- **Créditos de conta nova:** até US$ 200 (≈ R$ 1.146), cerca de 3,5 meses de AWS sob demanda.
+- **Créditos de conta nova:** até US$ 200 (≈ R$ 1.146), cerca de 3,5 meses de AWS sob demanda:
+  US$ 100 na criação e mais US$ 20 por atividade de boas-vindas concluída (EC2, RDS, Lambda,
+  Bedrock e AWS Budgets).
+- **Plano da conta:** a conta é criada no plano **pago** (Paid), não no gratuito (Free). Os créditos
+  valem nos dois, mas a conta do plano gratuito fecha quando os créditos acabam ou em 6 meses, o que
+  vier antes, e fica suspensa até a troca de plano; para um app em produção, isso é uma queda. No
+  plano pago os créditos são usados primeiro e, depois deles, a cobrança segue normal, com o alerta
+  de orçamento abaixo.
 - **Reserva:** economiza ≈ R$ 101 por mês. Fica sob demanda enquanto houver crédito; a reserva é
   decidida depois das 2 semanas de uso da família, com o custo real do Cost Explorer.
 - **ROI e payback:** o app se paga no primeiro mês em que ajudar a família a evitar pelo menos
@@ -74,7 +81,7 @@ Fontes: [AWS Price List API](https://docs.aws.amazon.com/awsaccountbilling/lates
 
 | Alternativa | Custo estimado | Por que não |
 |---|---|---|
-| Route 53 + SES de entrada em `sa-east-1` para o `privacidade@` | + US$ 0,50/mês (≈ R$ 2,87) | Mais caro, registros do Pages manuais e uma regra de recebimento do SES para manter. Fica como plano B se esta ADR for recusada |
+| Route 53 + SES de entrada em `sa-east-1` para o `privacidade@` | + US$ 0,50/mês (≈ R$ 2,87) | Mais caro, registros do Pages manuais e uma regra de recebimento do SES para manter. Fica como plano B, caso o Cloudflare precise ser trocado |
 | Proxy do Cloudflare (nuvem laranja) também na API | 0 | O tráfego da API passaria descriptografado pelo Cloudflare e o desafio HTTP-01 do Caddy deixaria de funcionar sem ajustes; sem ganho para uso familiar |
 
 ## Consequências
