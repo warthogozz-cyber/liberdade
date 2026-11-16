@@ -599,7 +599,7 @@ git commit -m "feat(identity): require a recent sign-in for sensitive actions an
 | `GET /v1/workspaces/{ws}/members` | `listMembers` | todos | 200 `MemberView[]`, ativos primeiro, depois por apelido | — |
 | `PATCH /v1/workspaces/{ws}/members/{id}` | `updateMember` | OWNER | 200 `MemberView` | 404 `member.not-found`; 422 `member.last-owner`; 422 `member.parental-consent-required`; 422 `member.removed` (vínculo removido); 403 `auth.reauthentication-required` (só quando muda o papel) |
 | `DELETE /v1/workspaces/{ws}/members/{id}` | `removeMember` | OWNER | 204 (repetir: 204) | 404 `member.not-found`; 422 `member.last-owner`; 403 `auth.reauthentication-required` |
-| `PATCH /v1/workspaces/{ws}` | `renameWorkspace` | OWNER | 200 `MeWorkspace` | 400 `request.invalid` |
+| `PATCH /v1/workspaces/{ws}` | `renameWorkspace` | OWNER | 200 `MeWorkspace` | 422 `request.invalid` |
 
 **Como fica:**
 - `V6__members.sql`: `DROP INDEX memberships_one_active_family;` e um índice
@@ -638,10 +638,10 @@ git commit -m "feat(identity): require a recent sign-in for sensitive actions an
 | `lastOwnerCannotBeRemoved` | Dona remove a si mesma sendo a única → 422 `member.last-owner` |
 | `concurrentRemovalsKeepAnOwner` | duas Donas removem uma à outra ao mesmo tempo (duas threads) → uma recebe 204 e a outra 422 |
 | `youthNeedsParentalConsent` | mudar o Adulto para Jovem sem `parentalConsent` → 422 `member.parental-consent-required`; com `true` → 200 |
-| `adultCannotManageMembers` | Adulto chama `PATCH` e `DELETE` → 403 `workspace.forbidden` |
+| `adultCannotManageMembers` | Adulto chama `PATCH` e `DELETE` → 403 `auth.forbidden` |
 | `otherFamilyMemberIsNotFound` | id de um vínculo de outra família → 404 `member.not-found` |
 | `ownerRenamesFamily` | `PATCH /v1/workspaces/{ws}` com "  Família Nova " → 200 com "Família Nova", e o `/v1/me` mostra o nome novo |
-| `renameRejectsBlank` | nome "   " → 400 `request.invalid` |
+| `renameRejectsBlank` | nome "   " → 422 `request.invalid` |
 
 `MultipleFamiliesIT`:
 
@@ -780,7 +780,7 @@ distintos; `hash` tem 32 bytes e é determinístico.
 | `ownerInvitesAdult` | 201 com `token` de 43 caracteres e `expiresAt` = agora + 7 dias; o banco guarda só o hash (a coluna não contém o token) |
 | `adultCannotInviteOwner` | Adulto convida Dono → 403 `invitation.role-forbidden` |
 | `youthInviteNeedsConsent` | Jovem sem `parentalConsent` → 422 `invitation.parental-consent-required` |
-| `viewerAndYouthCannotInvite` | Leitor e Jovem → 403 `workspace.forbidden` |
+| `viewerAndYouthCannotInvite` | Leitor e Jovem → 403 `auth.forbidden` |
 | `listHidesToken` | `GET` lista o convite sem `token` e com `createdByName` = o apelido de quem convidou |
 | `previewShowsFamily` | anônimo com o token → 200 com o nome da família, o apelido de quem convidou, o papel e o apelido |
 | `signedInAccepts` | outra pessoa logada aceita → 200; `GET …/members` tem o apelido do convite; segundo aceite → 410 `invitation.gone` |
@@ -955,7 +955,7 @@ git commit -m "feat(workspace): 24-hour recovery links for passkey-only members"
 | `TransactionsIT.getOtherFamilyIs404` | id de outra família → 404 `transaction.not-found` |
 | `AccountsIT.setOwner` | `PUT …/owner` com o vínculo do Adulto → 200 com `ownerMembershipId`; com `null` → 200 sem titular |
 | `AccountsIT.setOwnerRejectsInactive` | vínculo removido → 422 `account.owner-not-found` |
-| `AccountsIT.viewerCannotSetOwner` | Leitor → 403 `workspace.forbidden` |
+| `AccountsIT.viewerCannotSetOwner` | Leitor → 403 `auth.forbidden` |
 
 - [ ] **Step 2: Rodar e ver falhar**
 
@@ -1048,7 +1048,7 @@ uma acrescentando as suas.
 | `youthCannotPickAnotherMember` | `memberId` da Dona → 422 `transaction.member-forbidden` |
 | `youthEditsOnlyOwn` | editar o próprio gasto → 200; editar a transferência da mesada (criada pela Dona) → 404 `transaction.not-found` |
 | `youthDashboardIsScoped` | painel do Jovem: saldo R$ 40,00 (50 − 10), receitas R$ 0,00, gastos R$ 10,00 |
-| `youthCannotWriteCategories` | `POST …/categories` → 403 `workspace.forbidden` |
+| `youthCannotWriteCategories` | `POST …/categories` → 403 `auth.forbidden` |
 | `youthReadsMembers` | `GET …/members` → 200 |
 
 `BalanceCalculatorTest.transferFromOutsideScopeCountsInBalanceOnly`: com só a carteira no mapa de
@@ -1118,7 +1118,7 @@ git commit -m "feat(ledger): youth sees and records only in the accounts they ow
 | Método e rota | operationId | Papéis | Sucesso | Erros |
 |---|---|---|---|---|
 | `GET /v1/workspaces/{ws}/modules` | `listModules` | todos | 200 `ModuleView[]` | — |
-| `PUT /v1/workspaces/{ws}/modules/{key}` | `setModule` | OWNER, ADULT | 200 `ModuleView` | 404 `module.not-found` (chave desconhecida); 400 `request.invalid` |
+| `PUT /v1/workspaces/{ws}/modules/{key}` | `setModule` | OWNER, ADULT | 200 `ModuleView` | 404 `module.not-found` (chave desconhecida); 422 `request.invalid` |
 
 **Como fica:**
 - `V8__modules.sql`: `workspace_modules` como no modelo, com `module_key` em
@@ -1438,7 +1438,7 @@ git commit -m "feat(privacy): record and revoke parental consent"
 | `csvInjectionNeutralized` | a descrição `=1+1` sai como `'=1+1` |
 | `deletedTransactionsExcluded` | lançamento excluído não aparece |
 | `exportNeedsRecentSignIn` | login de 11 min → 403 `auth.reauthentication-required` |
-| `adultCannotExportFamily` | Adulto → 403 `workspace.forbidden` |
+| `adultCannotExportFamily` | Adulto → 403 `auth.forbidden` |
 | `exportIsAudited` | depois da exportação, `GET /v1/me/activity` tem `data.exported` com `scope` |
 | `exportIsRateLimited` | 11 exportações em 1 h → 429 |
 
@@ -1573,7 +1573,7 @@ git commit -m "feat(privacy): export personal and family data as JSON and spread
 | `ownerSchedulesFamilyDeletion` | 202; o Adulto passa a receber 404 `workspace.not-found` em qualquer rota da família e não a vê no `/v1/me` |
 | `ownerSeesPendingFamily` | a Dona vê a família no `/v1/me` com `deletionScheduledFor`; `GET …/accounts` dá 404; `POST …/export` funciona |
 | `ownerCancels` | `DELETE …/deletion` → 204; o Adulto volta a ver a família |
-| `adultCannotDeleteFamily` | 403 `workspace.forbidden` |
+| `adultCannotDeleteFamily` | 403 `auth.forbidden` |
 | `purgeRemovesEverything` | `Clock` 30 dias + 1 min → a família, os vínculos, as contas, as categorias, os lançamentos, os convites, os módulos e os consentimentos somem; `audit_events` fica com `workspace_id` nulo |
 
 - [ ] **Step 2: Rodar e ver falhar**
