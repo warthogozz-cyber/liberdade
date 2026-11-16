@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
 import {
@@ -13,6 +13,7 @@ import { currentMonth } from '@/shared/i18n'
 import { formatBRL, parseCents } from '@/shared/money'
 import { useOnline, useOutbox, usePendingTotals } from '@/shared/offline'
 import { DataAsOf, useDocumentTitle } from '@/shared/ui'
+import { isRecoveryNoticeRecent } from '@/features/members/recoveryWindow'
 import { shouldShowGettingStarted } from './gettingStarted'
 
 // The old card kept its dismissal here. The new one lives on the server, so the key is only cleared.
@@ -20,6 +21,10 @@ const LEGACY_FIRST_STEPS_KEY = 'liberdade:first-steps-dismissed'
 
 const GettingStartedCard = lazy(() =>
   import('./GettingStartedCard').then((m) => ({ default: m.GettingStartedCard })),
+)
+
+const RecoveryNotice = lazy(() =>
+  import('@/features/members/RecoveryNotice').then((m) => ({ default: m.RecoveryNotice })),
 )
 
 /** The home screen: the month's totals with the user's queue in them (D25, wireframe 4). */
@@ -60,6 +65,8 @@ interface HomeContentProps {
 
 function HomeContent({ me, workspace }: HomeContentProps) {
   const userId = me.user.id
+  // When Home opened: the notice's week does not tick over while the screen is up.
+  const [openedAt] = useState(Date.now)
   const intl = useIntl()
   const online = useOnline()
   const month = currentMonth(new Date(), workspace.timezone)
@@ -146,6 +153,11 @@ function HomeContent({ me, workspace }: HomeContentProps) {
 
   return (
     <>
+      {isRecoveryNoticeRecent(workspace.recoveredAt, openedAt) && (
+        <Suspense fallback={null}>
+          <RecoveryNotice workspace={workspace} />
+        </Suspense>
+      )}
       {totals}
       <p className="text-sm text-text-muted">
         <FormattedMessage id="home.addAccountsHint" />

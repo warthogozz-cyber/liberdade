@@ -12,6 +12,8 @@ export interface MockInvitation {
   token: string
   status: 'PENDING' | 'USED' | 'REVOKED'
   workspaceId: string
+  /** The family's name for a link whose family the signed-in person is not in (a test's other family). */
+  workspaceName?: string
   /** The member a RECOVERY link brings back; absent on an INVITE. */
   targetMembershipId?: string
 }
@@ -156,6 +158,43 @@ export const mockState: MockState = initialState()
 
 export function resetMockData(): void {
   Object.assign(mockState, initialState())
+}
+
+/** Seeds a pending INVITE link to another family, as an Owner of it would have made. */
+export function seedMockInvitation({
+  token,
+  workspaceId = 'ws-b',
+  workspaceName = 'Família Bia Teste',
+  nickname = 'Convidada',
+  role = 'ADULT',
+  createdByName = 'Bia Teste',
+  expiresInMs = 7 * 24 * 60 * 60 * 1000,
+}: {
+  token: string
+  workspaceId?: string
+  workspaceName?: string
+  nickname?: string | null
+  role?: Schemas['InvitationView']['role']
+  createdByName?: string | null
+  expiresInMs?: number
+}): MockInvitation {
+  const invitation: MockInvitation = {
+    view: {
+      id: crypto.randomUUID(),
+      kind: 'INVITE',
+      nickname,
+      role,
+      createdByName,
+      expiresAt: new Date(Date.now() + expiresInMs).toISOString(),
+      token: null,
+    },
+    token,
+    status: 'PENDING',
+    workspaceId,
+    workspaceName,
+  }
+  mockState.invitations.push(invitation)
+  return invitation
 }
 
 /** Creates a family as `POST /v1/workspaces` does: with the wallet and the default categories. */

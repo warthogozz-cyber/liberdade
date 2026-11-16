@@ -16,6 +16,14 @@ export const routes: RouteObject[] = [
     lazy: () => import('@/features/auth/SignInPage').then((m) => ({ Component: m.SignInPage })),
   },
   {
+    // Outside the session: the person opening a link usually has none yet.
+    path: '/convite',
+    lazy: () =>
+      import('@/features/members/AcceptInvitationPage').then((m) => ({
+        Component: m.AcceptInvitationPage,
+      })),
+  },
+  {
     element: <SessionLayout />,
     children: [
       { index: true, element: <RootRedirect /> },
@@ -58,6 +66,20 @@ export const routes: RouteObject[] = [
                 lazy: () =>
                   import('@/features/accounts/AccountsPage').then((m) => ({
                     Component: m.AccountsPage,
+                  })),
+              },
+              {
+                path: '/mais/familia',
+                lazy: () =>
+                  import('@/features/members/FamilyPage').then((m) => ({
+                    Component: m.FamilyPage,
+                  })),
+              },
+              {
+                path: '/mais/familia/convidar',
+                lazy: () =>
+                  import('@/features/members/InvitePage').then((m) => ({
+                    Component: m.InvitePage,
                   })),
               },
               {

@@ -64,6 +64,17 @@ export function GettingStartedCard({ workspace, me }: GettingStartedCardProps) {
       to: '/mais',
       done: hasPasskey,
     },
+    // Only an Owner or an Adult can invite, so only they are asked to.
+    ...(current.role === 'OWNER' || current.role === 'ADULT'
+      ? [
+          {
+            id: 'invite',
+            label: intl.formatMessage({ id: 'gettingStarted.invite' }),
+            to: '/mais/familia/convidar',
+            done: current.familyInvited,
+          },
+        ]
+      : []),
   ]
 
   return (

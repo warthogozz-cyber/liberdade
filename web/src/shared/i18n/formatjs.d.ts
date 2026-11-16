@@ -4,6 +4,8 @@ import type { accountsMessages } from '@/features/accounts/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { categoriesMessages } from '@/features/categories/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
+import type { membersMessages } from '@/features/members/messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
 import type { dashboardMessages } from '@/features/dashboard/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { signInMessages } from '@/features/auth/signIn.messages.pt-BR'
@@ -22,6 +24,7 @@ declare global {
         | keyof typeof categoriesMessages
         | keyof typeof dashboardMessages
         | keyof typeof gettingStartedMessages
+        | keyof typeof membersMessages
         | keyof typeof reauthMessages
         | keyof typeof signInMessages
     }

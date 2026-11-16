@@ -12,6 +12,8 @@ import {
   getMe,
   listAccounts,
   listCategories,
+  listInvitations,
+  listMembers,
   listModules,
   listTransactions,
 } from './endpoints'
@@ -85,6 +87,20 @@ export function useModules(ws: string | undefined) {
     queryKey: queryKeys.modules(ws ?? ''),
     queryFn: () => listModules(ws ?? ''),
     enabled: ws !== undefined,
+  })
+}
+
+/** The family's people, active first. */
+export function useMembers(ws: string) {
+  return useQuery({ queryKey: queryKeys.members(ws), queryFn: () => listMembers(ws) })
+}
+
+/** The pending invitations. `enabled` is false for the roles the API keeps them from. */
+export function useInvitations(ws: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.invitations(ws),
+    queryFn: () => listInvitations(ws),
+    enabled,
   })
 }
 

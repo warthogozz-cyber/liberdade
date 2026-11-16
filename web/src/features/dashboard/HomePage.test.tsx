@@ -223,3 +223,32 @@ describe('HomePage', () => {
     await waitFor(() => expect(screen.getByText('R$ 10,00')).toBeInTheDocument())
   })
 })
+
+describe('HomePage recovery notice', () => {
+  const NOTICE = /Seu acesso foi recuperado em/
+
+  it('recoveryNoticeWithin7Days', async () => {
+    const workspace = seedMockFamily()
+    workspace.recoveredAt = '2026-11-13T15:00:00Z'
+    const first = renderHome()
+
+    expect(await screen.findByText(NOTICE)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Entendi' }))
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument()
+
+    // Closed once, it does not come back on this device.
+    first.unmount()
+    renderHome()
+    expect(await screen.findByText('R$ 10,00')).toBeInTheDocument()
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument()
+  })
+
+  it('hidesTheNoticeAfter7Days', async () => {
+    const workspace = seedMockFamily()
+    workspace.recoveredAt = '2026-11-07T15:00:00Z'
+    renderHome()
+
+    expect(await screen.findByText('R$ 10,00')).toBeInTheDocument()
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument()
+  })
+})

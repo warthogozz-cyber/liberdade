@@ -1,5 +1,6 @@
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
+import { WorkspaceSwitcher } from '@/features/members/WorkspaceSwitcher'
 import { PasskeyButton } from '@/features/auth/PasskeyButton'
 import { SignOutButton } from '@/features/auth/SignOutButton'
 import { useCurrentWorkspace, useMe } from '@/shared/api'
@@ -32,11 +33,18 @@ export function MorePage() {
         <FormattedMessage id="more.categories" />
       </Link>
       <Link
+        to="/mais/familia"
+        className="flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <FormattedMessage id="members.title" />
+      </Link>
+      <Link
         to="/painel"
         className="flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <FormattedMessage id="more.dashboard" />
       </Link>
+      <WorkspaceSwitcher />
       <PasskeyButton />
       <SignOutButton />
     </main>

@@ -30,3 +30,12 @@ export interface TransactionFilters {
   categoryId?: string
   accountId?: string
 }
+export type MemberView = Schemas['MemberView']
+export type MemberRole = MemberView['role']
+export type InvitationView = Schemas['InvitationView']
+export type InvitationPreview = Schemas['InvitationPreview']
+export type AcceptedInvitation = Schemas['AcceptedInvitation']
+export type CreateInvitationRequest = Schemas['CreateInvitationRequest']
+export type UpdateMemberRequest = Schemas['UpdateMemberRequest']
+/** What a person who is not signed in gives to join with a new passkey. */
+export type AcceptNewUser = NonNullable<Schemas['NewUser']>

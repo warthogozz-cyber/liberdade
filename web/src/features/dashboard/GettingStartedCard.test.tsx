@@ -150,3 +150,29 @@ describe('GettingStartedCard', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('GettingStartedCard invite step', () => {
+  it('inviteItem', async () => {
+    const workspace = family()
+    const view = renderCard()
+
+    expect(await screen.findByRole('link', { name: 'Convidar a família' })).toHaveAttribute(
+      'href',
+      '/mais/familia/convidar',
+    )
+
+    // Once someone was invited the step is done.
+    view.unmount()
+    workspace.familyInvited = true
+    renderCard()
+    const invite = (await screen.findByText('Convidar a família')).closest('li')!
+    expect(invite).toHaveTextContent('Feito')
+
+    // A Viewer cannot invite, so is not asked to.
+    cleanup()
+    workspace.role = 'VIEWER'
+    renderCard()
+    await screen.findByRole('heading', { name: 'Primeiros passos' })
+    expect(screen.queryByText('Convidar a família')).not.toBeInTheDocument()
+  })
+})

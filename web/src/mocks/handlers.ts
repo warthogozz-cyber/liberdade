@@ -77,6 +77,28 @@ function invitationGone(invitation: MockInvitation): boolean {
 }
 
 /** The member a RECOVERY link is for. */
+/** Puts the family in the signed-in person's `me`, as joining it does, when it is not there yet. */
+function joinWorkspace(
+  invitation: MockInvitation,
+  membershipId: string,
+  role: Schemas['MemberView']['role'],
+): void {
+  if (mockState.workspaces.some((workspace) => workspace.id === invitation.workspaceId)) return
+  mockState.workspaces.push({
+    id: invitation.workspaceId,
+    membershipId,
+    name: invitation.workspaceName ?? '',
+    role,
+    currency: 'BRL',
+    timezone: 'America/Fortaleza',
+    gettingStartedDismissedAt: null,
+    hasTransactions: false,
+    familyInvited: false,
+    recoveredAt: null,
+    deletionScheduledFor: null,
+  })
+}
+
 function recoveryTargetOf(invitation: MockInvitation) {
   return mockState.members[invitation.workspaceId]?.find(
     (member) => member.id === invitation.targetMembershipId,
@@ -1020,7 +1042,7 @@ export const handlers = [
       (candidate) => candidate.id === invitation.workspaceId,
     )
     return HttpResponse.json({
-      workspaceName: workspace?.name ?? '',
+      workspaceName: workspace?.name ?? invitation.workspaceName ?? '',
       invitedBy: invitation.view.createdByName,
       role: invitation.view.role,
       nickname: recoveryTarget ? recoveryTarget.nickname : invitation.view.nickname,
@@ -1050,6 +1072,7 @@ export const handlers = [
         ...mockState.user,
         displayName: target.displayName ?? mockState.user.displayName,
       }
+      joinWorkspace(invitation, target.id, target.role)
       return HttpResponse.json({ workspaceId, membershipId: target.id, mustRegisterPasskey: true })
     }
     const signedIn = mockState.signedIn
@@ -1073,12 +1096,16 @@ export const handlers = [
       nickname: invitation.view.nickname,
       role: invitation.view.role,
       status: 'ACTIVE',
-      you: false,
+      you: true,
       passkeyOnly: true,
       joinedAt: new Date().toISOString(),
     })
     invitation.status = 'USED'
-    if (!signedIn) mockState.signedIn = true
+    if (!signedIn) {
+      mockState.signedIn = true
+      mockState.user = { ...mockState.user, displayName }
+    }
+    joinWorkspace(invitation, membershipId, invitation.view.role)
     return HttpResponse.json({ workspaceId, membershipId, mustRegisterPasskey: !signedIn })
   }),
 
