@@ -125,3 +125,7 @@ jobs:
             LGPL-3.0-only, LGPL-3.0-or-later, AGPL-3.0-only, AGPL-3.0-or-later,
             CC-BY-4.0, OFL-1.1, Python-2.0,
             EPL-1.0, EPL-2.0
+          # Declared MIT on npm, with MIT as its only license file. The scan also reports the Unicode
+          # data license for its tables from the Unicode Character Database, which is permissive.
+          # It comes in through workbox-build and runs only at build time.
+          allow-dependencies-licenses: pkg:npm/unicode-match-property-value-ecmascript@2.2.1
