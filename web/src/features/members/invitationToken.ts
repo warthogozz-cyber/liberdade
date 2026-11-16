@@ -41,6 +41,15 @@ export function readInvitationToken(): string | undefined {
   return fragment
 }
 
+/** Keeps the token in this tab again, after something that forgets the session's storage. */
+export function rememberInvitationToken(token: string): void {
+  try {
+    sessionStorage.setItem(KEY, token)
+  } catch {
+    // Without storage the token lives only in the page that read it.
+  }
+}
+
 /** Forgets the stored token: the invitation was used, or is no use any more. */
 export function clearInvitationToken(): void {
   try {

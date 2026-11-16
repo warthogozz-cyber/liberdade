@@ -1,7 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { flushSync } from 'react-dom'
 import { useIntl } from 'react-intl'
 import { Link, useNavigate } from 'react-router'
+import { SignOutButton } from '@/features/auth/SignOutButton'
 import { ApiError, getMe, queryKeys, selectWorkspace, type InvitationPreview } from '@/shared/api'
 import { useAcceptInvitation, usePreviewInvitation } from '@/shared/api/family'
 import { startGoogleSignIn } from '@/shared/auth'
@@ -13,6 +15,7 @@ import {
   clearPendingPasskey,
   readInvitationToken,
   readPendingPasskey,
+  rememberInvitationToken,
   storePendingPasskey,
 } from './invitationToken'
 import './register'
@@ -24,6 +27,15 @@ interface Joined {
   workspaceId: string
   mustRegisterPasskey: boolean
   freshSession: boolean
+}
+
+/** The API's answer when a signed-in person with Google takes a Jovem link. */
+function isYouthNeedsPasskey(caught: unknown): boolean {
+  return (
+    caught instanceof ApiError &&
+    caught.status === 422 &&
+    caught.code === 'invitation.youth-needs-passkey'
+  )
 }
 
 function failureOf(caught: unknown): Failure {
@@ -53,6 +65,8 @@ export function AcceptInvitationPage() {
   const [token] = useState(readInvitationToken)
   const [preview, setPreview] = useState<InvitationPreview>()
   const [signedIn, setSignedIn] = useState(false)
+  // The API turned the Jovem link down for the account signed in, though the page had not seen it.
+  const [youthSignOut, setYouthSignOut] = useState(false)
   const [failure, setFailure] = useState<Failure | undefined>(token ? undefined : 'notFound')
   const [displayName, setDisplayName] = useState('')
   // A reload after joining has no token left, only the passkey still to be made.
@@ -139,6 +153,11 @@ export function AcceptInvitationPage() {
     try {
       accepted = await acceptInvitation.mutateAsync({ token, newUser })
     } catch (caught) {
+      if (isYouthNeedsPasskey(caught)) {
+        // The link is still good, only not for this account: it waits for the person to sign out.
+        setYouthSignOut(true)
+        return
+      }
       // Whatever went wrong, this link is no use again: it was used, it is gone, or it never was.
       clearInvitationToken()
       setFailure(failureOf(caught))
@@ -220,6 +239,19 @@ export function AcceptInvitationPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.me })
       void navigate('/inicio', { replace: true })
     })
+  }
+
+  /** Leaves the signed-in view at once, so nothing on screen reads the session while it goes. */
+  function leaveSession() {
+    flushSync(() => {
+      setSignedIn(false)
+      setYouthSignOut(false)
+    })
+  }
+
+  /** The same link carries on once the session is gone: the token stays in this tab. */
+  function signedOut() {
+    if (token) rememberInvitationToken(token)
   }
 
   function retry() {
@@ -327,6 +359,11 @@ export function AcceptInvitationPage() {
             >
               {intl.formatMessage({ id: 'accept.recoverAction' })}
             </button>
+          </>
+        ) : youthSignOut || (signedIn && preview.role === 'YOUTH') ? (
+          <>
+            <p>{intl.formatMessage({ id: 'accept.youthSignOut' })}</p>
+            <SignOutButton leave={leaveSession} onSignedOut={signedOut} />
           </>
         ) : signedIn ? (
           <button

@@ -329,6 +329,29 @@ class MembersIT {
     }
 
     @Test
+    void youthNeedsPasskeyOnlyAccount() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID teo = users.create("Teo Teste", "teo@example.com");
+        jdbc.sql("""
+                        insert into auth_identities (user_id, provider, subject, last_used_at)
+                        values (:user, 'google', 'subject-teo-teste', now())""").param("user", teo).update();
+        UUID ws = workspaces.createFor(ana);
+        UUID teoMembership = workspaces.addMember(ws, teo, Role.ADULT);
+        roleChanges.events().clear();
+
+        MvcTestResult refused = patch(ana, ws, teoMembership, "{\"role\":\"YOUTH\",\"parentalConsent\":true}", 0);
+
+        assertThat(refused).hasStatus(422);
+        assertThat(refused).bodyJson().extractingPath("$.code").isEqualTo("member.youth-needs-passkey");
+        assertThat(jdbc.sql("select role from memberships where id = :id")
+                        .param("id", teoMembership)
+                        .query(String.class)
+                        .single())
+                .isEqualTo("ADULT");
+        assertThat(roleChanges.events()).isEmpty();
+    }
+
+    @Test
     void emptyPatchIs422() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         UUID ws = workspaces.createFor(ana);

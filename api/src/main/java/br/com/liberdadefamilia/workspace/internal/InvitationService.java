@@ -199,7 +199,8 @@ class InvitationService {
      *
      * @throws InvitationNotFoundException when no link has this token
      * @throws InvitationGoneException when it was used, cancelled or has expired
-     * @throws WorkspaceRejectedException when nobody is signed in and no new person was described
+     * @throws WorkspaceRejectedException when nobody is signed in and no new person was described, or a YOUTH link is
+     *     taken by a signed-in person who has Google
      * @throws InvitationConflictException when the person is already an active member
      */
     @Transactional
@@ -228,6 +229,11 @@ class InvitationService {
         if (existing.isPresent() && existing.get().status() == MembershipStatus.ACTIVE) {
             throw new InvitationConflictException();
         }
+        if (row.role() == Role.YOUTH && caller.isPresent() && hasGoogle(userId)) {
+            throw new WorkspaceRejectedException(
+                    "invitation.youth-needs-passkey",
+                    "Convites de Jovem só podem ser aceitos com uma passkey nova. Saia da sua conta para continuar.");
+        }
         Instant consentAt = row.role() == Role.YOUTH ? row.consentAt() : null;
         UUID consentBy = row.role() == Role.YOUTH ? row.consentBy() : null;
         UUID membershipId;
@@ -245,6 +251,12 @@ class InvitationService {
                 new AcceptedInvitation(row.workspaceId(), membershipId, created),
                 created ? userId : null,
                 SignInMethod.INVITATION);
+    }
+
+    /** Whether the person signs in with Google: a YOUTH signs in only with a passkey. */
+    private boolean hasGoogle(UUID userId) {
+        UserSummary person = users.findAll(List.of(userId)).get(userId);
+        return person != null && person.hasGoogle();
     }
 
     /**

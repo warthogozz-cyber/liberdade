@@ -681,6 +681,26 @@ class InvitationsIT {
     }
 
     @Test
+    void youthInviteNeedsPasskeyOnlyAccount() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID leo = users.create("Leo Teste", "leo@example.com");
+        jdbc.sql("""
+                        insert into auth_identities (user_id, provider, subject, last_used_at)
+                        values (:user, 'google', 'subject-leo-teste', now())""").param("user", leo).update();
+        UUID ws = workspaces.createFor(ana);
+        String token = tokenOf(
+                createInvitation(ana, ws, "{\"role\":\"YOUTH\",\"nickname\":\"Leo\",\"parentalConsent\":true}"));
+
+        MvcTestResult refused = accept(token, null, leo);
+
+        assertThat(refused).hasStatus(422);
+        assertThat(refused).bodyJson().extractingPath("$.code").isEqualTo("invitation.youth-needs-passkey");
+        assertThat(memberships(ws, leo)).isZero();
+        // The link is still there for a new passkey-only account.
+        assertThat(accept(token, "Leo", null)).hasStatusOk();
+    }
+
+    @Test
     void failedAcceptUndoesTheNewUserAndLeavesNoSession() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         UUID ws = workspaces.createFor(ana);

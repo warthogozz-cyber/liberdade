@@ -133,6 +133,62 @@ describe('AcceptInvitationPage', () => {
     expect(screen.getByText('Para o Jovem, a entrada é só por passkey.')).toBeInTheDocument()
   })
 
+  it('signedInYouthMustSignOutFirst', async () => {
+    seedMockFamily()
+    seedMockInvitation({ token: TOKEN, role: 'YOUTH' })
+    const logouts: string[] = []
+    server.use(
+      http.post(`${API_URL}/logout`, ({ request }) => {
+        logouts.push(request.method)
+      }),
+    )
+    const { router } = renderAccept()
+
+    expect(
+      await screen.findByText(
+        'Convites de Jovem só podem ser aceitos com uma passkey nova. Saia da sua conta para continuar.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Entrar na família' })).not.toBeInTheDocument()
+    const signOut = screen.getByRole('button', { name: 'Sair' })
+    await waitFor(() => expect(signOut).toBeEnabled())
+    fireEvent.click(signOut)
+
+    // Signed out, the same link now asks for a new passkey-only account.
+    expect(await screen.findByLabelText('Como você se chama?')).toBeInTheDocument()
+    expect(logouts).toEqual(['POST'])
+    expect(router.state.location.pathname).toBe('/convite')
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe(TOKEN)
+    expect(screen.queryByRole('button', { name: 'Entrar com Google' })).not.toBeInTheDocument()
+  })
+
+  it('youthNeedsPasskeyAtAcceptKeepsTheToken', async () => {
+    mockState.signedIn = false
+    seedMockInvitation({ token: TOKEN, role: 'YOUTH' })
+    server.use(
+      http.post(ACCEPT, () =>
+        problem(422, 'invitation.youth-needs-passkey', 'Detalhe do servidor.'),
+      ),
+    )
+    renderAccept()
+
+    fireEvent.change(await screen.findByLabelText('Como você se chama?'), {
+      target: { value: 'Leo Teste' },
+    })
+    // The page did not see the session, but the API did.
+    mockState.signedIn = true
+    fireEvent.click(screen.getByRole('button', { name: 'Criar passkey neste aparelho' }))
+
+    expect(
+      await screen.findByText(
+        'Convites de Jovem só podem ser aceitos com uma passkey nova. Saia da sua conta para continuar.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Detalhe do servidor.')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument()
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe(TOKEN)
+  })
+
   it('goneMessage', async () => {
     mockState.signedIn = false
     seedMockInvitation({ token: TOKEN, expiresInMs: -1000 })

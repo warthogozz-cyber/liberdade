@@ -62,7 +62,7 @@ class MemberService {
      *
      * @throws MemberNotFoundException when the membership is not in the family
      * @throws WorkspaceRejectedException when the member is gone, the last active Owner would step down, or a YOUTH role
-     *     comes without the guardian's consent
+     *     comes without the guardian's consent or for a person who signs in with Google
      */
     @Transactional
     MemberView update(
@@ -91,6 +91,14 @@ class MemberService {
                 throw new WorkspaceRejectedException(
                         "member.parental-consent-required",
                         "Para ser Jovem, é preciso o consentimento do responsável.");
+            }
+            UserSummary person = target.userId() == null
+                    ? null
+                    : users.findAll(List.of(target.userId())).get(target.userId());
+            if (person != null && person.hasGoogle()) {
+                throw new WorkspaceRejectedException(
+                        "member.youth-needs-passkey",
+                        "Quem entra com o Google não pode ser Jovem: o Jovem entra só com passkey.");
             }
             consentBy = caller.userId();
         }
