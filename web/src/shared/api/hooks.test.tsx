@@ -7,6 +7,7 @@ import {
   API_URL,
   ApiError,
   postTransaction,
+  prefetchWorkspace,
   useAccounts,
   useCategories,
   useCreateWorkspace,
@@ -16,7 +17,7 @@ import {
   queryKeys,
   useTransactions,
 } from '@/shared/api'
-import { renderHookWithProviders } from '@/shared/testing'
+import { createTestQueryClient, renderHookWithProviders } from '@/shared/testing'
 
 describe('useMe', () => {
   it('reads the signed-in user, still without a family', async () => {
@@ -148,5 +149,22 @@ describe('family hooks', () => {
       expenses: { amount: '12.50', currency: 'BRL' },
       balance: { amount: '-12.50', currency: 'BRL' },
     })
+  })
+})
+
+describe('prefetchWorkspace', () => {
+  it('fills the cache the screens read: accounts, both category lists, the dashboard and the month', async () => {
+    const workspace = seedMockFamily()
+    const queryClient = createTestQueryClient()
+
+    await prefetchWorkspace(queryClient, workspace.id, '2026-11')
+
+    expect(queryClient.getQueryData(queryKeys.accounts(workspace.id))).toHaveLength(1)
+    expect(queryClient.getQueryData(queryKeys.categories(workspace.id, 'EXPENSE'))).toHaveLength(13)
+    expect(queryClient.getQueryData(queryKeys.categories(workspace.id, 'INCOME'))).toHaveLength(6)
+    expect(queryClient.getQueryData(queryKeys.dashboard(workspace.id, '2026-11'))).toMatchObject({
+      month: '2026-11',
+    })
+    expect(queryClient.getQueryData(queryKeys.transactions(workspace.id, '2026-11'))).toEqual([])
   })
 })

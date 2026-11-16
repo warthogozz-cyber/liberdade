@@ -6,6 +6,7 @@ export { createWorkspace, getMe, postTransaction } from './endpoints'
 export { queryKeys } from './queryKeys'
 export { CACHE_MAX_AGE, createQueryClient } from './queryClient'
 export {
+  prefetchWorkspace,
   useAccounts,
   useCategories,
   useCreateWorkspace,

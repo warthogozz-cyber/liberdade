@@ -52,6 +52,24 @@ describe('cancelOutboxItem', () => {
     expect(await db.outbox.count()).toBe(0)
     expect(listener).toHaveBeenCalledTimes(1)
   })
+
+  it('keeps an item whose send was already tried, since the server may have stored it', async () => {
+    await db.outbox.add(item('t1', { attempts: 1 }))
+    const listener = listenForChanges()
+
+    expect(await cancelOutboxItem('t1')).toBe(false)
+
+    expect(await db.outbox.toArray()).toEqual([item('t1', { attempts: 1 })])
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('keeps an item that needs attention', async () => {
+    await db.outbox.add(item('t1', { status: 'needs-attention' }))
+
+    expect(await cancelOutboxItem('t1')).toBe(false)
+
+    expect(await db.outbox.toArray()).toEqual([item('t1', { status: 'needs-attention' })])
+  })
 })
 
 describe('discardOutboxItem', () => {

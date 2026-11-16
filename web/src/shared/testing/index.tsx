@@ -6,6 +6,7 @@ import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { createQueryClient } from '@/shared/api'
 import { locale, messages } from '@/shared/i18n'
+import { ToastProvider } from '@/shared/ui'
 
 export { outboxItem, outboxPayload, transactionView } from './outbox'
 
@@ -22,7 +23,9 @@ function wrapperFor(queryClient: QueryClient) {
   return function Providers({ children }: { children: ReactNode }) {
     return (
       <IntlProvider locale={locale} messages={messages}>
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        <QueryClientProvider client={queryClient}>
+          <ToastProvider>{children}</ToastProvider>
+        </QueryClientProvider>
       </IntlProvider>
     )
   }

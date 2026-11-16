@@ -44,13 +44,22 @@ export async function enqueueTransaction(
 
 /**
  * Takes an item back before it is sent. It waits for the outbox lock, so it never races a send in
- * flight (D34); `false` means the item had already left the queue.
+ * flight (D34). Only a pending item never tried goes: once a send was attempted the server may have
+ * stored it, and an item that needs attention is fixed or discarded instead. `false` means the item
+ * stayed or had already left the queue.
  */
 export async function cancelOutboxItem(id: string): Promise<boolean> {
-  const deleted = await withOutboxLock({}, () => db.outbox.where('id').equals(id).delete())
+  const deleted = await withOutboxLock({}, () =>
+    db.transaction('rw', db.outbox, async () => {
+      const item = await db.outbox.get(id)
+      if (item?.status !== 'pending' || item.attempts !== 0) return false
+      await db.outbox.delete(id)
+      return true
+    }),
+  )
   // Announced once the lock is free, so the sync it wakes is not turned away as busy.
-  if (deleted > 0) notify()
-  return deleted > 0
+  if (deleted) notify()
+  return deleted
 }
 
 /**
