@@ -21,6 +21,7 @@ class LedgerSeeder {
     static final String WALLET_NAME = "Carteira";
 
     private static final String YOUTH_WALLET_PREFIX = "Carteira de ";
+    private static final int MAX_WALLET_NAMES = 50;
     private static final Currency DEFAULT_CURRENCY = Currency.getInstance("BRL");
 
     /** The default expense categories, in the order they show before any use. */
@@ -81,11 +82,16 @@ class LedgerSeeder {
         UUID workspaceId = event.workspaceId();
         Currency currency = accounts.firstCurrency(workspaceId).orElse(DEFAULT_CURRENCY);
         String base = YOUTH_WALLET_PREFIX + event.nickname();
-        String name = base;
-        for (int n = 2; accounts.activeNameTaken(workspaceId, name); n++) {
-            name = base + " " + n;
+        // The insert answers a taken name with no row, so two people joining at once cannot both take one name.
+        for (int n = 1; n <= MAX_WALLET_NAMES; n++) {
+            String name = n == 1 ? base : base + " " + n;
+            if (accounts.insertIfNameFree(
+                            workspaceId, name, AccountType.CASH, Money.zero(currency), event.membershipId())
+                    .isPresent()) {
+                return;
+            }
         }
-        accounts.insert(workspaceId, name, AccountType.CASH, Money.zero(currency), event.membershipId());
+        throw new IllegalStateException("No free name for a youth wallet");
     }
 
     private void insert(UUID workspaceId, TransactionKind kind, List<DefaultCategory> defaults) {

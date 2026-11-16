@@ -77,16 +77,27 @@ class AccountRepository {
                 .map(Currency::getInstance);
     }
 
-    /** Whether an active account of the family already has this name. */
-    boolean activeNameTaken(UUID workspaceId, String name) {
+    /**
+     * Inserts the account unless an active one of the family already has the name. A plain insert that fails on the
+     * unique index would abort the surrounding transaction, so the conflict is answered in the statement itself.
+     *
+     * @return the new id, or empty when the name was taken
+     */
+    Optional<UUID> insertIfNameFree(
+            UUID workspaceId, String name, AccountType type, Money initialBalance, @Nullable UUID ownerMembershipId) {
         return jdbc.sql("""
-                        select exists (
-                            select 1 from accounts
-                            where workspace_id = :workspaceId and name = :name and archived_at is null)""")
+                        insert into accounts (workspace_id, name, type, currency, initial_balance, owner_membership_id)
+                        values (:workspaceId, :name, :type, :currency, :initialBalance, :ownerMembershipId)
+                        on conflict do nothing
+                        returning id""")
                 .param("workspaceId", workspaceId)
                 .param("name", name)
-                .query(Boolean.class)
-                .single();
+                .param("type", type.name())
+                .param("currency", initialBalance.currency().getCurrencyCode())
+                .param("initialBalance", initialBalance.amount())
+                .param("ownerMembershipId", ownerMembershipId)
+                .query(UUID.class)
+                .optional();
     }
 
     /** Every account of the family: the active ones first, then the archived, each group by name and id. */

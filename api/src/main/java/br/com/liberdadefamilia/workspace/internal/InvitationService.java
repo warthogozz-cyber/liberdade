@@ -1,8 +1,6 @@
 package br.com.liberdadefamilia.workspace.internal;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
-import br.com.liberdadefamilia.identity.SessionSignIn;
-import br.com.liberdadefamilia.identity.SignInMethod;
 import br.com.liberdadefamilia.identity.UserDirectory;
 import br.com.liberdadefamilia.workspace.InvitationCreated;
 import br.com.liberdadefamilia.workspace.InvitationKind;
@@ -13,14 +11,13 @@ import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.internal.InvitationRepository.InvitationRow;
 import br.com.liberdadefamilia.workspace.internal.MemberRepository.MemberRow;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +34,6 @@ class InvitationService {
     private final InvitationRepository invitations;
     private final MemberRepository members;
     private final UserDirectory users;
-    private final SessionSignIn sessionSignIn;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
@@ -45,13 +41,11 @@ class InvitationService {
             InvitationRepository invitations,
             MemberRepository members,
             UserDirectory users,
-            SessionSignIn sessionSignIn,
             ApplicationEventPublisher events,
             Clock clock) {
         this.invitations = invitations;
         this.members = members;
         this.users = users;
-        this.sessionSignIn = sessionSignIn;
         this.events = events;
         this.clock = clock;
     }
@@ -138,7 +132,7 @@ class InvitationService {
 
     /**
      * Takes the link, all in one transaction with the link's row locked: of two people taking the same link, the
-     * second finds it used. A person with no session must say who they are, and gets a new account and a session.
+     * second finds it used. A person with no session must say who they are, and gets a new account; the session is opened by the caller after the commit.
      *
      * @throws InvitationNotFoundException when no link has this token
      * @throws InvitationGoneException when it was used, cancelled or has expired
@@ -146,11 +140,7 @@ class InvitationService {
      * @throws InvitationConflictException when the person is already an active member
      */
     @Transactional
-    AcceptedInvitation accept(
-            AcceptInvitationRequest request,
-            Optional<CurrentUser> caller,
-            HttpServletRequest httpRequest,
-            HttpServletResponse httpResponse) {
+    AcceptResult accept(AcceptInvitationRequest request, Optional<CurrentUser> caller) {
         InvitationRow row = invitations
                 .lockByHash(InvitationTokens.hash(request.token()))
                 .orElseThrow(InvitationNotFoundException::new);
@@ -189,9 +179,16 @@ class InvitationService {
         events.publishEvent(
                 new MemberJoined(row.workspaceId(), membershipId, userId, row.role(), row.nickname(), consentBy));
         boolean created = caller.isEmpty();
-        if (created) {
-            sessionSignIn.signIn(httpRequest, httpResponse, userId, SignInMethod.INVITATION);
-        }
-        return new AcceptedInvitation(row.workspaceId(), membershipId, created);
+        return new AcceptResult(
+                new AcceptedInvitation(row.workspaceId(), membershipId, created), created ? userId : null);
     }
+
+    /**
+     * What taking a link gives back.
+     *
+     * @param signInUserId the person this call created, who the caller must now sign in once the transaction has
+     *     committed; null when the caller already had a session
+     */
+    record AcceptResult(
+            AcceptedInvitation accepted, @Nullable UUID signInUserId) {}
 }

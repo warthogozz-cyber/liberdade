@@ -43,6 +43,15 @@ interface FieldError {
 }
 
 /** A problem answer, shaped like the API's (`application/problem+json`), with any extra properties. */
+/** 43 base64url characters, like the API's tokens (32 random bytes). */
+function newToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '')
+}
+
 const INVITE_ROLES: unknown[] = ['OWNER', 'ADULT', 'YOUTH', 'VIEWER']
 const roleDenied = () => problem(403, 'auth.forbidden', 'Você não tem permissão para isso.')
 const invitationNotFound = () => problem(404, 'invitation.not-found', 'Convite não encontrado.')
@@ -668,7 +677,7 @@ export const handlers = [
         .filter(
           (invitation) => invitation.workspaceId === workspace.id && !invitationGone(invitation),
         )
-        .map((invitation) => ({ ...invitation.view, token: undefined })),
+        .map((invitation) => ({ ...invitation.view, token: null })),
     )
   }),
 
@@ -704,7 +713,7 @@ export const handlers = [
     const creator = mockState.members[workspace.id]?.find(
       (member) => member.id === workspace.membershipId,
     )
-    const token = crypto.randomUUID().replaceAll('-', '') + crypto.randomUUID().replaceAll('-', '')
+    const token = newToken()
     const view: Schemas['InvitationView'] = {
       id: crypto.randomUUID(),
       role,

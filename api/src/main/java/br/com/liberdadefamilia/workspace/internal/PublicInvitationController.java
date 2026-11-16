@@ -1,6 +1,8 @@
 package br.com.liberdadefamilia.workspace.internal;
 
 import br.com.liberdadefamilia.identity.CurrentUser;
+import br.com.liberdadefamilia.identity.SessionSignIn;
+import br.com.liberdadefamilia.identity.SignInMethod;
 import br.com.liberdadefamilia.shared.RateLimitedException;
 import br.com.liberdadefamilia.shared.RateLimiter;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,11 +24,15 @@ class PublicInvitationController {
 
     private final InvitationService service;
     private final RateLimiter limiter;
+    private final SessionSignIn sessionSignIn;
 
     PublicInvitationController(
-            InvitationService service, @Qualifier("invitationPublicRateLimiter") RateLimiter limiter) {
+            InvitationService service,
+            @Qualifier("invitationPublicRateLimiter") RateLimiter limiter,
+            SessionSignIn sessionSignIn) {
         this.service = service;
         this.limiter = limiter;
+        this.sessionSignIn = sessionSignIn;
     }
 
     @PostMapping("/v1/invitations/preview")
@@ -43,7 +49,12 @@ class PublicInvitationController {
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
         spendBudget(httpRequest);
-        return service.accept(request, user, httpRequest, httpResponse);
+        InvitationService.AcceptResult result = service.accept(request, user);
+        // The service has committed by now: a session never names a person whose creation was rolled back.
+        if (result.signInUserId() != null) {
+            sessionSignIn.signIn(httpRequest, httpResponse, result.signInUserId(), SignInMethod.INVITATION);
+        }
+        return result.accepted();
     }
 
     private void spendBudget(HttpServletRequest request) {

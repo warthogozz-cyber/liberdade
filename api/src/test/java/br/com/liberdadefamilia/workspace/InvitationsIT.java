@@ -26,6 +26,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -78,6 +79,32 @@ class InvitationsIT {
         Recorded recorded() {
             return new Recorded();
         }
+
+        @Bean
+        Failing failing() {
+            return new Failing();
+        }
+    }
+
+    /** Throws from inside the accepting transaction, when armed, to prove that everything done there is undone. */
+    static class Failing {
+
+        private final AtomicBoolean armed = new AtomicBoolean();
+
+        void arm() {
+            armed.set(true);
+        }
+
+        void disarm() {
+            armed.set(false);
+        }
+
+        @EventListener
+        void on(MemberJoined event) {
+            if (armed.get()) {
+                throw new IllegalStateException("forced failure");
+            }
+        }
     }
 
     /** Records what the invitations publish, inside the transactions that make it happen. */
@@ -124,6 +151,9 @@ class InvitationsIT {
     Recorded recorded;
 
     @Autowired
+    Failing failing;
+
+    @Autowired
     PlatformTransactionManager transactionManager;
 
     @BeforeEach
@@ -134,6 +164,7 @@ class InvitationsIT {
 
     @AfterEach
     void releaseClock() {
+        failing.disarm();
         clock.release();
     }
 
@@ -247,7 +278,7 @@ class InvitationsIT {
         UUID bia = users.create("Bia Teste", "bia@example.com");
         UUID ws = workspaces.createFor(ana);
         workspaces.addMember(ws, bia, Role.ADULT, "Bibi");
-        assertThat(createInvitation(bia, ws, VIEWER_BODY)).hasStatus(201);
+        String token = tokenOf(createInvitation(bia, ws, VIEWER_BODY));
 
         MvcTestResult list = list(ana, ws);
 
@@ -255,7 +286,8 @@ class InvitationsIT {
         assertThat(list).bodyJson().extractingPath("$").asArray().hasSize(1);
         assertThat(list).bodyJson().extractingPath("$[0].createdByName").isEqualTo("Bibi");
         assertThat(list).bodyJson().extractingPath("$[0].nickname").isEqualTo("Vovo");
-        assertThat(list).bodyText().doesNotContain("token");
+        assertThat(list).bodyJson().extractingPath("$[0].token").isNull();
+        assertThat(list).bodyText().doesNotContain(token);
     }
 
     @Test
@@ -521,8 +553,8 @@ class InvitationsIT {
         String token = tokenOf(created);
 
         // A transaction of the test holds the invitation's row, so both requests are stopped on the database lock
-        // before either one can finish: the interleaving is forced, not hoped for. Without the lock on that row the
-        // requests would not wait, and the wait below would time out.
+        // before either one can finish: the interleaving is forced, not hoped for. Without the row lock in the accept
+        // query the requests would still wait, at the update that marks the link used, and then both would succeed.
         ExecutorService pool =
                 Executors.newFixedThreadPool(2, Thread.ofPlatform().daemon().factory());
         List<Integer> statuses = new ArrayList<>();
@@ -579,6 +611,65 @@ class InvitationsIT {
     }
 
     @Test
+    void failedAcceptUndoesTheNewUserAndLeavesNoSession() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID ws = workspaces.createFor(ana);
+        MvcTestResult created = createInvitation(ana, ws, VIEWER_BODY);
+        String token = tokenOf(created);
+        long usersBefore = userCount();
+        long signedInBefore = signedInSessions();
+        CsrfSession anonymous = CsrfSession.start(mvc);
+
+        failing.arm();
+        MvcTestResult failed = mvc.post()
+                .uri("/v1/invitations/accept")
+                .with(anonymous)
+                .with(from(nextAddress()))
+                .contentType(JSON)
+                .content(acceptBody(token, "Fulano Falho"))
+                .exchange();
+        failing.disarm();
+
+        assertThat(failed.getResponse().getStatus()).isGreaterThanOrEqualTo(400);
+        // Whichever cookie the client now holds, it must not be a signed-in session.
+        Cookie held = failed.getResponse().getCookie(CsrfSession.SESSION_COOKIE);
+        assertThat(mvc.get()
+                        .uri("/v1/me")
+                        .cookie(held != null ? held : anonymous.cookie())
+                        .exchange())
+                .hasStatus(401);
+        assertThat(signedInSessions()).isEqualTo(signedInBefore);
+        assertThat(userCount()).isEqualTo(usersBefore);
+        assertThat(jdbc.sql("select used_at is null from invitations where id = :id")
+                        .param("id", idOf(created))
+                        .query(Boolean.class)
+                        .single())
+                .isTrue();
+        assertThat(acceptFrom(token, "Fulano Falho", nextAddress())).hasStatusOk();
+    }
+
+    @Test
+    void writesNeedTheCsrfToken() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID ws = workspaces.createFor(ana);
+        String token = tokenOf(createInvitation(ana, ws, VIEWER_BODY));
+        long usersBefore = userCount();
+
+        for (String uri : List.of("/v1/invitations/accept", "/v1/invitations/preview")) {
+            MvcTestResult denied = mvc.post()
+                    .uri(uri)
+                    .with(from(nextAddress()))
+                    .contentType(JSON)
+                    .content(acceptBody(token, "Fulano Falho"))
+                    .exchange();
+            assertThat(denied).hasStatus(403);
+            assertThat(denied).bodyJson().extractingPath("$.code").isEqualTo("csrf.invalid");
+        }
+        assertThat(memberships(ws, ana)).isOne();
+        assertThat(userCount()).isEqualTo(usersBefore);
+    }
+
+    @Test
     void previewIsRateLimited() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         UUID ws = workspaces.createFor(ana);
@@ -595,7 +686,9 @@ class InvitationsIT {
         // The clock stands at 12:00:15, so the minute ends in 45 seconds.
         assertThat(limited).hasHeader(HttpHeaders.RETRY_AFTER, "45");
         // One budget for both public routes, and per address.
-        assertThat(acceptFrom(token, "Alguem Teste", address)).hasStatus(429);
+        MvcTestResult acceptLimited = acceptFrom(token, "Alguem Teste", address);
+        assertThat(acceptLimited).hasStatus(429);
+        assertThat(acceptLimited).bodyJson().extractingPath("$.code").isEqualTo("rate.limited");
         assertThat(preview(token, nextAddress())).hasStatusOk();
     }
 
@@ -644,6 +737,18 @@ class InvitationsIT {
                 .param("ws", ws)
                 .query(Long.class)
                 .single();
+    }
+
+    /** Sessions that carry a sign-in; a rolled-back accept must not leave one behind. */
+    private long signedInSessions() {
+        return jdbc.sql("select count(*) from spring_session_attributes where attribute_name = :name")
+                .param("name", "liberdade.authenticatedAt")
+                .query(Long.class)
+                .single();
+    }
+
+    private long userCount() {
+        return jdbc.sql("select count(*) from users").query(Long.class).single();
     }
 
     private long memberships(UUID ws, UUID userId) {
