@@ -1,5 +1,6 @@
 export { ConfirmDialog } from './ConfirmDialog'
 export { DataAsOf } from './DataAsOf'
+export { MonthSwitcher } from './MonthSwitcher'
 export { Sheet } from './Sheet'
 export { ToastProvider } from './Toast'
 export { useDocumentTitle } from './useDocumentTitle'

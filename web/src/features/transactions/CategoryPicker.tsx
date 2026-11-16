@@ -8,6 +8,8 @@ interface CategoryPickerProps {
   /** The categories of the tab's kind, in the API's order. The archived ones are left out. */
   categories: CategoryView[]
   value: string | undefined
+  /** An archived category that stays on offer: the one the edited transaction already has (R9). */
+  keepArchivedId?: string
   onChange: (categoryId: string) => void
   /** Tells the page a sheet is open, so the keypad leaves the keyboard alone. */
   onSheetChange: (open: boolean) => void
@@ -25,12 +27,20 @@ const chip =
 export function CategoryPicker({
   categories: all,
   value,
+  keepArchivedId,
   onChange,
   onSheetChange,
 }: CategoryPickerProps) {
   const intl = useIntl()
   const [open, setOpen] = useState(false)
-  const categories = all.filter((category) => category.archivedAt === null)
+  const categories = all.filter(
+    (category) => category.archivedAt === null || category.id === keepArchivedId,
+  )
+  const archived = intl.formatMessage({ id: 'transactions.filter.archived' })
+  const label = (category: CategoryView) =>
+    category.archivedAt === null
+      ? categoryLabel(category)
+      : `${categoryLabel(category)} ${archived}`
   const first = categories.slice(0, CHIPS)
   const chosen = categories.find((category) => category.id === value)
   const chips = chosen && !first.includes(chosen) ? [...first, chosen] : first
@@ -56,7 +66,7 @@ export function CategoryPicker({
               onChange={() => onChange(category.id)}
               className="sr-only"
             />
-            {categoryLabel(category)}
+            {label(category)}
           </label>
         ))}
         <button
@@ -83,7 +93,7 @@ export function CategoryPicker({
                 }}
                 className="min-h-12 w-full rounded-field border border-text-muted/30 px-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
-                {categoryLabel(category)}
+                {label(category)}
               </button>
             </li>
           ))}

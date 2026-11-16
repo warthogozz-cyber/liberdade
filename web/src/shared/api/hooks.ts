@@ -15,7 +15,7 @@ import {
 } from './endpoints'
 import { ApiError } from './errors'
 import { queryKeys } from './queryKeys'
-import type { CategoryKind, MeWorkspace } from './types'
+import type { CategoryKind, MeWorkspace, TransactionFilters } from './types'
 
 // One definition per query, shared by the hooks and `prefetchWorkspace`, so the prefetch fills
 // exactly what the hooks read.
@@ -28,10 +28,10 @@ const categoriesQuery = (ws: string, kind: CategoryKind) =>
     queryFn: () => listCategories(ws, kind),
   })
 
-const transactionsQuery = (ws: string, month: string) =>
+const transactionsQuery = (ws: string, month: string, filters?: TransactionFilters) =>
   queryOptions({
-    queryKey: queryKeys.transactions(ws, month),
-    queryFn: () => listTransactions(ws, month),
+    queryKey: queryKeys.transactions(ws, month, filters),
+    queryFn: () => listTransactions(ws, month, filters),
   })
 
 const dashboardQuery = (ws: string, month: string) =>
@@ -57,8 +57,8 @@ export function useCategories(ws: string, kind: CategoryKind) {
   return useQuery(categoriesQuery(ws, kind))
 }
 
-export function useTransactions(ws: string, month: string) {
-  return useQuery(transactionsQuery(ws, month))
+export function useTransactions(ws: string, month: string, filters?: TransactionFilters) {
+  return useQuery(transactionsQuery(ws, month, filters))
 }
 
 export function useDashboard(ws: string, month: string) {

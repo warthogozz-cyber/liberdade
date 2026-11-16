@@ -9,7 +9,7 @@ import { server } from '@/mocks/server'
 import { API_URL, postTransaction, type MeWorkspace } from '@/shared/api'
 import { localDate } from '@/shared/i18n'
 import { db, syncOutbox } from '@/shared/offline'
-import { outboxItem, outboxPayload, renderWithProviders } from '@/shared/testing'
+import { outboxItem, outboxPayload, renderWithProviders, transactionView } from '@/shared/testing'
 
 afterEach(() => {
   cleanup()
@@ -772,5 +772,172 @@ describe('ExpenseDate', () => {
   it('is a preset or a YYYY-MM-DD date', () => {
     expectTypeOf<'2026-11-03'>().toExtend<ExpenseDate>()
     expectTypeOf<'amanhã'>().not.toExtend<ExpenseDate>()
+  })
+})
+
+const EDIT_ID = '0192f3a4-0000-7000-8000-0000000000e1'
+const PATCH_URL = `${API_URL}/v1/workspaces/:ws/transactions/:id`
+
+/** Stores a Mercado expense of R$ 12,34 on the mock API, as the signed-in member's. */
+function storeForEdit(workspace: MeWorkspace, overrides: Parameters<typeof outboxPayload>[1] = {}) {
+  const body = outboxPayload(EDIT_ID, {
+    accountId: mockState.accounts[0].id,
+    categoryId: category('Mercado').id,
+    ...overrides,
+  })
+  mockState.transactions.push({ ...transactionView(body), memberId: workspace.membershipId })
+}
+
+/** Records each PATCH body and lets the mock API answer it. */
+function recordPatches() {
+  const bodies: Record<string, unknown>[] = []
+  server.use(
+    http.patch(PATCH_URL, async ({ request }) => {
+      bodies.push((await request.clone().json()) as Record<string, unknown>)
+      return undefined
+    }),
+  )
+  return bodies
+}
+
+/** Opens the edit page of the stored transaction and waits for the form to be filled in. */
+async function openEdit(cents = 'R$ 12,34') {
+  const rendered = renderPage(`/lancar?editar=${EDIT_ID}&mes=2026-11`)
+  await waitFor(() => expect(amount()).toHaveTextContent(cents))
+  await screen.findByRole('radio', { name: '🛒 Mercado' })
+  return rendered
+}
+
+describe('NewTransactionPage, editing', () => {
+  it('editsAmount', async () => {
+    const workspace = seedMockFamily()
+    storeForEdit(workspace)
+    const bodies = recordPatches()
+    const { router } = await openEdit()
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Editar lançamento' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '🛒 Mercado' })).toBeChecked()
+    press('Apagar', 'Apagar', 'Apagar', 'Apagar', '9', '0', '0', '0')
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancamentos'))
+    expect(router.state.location.search).toBe('?mes=2026-11')
+    expect(bodies).toEqual([
+      expect.objectContaining({
+        kind: 'EXPENSE',
+        amount: { amount: '90.00', currency: 'BRL' },
+        version: 0,
+      }),
+    ])
+    expect(await within(toastRegion()).findByText('Lançamento atualizado.')).toBeInTheDocument()
+  })
+
+  it('editKeepsArchivedAccount', async () => {
+    const workspace = seedMockFamily()
+    const old = addAccount(workspace, 'Banco antigo', 'CHECKING', '2026-10-01T00:00:00Z')
+    storeForEdit(workspace, { accountId: old.id })
+    const bodies = recordPatches()
+    const { router } = await openEdit()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Banco antigo \(arquivada\)/ }))
+    expect(
+      within(screen.getByRole('dialog', { name: 'Data e conta' })).getByRole('radio', {
+        name: 'Banco antigo (arquivada)',
+      }),
+    ).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    fireEvent.change(screen.getByRole('textbox', { name: 'Descrição (opcional)' }), {
+      target: { value: 'Feira' },
+    })
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancamentos'))
+    expect(bodies).toEqual([expect.objectContaining({ accountId: old.id, description: 'Feira' })])
+  })
+
+  it('editTurnsExpenseIntoTransfer', async () => {
+    const workspace = seedMockFamily()
+    const banco = addAccount(workspace, 'Banco')
+    storeForEdit(workspace)
+    const bodies = recordPatches()
+    const { router } = await openEdit()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Transferência' }))
+    fireEvent.click(within(group('Para')).getByRole('radio', { name: 'Banco' }))
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancamentos'))
+    expect(bodies).toEqual([
+      expect.objectContaining({ kind: 'TRANSFER', categoryId: null, toAccountId: banco.id }),
+    ])
+  })
+
+  it('conflictKeepTheirs', async () => {
+    const workspace = seedMockFamily()
+    storeForEdit(workspace)
+    const bodies = recordPatches()
+    const { router } = await openEdit()
+    // Someone else saves first: the stored transaction moves to version 1 and R$ 20,00.
+    const stored = mockState.transactions[0]
+    stored.version = 1
+    stored.amount = { amount: '20.00', currency: 'BRL' }
+
+    press('5')
+    fireEvent.click(saveButton())
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Este lançamento mudou' })
+    expect(within(dialog).getByText('R$ 20,00')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Ficar com a versão atual' })).toHaveFocus()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ficar com a versão atual' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancamentos'))
+    expect(bodies).toHaveLength(1)
+  })
+
+  it('conflictKeepMine', async () => {
+    const workspace = seedMockFamily()
+    storeForEdit(workspace)
+    const bodies = recordPatches()
+    const { router } = await openEdit()
+    const stored = mockState.transactions[0]
+    stored.version = 1
+    stored.amount = { amount: '20.00', currency: 'BRL' }
+
+    press('5')
+    fireEvent.click(saveButton())
+    const dialog = await screen.findByRole('alertdialog', { name: 'Este lançamento mudou' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar a minha mesmo assim' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancamentos'))
+    expect(bodies.map(({ version }) => version)).toEqual([0, 1])
+    expect(bodies[1]).toMatchObject({ amount: { amount: '123.45', currency: 'BRL' } })
+    expect(await within(toastRegion()).findByText('Lançamento atualizado.')).toBeInTheDocument()
+  })
+
+  it('editDeletedElsewhere', async () => {
+    const workspace = seedMockFamily()
+    storeForEdit(workspace)
+    const { router } = await openEdit()
+    mockState.deletedTransactionIds.add(EDIT_ID)
+
+    press('5')
+    fireEvent.click(saveButton())
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Este lançamento foi excluído.' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Voltar para a lista' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancamentos'))
+  })
+
+  it('offlineEditShowsNoForm', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const workspace = seedMockFamily()
+    storeForEdit(workspace)
+    renderPage(`/lancar?editar=${EDIT_ID}&mes=2026-11`)
+
+    expect(
+      await screen.findByText('Sem conexão. Lançar funciona; editar volta com o sinal.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Salvar' })).not.toBeInTheDocument()
   })
 })

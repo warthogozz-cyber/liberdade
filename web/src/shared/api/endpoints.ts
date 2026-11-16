@@ -6,7 +6,9 @@ import type {
   CreateTransactionRequest,
   DashboardView,
   MeView,
+  TransactionFilters,
   TransactionView,
+  UpdateTransactionRequest,
   WorkspaceView,
 } from './types'
 
@@ -30,10 +32,16 @@ export function listCategories(ws: string, kind: CategoryKind): Promise<Category
   )
 }
 
-/** The month's transactions, newest first. `month` is `YYYY-MM`. */
-export function listTransactions(ws: string, month: string): Promise<TransactionView[]> {
+/** The month's transactions, newest first. `month` is `YYYY-MM`; a category takes its subcategories along. */
+export function listTransactions(
+  ws: string,
+  month: string,
+  { categoryId, accountId }: TransactionFilters = {},
+): Promise<TransactionView[]> {
   return unwrap(
-    client.GET('/v1/workspaces/{ws}/transactions', { params: { path: { ws }, query: { month } } }),
+    client.GET('/v1/workspaces/{ws}/transactions', {
+      params: { path: { ws }, query: { month, categoryId, accountId } },
+    }),
   )
 }
 
@@ -62,5 +70,23 @@ export function postTransaction(
 export async function deleteTransaction(ws: string, id: string): Promise<void> {
   await unwrap(
     client.DELETE('/v1/workspaces/{ws}/transactions/{id}', { params: { path: { ws, id } } }),
+  )
+}
+
+/** Saves an edit of a transaction. A stale `version` is a 409 `transaction.version-conflict`. */
+export function updateTransaction(
+  ws: string,
+  id: string,
+  body: UpdateTransactionRequest,
+): Promise<TransactionView> {
+  return unwrap(
+    client.PATCH('/v1/workspaces/{ws}/transactions/{id}', { params: { path: { ws, id } }, body }),
+  )
+}
+
+/** Brings a deleted transaction back. An active one comes back unchanged. */
+export function restoreTransaction(ws: string, id: string): Promise<TransactionView> {
+  return unwrap(
+    client.POST('/v1/workspaces/{ws}/transactions/{id}/restore', { params: { path: { ws, id } } }),
   )
 }

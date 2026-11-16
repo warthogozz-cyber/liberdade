@@ -1,21 +1,26 @@
-import { useId, useRef, useState } from 'react'
+import { Suspense, lazy, useId, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { v7 } from 'uuid'
 import { useQueryClient } from '@tanstack/react-query'
 import {
+  ApiError,
   deleteTransaction,
   queryKeys,
   useAccounts,
   useCategories,
   useCurrentWorkspace,
   useMe,
+  useTransactions,
+  useUpdateTransaction,
   type AccountView,
   type CreateTransactionRequest,
   type MeWorkspace,
   type TransactionKind,
+  type TransactionView,
+  type UpdateTransactionRequest,
 } from '@/shared/api'
-import { MIN_DATE, addDays, localDate, maxDate } from '@/shared/i18n'
+import { MIN_DATE, addDays, currentMonth, localDate, maxDate } from '@/shared/i18n'
 import { centsToApi, formatBRL, parseCents } from '@/shared/money'
 import {
   enqueueTransaction,
@@ -32,6 +37,22 @@ import { ContextSheet, type ExpenseDate } from './ContextSheet'
 import { Keypad } from './Keypad'
 import { KindTabs } from './KindTabs'
 import { kindTabId } from './kindTabId'
+
+// The dialogs are rare: they load when the first one is needed, not with the form.
+const VersionConflictDialog = lazy(() =>
+  import('./VersionConflictDialog').then(({ VersionConflictDialog: dialog }) => ({
+    default: dialog,
+  })),
+)
+const DeletedElsewhereDialog = lazy(() =>
+  import('./VersionConflictDialog').then(({ DeletedElsewhereDialog: dialog }) => ({
+    default: dialog,
+  })),
+)
+
+type ConflictState =
+  | { kind: 'deleted' }
+  | { kind: 'conflict'; saved: UpdateTransactionRequest; current: TransactionView }
 
 const lastAccountKey = (workspaceId: string) => `liberdade:last-account:${workspaceId}`
 
@@ -85,6 +106,7 @@ export function NewTransactionPage() {
   const workspace = useCurrentWorkspace()
   const [params] = useSearchParams()
   const fixId = params.get('corrigir')
+  const editId = params.get('editar')
   const outbox = useOutbox(userId, workspace?.id)
   const fixing = outbox?.find((item) => item.id === fixId && item.status === 'needs-attention')
   // A fix waits for the queue, so the form opens filled in rather than filling in later.
@@ -93,7 +115,18 @@ export function NewTransactionPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-4 p-4">
-      {ready ? (
+      {editId !== null ? (
+        workspace && userId ? (
+          <EditLoader id={editId} month={params.get('mes')} userId={userId} workspace={workspace} />
+        ) : (
+          <>
+            <PageHeader kind="EXPENSE" editMonth="" />
+            <p>
+              <FormattedMessage id="common.loading" />
+            </p>
+          </>
+        )
+      ) : ready ? (
         <TransactionForm
           key={fixing?.id ?? 'new'}
           userId={userId}
@@ -115,14 +148,15 @@ export function NewTransactionPage() {
 }
 
 /** The way back and the title, which names the kind being recorded (Ruling R17). */
-function PageHeader({ kind }: { kind: TransactionKind }) {
+function PageHeader({ kind, editMonth }: { kind: TransactionKind; editMonth?: string }) {
   const intl = useIntl()
-  const title = intl.formatMessage({ id: TITLE[kind] })
+  const editing = editMonth !== undefined
+  const title = intl.formatMessage({ id: editing ? 'transaction.title.edit' : TITLE[kind] })
   useDocumentTitle(title)
   return (
     <header className="flex items-center gap-2">
       <Link
-        to="/inicio"
+        to={editing ? `/lancamentos${editMonth ? `?mes=${editMonth}` : ''}` : '/inicio'}
         aria-label={intl.formatMessage({ id: 'expense.back' })}
         className="flex size-12 items-center justify-center rounded-field text-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
@@ -130,6 +164,73 @@ function PageHeader({ kind }: { kind: TransactionKind }) {
       </Link>
       <h1 className="text-xl font-semibold">{title}</h1>
     </header>
+  )
+}
+
+interface EditLoaderProps {
+  id: string
+  month: string | null
+  userId: string
+  workspace: MeWorkspace
+}
+
+/**
+ * Opens a saved transaction for editing: it is found in the month's list the page came from (there
+ * is no read by id), and kept as opened, so a refresh behind a conflict does not change the form.
+ */
+function EditLoader({ id, month, userId, workspace }: EditLoaderProps) {
+  const navigate = useNavigate()
+  const online = useOnline()
+  const listMonth =
+    month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month)
+      ? month
+      : currentMonth(new Date(), workspace.timezone)
+  const list = useTransactions(workspace.id, listMonth)
+  const [opened, setOpened] = useState<TransactionView>()
+  const found = list.data?.find((each) => each.id === id)
+  if (found && !opened) setOpened(found)
+
+  if (!online) {
+    // Editing needs the connection (ADR-0007), so there is no form to fill in.
+    return (
+      <>
+        <PageHeader kind="EXPENSE" editMonth={listMonth} />
+        <p className="rounded-card bg-surface p-4">
+          <FormattedMessage id="transactions.offlineEditing" />
+        </p>
+      </>
+    )
+  }
+  if (opened) {
+    return (
+      <TransactionForm
+        key={opened.id}
+        userId={userId}
+        workspace={workspace}
+        fixing={undefined}
+        initialKind={opened.kind}
+        initialToAccountId={null}
+        editing={opened}
+        month={listMonth}
+      />
+    )
+  }
+  return (
+    <>
+      <PageHeader kind="EXPENSE" editMonth={listMonth} />
+      {list.data ? (
+        <Suspense fallback={null}>
+          <DeletedElsewhereDialog
+            open
+            onBack={() => void navigate(`/lancamentos?mes=${listMonth}`)}
+          />
+        </Suspense>
+      ) : (
+        <p>
+          <FormattedMessage id={list.isError ? 'common.error' : 'common.loading'} />
+        </p>
+      )}
+    </>
   )
 }
 
@@ -142,6 +243,10 @@ interface TransactionFormProps {
   initialKind: TransactionKind
   /** Where a transfer goes, from `?para=`. */
   initialToAccountId: string | null
+  /** The saved transaction being edited, as it was opened; the form saves with a PATCH. */
+  editing?: TransactionView
+  /** The month of the list an edit goes back to. */
+  month?: string
 }
 
 const accountOption =
@@ -156,38 +261,60 @@ function TransactionForm({
   fixing,
   initialKind,
   initialToAccountId,
+  editing,
+  month,
 }: TransactionFormProps) {
   const intl = useIntl()
   const navigate = useNavigate()
   const toast = useToast()
   const queryClient = useQueryClient()
   const online = useOnline()
+  const update = useUpdateTransaction(workspace.id)
+  const [conflict, setConflict] = useState<ConflictState>()
   const panelId = useId()
   const expenseCategories = useCategories(workspace.id, 'EXPENSE')
   const incomeCategories = useCategories(workspace.id, 'INCOME')
   const accounts = useAccounts(workspace.id)
-  const [kind, setKind] = useState<TransactionKind>(() => fixing?.payload.kind ?? initialKind)
-  const [cents, setCents] = useState(() => (fixing ? parseCents(fixing.payload.amount.amount) : 0n))
-  const [categoryId, setCategoryId] = useState(() => fixing?.payload.categoryId ?? undefined)
+  const [kind, setKind] = useState<TransactionKind>(
+    () => editing?.kind ?? fixing?.payload.kind ?? initialKind,
+  )
+  const [cents, setCents] = useState(() => {
+    const opened = editing?.amount.amount ?? fixing?.payload.amount.amount
+    return opened ? parseCents(opened) : 0n
+  })
+  const [categoryId, setCategoryId] = useState(
+    () => editing?.categoryId ?? fixing?.payload.categoryId ?? undefined,
+  )
   const [date, setDate] = useState<ExpenseDate>(
     // The API sends dates as YYYY-MM-DD.
-    () => (fixing?.payload.occurredOn as ExpenseDate | undefined) ?? 'today',
+    () =>
+      ((editing?.occurredOn ?? fixing?.payload.occurredOn) as ExpenseDate | undefined) ?? 'today',
   )
   const [chosenAccountId, setChosenAccountId] = useState(
-    () => fixing?.payload.accountId ?? readLastAccount(workspace.id),
+    () => editing?.accountId ?? fixing?.payload.accountId ?? readLastAccount(workspace.id),
   )
   const [toAccountId, setToAccountId] = useState(
-    () => fixing?.payload.toAccountId ?? initialToAccountId,
+    () => editing?.toAccountId ?? fixing?.payload.toAccountId ?? initialToAccountId,
   )
-  const [description, setDescription] = useState(() => fixing?.payload.description ?? '')
+  const [description, setDescription] = useState(
+    () => editing?.description ?? fixing?.payload.description ?? '',
+  )
   const [sheet, setSheet] = useState<'categories' | 'context' | null>(null)
   const [saving, setSaving] = useState(false)
   // State lags a render behind; the ref stops a double tap from queueing twice (Review Focus 1).
   const savingRef = useRef(false)
 
   const transfer = kind === 'TRANSFER'
-  // An archived account takes no new transactions.
-  const activeAccounts = (accounts.data ?? []).filter(({ archivedAt }) => archivedAt === null)
+  // An archived account takes no new transactions; an edit keeps the ones the transaction has (R9).
+  const archivedLabel = intl.formatMessage({ id: 'transactions.filter.archived' })
+  const activeAccounts = (accounts.data ?? [])
+    .filter(
+      ({ id, archivedAt }) =>
+        archivedAt === null || id === editing?.accountId || id === editing?.toAccountId,
+    )
+    .map((each) =>
+      each.archivedAt === null ? each : { ...each, name: `${each.name} ${archivedLabel}` },
+    )
   const to = transfer ? activeAccounts.find(({ id }) => id === toAccountId) : undefined
   // De offers every account but starts elsewhere than Para; Para leaves De out.
   const notTo = activeAccounts.filter(({ id }) => id !== to?.id)
@@ -254,6 +381,41 @@ function TransactionForm({
     toast.show({ message: intl.formatMessage({ id: 'common.actionFailed' }) })
   }
 
+  const listPath = `/lancamentos${month ? `?mes=${month}` : ''}`
+
+  /** Saves the edit; a conflict or a transaction gone elsewhere opens its dialog (D12). */
+  async function submitEdit(id: string, body: UpdateTransactionRequest) {
+    savingRef.current = true
+    setSaving(true)
+    try {
+      await update.mutateAsync({ id, body })
+    } catch (error) {
+      savingRef.current = false
+      setSaving(false)
+      const current = error instanceof ApiError ? error.extra.current : undefined
+      if (
+        error instanceof ApiError &&
+        error.status === 409 &&
+        error.code === 'transaction.version-conflict' &&
+        typeof current === 'object' &&
+        current !== null
+      ) {
+        setConflict({ kind: 'conflict', saved: body, current: current as TransactionView })
+      } else if (
+        error instanceof ApiError &&
+        (error.status === 404 || (error.status === 409 && error.code === 'transaction.deleted'))
+      ) {
+        setConflict({ kind: 'deleted' })
+      } else {
+        console.error(error)
+        toast.show({ message: intl.formatMessage({ id: 'expense.saveFailed' }) })
+      }
+      return
+    }
+    toast.show({ message: intl.formatMessage({ id: 'transactions.updated' }) })
+    await navigate(listPath)
+  }
+
   async function save() {
     if (!canSave || !account || savingRef.current) return
     if (transfer ? !to : categoryId === undefined) return
@@ -263,6 +425,19 @@ function TransactionForm({
     const savedToday = localDate(new Date(), workspace.timezone)
     const occurredOn =
       date === 'today' ? savedToday : date === 'yesterday' ? addDays(savedToday, -1) : date
+    if (editing) {
+      await submitEdit(editing.id, {
+        kind,
+        amount: { amount: centsToApi(cents), currency: workspace.currency },
+        occurredOn,
+        accountId: account.id,
+        categoryId: transfer ? null : categoryId,
+        toAccountId: transfer ? (to?.id ?? null) : null,
+        description: description.trim() || null,
+        version: editing.version,
+      })
+      return
+    }
     const payload: CreateTransactionRequest = {
       id: v7(),
       kind,
@@ -304,7 +479,7 @@ function TransactionForm({
 
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <PageHeader kind={kind} />
+      <PageHeader kind={kind} editMonth={editing ? (month ?? '') : undefined} />
       <KindTabs value={kind} onChange={changeKind} panelId={panelId} />
       <div
         role="tabpanel"
@@ -373,6 +548,9 @@ function TransactionForm({
                 key={kind}
                 categories={categoryList}
                 value={categoryId}
+                keepArchivedId={
+                  editing?.kind === kind ? (editing.categoryId ?? undefined) : undefined
+                }
                 onChange={setCategoryId}
                 onSheetChange={(open) => setSheet(open ? 'categories' : null)}
               />
@@ -431,6 +609,37 @@ function TransactionForm({
           </>
         )}
       </div>
+      {conflict && (
+        <Suspense fallback={null}>
+          {conflict.kind === 'deleted' ? (
+            <DeletedElsewhereDialog open onBack={() => void navigate(listPath)} />
+          ) : (
+            <VersionConflictDialog
+              open
+              saved={conflict.saved}
+              current={conflict.current}
+              accounts={new Map((accounts.data ?? []).map((each) => [each.id, each]))}
+              categories={
+                new Map(
+                  [...(expenseCategories.data ?? []), ...(incomeCategories.data ?? [])].map(
+                    (each) => [each.id, each],
+                  ),
+                )
+              }
+              onKeepTheirs={() => void navigate(listPath)}
+              onKeepMine={() => {
+                if (editing) {
+                  void submitEdit(editing.id, {
+                    ...conflict.saved,
+                    version: conflict.current.version,
+                  })
+                }
+                setConflict(undefined)
+              }}
+            />
+          )}
+        </Suspense>
+      )}
     </div>
   )
 }

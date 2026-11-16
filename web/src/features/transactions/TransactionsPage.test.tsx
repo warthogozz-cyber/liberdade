@@ -329,3 +329,141 @@ describe('TransactionsPage', () => {
     expect(await screen.findByText('Nenhum lançamento neste mês.')).toBeInTheDocument()
   })
 })
+
+describe('TransactionsPage, viewing and organizing', () => {
+  function renderAt(route: string) {
+    return renderWithProviders(<TransactionsPage />, { path: '/lancamentos', route })
+  }
+
+  it('navigatesMonths', async () => {
+    const workspace = seedMockFamily()
+    storeOnServer(workspace, request(MERCADO_ID, 'Mercado', { occurredOn: '2026-11-15' }))
+    storeOnServer(workspace, request(PENDING_ID, 'Transporte', { occurredOn: '2026-10-20' }))
+    const { router } = renderAt('/lancamentos')
+
+    expect(await within(await day('Hoje')).findByText('🛒 Mercado')).toBeInTheDocument()
+    expect(screen.getByText('Novembro de 2026')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Mês anterior' }))
+
+    expect(router.state.location.search).toBe('?mes=2026-10')
+    expect(await within(await day('20 de outubro')).findByText('🚌 Transporte')).toBeInTheDocument()
+    expect(screen.queryByText('🛒 Mercado')).not.toBeInTheDocument()
+    expect(screen.getByText('Outubro de 2026')).toBeInTheDocument()
+  })
+
+  it('filtersFromUrl', async () => {
+    const workspace = seedMockFamily()
+    const mercado = categoryId('Mercado')
+    mockState.categories.push({
+      id: '0192f3a4-0000-7000-8000-0000000000c1',
+      kind: 'EXPENSE',
+      icon: null,
+      color: null,
+      parentId: mercado,
+      archivedAt: null,
+      name: 'Feira',
+    })
+    storeOnServer(workspace, request(MERCADO_ID, 'Mercado', { occurredOn: '2026-11-15' }))
+    storeOnServer(workspace, request(PENDING_ID, 'Feira', { occurredOn: '2026-11-14' }))
+    storeOnServer(
+      workspace,
+      request('0192f3a4-0000-7000-8000-0000000000b3', 'Transporte', { occurredOn: '2026-11-13' }),
+    )
+    const { router } = renderAt(`/lancamentos?categoria=${mercado}`)
+
+    expect(await screen.findByText('🛒 Mercado')).toBeInTheDocument()
+    expect(screen.getByText('Feira')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('🚌 Transporte')).not.toBeInTheDocument())
+    expect(screen.getByText('Mercado')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar Mercado' }))
+
+    expect(await screen.findByText('🚌 Transporte')).toBeInTheDocument()
+    expect(router.state.location.search).toBe('')
+  })
+
+  it('transferRow', async () => {
+    const workspace = seedMockFamily()
+    const banco = {
+      ...mockState.accounts[0],
+      id: '0192f3a4-0000-7000-8000-0000000000a2',
+      name: 'Banco',
+    }
+    mockState.accounts.push(banco)
+    storeOnServer(workspace, {
+      id: MERCADO_ID,
+      kind: 'TRANSFER',
+      amount: { amount: '500.00', currency: 'BRL' },
+      occurredOn: '2026-11-15',
+      accountId: mockState.accounts[0].id,
+      toAccountId: banco.id,
+    })
+    renderAt('/lancamentos')
+
+    const today = within(await day('Hoje'))
+    expect(await today.findByText('↔ Transferência')).toBeInTheDocument()
+    expect(today.getByText('R$ 500,00')).toBeInTheDocument()
+    expect(today.getByText('Carteira → Banco')).toBeInTheDocument()
+  })
+
+  it('archivedNamesStay', async () => {
+    const workspace = seedMockFamily()
+    const old = {
+      ...mockState.accounts[0],
+      id: '0192f3a4-0000-7000-8000-0000000000a3',
+      name: 'Banco antigo',
+      archivedAt: '2026-10-01T00:00:00Z',
+    }
+    mockState.accounts.push(old)
+    storeOnServer(
+      workspace,
+      request(MERCADO_ID, 'Mercado', { accountId: old.id, occurredOn: '2026-11-15' }),
+    )
+    renderAt('/lancamentos')
+
+    expect(await within(await day('Hoje')).findByText('Banco antigo · Ana')).toBeInTheDocument()
+  })
+
+  it('offlineDisablesEditing', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const workspace = seedMockFamily()
+    server.use(http.get(`${API_URL}/v1/workspaces/:ws/transactions`, () => HttpResponse.error()))
+    renderWithCachedMercado(workspace)
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Sem conexão. Lançar funciona; editar volta com o sinal.',
+    )
+    fireEvent.click(await within(await day('Hoje')).findByRole('button', { name: /Mercado/ }))
+    const sheet = screen.getByRole('dialog', { name: '🛒 Mercado' })
+
+    expect(within(sheet).getByRole('button', { name: 'Editar' })).toBeDisabled()
+    expect(within(sheet).getByRole('button', { name: 'Excluir' })).toBeDisabled()
+    expect(
+      within(sheet).getByText('Sem conexão. Lançar funciona; editar volta com o sinal.'),
+    ).toBeInTheDocument()
+  })
+
+  it('deleteAndUndo', async () => {
+    const workspace = seedMockFamily()
+    storeOnServer(workspace, request(MERCADO_ID, 'Mercado', { occurredOn: '2026-11-15' }))
+    renderAt('/lancamentos')
+
+    fireEvent.click(await within(await day('Hoje')).findByRole('button', { name: /Mercado/ }))
+    const sheet = screen.getByRole('dialog', { name: '🛒 Mercado' })
+    expect(within(sheet).getByRole('link', { name: 'Editar' })).toHaveAttribute(
+      'href',
+      `/lancar?editar=${MERCADO_ID}&mes=2026-11`,
+    )
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Excluir' }))
+    const confirm = await screen.findByRole('alertdialog', { name: 'Excluir este lançamento?' })
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Excluir' }))
+
+    expect(await screen.findByText('Nenhum lançamento neste mês.')).toBeInTheDocument()
+    const toasts = within(screen.getByRole('region', { name: 'Notificações' }))
+    expect(await toasts.findByText('Lançamento excluído.')).toBeInTheDocument()
+    fireEvent.click(toasts.getByRole('button', { name: 'Desfazer' }))
+
+    expect(await within(await day('Hoje')).findByText('🛒 Mercado')).toBeInTheDocument()
+    expect(await toasts.findByText('Lançamento restaurado.')).toBeInTheDocument()
+  })
+})

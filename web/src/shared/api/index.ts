@@ -2,7 +2,14 @@ export { API_URL } from './config'
 export { ApiError } from './errors'
 export { resetCsrf } from './csrf'
 export { postJson } from './client'
-export { createWorkspace, deleteTransaction, getMe, postTransaction } from './endpoints'
+export {
+  createWorkspace,
+  deleteTransaction,
+  getMe,
+  postTransaction,
+  restoreTransaction,
+  updateTransaction,
+} from './endpoints'
 export { queryKeys } from './queryKeys'
 export { CACHE_MAX_AGE, createQueryClient } from './queryClient'
 export {
@@ -15,7 +22,7 @@ export {
   useMe,
   useTransactions,
 } from './hooks'
-export { useDeleteTransaction } from './mutations'
+export { useDeleteTransaction, useRestoreTransaction, useUpdateTransaction } from './mutations'
 export type {
   AccountView,
   ApiMoney,
@@ -26,7 +33,9 @@ export type {
   MeUser,
   MeView,
   MeWorkspace,
+  TransactionFilters,
   TransactionKind,
   TransactionView,
+  UpdateTransactionRequest,
   WorkspaceView,
 } from './types'
