@@ -405,6 +405,113 @@ class DashboardIT {
         assertThat(result).bodyJson().extractingPath("$.dailyBalance[29].day").isEqualTo("2026-11-30");
     }
 
+    /** Another family's accounts, transactions and categories (subcategories too) never reach this family's panel. */
+    @Test
+    void otherFamilyStaysOut() {
+        UUID otherUser = users.create("Caio Teste", "caio@example.com");
+        UUID other = workspaces.createFor(otherUser);
+        UUID otherMembership = workspaces.membershipOf(other, otherUser);
+        UUID otherMercado = ledger.categoryOf(other, "EXPENSE", "Mercado");
+        UUID otherLazer = ledger.categoryOf(other, "EXPENSE", "Lazer");
+        UUID otherSalary = ledger.categoryOf(other, "INCOME", "Salário");
+        UUID otherFeira = jdbc.sql("""
+                        insert into categories (workspace_id, parent_id, kind, name)
+                        values (:workspaceId, :parentId, 'EXPENSE', 'Feira')
+                        returning id""")
+                .param("workspaceId", other)
+                .param("parentId", otherMercado)
+                .query(UUID.class)
+                .single();
+        UUID otherBank =
+                jdbc.sql("""
+                        insert into accounts (workspace_id, name, type, currency, initial_balance)
+                        values (:workspaceId, 'Banco', 'CHECKING', 'BRL', 777.00)
+                        returning id""").param("workspaceId", other).query(UUID.class).single();
+        insert(other, otherMembership, "INCOME", otherBank, otherSalary, "900.00", "BRL", DAY);
+        insert(other, otherMembership, "EXPENSE", otherBank, otherMercado, "111.00", "BRL", DAY);
+        insert(other, otherMembership, "EXPENSE", otherBank, otherFeira, "22.00", "BRL", DAY);
+        insert(other, otherMembership, "EXPENSE", otherBank, otherLazer, "33.00", "BRL", LocalDate.of(2026, 10, 9));
+
+        ledger.expense(workspaceId, membershipId, mercadoId, "40.00", DAY);
+        ledger.expense(workspaceId, membershipId, mercadoId, "5.00", LocalDate.of(2026, 10, 9));
+        postIncome("100.00", "2026-11-06");
+
+        var mine = dashboard(userId, MONTH);
+
+        assertThat(mine).hasStatusOk();
+        assertThat(mine).bodyJson().extractingPath("$.income.amount").isEqualTo("100.00");
+        assertThat(mine).bodyJson().extractingPath("$.expenses.amount").isEqualTo("40.00");
+        assertThat(mine).bodyJson().extractingPath("$.result.amount").isEqualTo("60.00");
+        assertThat(mine).bodyJson().extractingPath("$.balance.amount").isEqualTo("55.00");
+        assertThat(mine)
+                .bodyJson()
+                .extractingPath("$.dailyBalance[29].balance.amount")
+                .isEqualTo("55.00");
+        assertThat(mine).bodyJson().extractingPath("$.byCategory").asList().hasSize(1);
+        assertThat(mine).bodyJson().extractingPath("$.byCategory[0].categoryId").isEqualTo(mercadoId.toString());
+        assertThat(mine)
+                .bodyJson()
+                .extractingPath("$.byCategory[0].current.amount")
+                .isEqualTo("40.00");
+        assertThat(mine)
+                .bodyJson()
+                .extractingPath("$.byCategory[0].previous.amount")
+                .isEqualTo("5.00");
+
+        var theirs = mvc.get()
+                .uri("/v1/workspaces/" + other + "/dashboard?month=" + MONTH)
+                .with(TestUsers.signedIn(otherUser, null))
+                .exchange();
+
+        assertThat(theirs).hasStatusOk();
+        assertThat(theirs).bodyJson().extractingPath("$.income.amount").isEqualTo("900.00");
+        assertThat(theirs).bodyJson().extractingPath("$.expenses.amount").isEqualTo("133.00");
+        assertThat(theirs).bodyJson().extractingPath("$.balance.amount").isEqualTo("1511.00");
+        assertThat(theirs).bodyJson().extractingPath("$.byCategory").asList().hasSize(2);
+        assertThat(theirs)
+                .bodyJson()
+                .extractingPath("$.byCategory[0].categoryId")
+                .isEqualTo(otherMercado.toString());
+        assertThat(theirs)
+                .bodyJson()
+                .extractingPath("$.byCategory[0].current.amount")
+                .isEqualTo("133.00");
+    }
+
+    /** A transaction in another currency is left out of every number, and the panel still answers. */
+    @Test
+    void otherCurrencyStaysOut() {
+        UUID travel = account("Viagem", "CASH", "USD", "40.00", false);
+        insert(
+                workspaceId,
+                membershipId,
+                "INCOME",
+                travel,
+                ledger.categoryOf(workspaceId, "INCOME", "Salário"),
+                "9.00",
+                "USD",
+                DAY);
+        insert(workspaceId, membershipId, "EXPENSE", travel, mercadoId, "7.00", "USD", DAY);
+        insert(workspaceId, membershipId, "EXPENSE", travel, mercadoId, "3.00", "USD", LocalDate.of(2026, 10, 9));
+        ledger.expense(workspaceId, membershipId, mercadoId, "10.00", DAY);
+
+        var result = dashboard(userId, MONTH);
+
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().extractingPath("$.income.amount").isEqualTo("0.00");
+        assertThat(result).bodyJson().extractingPath("$.expenses.amount").isEqualTo("10.00");
+        assertThat(result).bodyJson().extractingPath("$.balance.amount").isEqualTo("-10.00");
+        assertThat(result).bodyJson().extractingPath("$.byCategory").asList().hasSize(1);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.byCategory[0].current.amount")
+                .isEqualTo("10.00");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.byCategory[0].previous.amount")
+                .isEqualTo("0.00");
+    }
+
     @Test
     void viewerCanRead() {
         UUID viewerId = users.create("Bia Teste", "bia@example.com");
@@ -454,6 +561,33 @@ class DashboardIT {
                 .param("archived", archived)
                 .query(UUID.class)
                 .single();
+    }
+
+    private void insert(
+            UUID workspace,
+            UUID membership,
+            String kind,
+            UUID accountId,
+            UUID categoryId,
+            String amount,
+            String currency,
+            LocalDate on) {
+        jdbc.sql("""
+                        insert into transactions
+                            (id, workspace_id, kind, amount, currency, occurred_on,
+                             account_id, category_id, member_id, created_by)
+                        values (:id, :workspaceId, :kind, :amount, :currency, :on,
+                                :accountId, :categoryId, :membershipId, :membershipId)""")
+                .param("id", TestIds.v7())
+                .param("workspaceId", workspace)
+                .param("kind", kind)
+                .param("amount", new BigDecimal(amount))
+                .param("currency", currency)
+                .param("on", on)
+                .param("accountId", accountId)
+                .param("categoryId", categoryId)
+                .param("membershipId", membership)
+                .update();
     }
 
     private void postIncome(String amount, String occurredOn) {
