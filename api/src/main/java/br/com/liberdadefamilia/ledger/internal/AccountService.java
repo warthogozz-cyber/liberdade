@@ -7,6 +7,7 @@ import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.time.Clock;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,6 +68,23 @@ class AccountService {
         if (balance != null) {
             accounts.setBalance(workspaceId, accountId, balance);
         }
+        return view(workspaceId, accountId);
+    }
+
+    /**
+     * Sets who the account belongs to, or takes the owner away with null. An archived account may still change owner.
+     *
+     * @throws LedgerNotFoundException when the account is not in the family
+     * @throws LedgerRejectedException when the owner is not in the family
+     */
+    @Transactional
+    AccountView setOwner(WorkspaceMember member, UUID accountId, @Nullable UUID ownerMembershipId) {
+        UUID workspaceId = member.workspaceId();
+        find(workspaceId, accountId);
+        if (ownerMembershipId != null && !memberships.isActive(workspaceId, ownerMembershipId)) {
+            throw new LedgerRejectedException("account.owner-not-found", "Essa pessoa não faz parte da família.");
+        }
+        accounts.setOwner(workspaceId, accountId, ownerMembershipId);
         return view(workspaceId, accountId);
     }
 

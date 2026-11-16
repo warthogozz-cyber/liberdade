@@ -173,6 +173,22 @@ class AccountRepository {
                 == 1;
     }
 
+    /** Sets the account's owner, or clears it with null. Whether the account exists in the family. */
+    boolean setOwner(UUID workspaceId, UUID accountId, @Nullable UUID ownerMembershipId) {
+        return jdbc.sql("""
+                        update accounts
+                        set owner_membership_id = :ownerMembershipId,
+                            version = version + 1,
+                            updated_at = now()
+                        where workspace_id = :workspaceId
+                          and id = :accountId""")
+                        .param("workspaceId", workspaceId)
+                        .param("accountId", accountId)
+                        .param("ownerMembershipId", ownerMembershipId)
+                        .update()
+                == 1;
+    }
+
     /**
      * Sets the initial balance so that the balance becomes the given one: the balance minus what the transactions
      * moved, computed in the same statement that writes it.

@@ -229,6 +229,55 @@ class AccountsIT {
         assertThat(send("GET", "/accounts", null, viewerId)).hasStatusOk();
     }
 
+    @Test
+    void setOwner() {
+        UUID adultId = users.create("Bia Teste", "bia@example.com");
+        UUID adultMembership = workspaces.addMember(workspaceId, adultId, Role.ADULT);
+
+        var set = send("PUT", "/accounts/" + walletId + "/owner", ownerBody(adultMembership), anaId);
+        assertThat(set).hasStatusOk();
+        assertThat(set).bodyJson().extractingPath("$.ownerMembershipId").isEqualTo(adultMembership.toString());
+
+        var cleared = send("PUT", "/accounts/" + walletId + "/owner", "{\"membershipId\":null}", anaId);
+        assertThat(cleared).hasStatusOk();
+        assertThat(cleared).bodyJson().extractingPath("$.ownerMembershipId").isNull();
+    }
+
+    @Test
+    void setOwnerRejectsInactive() {
+        UUID removedUser = users.create("Bia Teste", "bia@example.com");
+        UUID removed = workspaces.addMember(workspaceId, removedUser, Role.ADULT);
+        jdbc.sql("update memberships set status = 'REMOVED' where id = :id")
+                .param("id", removed)
+                .update();
+
+        var result = send("PUT", "/accounts/" + walletId + "/owner", ownerBody(removed), anaId);
+
+        assertProblem(result, 422, "account.owner-not-found");
+    }
+
+    @Test
+    void setOwnerOnUnknownAccountIs404() {
+        assertProblem(
+                send("PUT", "/accounts/" + UUID.randomUUID() + "/owner", "{\"membershipId\":null}", anaId),
+                404,
+                "account.not-found");
+    }
+
+    @Test
+    void viewerCannotSetOwner() {
+        UUID viewerId = users.create("Bia Teste", "bia@example.com");
+        workspaces.addMember(workspaceId, viewerId, Role.VIEWER);
+
+        var result = send("PUT", "/accounts/" + walletId + "/owner", "{\"membershipId\":null}", viewerId);
+
+        assertProblem(result, 403, "auth.forbidden");
+    }
+
+    private static String ownerBody(UUID membershipId) {
+        return "{\"membershipId\":\"%s\"}".formatted(membershipId);
+    }
+
     private void insert(String name, String type, String initial, boolean archived) {
         jdbc.sql("""
                         insert into accounts (workspace_id, name, type, currency, initial_balance, archived_at)
@@ -251,6 +300,7 @@ class AccountsIT {
         var request = switch (method) {
             case "GET" -> mvc.get();
             case "PATCH" -> mvc.patch();
+            case "PUT" -> mvc.put();
             default -> mvc.post();
         };
         request.uri("/v1/workspaces/" + workspaceId + route).with(TestUsers.signedIn(userId, null));

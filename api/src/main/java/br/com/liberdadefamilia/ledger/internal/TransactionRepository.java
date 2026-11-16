@@ -37,16 +37,17 @@ class TransactionRepository {
     }
 
     /**
-     * Inserts the transaction, recorded by and for the given member, unless its id already exists (in this family or
-     * any other). Returns the new row, or empty when the id was taken.
+     * Inserts the transaction, recorded by one member and for another (or the same), unless its id already exists (in
+     * this family or any other). Returns the new row, or empty when the id was taken.
      */
-    Optional<TransactionView> insertIfAbsent(UUID workspaceId, UUID membershipId, CreateTransactionRequest request) {
+    Optional<TransactionView> insertIfAbsent(
+            UUID workspaceId, UUID createdBy, UUID memberId, CreateTransactionRequest request) {
         return jdbc.sql("""
                         insert into transactions
                             (id, workspace_id, kind, amount, currency, occurred_on,
                              account_id, to_account_id, category_id, description, member_id, created_by)
                         values (:id, :workspaceId, :kind, :amount, :currency, :occurredOn,
-                                :accountId, :toAccountId, :categoryId, :description, :membershipId, :membershipId)
+                                :accountId, :toAccountId, :categoryId, :description, :memberId, :createdBy)
                         on conflict (id) do nothing
                         returning\s""" + COLUMNS)
                 .param("id", request.id())
@@ -59,7 +60,8 @@ class TransactionRepository {
                 .param("toAccountId", request.toAccountId())
                 .param("categoryId", request.categoryId())
                 .param("description", request.description())
-                .param("membershipId", membershipId)
+                .param("memberId", memberId)
+                .param("createdBy", createdBy)
                 .query(TransactionRepository::view)
                 .optional();
     }
@@ -81,7 +83,7 @@ class TransactionRepository {
      * Replaces the transaction's data, if it is still at the given version and not deleted, and moves it to the next
      * version. Empty when the version moved on or the transaction was deleted (or never existed).
      */
-    Optional<TransactionView> update(UUID workspaceId, UUID id, UpdateTransactionRequest request) {
+    Optional<TransactionView> update(UUID workspaceId, UUID id, UUID memberId, UpdateTransactionRequest request) {
         return jdbc.sql("""
                         update transactions
                         set kind = :kind,
@@ -92,6 +94,7 @@ class TransactionRepository {
                             to_account_id = :toAccountId,
                             category_id = :categoryId,
                             description = :description,
+                            member_id = :memberId,
                             version = version + 1,
                             updated_at = now()
                         where workspace_id = :workspaceId
@@ -102,6 +105,7 @@ class TransactionRepository {
                 .param("workspaceId", workspaceId)
                 .param("id", id)
                 .param("version", request.version())
+                .param("memberId", memberId)
                 .param("kind", request.kind().name())
                 .param("amount", request.amount().amount())
                 .param("currency", request.amount().currency().getCurrencyCode())

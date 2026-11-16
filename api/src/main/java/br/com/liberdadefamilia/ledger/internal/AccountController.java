@@ -15,10 +15,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-/** The family's accounts and their balances: list, create, edit, archive and bring back. */
+/** The family's accounts and their balances: list, create, edit, set the owner, archive and bring back. */
 @RestController
 class AccountController {
 
@@ -48,6 +49,13 @@ class AccountController {
     AccountView updateAccount(
             @PathVariable UUID id, @Valid @RequestBody UpdateAccountRequest request, WorkspaceMember member) {
         return service.update(member, id, request);
+    }
+
+    @PutMapping("/v1/workspaces/{ws}/accounts/{id}/owner")
+    @WorkspaceScoped(allow = {OWNER, ADULT})
+    AccountView setAccountOwner(
+            @PathVariable UUID id, @Valid @RequestBody UpdateAccountOwnerRequest request, WorkspaceMember member) {
+        return service.setOwner(member, id, request.membershipId());
     }
 
     @PostMapping("/v1/workspaces/{ws}/accounts/{id}/archive")

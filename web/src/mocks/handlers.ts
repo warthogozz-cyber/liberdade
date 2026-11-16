@@ -255,7 +255,7 @@ function readable(body: Partial<CreateTransactionRequest & UpdateTransactionRequ
   const isUuid = (value: unknown) =>
     value == null || (typeof value === 'string' && UUID.test(value))
   return (
-    [body.id, body.accountId, body.toAccountId, body.categoryId].every(isUuid) &&
+    [body.id, body.accountId, body.toAccountId, body.categoryId, body.memberId].every(isUuid) &&
     (body.kind == null || KINDS.includes(body.kind)) &&
     (body.occurredOn == null || DATE.test(body.occurredOn)) &&
     (body.amount?.amount == null || NUMBER.test(String(body.amount.amount))) &&
@@ -298,6 +298,7 @@ function sameContent(stored: TransactionView, request: TransactionView) {
     stored.accountId === request.accountId &&
     stored.toAccountId === request.toAccountId &&
     stored.categoryId === request.categoryId &&
+    stored.memberId === request.memberId &&
     stored.description === request.description
   )
 }
@@ -428,6 +429,14 @@ interface Proposed {
   accountId: string
   toAccountId: string | null
   categoryId: string | null
+  memberId: string
+}
+
+/** Whether the person is an active member of the family. */
+function activeMember(workspace: MeWorkspace, membershipId: string) {
+  return (mockState.members[workspace.id] ?? []).some(
+    (member) => member.id === membershipId && member.status === 'ACTIVE',
+  )
 }
 
 /** An account the transaction may use: active, or the one it already had (D10). */
@@ -488,6 +497,14 @@ function familyRuleFailure(
   const { currency } = proposed.amount
   if (currency !== account.currency || currency !== destination.currency) {
     return rejected('transaction.currency-mismatch', 'A moeda do valor não é a mesma da conta.')
+  }
+  // The member the transaction already has may have left since; anyone else must be in the family.
+  if (
+    proposed.memberId !== workspace.membershipId &&
+    proposed.memberId !== current?.memberId &&
+    !activeMember(workspace, proposed.memberId)
+  ) {
+    return rejected('transaction.member-not-found', 'Essa pessoa não faz parte da família.')
   }
   return undefined
 }
@@ -1020,6 +1037,27 @@ export const handlers = [
     },
   ),
 
+  http.put<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/accounts/:id/owner'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as Record<string, unknown> | undefined
+      if (typeof body !== 'object' || body === null) return malformed()
+      const owner = body.membershipId
+      if (owner != null && (typeof owner !== 'string' || !UUID.test(owner))) return malformed()
+      const account = mockState.accounts.find((existing) => existing.id === params.id)
+      if (!account) return accountNotFound()
+      if (typeof owner === 'string' && !activeMember(workspace, owner)) {
+        return rejected('account.owner-not-found', 'Essa pessoa não faz parte da família.')
+      }
+      account.ownerMembershipId = typeof owner === 'string' ? owner : null
+      return HttpResponse.json(accountView(account))
+    },
+  ),
+
   http.post<{ ws: string; id: string }>(
     url('/v1/workspaces/:ws/accounts/:id/archive'),
     ({ request, params }) => {
@@ -1302,7 +1340,7 @@ export const handlers = [
       toAccountId: body.toAccountId ?? null,
       categoryId: body.categoryId ?? null,
       description,
-      memberId: workspace.membershipId,
+      memberId: body.memberId ?? workspace.membershipId,
       createdAt: new Date().toISOString(),
       version: 0,
     }
@@ -1353,12 +1391,26 @@ export const handlers = [
         toAccountId: body.toAccountId ?? null,
         categoryId: body.categoryId ?? null,
         description,
+        memberId: body.memberId ?? current.memberId,
         version: current.version + 1,
       }
       const failure = familyRuleFailure(workspace, edited, current)
       if (failure) return failure
       Object.assign(current, edited)
       return HttpResponse.json(current)
+    },
+  ),
+
+  http.get<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/transactions/:id'),
+    ({ params }) => {
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const stored = storedTransaction(params.id)
+      if (!stored) return transactionNotFound()
+      if (stored.deleted) return problem(409, 'transaction.deleted', 'Este lançamento foi excluído.')
+      return HttpResponse.json(stored.transaction)
     },
   ),
 

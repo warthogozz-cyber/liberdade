@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Records, edits, deletes and restores the family's transactions, and lists them by month. A resend of the same
- * transaction answers 200 with the stored one; there is no {@code Location}, since no route reads a single transaction.
+ * transaction answers 200 with the stored one; there is no {@code Location}.
  */
 @RestController
 class TransactionController {
@@ -68,6 +68,12 @@ class TransactionController {
     TransactionView updateTransaction(
             @PathVariable UUID id, @Valid @RequestBody UpdateTransactionRequest request, WorkspaceMember member) {
         return service.update(member, id, request);
+    }
+
+    @GetMapping("/v1/workspaces/{ws}/transactions/{id}")
+    @WorkspaceScoped(allow = {OWNER, ADULT, VIEWER})
+    TransactionView getTransaction(@PathVariable UUID id, WorkspaceMember member) {
+        return service.get(member, id);
     }
 
     @DeleteMapping("/v1/workspaces/{ws}/transactions/{id}")

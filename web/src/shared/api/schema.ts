@@ -164,6 +164,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/accounts/{id}/owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setAccountOwner"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/accounts/{id}/unarchive": {
         parameters: {
             query?: never;
@@ -363,7 +379,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["getTransaction"];
         put?: never;
         post?: never;
         delete: operations["deleteTransaction"];
@@ -467,6 +483,8 @@ export interface components {
             id: string;
             /** @enum {string} */
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            /** Format: uuid */
+            memberId?: string | null;
             /** Format: date */
             occurredOn: string;
             /** Format: uuid */
@@ -602,6 +620,10 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        UpdateAccountOwnerRequest: {
+            /** Format: uuid */
+            membershipId: string | null;
+        };
         UpdateAccountRequest: {
             balance?: components["schemas"]["Money"];
             initialBalance?: components["schemas"]["Money"];
@@ -630,6 +652,8 @@ export interface components {
             description?: string | null;
             /** @enum {string} */
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            /** Format: uuid */
+            memberId?: string | null;
             /** Format: date */
             occurredOn: string;
             /** Format: uuid */
@@ -902,6 +926,34 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountView"];
+                };
+            };
+        };
+    };
+    setAccountOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAccountOwnerRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -1316,6 +1368,30 @@ export interface operations {
             };
             /** @description Recorded */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionView"];
+                };
+            };
+        };
+    };
+    getTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

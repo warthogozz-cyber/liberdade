@@ -118,7 +118,7 @@ class TransactionEditRaceIT {
                     return invocation.callRealMethod();
                 })
                 .when(transactions)
-                .update(any(), any(), any());
+                .update(any(), any(), any(), any());
     }
 
     private long storedVersion(UUID id) {

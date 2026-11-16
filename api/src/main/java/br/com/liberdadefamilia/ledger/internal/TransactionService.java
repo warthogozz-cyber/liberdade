@@ -4,6 +4,7 @@ import br.com.liberdadefamilia.ledger.domain.TransactionDateRange;
 import br.com.liberdadefamilia.ledger.domain.TransactionKind;
 import br.com.liberdadefamilia.ledger.internal.TransactionRepository.StoredTransaction;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.workspace.Memberships;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -28,16 +29,19 @@ class TransactionService {
     private final AccountRepository accounts;
     private final CategoryRepository categories;
     private final TransactionRepository transactions;
+    private final Memberships memberships;
     private final Clock clock;
 
     TransactionService(
             AccountRepository accounts,
             CategoryRepository categories,
             TransactionRepository transactions,
+            Memberships memberships,
             Clock clock) {
         this.accounts = accounts;
         this.categories = categories;
         this.transactions = transactions;
+        this.memberships = memberships;
         this.clock = clock;
     }
 
@@ -54,13 +58,15 @@ class TransactionService {
         if (!request.id().equals(idempotencyKey) || request.id().version() != 7) {
             throw new LedgerRejectedException("transaction.invalid-id", "O identificador do lançamento é inválido.");
         }
+        UUID memberId = request.memberId() == null ? member.membershipId() : request.memberId();
         Optional<StoredTransaction> stored = transactions.find(workspaceId, request.id());
         if (stored.isPresent()) {
-            return new Recorded(repeated(stored.get().view(), request), false);
+            return new Recorded(repeated(stored.get().view(), request, memberId), false);
         }
 
-        checkAgainstFamily(member, Proposed.of(request), null);
-        Optional<TransactionView> created = transactions.insertIfAbsent(workspaceId, member.membershipId(), request);
+        checkAgainstFamily(member, Proposed.of(request, memberId), null);
+        Optional<TransactionView> created =
+                transactions.insertIfAbsent(workspaceId, member.membershipId(), memberId, request);
         if (created.isPresent()) {
             return new Recorded(created.get(), true);
         }
@@ -71,7 +77,8 @@ class TransactionService {
                                 .find(workspaceId, request.id())
                                 .map(StoredTransaction::view)
                                 .orElseThrow(TransactionIdConflictException::new),
-                        request),
+                        request,
+                        memberId),
                 false);
     }
 
@@ -87,13 +94,29 @@ class TransactionService {
         UUID workspaceId = member.workspaceId();
         StoredTransaction stored = transactions.find(workspaceId, id).orElseThrow(TransactionService::notFound);
         checkEditable(stored, request.version());
-        checkAgainstFamily(member, Proposed.of(request), stored.view());
-        return transactions.update(workspaceId, id, request).orElseThrow(() -> {
+        UUID memberId = request.memberId() == null ? stored.view().memberId() : request.memberId();
+        checkAgainstFamily(member, Proposed.of(request, memberId), stored.view());
+        return transactions.update(workspaceId, id, memberId, request).orElseThrow(() -> {
             // Someone else edited or deleted it between the checks and the update.
             StoredTransaction now = transactions.find(workspaceId, id).orElseThrow(TransactionService::notFound);
             checkEditable(now, request.version());
             return versionConflict(now.view());
         });
+    }
+
+    /**
+     * One transaction, as the list shows it.
+     *
+     * @throws LedgerNotFoundException when the family has no such transaction, or it was purged
+     * @throws LedgerConflictException when it was deleted
+     */
+    TransactionView get(WorkspaceMember member, UUID id) {
+        StoredTransaction stored =
+                transactions.find(member.workspaceId(), id).orElseThrow(TransactionService::notFound);
+        if (stored.deleted()) {
+            throw new LedgerConflictException("transaction.deleted", "Este lançamento foi excluído.");
+        }
+        return stored.view();
     }
 
     /**
@@ -208,6 +231,12 @@ class TransactionService {
             throw new LedgerRejectedException(
                     "transaction.currency-mismatch", "A moeda do valor não é a mesma da conta.");
         }
+        // The member the transaction already has may have left the family since; anyone else must be in it now.
+        UUID memberId = proposed.memberId();
+        boolean kept = current != null && memberId.equals(current.memberId());
+        if (!member.membershipId().equals(memberId) && !kept && !memberships.isActive(workspaceId, memberId)) {
+            throw new LedgerRejectedException("transaction.member-not-found", "Essa pessoa não faz parte da família.");
+        }
     }
 
     /** A transfer has two different accounts and no category; income and expenses have a category and one account. */
@@ -238,16 +267,20 @@ class TransactionService {
     }
 
     /** The stored transaction, when the request repeats it; under the same id, any other content is a conflict. */
-    private static TransactionView repeated(TransactionView stored, CreateTransactionRequest request) {
-        if (!sameContent(stored, request)) {
+    private static TransactionView repeated(TransactionView stored, CreateTransactionRequest request, UUID memberId) {
+        if (!sameContent(stored, request, memberId)) {
             throw new TransactionIdConflictException();
         }
         return stored;
     }
 
-    /** Whether the request carries the stored transaction's data, the amount compared by value. */
-    private static boolean sameContent(TransactionView stored, CreateTransactionRequest request) {
+    /**
+     * Whether the request carries the stored transaction's data, the amount compared by value and the member as
+     * resolved: a resend that leaves it out matches a transaction recorded for the caller.
+     */
+    private static boolean sameContent(TransactionView stored, CreateTransactionRequest request, UUID memberId) {
         return stored.kind() == request.kind()
+                && stored.memberId().equals(memberId)
                 && stored.amount().currency().equals(request.amount().currency())
                 && stored.amount().amount().compareTo(request.amount().amount()) == 0
                 && stored.occurredOn().equals(request.occurredOn())
@@ -267,26 +300,29 @@ class TransactionService {
             LocalDate occurredOn,
             UUID accountId,
             @Nullable UUID toAccountId,
-            @Nullable UUID categoryId) {
+            @Nullable UUID categoryId,
+            UUID memberId) {
 
-        static Proposed of(CreateTransactionRequest request) {
+        static Proposed of(CreateTransactionRequest request, UUID memberId) {
             return new Proposed(
                     request.kind(),
                     request.amount(),
                     request.occurredOn(),
                     request.accountId(),
                     request.toAccountId(),
-                    request.categoryId());
+                    request.categoryId(),
+                    memberId);
         }
 
-        static Proposed of(UpdateTransactionRequest request) {
+        static Proposed of(UpdateTransactionRequest request, UUID memberId) {
             return new Proposed(
                     request.kind(),
                     request.amount(),
                     request.occurredOn(),
                     request.accountId(),
                     request.toAccountId(),
-                    request.categoryId());
+                    request.categoryId(),
+                    memberId);
         }
     }
 }
