@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate } from 'react-router'
 import { useCurrentWorkspace, useMe } from '@/shared/api'
 import { takeReauthUser, takeReturnPath } from '@/shared/auth/returnPath'
@@ -22,11 +22,14 @@ export function RootRedirect() {
   const [taken] = useState(() => ({ returnPath: takeReturnPath(), reauthUser: takeReauthUser() }))
   const changed =
     taken.reauthUser !== undefined && fresh && userId !== undefined && userId !== taken.reauthUser
+  // Clearing the cache refetches `me`, which runs the effect again: start over only once.
+  const restarting = useRef(false)
 
   useEffect(() => {
     if (!userId || !fresh) return
     broadcastSignedIn(userId)
-    if (!changed) return
+    if (!changed || restarting.current) return
+    restarting.current = true
     void clearSession(queryClient)
       .catch((error: unknown) => console.error('Could not clear the session', error))
       .then(() => window.location.assign('/inicio'))
