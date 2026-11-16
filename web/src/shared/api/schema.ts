@@ -274,11 +274,11 @@ export interface components {
             occurredOn: string;
         };
         UpdateAccountRequest: {
-            balance: components["schemas"]["Money"];
-            initialBalance: components["schemas"]["Money"];
-            name: string | null;
+            balance?: components["schemas"]["Money"];
+            initialBalance?: components["schemas"]["Money"];
+            name?: string | null;
             /** @enum {string|null} */
-            type: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT" | null;
+            type?: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT" | null;
         };
         WorkspaceView: {
             /** Format: uuid */

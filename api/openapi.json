@@ -806,6 +806,7 @@
         }
       },
       "UpdateAccountRequest": {
+        "required": [],
         "type": "object",
         "properties": {
           "balance": {

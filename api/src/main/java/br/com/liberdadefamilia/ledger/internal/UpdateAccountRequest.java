@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.shared.PartialRequest;
 import br.com.liberdadefamilia.shared.TextPatterns;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -14,6 +15,7 @@ import org.jspecify.annotations.Nullable;
  * {@code balance} sets what the account has now, and the service works the starting balance out from it. Only one of
  * them may come. The name is stripped before validation.
  */
+@PartialRequest
 record UpdateAccountRequest(
         @Nullable
         @Schema(nullable = true)
