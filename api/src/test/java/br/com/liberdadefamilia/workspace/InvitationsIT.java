@@ -4,6 +4,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
+import br.com.liberdadefamilia.identity.SignedIn;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestClock;
 import br.com.liberdadefamilia.support.TestUsers;
@@ -47,6 +48,8 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -83,6 +86,45 @@ class InvitationsIT {
         @Bean
         Failing failing() {
             return new Failing();
+        }
+
+        @Bean
+        SignInProbe signInProbe(PlatformTransactionManager transactionManager, JdbcClient jdbc) {
+            return new SignInProbe(transactionManager, jdbc);
+        }
+    }
+
+    /**
+     * Looks at the moment {@link SignedIn} fires: whether a transaction is still open, and whether a separate
+     * transaction can already see the person. Signing in before the commit would fail both.
+     */
+    static class SignInProbe {
+
+        record Seen(boolean transactionActive, boolean personVisible) {}
+
+        private final PlatformTransactionManager transactionManager;
+        private final JdbcClient jdbc;
+        private final List<Seen> seen = new CopyOnWriteArrayList<>();
+
+        SignInProbe(PlatformTransactionManager transactionManager, JdbcClient jdbc) {
+            this.transactionManager = transactionManager;
+            this.jdbc = jdbc;
+        }
+
+        @EventListener
+        void on(SignedIn event) {
+            boolean active = TransactionSynchronizationManager.isActualTransactionActive();
+            TransactionTemplate separate = new TransactionTemplate(transactionManager);
+            separate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            Boolean visible = separate.execute(status -> jdbc.sql("select exists (select 1 from users where id = :id)")
+                    .param("id", event.userId())
+                    .query(Boolean.class)
+                    .single());
+            seen.add(new Seen(active, Boolean.TRUE.equals(visible)));
+        }
+
+        List<Seen> seen() {
+            return seen;
         }
     }
 
@@ -154,12 +196,16 @@ class InvitationsIT {
     Failing failing;
 
     @Autowired
+    SignInProbe signInProbe;
+
+    @Autowired
     PlatformTransactionManager transactionManager;
 
     @BeforeEach
     void stopClock() {
         clock.freeze(NOW);
         recorded.events().clear();
+        signInProbe.seen().clear();
     }
 
     @AfterEach
@@ -646,6 +692,18 @@ class InvitationsIT {
                         .single())
                 .isTrue();
         assertThat(acceptFrom(token, "Fulano Falho", nextAddress())).hasStatusOk();
+    }
+
+    @Test
+    void signInHappensAfterTheCommit() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID ws = workspaces.createFor(ana);
+        String token = tokenOf(createInvitation(ana, ws, VIEWER_BODY));
+        signInProbe.seen().clear();
+
+        assertThat(acceptFrom(token, "Pessoa Confirmada", nextAddress())).hasStatusOk();
+
+        assertThat(signInProbe.seen()).containsExactly(new SignInProbe.Seen(false, true));
     }
 
     @Test
