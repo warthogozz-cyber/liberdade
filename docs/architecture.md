@@ -60,7 +60,8 @@ flowchart LR
     identity[identity<br/>login, passkeys, sessões]
     workspace[workspace<br/>famílias, membros, papéis,<br/>convites, módulos ligados]
     ledger[ledger<br/>contas, categorias,<br/>lançamentos, saldos, painel]
-    audit[audit<br/>auditoria, consentimentos,<br/>exportar e excluir]
+    audit[audit<br/>trilha de auditoria]
+    privacy[privacy<br/>consentimentos,<br/>exportar e excluir]
   end
   subgraph opcionais[Módulos opcionais]
     planning[planning · v0.2<br/>orçamentos, metas,<br/>reserva, recorrências]
@@ -68,13 +69,14 @@ flowchart LR
     gamification[gamification · v0.3<br/>sequências, conquistas]
     ventures[ventures · v0.4<br/>Novo Projeto]
   end
-  shared[(shared<br/>Money, erros, relógio)]
+  shared[(shared<br/>Money, erros, relógio,<br/>limitador de taxa)]
   workspace --> identity
   ledger --> workspace
   planning --> ledger
   gamification --> ledger
   ventures --> ledger
-  audit -. ouve eventos .-> identity & workspace & ledger
+  audit -. ouve eventos .-> identity & workspace
+  privacy --> ledger & audit
 ```
 
 Setas significam "depende de". Regras verificadas por teste:
@@ -83,10 +85,11 @@ Setas significam "depende de". Regras verificadas por teste:
    módulo nunca quebra o núcleo.
 2. Módulos opcionais conversam com o núcleo pela API pública dele ou por eventos de domínio
    (`TransactionRecorded`, `MemberJoined` etc.).
-3. Eventos são publicados em memória com o *event publication registry* do Spring Modulith
-   (outbox no PostgreSQL): se um ouvinte falhar, o evento é reprocessado. Sem Kafka
-   ([ADR-0003](adr/0003-modular-monolith-spring-modulith.md)).
-4. `shared` só tem tipos sem regra de negócio de módulo: `Money`, `Problem` (erros) e `Clock`.
+3. Eventos são publicados em memória e ouvidos de forma síncrona (`@EventListener`), na mesma
+   transação de quem publica: se um ouvinte falhar, a ação inteira volta atrás, e o evento e a ação
+   valem juntos. Sem Kafka ([ADR-0003](adr/0003-modular-monolith-spring-modulith.md)).
+4. `shared` só tem tipos sem regra de negócio de módulo: `Money`, `Problem` (erros), `Clock` e o
+   limitador de taxa genérico (`RateLimiter`, `RateLimitedException`).
 
 ### Módulos ligáveis
 
@@ -264,7 +267,7 @@ Referência: **OWASP ASVS 5.0, nível 2**, com checklist revisado a cada release
 |---|---|
 | Autenticação | Sem senha: Google OIDC (escopos mínimos, PKCE, `nonce`) e passkeys. O 2FA vem do Google ou da própria passkey. |
 | Sessão | Spring Session JDBC (sobrevive a reinícios). Cookie `__Host-sid`: `HttpOnly`, `Secure`, `SameSite=Lax` (o retorno do Google é uma navegação vinda de outro site e precisa levar o cookie). Novo id a cada login; expira após 30 dias sem uso. A sessão aberta antes do login (token de CSRF, ida ao Google) expira após 30 minutos sem uso. |
-| Reautenticação | Excluir conta, mudar papéis e exportar dados exigem login nos últimos 10 min. |
+| Reautenticação | Exportar dados, excluir conta ou família, mudar papel, remover membro e gerar link de recuperação exigem login nos últimos 10 min. |
 | CSRF | Token obtido em `GET /v1/csrf`, guardado em memória e enviado em `X-XSRF-TOKEN`; checagem de `Origin`. |
 | CORS | Só a origem do front do mesmo ambiente, com credenciais. |
 | Autorização | Guarda única por rota: membro ativo + papel; nega por padrão; teste da matriz da US-10 por papel. |

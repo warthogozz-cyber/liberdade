@@ -165,7 +165,8 @@ O spec deixa estes pontos em aberto, e o plano decide:
   - Se a reautenticação entrar com outra pessoa, o web apaga os dados do aparelho e vai para
     `/inicio`.
 - **D2. Limitador de taxa genérico.** `shared.RateLimiter` com janela fixa, chave em texto, limite e
-  janela por instância. O `LoginRateLimiter` passa a usá-lo, com os mesmos 20 por minuto por IP.
+  janela por instância. Ele substitui o `LoginRateLimiter`: o login usa um `RateLimiter` com os
+  mesmos 20 por minuto por IP, e o `shared.RateLimitedException` substitui o do `identity`.
   Estourar dá 429 `rate.limited` com `Retry-After` em segundos. Limites novos:
   - criar convite ou link de recuperação: 20 por hora por pessoa;
   - pré-visualizar e aceitar convite: 10 por minuto por IP;
@@ -187,9 +188,11 @@ O spec deixa estes pontos em aberto, e o plano decide:
   nas pontas), só o Dono.
 - **D6. Mais de uma família.** Sai o índice de uma família ativa por pessoa. `POST /v1/workspaces`
   continua dando 409 `workspace.already-exists` só se a pessoa já for Dona de uma família ativa ou
-  com exclusão pendente; quem só é membro de outra família pode criar a sua. O web guarda a família
-  escolhida em `localStorage['liberdade.workspaceId']`, cai na primeira da lista se ela sumir, e o
-  Mais mostra "Trocar de família" quando há duas ou mais.
+  com exclusão pendente; quem só é membro de outra família pode criar a sua. Sem o índice, duas
+  criações simultâneas da mesma pessoa se ordenam por uma trava transacional por pessoa
+  (`pg_advisory_xact_lock`), e só uma passa. O web guarda a família escolhida em
+  `localStorage['liberdade.workspaceId']`, cai na primeira da lista se ela sumir, e o Mais mostra
+  "Trocar de família" quando há duas ou mais.
 - **D7. Convite.** Dono e Adulto criam; o Adulto não convida Dono (403 `invitation.role-forbidden`).
   Vale 7 dias, uso único, revogável. Convite de Jovem exige `parentalConsent: true` (422
   `invitation.parental-consent-required`), e quem convida vira o responsável.
@@ -198,14 +201,14 @@ O spec deixa estes pontos em aberto, e o plano decide:
   - Convite usado, vencido ou revogado dá 410 `invitation.gone`, sem dizer qual dos três. Token que
     não existe dá 404 `invitation.not-found`.
 - **D8. Apelido no convite.** Quem convida escreve o apelido (1 a 40 caracteres, obrigatório). Ele
-  vai para a coluna nova `invitations.nickname` e é copiado para o vínculo ao aceitar. É o nome que
-  a família vê e o nome da carteira do Jovem.
+  vai para a coluna nova `invitations.nickname` (só no `INVITE`; na recuperação fica nulo) e é
+  copiado para o vínculo ao aceitar. É o nome que a família vê e o nome da carteira do Jovem.
 - **D9. Token no fragmento.** O link é `https://<app>/convite#<token>`. O token tem 32 bytes de
   `SecureRandom` em base64url (43 caracteres); o banco guarda `sha256(token)`. O web lê o fragmento,
   guarda o token no `sessionStorage` (`liberdade.invitationToken`), apaga o fragmento com
   `history.replaceState` e só manda o token no corpo de dois POSTs anônimos:
   - `POST /v1/invitations/preview {token}` → nome da família, apelido de quem convidou, papel,
-    apelido do convidado e o status;
+    apelido do convidado (na recuperação, o do vínculo alvo) e o status;
   - `POST /v1/invitations/accept {token, newUser?: {displayName}}`.
 - **D10. Aceitar.**
   - Com sessão: entra na família com a pessoa logada.
@@ -220,7 +223,8 @@ O spec deixa estes pontos em aberto, e o plano decide:
 - **D11. Carteira do Jovem.** Quando um Jovem entra, o `ledger` cria a conta "Carteira de
   <apelido>" (tipo dinheiro, R$ 0,00), com ele como titular. Se o nome já existir entre as contas
   ativas, acrescenta " 2", " 3", até achar um livre.
-- **D12. Recuperação de acesso.** É um convite do tipo `RECOVERY` que aponta para um vínculo.
+- **D12. Recuperação de acesso.** É um convite do tipo `RECOVERY` que aponta para um vínculo. A
+  linha guarda `nickname` nulo e o papel do vínculo alvo; o preview mostra o apelido do vínculo.
   - Dono ou Adulto criam, com reautenticação; o Adulto não recupera um Dono (403
     `invitation.role-forbidden`). Vale 24 h, uso único.
   - Só serve para quem não tem Google (422 `member.recovery-unavailable`); quem tem Google recupera
@@ -301,10 +305,11 @@ O spec deixa estes pontos em aberto, e o plano decide:
   - todas as outras rotas `/v1/**` dão 403 `account.deletion-pending`, menos `GET /v1/me`,
     `DELETE /v1/me/deletion`, `POST /v1/me/export`, `GET /v1/csrf` e `POST /logout`;
   - os vínculos continuam ativos na carência; a família vê a pessoa até o fim dela.
-- **D24. Apagar a conta de vez.** A migração muda `memberships.user_id` para aceitar nulo, com
-  `ON DELETE SET NULL`, e faz o mesmo com `parental_consent_by`, `invitations.created_by`,
-  `workspace_modules.updated_by` e `audit_events.actor_user_id`. O job de cada noite, por pessoa
-  vencida:
+- **D24. Apagar a conta de vez.** A V11 muda `memberships.user_id` para aceitar nulo, com
+  `ON DELETE SET NULL`, e faz o mesmo com `memberships.parental_consent_by`. As FKs de autoria das
+  tabelas novas (`invitations.created_by`, `invitations.parental_consent_by`,
+  `workspace_modules.updated_by` e `audit_events.actor_user_id`) já nascem anuláveis e
+  `ON DELETE SET NULL` nas V7, V8 e V9. O job de cada noite, por pessoa vencida:
   1. passa os vínculos dela para `REMOVED` (os lançamentos ficam com o apelido);
   2. apaga as linhas de `user_entities` com `name` igual ao id dela (as credenciais vão junto, em
      cascata);
@@ -355,10 +360,10 @@ API (`api/src/main/java/br/com/liberdadefamilia/`):
 
 | Pacote | Novo | Muda |
 |---|---|---|
-| `shared` | `RateLimiter`, `RateLimitedException`, `DeviceLabel` | — |
+| `shared` | `RateLimiter`, `RateLimitedException` | — |
 | `shared/internal` | — | `ProblemHandler` (`Retry-After`) |
-| `identity` | `RequiresRecentSignIn`, `RecentSignInCheck`, `SignedIn`, `SignInMethod`, `SessionSignIn`, `UserDirectory`, `UserSummary`, `UserProfile`, `UserDeletion` | `CurrentUser` |
-| `identity/internal` | `RecentSignInInterceptor`, `ReauthenticationRequiredException`, `DefaultSessionSignIn`, `JdbcUserDirectory`, `JdbcUserDeletion`, `PendingDeletionFilter`, `ReauthAuthorizationRequestResolver` | `MinimalSecurityContextRepository`, `SecurityConfig`, `LoginRateLimiter`, `UserAccounts`, `CurrentUserArgumentResolver` |
+| `identity` | `RequiresRecentSignIn`, `RecentSignInCheck`, `DeviceLabel`, `SignedIn`, `SignInMethod`, `SessionSignIn`, `UserDirectory`, `UserSummary`, `UserProfile`, `UserDeletion` | `CurrentUser` |
+| `identity/internal` | `RecentSignInInterceptor`, `ReauthenticationRequiredException`, `DefaultSessionSignIn`, `JdbcUserDirectory`, `JdbcUserDeletion`, `PendingDeletionFilter`, `ReauthAuthorizationRequestResolver` | `MinimalSecurityContextRepository`, `SecurityConfig`, `LoginRateLimitFilter` (saem `LoginRateLimiter` e `RateLimitedException`), `UserAccounts`, `CurrentUserArgumentResolver` |
 | `workspace` | `Memberships`, `MemberSummary`, `MembershipStatus`, `MemberJoined`, `MemberRoleChanged`, `MemberRemoved`, `WorkspaceRenamed`, `InvitationCreated`, `InvitationRevoked`, `RecoveryCreated`, `RecoveryUsed`, `ModuleKey`, `ModuleToggled`, `RequiresModule`, `Modules`, `FamilyDeletion`, `WorkspaceDeletionRequested`, `WorkspaceDeletionCancelled` | `WorkspaceScoped`, `FamilyActivity` |
 | `workspace/internal` | `MemberController`, `MemberService`, `MemberRepository`, `MemberView`, `UpdateMemberRequest`, `RenameWorkspaceRequest`, `InvitationController`, `PublicInvitationController`, `InvitationService`, `InvitationRepository`, `InvitationTokens`, `InvitationView`, `InvitationPreview`, `CreateInvitationRequest`, `AcceptInvitationRequest`, `RecoveryController`, `ModuleController`, `ModuleRepository`, `ModuleView`, `JdbcMemberships`, `JdbcModules`, `JdbcFamilyDeletion`, `FamilyPurgeJob`, `InvitationPurgeJob`, `WorkspaceRejectedException`, `WorkspaceForbiddenException`, `InvitationGoneException` | `WorkspaceController`, `WorkspaceService`, `WorkspaceRepository`, `WorkspaceGuardInterceptor`, `WorkspaceWebConfig`, `MeController`, `MeWorkspace` |
 | `ledger/internal` | `AccountScope`, `LedgerJdbcExport`, `UpdateAccountOwnerRequest` | `AccountController`, `AccountRepository`, `AccountService`, `TransactionController`, `TransactionService`, `TransactionRepository`, `CreateTransactionRequest`, `UpdateTransactionRequest`, `DashboardService`, `LedgerSeeder`, `LedgerFamilyActivity` |
@@ -382,16 +387,16 @@ Web (`web/src/`):
 | `shared/offline` | `sessionChannel.ts` | `session.ts` |
 | `shared/api` | — | `hooks.ts` (`useCurrentWorkspace`, `useWorkspaces`, `selectWorkspace`), `endpoints.ts`, `mutations.ts`, `queryKeys.ts`, `types.ts`, `errors.ts`, `schema.ts` |
 | `features/auth` | — | `SignInPage.tsx`, `PasskeyButton.tsx`, `SignOutButton.tsx` |
-| `features/members` (nova) | `FamilyPage`, `MemberRow`, `MemberSheet`, `InvitePage`, `InvitationLink`, `AcceptInvitationPage`, `RecoveryLinkSheet`, `RenameFamilySheet`, `RecoveryNotice`, `WorkspaceSwitcher`, `invitationToken.ts`, `messages.pt-BR.ts`, `register.ts` | — |
+| `features/members` (nova) | `FamilyPage`, `MemberRow`, `MemberSheet`, `InvitePage`, `InvitationLink`, `AcceptInvitationPage`, `RecoveryLinkSheet`, `RenameFamilySheet`, `RecoveryNotice`, `WorkspaceSwitcher`, `invitationToken.ts`, `memberName.ts`, `messages.pt-BR.ts`, `register.ts` | — |
 | `features/modules` (nova) | `ModulesPage`, `moduleCatalog.ts`, `messages.pt-BR.ts`, `register.ts` | — |
 | `features/privacy` (nova) | `PrivacyPage`, `ActivityPage`, `ConsentList`, `ExportButtons`, `DeleteAccountSheet`, `DeleteFamilySheet`, `download.ts`, `messages.pt-BR.ts`, `register.ts` | — |
-| `features/transactions` | `MemberPicker` | `ContextSheet`, `TransactionForm`, `TransactionRow`, `TransactionDetailSheet`, `EditTransaction`, `TransactionsPage` |
+| `features/transactions` | `MemberPicker` | `ContextSheet`, `NewTransactionPage`, `TransactionForm`, `TransactionRow`, `TransactionDetailSheet`, `EditTransaction`, `TransactionsPage` |
 | `features/accounts` | `OwnerPicker` | `AccountForm`, `AccountsPage` |
 | `features/dashboard` | — | `HomePage`, `GettingStartedCard`, `gettingStarted.ts`, `DashboardPage` |
 | `mocks` | — | `data.ts`, `handlers.ts` |
 
 Mais: `web/e2e/family.spec.ts`, `web/e2e/privacy.spec.ts`, `web/e2e/core-without-modules.spec.ts`,
-`web/e2e/a11y.spec.ts`, `web/e2e/support.ts`.
+`web/e2e/a11y.spec.ts`, `web/e2e/support.ts`, `web/e2e/passkey.spec.ts`.
 
 **Em toda task de API:** cada rota nova sob `/v1/workspaces/{ws}` tem `@WorkspaceScoped` com os
 papéis da tabela da task. Toda mudança de rota ou DTO regenera `api/openapi.json`
@@ -406,18 +411,22 @@ valores).
 ### Task 1: Reautenticação, limitador de taxa e evento de entrada
 
 **Files:**
-- Create em `shared/`: `RateLimiter.java`, `RateLimitedException.java`, `DeviceLabel.java`
-- Create em `identity/`: `RequiresRecentSignIn.java`, `SignedIn.java`, `SignInMethod.java`,
-  `SessionSignIn.java`
+- Create em `shared/`: `RateLimiter.java`, `RateLimitedException.java`
+- Create em `identity/`: `RequiresRecentSignIn.java`, `RecentSignInCheck.java`, `DeviceLabel.java`,
+  `SignedIn.java`, `SignInMethod.java`, `SessionSignIn.java`
 - Create em `identity/internal/`: `RecentSignInInterceptor.java`,
   `ReauthenticationRequiredException.java`, `DefaultSessionSignIn.java`,
   `ReauthAuthorizationRequestResolver.java`
 - Modify: `identity/internal/MinimalSecurityContextRepository.java`, `SecurityConfig.java` (CORS
-  com `PUT`, o interceptor, o resolver), `LoginRateLimiter.java`, `shared/internal/ProblemHandler.java`
+  com `PUT`, o interceptor, o resolver, o bean `loginRateLimiter`), `LoginRateLimitFilter.java`,
+  `shared/internal/ProblemHandler.java`
+- Delete: `identity/internal/LoginRateLimiter.java`, `identity/internal/RateLimitedException.java`
+  e o teste `identity/internal/LoginRateLimiterTest.java` (os casos vão para o `RateLimiterTest`)
 - Modify: `api/src/test/java/br/com/liberdadefamilia/support/TestUsers.java`
-- Test (novos): `shared/RateLimiterTest.java`, `shared/DeviceLabelTest.java`,
+- Test (novos): `shared/RateLimiterTest.java`, `identity/DeviceLabelTest.java`,
   `identity/RecentSignInIT.java`, `identity/internal/MinimalSecurityContextRepositoryTest.java`
   (casos novos), `identity/internal/DefaultSessionSignInTest.java`
+- Test: `identity/internal/LoginRateLimitIT.java`
 
 **Interfaces:**
 - Consumes: `MinimalSecurityContextRepository`, `SessionUserAuthentication`, `SessionUser`, o `Clock`
@@ -428,7 +437,7 @@ valores).
   - `public final class RateLimitedException extends DomainException`: construtor
     `(long retryAfterSeconds)`; 429 `rate.limited`, `detail` "Muitas tentativas. Tente de novo em
     instantes."; `retryAfterSeconds()`. O `ProblemHandler` põe `Retry-After`.
-  - `public record DeviceLabel(String browser, String os)` com
+  - `public record DeviceLabel(String browser, String os)` (em `identity`) com
     `static DeviceLabel parse(@Nullable String userAgent)`: navegador em `Chrome`, `Edge`,
     `Firefox`, `Safari`, `Samsung Internet` ou `other`; sistema em `Android`, `iOS`, `Windows`,
     `macOS`, `Linux` ou `other`.
@@ -446,8 +455,11 @@ valores).
     `public static final Duration RECENT = Duration.ofMinutes(10)` em `RecentSignInInterceptor`.
   - `ReauthenticationRequiredException`: 403 `auth.reauthentication-required`, `detail` "Confirme
     que é você para continuar."
-  - `TestUsers.signedIn(...)` grava `authenticatedAt` = agora; novo
-    `TestUsers.signedInMinutesAgo(UUID userId, int minutes)` para o caso velho.
+  - `TestUsers.signedIn(...)` marca o pedido com um atraso de 0 minutos num atributo do pedido; novo
+    `TestUsers.signedInMinutesAgo(UUID userId, int minutes)` marca com `minutes`, para o caso velho.
+    O `TestUsers.FamilyNameHintFilter` (bean de teste) passa a receber o `Clock` da aplicação e grava
+    na sessão `AUTHENTICATED_AT` = `clock.instant()` menos o atraso, porque um post-processor não
+    escreve na sessão JDBC e os ITs com `Clock` fixo precisam do instante do mesmo relógio.
 
 **Como fica:**
 - `MinimalSecurityContextRepository.saveContext`: na conversão de um login novo, grava
@@ -457,8 +469,14 @@ valores).
   com ela, lê o atributo da sessão e lança a exceção se faltar ou tiver mais de `RECENT`.
 - `ReauthAuthorizationRequestResolver` embrulha o resolver padrão do OAuth2 e acrescenta
   `prompt=select_account` quando a URL de início tem `?reauth=true`.
-- `LoginRateLimiter` passa a delegar para um `RateLimiter(clock, 20, Duration.ofMinutes(1))`, com o
-  mesmo comportamento de hoje.
+- O `LoginRateLimiter` sai: o `SecurityConfig` declara o bean `loginRateLimiter`, um
+  `RateLimiter(clock, 20, Duration.ofMinutes(1))`, que o `LoginRateLimitFilter` recebe por
+  `@Qualifier`. O filtro chama `tryAcquire`; bloqueado, o redirect da navegação continua igual, e o
+  XHR entrega ao `HandlerExceptionResolver`, como hoje, um
+  `shared.RateLimitedException(retryAfterSeconds(ip))`, cujo `Retry-After` o `ProblemHandler` põe
+  (o filtro não põe mais o cabeçalho). O `identity/internal/RateLimitedException` sai.
+- O `LoginRateLimitIT.StoppedClock` passa a sobrescrever o bean `loginRateLimiter` com um
+  `RateLimiter` de relógio parado.
 
 - [ ] **Step 1: Escrever os testes (falhando)**
 
@@ -468,6 +486,7 @@ valores).
 | `RateLimiterTest.windowResets` | depois de 1 min (`Clock` mutável), volta a aceitar |
 | `RateLimiterTest.keysAreIndependent` | estourar `a` não afeta `b` |
 | `RateLimiterTest.retryAfterIsRemainingWindow` | bloqueado aos 20 s de uma janela de 60 s → 40 |
+| `RateLimiterTest.retryAfterIsAtLeastOne` | bloqueado aos 59,5 s de uma janela de 60 s → 1 |
 | `RateLimiterTest.prunesExpiredWindows` | 10.001 chaves vencidas e uma chamada nova → o mapa fica com 1 |
 | `DeviceLabelTest` (parametrizado) | UA do Chrome no Android → (`Chrome`, `Android`); Safari no iPhone → (`Safari`, `iOS`); Edge no Windows → (`Edge`, `Windows`); nulo → (`other`, `other`) |
 | `RecentSignInIT.freshSignInPasses` | rota de teste anotada (controller de teste no pacote de teste), login agora → 200 |
@@ -475,7 +494,7 @@ valores).
 | `RecentSignInIT.unannotatedIgnoresAge` | `signedInMinutesAgo(60)` em `GET /v1/me` → 200 |
 | `RecentSignInIT.corsAllowsPut` | preflight `OPTIONS` com `Access-Control-Request-Method: PUT` da origem do web → permitido |
 | `RecentSignInIT.reauthAddsPrompt` | `GET /oauth2/authorization/google?reauth=true` → o redirect tem `prompt=select_account`; sem `reauth`, não tem |
-| `RecentSignInIT.rateLimitedHasRetryAfter` | 21 logins pelo mesmo IP → 429 `rate.limited` com `Retry-After` numérico |
+| `LoginRateLimitIT.xhrOverLimitIs429` (ajustado) | 21ª tentativa → 429 `rate.limited` com `Retry-After` 45, agora posto pelo `ProblemHandler`, e o `detail` do `shared.RateLimitedException` |
 | `MinimalSecurityContextRepositoryTest.freshSignInRecordsInstant` | conversão de OIDC → a sessão tem `liberdade.authenticatedAt` igual ao `Clock` e sai um `SignedIn(GOOGLE)` |
 | `MinimalSecurityContextRepositoryTest.minimalContextKeepsInstant` | contexto já mínimo → o instante não muda e nenhum evento sai |
 | `DefaultSessionSignInTest` | `signIn` troca o id da sessão, grava o contexto mínimo e o instante e publica `SignedIn` com o método dado |
@@ -531,10 +550,11 @@ git commit -m "feat(identity): require a recent sign-in for sensitive actions an
 - Test (novos): `workspace/MembersIT.java`, `workspace/MultipleFamiliesIT.java`,
   `workspace/MeQueryCountIT.java`
 - Test: `workspace/WorkspaceIT.java`, `workspace/WorkspaceGuardCoverageIT.java`,
-  `ledger/AccountsIT.java`
+  `ledger/AccountsIT.java`, `workspace/internal/WorkspaceServiceTest.java`
 
 **Interfaces:**
-- Consumes: `RequiresRecentSignIn` (Task 1), `WorkspaceScoped`, `WorkspaceMember`, `Role`.
+- Consumes: `RequiresRecentSignIn` e `RecentSignInCheck.require(HttpServletRequest)` (Task 1),
+  `WorkspaceScoped`, `WorkspaceMember`, `Role`.
 - Produces:
   - `public enum MembershipStatus { ACTIVE, REMOVED }`.
   - `public record MemberSummary(UUID workspaceId, UUID membershipId, @Nullable UUID userId, Role
@@ -593,7 +613,11 @@ git commit -m "feat(identity): require a recent sign-in for sensitive actions an
   `parental_consent_by` = quem muda, e publica `MemberRoleChanged`. O registro em `consents` desse
   caminho é da Task 9, que ouve `MemberRoleChanged` com `to = YOUTH`.
 - `WorkspaceService.create`: o 409 passa a olhar só vínculos `OWNER` ativos em famílias ativas ou
-  com exclusão pendente.
+  com exclusão pendente. Sem o índice único, a corrida de duas criações da mesma pessoa é resolvida
+  por uma trava: antes da checagem de Dono, o `WorkspaceRepository` faz
+  `select pg_advisory_xact_lock(hashtextextended(:userId::text, 0))`, que dura até o fim da
+  transação (sem `FOR UPDATE` na tabela `users`, que é do `identity`). O `catch` de
+  `DuplicateKeyException` sai.
 - `MeController` monta a lista com uma consulta para os vínculos e uma chamada a
   `withTransactions` com todos os ids.
 - `AccountService` troca `accounts.isActiveMembership(...)` por `memberships.isActive(...)`.
@@ -625,6 +649,11 @@ git commit -m "feat(identity): require a recent sign-in for sensitive actions an
 |---|---|
 | `memberOfOneCanCreateOwnFamily` | pessoa que é Adulta numa família cria a sua → 201, e o `/v1/me` lista as duas |
 | `ownerCannotCreateSecond` | pessoa que já é Dona → 409 `workspace.already-exists` |
+
+O `WorkspaceIT.concurrentCreateMakesOneFamily` continua como está e passa a ser garantido pela
+trava. No `WorkspaceServiceTest`, o `membershipRefusedByTheIndexIsAlreadyExists` dá lugar a
+`locksBeforeOwnerCheck`: a trava da pessoa é pedida antes da checagem de Dono (`InOrder` do
+Mockito), e uma Dona já existente dá `WorkspaceAlreadyExistsException`.
 
 `MeQueryCountIT.meUsesConstantQueries`: com 1 e com 3 famílias, o número de comandos SQL de
 `GET /v1/me` é o mesmo (contado por um `DataSource` de teste que embrulha o real, ou pelo
@@ -690,11 +719,13 @@ git commit -m "feat(workspace): members, roles and family rename, with a members
     `static byte[] hash(String token)` (SHA-256 dos bytes UTF-8 do token).
   - `CreateInvitationRequest(@NotNull Role role, @NotBlank @Size(max = 40) @Pattern(WITHOUT_NUL)
     String nickname, @Nullable Boolean parentalConsent)`.
-  - `InvitationView(UUID id, Role role, String nickname, InvitationKind kind, Instant expiresAt,
-    UUID createdBy, @Nullable String token)`: `token` só vem na resposta da criação, nunca na
-    listagem. `enum InvitationKind { INVITE, RECOVERY }`.
-  - `InvitationPreview(String workspaceName, @Nullable String invitedBy, Role role, String nickname,
-    InvitationKind kind)`.
+  - `InvitationView(UUID id, Role role, @Nullable String nickname, InvitationKind kind, Instant
+    expiresAt, @Nullable String createdByName, @Nullable String token)`: `token` só vem na resposta
+    da criação, nunca na listagem. `nickname` é nulo na recuperação (Task 4). `createdByName` é o
+    apelido de quem criou nesta família, nulo depois que a conta dessa pessoa foi apagada.
+    `enum InvitationKind { INVITE, RECOVERY }`.
+  - `InvitationPreview(String workspaceName, @Nullable String invitedBy, Role role, @Nullable String
+    nickname, InvitationKind kind)`.
   - `AcceptInvitationRequest(@NotBlank @Size(min = 43, max = 43) String token, @Nullable @Valid
     NewUser newUser)` com `record NewUser(@NotBlank @Size(max = 200) @Pattern(WITHOUT_NUL) String
     displayName)`. A resposta é 200 `AcceptedInvitation(UUID workspaceId, UUID membershipId,
@@ -711,10 +742,12 @@ git commit -m "feat(workspace): members, roles and family rename, with a members
 | `POST /v1/invitations/accept` | `acceptInvitation` | anônimo ou logado | 200 `AcceptedInvitation` | 404 `invitation.not-found`; 410 `invitation.gone`; 409 `invitation.already-member`; 422 `invitation.new-user-required` (anônimo sem `newUser`); 429 `rate.limited` |
 
 **Como fica:**
-- `V7__invitations.sql`: a tabela `invitations` como no modelo de dados, mais `nickname text NOT
-  NULL CHECK (char_length(nickname) BETWEEN 1 AND 40)`, `parental_consent_by uuid NULL`, `CHECK
-  (kind = 'RECOVERY') = (target_membership_id IS NOT NULL)`, FK composta
-  `(workspace_id, target_membership_id)` → `memberships (workspace_id, id) ON DELETE CASCADE`,
+- `V7__invitations.sql`: a tabela `invitations` como no modelo de dados, mais `nickname text NULL
+  CHECK (char_length(nickname) BETWEEN 1 AND 40)`, `CHECK ((kind = 'INVITE') = (nickname IS NOT
+  NULL))`, `created_by uuid NULL` → `users ON DELETE SET NULL`, `parental_consent_by uuid NULL` →
+  `users ON DELETE SET NULL`, `CHECK (kind = 'RECOVERY') = (target_membership_id IS NOT NULL)`, FK
+  composta `(workspace_id, target_membership_id)` → `memberships (workspace_id, id) ON DELETE
+  CASCADE`,
   `token_hash bytea NOT NULL UNIQUE`, índice `(workspace_id, expires_at)`; e
   `ALTER TABLE memberships ADD COLUMN recovered_at timestamptz` (usada na Task 4).
 - As rotas `/v1/invitations/**` não estão sob `/v1/workspaces/{ws}`, então não levam
@@ -748,7 +781,7 @@ distintos; `hash` tem 32 bytes e é determinístico.
 | `adultCannotInviteOwner` | Adulto convida Dono → 403 `invitation.role-forbidden` |
 | `youthInviteNeedsConsent` | Jovem sem `parentalConsent` → 422 `invitation.parental-consent-required` |
 | `viewerAndYouthCannotInvite` | Leitor e Jovem → 403 `workspace.forbidden` |
-| `listHidesToken` | `GET` lista o convite sem `token` |
+| `listHidesToken` | `GET` lista o convite sem `token` e com `createdByName` = o apelido de quem convidou |
 | `previewShowsFamily` | anônimo com o token → 200 com o nome da família, o apelido de quem convidou, o papel e o apelido |
 | `signedInAccepts` | outra pessoa logada aceita → 200; `GET …/members` tem o apelido do convite; segundo aceite → 410 `invitation.gone` |
 | `memberCannotAcceptAgain` | quem já é membro ativo aceita → 409 `invitation.already-member`, e o convite continua valendo |
@@ -812,7 +845,7 @@ git commit -m "feat(workspace): single-use invitations with parental consent and
 - Test (novo): `workspace/RecoveryIT.java`
 
 **Interfaces:**
-- Consumes: as tabelas e o aceite da Task 3; `RecentSignInInterceptor`/`@RequiresRecentSignIn`,
+- Consumes: as tabelas, `InvitationView` e o aceite da Task 3; `@RequiresRecentSignIn`,
   `SessionSignIn`, `SignInMethod.RECOVERY` (Task 1); `UserDirectory.findAll` (Task 2).
 - Produces:
   - `RecoveryCreated(UUID workspaceId, UUID invitationId, UUID targetMembershipId, UUID
@@ -826,6 +859,8 @@ git commit -m "feat(workspace): single-use invitations with parental consent and
 | `POST /v1/workspaces/{ws}/members/{id}/recovery` | `createRecoveryLink` | OWNER, ADULT (com reautenticação) | 201 `InvitationView` com `token`, `kind` `RECOVERY`, `expiresAt` = agora + 24 h | 404 `member.not-found`; 403 `invitation.role-forbidden` (Adulto para Dono); 422 `member.recovery-unavailable`; 422 `member.removed`; 429 `rate.limited`; 403 `auth.reauthentication-required` |
 
 **Como fica:**
+- A linha de `RECOVERY` em `invitations` guarda `nickname` nulo e `role` = o papel do vínculo alvo;
+  o preview de `RECOVERY` lê o apelido do vínculo alvo.
 - Criar um link novo para o mesmo vínculo revoga o anterior ainda pendente.
 - No aceite de `RECOVERY`: ignora a sessão atual (se houver, ela é trocada), não aceita `newUser`,
   grava `used_at` e `memberships.recovered_at = now()`, chama
@@ -836,7 +871,7 @@ git commit -m "feat(workspace): single-use invitations with parental consent and
 
 | Teste | Esperado |
 |---|---|
-| `ownerCreatesRecoveryForPasskeyOnlyMember` | Jovem sem Google → 201, `kind` `RECOVERY`, expira em 24 h |
+| `ownerCreatesRecoveryForPasskeyOnlyMember` | Jovem sem Google → 201, `kind` `RECOVERY`, `role` `YOUTH`, `nickname` nulo, expira em 24 h; o preview traz o apelido do vínculo |
 | `recoveryNeedsRecentSignIn` | login de 11 min → 403 `auth.reauthentication-required` |
 | `adultCannotRecoverOwner` | Adulto para a Dona → 403 `invitation.role-forbidden` |
 | `googleMemberUsesGoogle` | membro com Google → 422 `member.recovery-unavailable` |
@@ -959,10 +994,12 @@ git commit -m "feat(ledger): choose who spent, set the account owner and read on
   `CategoryController.java`, `TransactionController.java`, `TransactionService.java`,
   `TransactionRepository.java`, `DashboardController.java`, `DashboardService.java`
 - Modify: `workspace/internal/WorkspaceGuardInterceptor.java` (sai o "YOUTH sempre 403"),
-  `workspace/internal/MemberController.java` (YOUTH no `GET`)
+  `workspace/internal/MemberController.java` (YOUTH no `GET`), `workspace/Role.java` (o javadoc
+  passa a dizer que o Jovem vê e lança só nas contas de que é titular, D13)
 - Test (novos): `ledger/YouthScopeIT.java`, `RoleMatrixIT.java` (em
-  `api/src/test/java/br/com/liberdadefamilia/`), `ledger/domain/BalanceCalculatorTest.java` (caso novo)
-- Test: `workspace/WorkspaceGuardIT.java`
+  `api/src/test/java/br/com/liberdadefamilia/`)
+- Test: `workspace/WorkspaceGuardIT.java`, `ledger/domain/BalanceCalculatorTest.java` (caso novo em
+  arquivo existente)
 
 **Interfaces:**
 - Consumes: `WorkspaceMember` (com `role` e `membershipId`), `BalanceCalculator`.
@@ -1086,8 +1123,8 @@ git commit -m "feat(ledger): youth sees and records only in the accounts they ow
 **Como fica:**
 - `V8__modules.sql`: `workspace_modules` como no modelo, com `module_key` em
   `CHECK (module_key IN ('planning', 'indicators', 'gamification', 'ventures'))`, PK
-  `(workspace_id, module_key)`, `updated_by` → `users` e `workspace_id` → `workspaces ON DELETE
-  CASCADE`.
+  `(workspace_id, module_key)`, `updated_by uuid NULL` → `users ON DELETE SET NULL` e
+  `workspace_id` → `workspaces ON DELETE CASCADE`.
 - `PUT` faz `INSERT … ON CONFLICT (workspace_id, module_key) DO UPDATE`; repetir o mesmo valor
   responde 200 sem evento.
 - O `WorkspaceGuardInterceptor`, depois de checar o papel, lê `@RequiresModule` e responde 403
@@ -1328,6 +1365,7 @@ git commit -m "feat(privacy): record and revoke parental consent"
 - Create em `ledger/`: `LedgerExport.java`, `ExportedAccount.java`, `ExportedCategory.java`,
   `ExportedTransaction.java`; em `ledger/internal/`: `LedgerJdbcExport.java`
 - Create em `privacy/internal/`: `ExportController.java`, `ExportService.java`, `CsvWriter.java`
+- Create: `identity/UserProfile.java`
 - Modify: `identity/UserDirectory.java` (`profileOf`), `identity/internal/JdbcUserDirectory.java`
 - Modify: `api/openapi.json`, `web/src/shared/api/schema.ts`, `web/src/mocks/handlers.ts`
 - Test (novos): `privacy/ExportIT.java`, `privacy/internal/CsvWriterTest.java`; `RoleMatrixIT.java`
@@ -1343,12 +1381,14 @@ git commit -m "feat(privacy): record and revoke parental consent"
     transactions(UUID workspaceId); List<ExportedTransaction> transactionsOf(UUID workspaceId,
     UUID membershipId); }` (só não excluídos; `transactionsOf` traz onde o vínculo é "Quem" ou
     autor).
-  - `ExportedTransaction(UUID id, TransactionKind kind, Money amount, LocalDate occurredOn, String
+  - `ExportedTransaction(UUID id, String kind, Money amount, LocalDate occurredOn, String
     accountName, @Nullable String toAccountName, @Nullable String categoryName, @Nullable String
     description, UUID memberId, Instant createdAt)`; `ExportedAccount(UUID id, String name,
-    AccountType type, Money initialBalance, Money balance, @Nullable UUID ownerMembershipId,
+    String type, Money initialBalance, Money balance, @Nullable UUID ownerMembershipId,
     @Nullable Instant archivedAt)`; `ExportedCategory(UUID id, @Nullable UUID parentId,
-    CategoryKind kind, String name, @Nullable Instant archivedAt)`.
+    String kind, String name, @Nullable Instant archivedAt)`. `kind` e `type` são o `name()` do
+    enum (`EXPENSE`, `CHECKING`…), em `String` porque `AccountType` e o tipo de categoria são
+    internos do `ledger`.
   - `UserDirectory.profileOf(UUID userId)` → `UserProfile(String displayName, @Nullable String
     email, String locale, Instant createdAt, @Nullable Instant passkeyCreatedAt)`.
   - `CsvWriter`: `static String cell(String value)` (aspas quando tem `;`, aspas ou quebra de
@@ -1482,9 +1522,8 @@ git commit -m "feat(privacy): export personal and family data as JSON and spread
 **Como fica:**
 - `V11__deletion.sql`:
   - `memberships.user_id` sem `NOT NULL`, FK refeita com `ON DELETE SET NULL`;
-  - `memberships.parental_consent_by`, `invitations.created_by`, `invitations.parental_consent_by`
-    e `workspace_modules.updated_by` com FKs refeitas `ON DELETE SET NULL` (e `created_by` sem
-    `NOT NULL`);
+  - `memberships.parental_consent_by` com FK refeita `ON DELETE SET NULL` (as FKs de autoria de
+    `invitations` e `workspace_modules` já nascem assim na V7 e na V8);
   - índice `users (deletion_requested_at) WHERE deletion_requested_at IS NOT NULL` e o mesmo em
     `workspaces`.
 - `UserAccounts.findActive` deixa de esconder quem pediu exclusão; quem decide é o
@@ -1677,17 +1716,18 @@ git commit -m "feat(web): selected family per device, cross-tab session, reauthe
 - Create em `web/src/features/members/`: `FamilyPage.tsx`, `MemberRow.tsx`, `MemberSheet.tsx`,
   `InvitePage.tsx`, `InvitationLink.tsx`, `AcceptInvitationPage.tsx`, `RecoveryLinkSheet.tsx`,
   `RenameFamilySheet.tsx`, `RecoveryNotice.tsx`, `WorkspaceSwitcher.tsx`, `invitationToken.ts`,
-  `messages.pt-BR.ts`, `register.ts`, e os testes
+  `memberName.ts`, `messages.pt-BR.ts`, `register.ts`, e os testes
 - Modify: `web/src/app/routes.tsx` (`/mais/familia`, `/mais/familia/convidar`, `/convite`),
   `MorePage.tsx`, `RootRedirect.tsx`
+- Create: `web/src/app/MorePage.test.tsx`
 - Modify: `web/src/features/dashboard/HomePage.tsx`, `GettingStartedCard.tsx`, `gettingStarted.ts`
 - Modify: `web/src/shared/api/endpoints.ts`, `mutations.ts`, `hooks.ts` (`useMembers`,
   `useInvitations`)
 - Modify: `web/src/mocks/data.ts`, `handlers.ts`
 
 **Interfaces:**
-- Consumes: as rotas das Tasks 2, 3 e 4; `useReauth`, `registerPasskey`, `startGoogleSignIn`,
-  `saveReturnPath` (Task 12).
+- Consumes: as rotas das Tasks 2, 3 e 4 (em `InvitationView`, `nickname` e `createdByName` podem
+  vir nulos); `useReauth`, `registerPasskey`, `startGoogleSignIn`, `saveReturnPath` (Task 12).
 - Produces:
   - `readInvitationToken(): string | undefined` em `invitationToken.ts`: lê o fragmento (43
     caracteres base64url), guarda em `sessionStorage['liberdade.invitationToken']`, apaga o
@@ -1696,8 +1736,9 @@ git commit -m "feat(web): selected family per device, cross-tab session, reauthe
   - `useMembers()`, `useInvitations()`, e as mutações `useUpdateMember`, `useRemoveMember`,
     `useCreateInvitation`, `useRevokeInvitation`, `useCreateRecoveryLink`, `useRenameWorkspace`,
     `useAcceptInvitation`, `usePreviewInvitation`.
-  - `memberName(member: MemberView, intl): string` (apelido, nome ou "Ex-membro") exportado de
-    `shared/api` para a Task 14 e a lista de lançamentos.
+  - `memberName(member: MemberView, intl): string` (apelido, nome ou "Ex-membro") em
+    `features/members/memberName.ts` (o texto traduzido fica fora de `shared/api`), importado pela
+    Task 14 de `@/features/members/memberName`.
 
 **Telas:**
 - `/mais/familia` (`FamilyPage`): nome da família com "Renomear" (só Dono); lista de membros
@@ -1797,9 +1838,12 @@ git commit -m "feat(web): family screen, invitation links, accepting with Google
 **Files:**
 - Create: `web/src/features/transactions/MemberPicker.tsx`, `MemberPicker.test.tsx`
 - Create: `web/src/features/accounts/OwnerPicker.tsx`, `OwnerPicker.test.tsx`
-- Modify em `web/src/features/transactions/`: `ContextSheet.tsx`, `TransactionForm.tsx`,
-  `TransactionRow.tsx`, `TransactionDetailSheet.tsx`, `EditTransaction.tsx`, `TransactionsPage.tsx`,
-  `listItems.ts`
+- Create em `web/src/features/transactions/`: `TransactionRow.test.tsx`, `EditTransaction.test.tsx`
+- Modify em `web/src/features/transactions/`: `ContextSheet.tsx`, `NewTransactionPage.tsx`,
+  `TransactionForm.tsx`, `TransactionRow.tsx`, `TransactionDetailSheet.tsx`, `EditTransaction.tsx`,
+  `TransactionsPage.tsx`, `listItems.ts`, e os testes `NewTransactionPage.test.tsx` e
+  `TransactionsPage.test.tsx`
+- Modify: `web/src/app/MorePage.tsx` e `MorePage.test.tsx` (criado na Task 13)
 - Modify em `web/src/features/accounts/`: `AccountForm.tsx`, `AccountsPage.tsx`
 - Modify: `web/src/features/dashboard/HomePage.tsx`, `DashboardPage.tsx` (rótulo do Jovem)
 - Modify: `web/src/shared/offline/outbox.ts` (o campo `memberId` opcional no item)
@@ -1808,7 +1852,8 @@ git commit -m "feat(web): family screen, invitation links, accepting with Google
 
 **Interfaces:**
 - Consumes: `memberId` opcional e `GET …/transactions/{id}` (Task 5); `PUT …/accounts/{id}/owner`
-  (Task 5); o escopo do Jovem (Task 6); `useMembers` e `memberName` (Task 13).
+  (Task 5); o escopo do Jovem (Task 6); `useMembers` e `memberName` de
+  `features/members/memberName.ts` (Task 13).
 - Produces: `useTransaction(id: string)`; `useSetAccountOwner()`.
 
 **Como fica:**
@@ -1972,7 +2017,8 @@ git commit -m "feat(web): modules screen, privacy center with export, consents, 
 
 **Files:**
 - Create: `web/e2e/core-without-modules.spec.ts`, `web/e2e/family.spec.ts`, `web/e2e/privacy.spec.ts`
-- Modify: `web/e2e/a11y.spec.ts`, `web/e2e/support.ts`
+- Modify: `web/e2e/a11y.spec.ts`, `web/e2e/support.ts`, `web/e2e/passkey.spec.ts` (passa a usar o
+  `addVirtualAuthenticator` do `support.ts` no lugar do código CDP que repete)
 
 **Interfaces:**
 - Consumes: tudo das Tasks 1 a 15; o ambiente E2E do Plano 3 (`compose.e2e.yaml`, perfil `e2e`,
@@ -1982,6 +2028,7 @@ git commit -m "feat(web): modules screen, privacy center with export, consents, 
     `WebAuthn.addVirtualAuthenticator` com `protocol: 'ctap2'`, `transport: 'internal'`,
     `hasResidentKey`, `hasUserVerification` e `isUserVerified` verdadeiros);
   - `setModules(page, enabled: boolean)`: `PUT` nas quatro chaves pela API, com o CSRF da página.
+  - `passkey.spec.ts` chama esse `addVirtualAuthenticator` em vez do seu próprio.
 
 **Specs:**
 - `core-without-modules.spec.ts`, `coreWorksWithEveryModuleOff` (critério S2): entrar, criar a
