@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { IntlProvider } from 'react-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { locale, messages } from '@/shared/i18n'
+import { appMessages, locale } from '@/shared/i18n'
 import { ToastProvider, useToast } from '@/shared/ui'
 
 // Unmounting stops the toast's timer before the next test.
@@ -17,7 +17,7 @@ function renderProvider(): Show {
     return null
   }
   render(
-    <IntlProvider locale={locale} messages={messages}>
+    <IntlProvider locale={locale} messages={appMessages()}>
       <ToastProvider>
         <Probe />
       </ToastProvider>

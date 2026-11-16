@@ -1,4 +1,5 @@
 import { FormattedMessage, useIntl } from 'react-intl'
+import { Link } from 'react-router'
 import { PasskeyButton } from '@/features/auth/PasskeyButton'
 import { SignOutButton } from '@/features/auth/SignOutButton'
 import { useCurrentWorkspace, useMe } from '@/shared/api'
@@ -18,6 +19,12 @@ export function MorePage() {
         <p className="font-medium">{displayName}</p>
         <p className="text-text-muted">{workspace?.name}</p>
       </div>
+      <Link
+        to="/mais/contas"
+        className="flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <FormattedMessage id="more.accounts" />
+      </Link>
       <PasskeyButton />
       <SignOutButton />
     </main>

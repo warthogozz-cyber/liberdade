@@ -22,12 +22,22 @@ export {
   useMe,
   useTransactions,
 } from './hooks'
-export { useDeleteTransaction, useRestoreTransaction, useUpdateTransaction } from './mutations'
+export {
+  useArchiveAccount,
+  useCreateAccount,
+  useDeleteTransaction,
+  useRestoreTransaction,
+  useUnarchiveAccount,
+  useUpdateAccount,
+  useUpdateTransaction,
+} from './mutations'
 export type {
+  AccountType,
   AccountView,
   ApiMoney,
   CategoryKind,
   CategoryView,
+  CreateAccountRequest,
   CreateTransactionRequest,
   DashboardView,
   MeUser,
@@ -36,6 +46,7 @@ export type {
   TransactionFilters,
   TransactionKind,
   TransactionView,
+  UpdateAccountRequest,
   UpdateTransactionRequest,
   WorkspaceView,
 } from './types'

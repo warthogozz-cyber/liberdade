@@ -60,3 +60,11 @@ export function appendDoubleZero(cents: bigint): bigint {
 export function removeLastDigit(cents: bigint): bigint {
   return cents / 10n
 }
+
+/** Smallest supported balance: the mirror of MAX_CENTS, for an account that owes. */
+export const MIN_CENTS = -MAX_CENTS
+
+/** Flips the sign: the keypad only types positive amounts, so a balance's sign comes apart from it. */
+export function negateCents(cents: bigint): bigint {
+  return -cents
+}

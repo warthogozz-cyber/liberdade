@@ -1,6 +1,8 @@
 import { client, unwrap } from './client'
 import type {
   AccountView,
+  CreateAccountRequest,
+  UpdateAccountRequest,
   CategoryKind,
   CategoryView,
   CreateTransactionRequest,
@@ -88,5 +90,35 @@ export function updateTransaction(
 export function restoreTransaction(ws: string, id: string): Promise<TransactionView> {
   return unwrap(
     client.POST('/v1/workspaces/{ws}/transactions/{id}/restore', { params: { path: { ws, id } } }),
+  )
+}
+
+/** Creates an account. A name an active account already has is a 409 `account.name-taken`. */
+export function createAccount(ws: string, body: CreateAccountRequest): Promise<AccountView> {
+  return unwrap(client.POST('/v1/workspaces/{ws}/accounts', { params: { path: { ws } }, body }))
+}
+
+/** Changes the fields sent: the name, the type, or the `balance` to reach today. */
+export function updateAccount(
+  ws: string,
+  id: string,
+  body: UpdateAccountRequest,
+): Promise<AccountView> {
+  return unwrap(
+    client.PATCH('/v1/workspaces/{ws}/accounts/{id}', { params: { path: { ws, id } }, body }),
+  )
+}
+
+/** Archives an account. The last active one is a 422 `account.last-active`. */
+export function archiveAccount(ws: string, id: string): Promise<AccountView> {
+  return unwrap(
+    client.POST('/v1/workspaces/{ws}/accounts/{id}/archive', { params: { path: { ws, id } } }),
+  )
+}
+
+/** Brings an archived account back. */
+export function unarchiveAccount(ws: string, id: string): Promise<AccountView> {
+  return unwrap(
+    client.POST('/v1/workspaces/{ws}/accounts/{id}/unarchive', { params: { path: { ws, id } } }),
   )
 }

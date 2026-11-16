@@ -1,14 +1,14 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { IntlProvider } from 'react-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { MIN_MONTH, locale, messages } from '@/shared/i18n'
+import { MIN_MONTH, appMessages, locale } from '@/shared/i18n'
 import { MonthSwitcher } from './MonthSwitcher'
 
 afterEach(cleanup)
 
 function renderSwitcher(month: string, max = '2027-11', onChange = vi.fn()) {
   render(
-    <IntlProvider locale={locale} messages={messages}>
+    <IntlProvider locale={locale} messages={appMessages()}>
       <MonthSwitcher month={month} onChange={onChange} max={max} />
     </IntlProvider>,
   )

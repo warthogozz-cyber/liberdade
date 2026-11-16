@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import type { ReactNode } from 'react'
 import { IntlProvider } from 'react-intl'
-import { locale, messages } from '@/shared/i18n'
+import { locale, useAppMessages } from '@/shared/i18n'
 import { persistOptions } from '@/shared/offline'
 import { ToastProvider } from '@/shared/ui'
 
@@ -24,7 +24,7 @@ interface AppProvidersProps {
  */
 export function AppProviders({ children, queryClient }: AppProvidersProps) {
   return (
-    <IntlProvider locale={locale} messages={messages}>
+    <IntlProvider locale={locale} messages={useAppMessages()}>
       <PersistQueryClientProvider
         client={queryClient}
         persistOptions={persistOptions}

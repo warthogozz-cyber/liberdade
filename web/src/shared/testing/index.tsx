@@ -5,7 +5,7 @@ import { IntlProvider } from 'react-intl'
 import { createMemoryRouter, type RouteObject } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { createQueryClient } from '@/shared/api'
-import { locale, messages } from '@/shared/i18n'
+import { locale, useAppMessages } from '@/shared/i18n'
 import { ToastProvider } from '@/shared/ui'
 
 export { outboxItem, outboxPayload, transactionView } from './outbox'
@@ -22,7 +22,7 @@ export function createTestQueryClient(): QueryClient {
 function wrapperFor(queryClient: QueryClient) {
   return function Providers({ children }: { children: ReactNode }) {
     return (
-      <IntlProvider locale={locale} messages={messages}>
+      <IntlProvider locale={locale} messages={useAppMessages()}>
         <QueryClientProvider client={queryClient}>
           <ToastProvider>{children}</ToastProvider>
         </QueryClientProvider>

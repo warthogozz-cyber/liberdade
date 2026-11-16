@@ -39,6 +39,13 @@ export const routes: RouteObject[] = [
                 path: '/mais',
                 lazy: () => import('@/app/MorePage').then((m) => ({ Component: m.MorePage })),
               },
+              {
+                path: '/mais/contas',
+                lazy: () =>
+                  import('@/features/accounts/AccountsPage').then((m) => ({
+                    Component: m.AccountsPage,
+                  })),
+              },
             ],
           },
         ],

@@ -31,6 +31,7 @@ export const messages = {
   'nav.transactions': 'Lançamentos',
   'nav.newExpense': 'Novo gasto',
   'nav.more': 'Mais',
+  'more.accounts': 'Contas',
   'passkey.create': 'Criar passkey neste aparelho',
   'passkey.defaultLabel': 'Este aparelho',
   'passkey.created': 'Passkey criada.',

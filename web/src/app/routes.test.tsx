@@ -63,6 +63,24 @@ describe('routes', () => {
     await waitFor(() => expect(document.title).toBe('Início · Liberdade'))
   })
 
+  it('links the accounts from Mais', async () => {
+    seedMockFamily()
+    renderWithProviders(null, { routes, route: '/mais' })
+
+    expect(await screen.findByRole('link', { name: 'Contas' })).toHaveAttribute(
+      'href',
+      '/mais/contas',
+    )
+  })
+
+  it('opens the accounts on /mais/contas', async () => {
+    seedMockFamily()
+    renderWithProviders(null, { routes, route: '/mais/contas' })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Contas' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Carteira/ })).toBeInTheDocument()
+  })
+
   it("saves the family's data to the device once it has loaded, for a reload offline (I1)", async () => {
     const family = seedMockFamily()
     renderApp('/inicio')

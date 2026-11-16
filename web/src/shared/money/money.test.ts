@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   MAX_CENTS,
+  MIN_CENTS,
   appendDigit,
   appendDoubleZero,
   centsToApi,
   formatBRL,
+  negateCents,
   parseCents,
   removeLastDigit,
 } from './money'
@@ -21,6 +23,17 @@ describe('formatBRL', () => {
     [0n, `R$${NBSP}0,00`],
     [1234n, `R$${NBSP}12,34`],
   ])('formats %s', (cents, expected) => expect(formatBRL(cents)).toBe(expected))
+})
+
+describe('negateCents', () => {
+  it('flips the sign', () => {
+    expect(negateCents(100n)).toBe(-100n)
+    expect(negateCents(-100n)).toBe(100n)
+    expect(negateCents(0n)).toBe(0n)
+    expect(formatBRL(negateCents(100n))).toBe(`${MINUS}R$${NBSP}1,00`)
+  })
+
+  it('keeps the range symmetric', () => expect(MIN_CENTS).toBe(negateCents(MAX_CENTS)))
 })
 
 describe('parseCents', () => {
