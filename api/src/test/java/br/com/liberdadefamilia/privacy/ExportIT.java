@@ -58,6 +58,23 @@ class ExportIT {
     TestLedger ledger;
 
     @Test
+    void theWebAppCanReadTheFileNameAcrossOrigins() {
+        Family f = family();
+        var session = TestUsers.signedIn(f.bia, null);
+
+        MvcTestResult result = mvc.post()
+                .uri("/v1/me/export")
+                .header(HttpHeaders.ORIGIN, "http://localhost:5173")
+                .with(session)
+                .with(CsrfSession.start(mvc, session))
+                .exchange();
+
+        assertThat(result).hasStatusOk();
+        assertThat(result.getResponse().getHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS))
+                .contains("Content-Disposition");
+    }
+
+    @Test
     void myExportHasMyData() {
         Family f = family();
 

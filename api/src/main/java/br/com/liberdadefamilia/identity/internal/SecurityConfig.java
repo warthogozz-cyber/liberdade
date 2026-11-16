@@ -228,7 +228,7 @@ class SecurityConfig {
         config.setAllowedOrigins(List.of(origin));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Content-Type", CSRF_HEADER, "Idempotency-Key"));
-        config.setExposedHeaders(List.of("Retry-After"));
+        config.setExposedHeaders(List.of("Retry-After", "Content-Disposition"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
         var source = new UrlBasedCorsConfigurationSource();
