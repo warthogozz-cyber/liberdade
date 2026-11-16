@@ -67,6 +67,28 @@ class AccountRepository {
                 .single();
     }
 
+    /** The currency of the family's first account, which is the one its wallet was born with. */
+    Optional<Currency> firstCurrency(UUID workspaceId) {
+        return jdbc.sql(
+                        "select currency from accounts where workspace_id = :workspaceId order by created_at, id limit 1")
+                .param("workspaceId", workspaceId)
+                .query(String.class)
+                .optional()
+                .map(Currency::getInstance);
+    }
+
+    /** Whether an active account of the family already has this name. */
+    boolean activeNameTaken(UUID workspaceId, String name) {
+        return jdbc.sql("""
+                        select exists (
+                            select 1 from accounts
+                            where workspace_id = :workspaceId and name = :name and archived_at is null)""")
+                .param("workspaceId", workspaceId)
+                .param("name", name)
+                .query(Boolean.class)
+                .single();
+    }
+
     /** Every account of the family: the active ones first, then the archived, each group by name and id. */
     List<AccountView> allWithBalances(UUID workspaceId) {
         return jdbc.sql(SELECT_WITH_BALANCE + """

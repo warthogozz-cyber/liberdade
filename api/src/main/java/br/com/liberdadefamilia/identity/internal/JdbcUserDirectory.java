@@ -19,6 +19,14 @@ class JdbcUserDirectory implements UserDirectory {
     }
 
     @Override
+    public UUID createPasskeyOnlyUser(String displayName) {
+        return jdbc.sql("insert into users (display_name) values (:displayName) returning id")
+                .param("displayName", displayName)
+                .query(UUID.class)
+                .single();
+    }
+
+    @Override
     public Map<UUID, UserSummary> findAll(Collection<UUID> userIds) {
         if (userIds.isEmpty()) {
             return Map.of();

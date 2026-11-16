@@ -8,7 +8,7 @@ import {
 } from '@/shared/api'
 import { centsToApi, MAX_CENTS, parseCents } from '@/shared/money'
 import type { components } from '@/shared/api/schema'
-import { createFamily, type MockAccount, mockState } from './data'
+import { createFamily, type MockAccount, type MockInvitation, mockState } from './data'
 
 type Schemas = components['schemas']
 
@@ -43,6 +43,17 @@ interface FieldError {
 }
 
 /** A problem answer, shaped like the API's (`application/problem+json`), with any extra properties. */
+const INVITE_ROLES: unknown[] = ['OWNER', 'ADULT', 'YOUTH', 'VIEWER']
+const roleDenied = () => problem(403, 'auth.forbidden', 'Você não tem permissão para isso.')
+const invitationNotFound = () => problem(404, 'invitation.not-found', 'Convite não encontrado.')
+const invitationGoneProblem = () =>
+  problem(410, 'invitation.gone', 'Este convite já foi usado, cancelado ou venceu.')
+
+/** A link is gone once used, cancelled or past its date. */
+function invitationGone(invitation: MockInvitation): boolean {
+  return invitation.status !== 'PENDING' || Date.parse(invitation.view.expiresAt) <= Date.now()
+}
+
 function lastOwner() {
   return problem(422, 'member.last-owner', 'A família precisa de pelo menos uma Dona ou Dono.')
 }
@@ -646,6 +657,143 @@ export const handlers = [
       member.status = 'REMOVED'
     }
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get(url('/v1/workspaces/:ws/invitations'), ({ params }) => {
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER' && workspace.role !== 'ADULT') return roleDenied()
+    return HttpResponse.json(
+      mockState.invitations
+        .filter(
+          (invitation) => invitation.workspaceId === workspace.id && !invitationGone(invitation),
+        )
+        .map((invitation) => ({ ...invitation.view, token: undefined })),
+    )
+  }),
+
+  http.post(url('/v1/workspaces/:ws/invitations'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER' && workspace.role !== 'ADULT') return roleDenied()
+    const body = (await readJson(request)) as
+      { role?: unknown; nickname?: unknown; parentalConsent?: unknown } | undefined
+    if (typeof body !== 'object' || body === null) return malformed()
+    const nickname = typeof body.nickname === 'string' ? body.nickname.trim() : ''
+    const errors: FieldError[] = []
+    if (!INVITE_ROLES.includes(body.role)) errors.push({ field: 'role', code: 'invalid' })
+    if (nickname === '' || nickname.length > MAX_NAME_LENGTH) {
+      errors.push({ field: 'nickname', code: 'invalid' })
+    }
+    if (errors.length > 0) return invalid(errors)
+    const role = body.role as Schemas['InvitationView']['role']
+    if (role === 'OWNER' && workspace.role !== 'OWNER') {
+      return problem(
+        403,
+        'invitation.role-forbidden',
+        'Só quem é Dona ou Dono pode convidar outra Dona ou Dono.',
+      )
+    }
+    if (role === 'YOUTH' && body.parentalConsent !== true) {
+      return rejected(
+        'invitation.parental-consent-required',
+        'Para convidar um Jovem, é preciso o consentimento do responsável.',
+      )
+    }
+    const creator = mockState.members[workspace.id]?.find(
+      (member) => member.id === workspace.membershipId,
+    )
+    const token = crypto.randomUUID().replaceAll('-', '') + crypto.randomUUID().replaceAll('-', '')
+    const view: Schemas['InvitationView'] = {
+      id: crypto.randomUUID(),
+      role,
+      nickname,
+      kind: 'INVITE',
+      expiresAt: new Date(Date.now() + 7 * DAY).toISOString(),
+      createdByName: creator?.nickname ?? creator?.displayName ?? null,
+      token: null,
+    }
+    mockState.invitations.push({ view, token, status: 'PENDING', workspaceId: workspace.id })
+    workspace.familyInvited = true
+    return HttpResponse.json({ ...view, token }, { status: 201 })
+  }),
+
+  http.delete(url('/v1/workspaces/:ws/invitations/:id'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER' && workspace.role !== 'ADULT') return roleDenied()
+    const invitation = mockState.invitations.find(
+      (candidate) => candidate.workspaceId === workspace.id && candidate.view.id === params.id,
+    )
+    if (!invitation) return invitationNotFound()
+    // A link already used or cancelled stays as it is.
+    if (invitation.status === 'PENDING') invitation.status = 'REVOKED'
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post(url('/v1/invitations/preview'), async ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const body = (await readJson(request)) as { token?: unknown } | undefined
+    if (typeof body !== 'object' || body === null || typeof body.token !== 'string') {
+      return malformed()
+    }
+    const invitation = mockState.invitations.find((candidate) => candidate.token === body.token)
+    if (!invitation) return invitationNotFound()
+    if (invitationGone(invitation)) return invitationGoneProblem()
+    const workspace = mockState.workspaces.find(
+      (candidate) => candidate.id === invitation.workspaceId,
+    )
+    return HttpResponse.json({
+      workspaceName: workspace?.name ?? '',
+      invitedBy: invitation.view.createdByName,
+      role: invitation.view.role,
+      nickname: invitation.view.nickname,
+      kind: invitation.view.kind,
+    })
+  }),
+
+  http.post(url('/v1/invitations/accept'), async ({ request }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const body = (await readJson(request)) as
+      { token?: unknown; newUser?: { displayName?: unknown } } | undefined
+    if (typeof body !== 'object' || body === null || typeof body.token !== 'string') {
+      return malformed()
+    }
+    const invitation = mockState.invitations.find((candidate) => candidate.token === body.token)
+    if (!invitation) return invitationNotFound()
+    if (invitationGone(invitation)) return invitationGoneProblem()
+    const workspaceId = invitation.workspaceId
+    const members = (mockState.members[workspaceId] ??= [])
+    const signedIn = mockState.signedIn
+    let displayName = mockState.user.displayName
+    if (!signedIn) {
+      const named = body.newUser?.displayName
+      if (typeof named !== 'string' || named.trim() === '') {
+        return rejected(
+          'invitation.new-user-required',
+          'Diga como você se chama para entrar na família.',
+        )
+      }
+      displayName = named.trim()
+    } else if (members.some((member) => member.you && member.status === 'ACTIVE')) {
+      return problem(409, 'invitation.already-member', 'Você já faz parte desta família.')
+    }
+    const membershipId = crypto.randomUUID()
+    members.push({
+      id: membershipId,
+      displayName,
+      nickname: invitation.view.nickname,
+      role: invitation.view.role,
+      status: 'ACTIVE',
+      you: false,
+      passkeyOnly: true,
+      joinedAt: new Date().toISOString(),
+    })
+    invitation.status = 'USED'
+    if (!signedIn) mockState.signedIn = true
+    return HttpResponse.json({ workspaceId, membershipId, mustRegisterPasskey: !signedIn })
   }),
 
   http.post(url('/v1/me/getting-started/dismiss'), ({ request }) => {

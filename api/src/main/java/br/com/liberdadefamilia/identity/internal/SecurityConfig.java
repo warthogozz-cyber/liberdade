@@ -84,6 +84,9 @@ class SecurityConfig {
                                 "/actuator/health",
                                 "/actuator/health/**",
                                 "/v1/csrf",
+                                // Whoever holds the link may look at it and take it, signed in or not.
+                                "/v1/invitations/preview",
+                                "/v1/invitations/accept",
                                 "/v3/api-docs",
                                 "/v3/api-docs/**",
                                 "/error")

@@ -6,6 +6,14 @@ type Schemas = components['schemas']
 /** An account as stored; its balance is worked out from the transactions. */
 export type MockAccount = Omit<Schemas['AccountView'], 'balance'>
 
+/** A link as stored: the secret stays here, and only the answer that creates it shows it. */
+export interface MockInvitation {
+  view: Schemas['InvitationView']
+  token: string
+  status: 'PENDING' | 'USED' | 'REVOKED'
+  workspaceId: string
+}
+
 export interface MockState {
   /** `false` makes every `/v1` route but `/v1/csrf` answer 401 `auth.required`. */
   signedIn: boolean
@@ -22,6 +30,8 @@ export interface MockState {
   deletedTransactionIds: Set<string>
   /** The family's people by workspace id, in list order; the caller's own row is the one whose id is the membershipId. */
   members: Record<string, Schemas['MemberView'][]>
+  /** Every link made, whatever became of it, in creation order. */
+  invitations: MockInvitation[]
 }
 
 // The seed of LedgerSeeder.java: same emojis, names and order.
@@ -65,6 +75,7 @@ function initialState(): MockState {
     transactions: [],
     deletedTransactionIds: new Set(),
     members: {},
+    invitations: [],
   }
 }
 

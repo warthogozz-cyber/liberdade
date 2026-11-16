@@ -20,6 +20,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/invitations/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["acceptInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invitations/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me": {
         parameters: {
             query?: never;
@@ -228,6 +260,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listInvitations"];
+        put?: never;
+        post: operations["createInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/invitations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revokeInvitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/members": {
         parameters: {
             query?: never;
@@ -312,6 +376,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AcceptInvitationRequest: {
+            newUser?: components["schemas"]["NewUser"];
+            token: string;
+        };
+        AcceptedInvitation: {
+            /** Format: uuid */
+            membershipId: string;
+            mustRegisterPasskey: boolean;
+            /** Format: uuid */
+            workspaceId: string;
+        };
         AccountView: {
             /** Format: date-time */
             archivedAt: string | null;
@@ -359,6 +434,12 @@ export interface components {
             /** Format: uuid */
             parentId?: string | null;
         };
+        CreateInvitationRequest: {
+            nickname: string;
+            parentalConsent?: boolean | null;
+            /** @enum {string} */
+            role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
+        };
         CreateTransactionRequest: {
             /** Format: uuid */
             accountId: string;
@@ -402,6 +483,28 @@ export interface components {
             income: components["schemas"]["Money"];
             month: string;
             result: components["schemas"]["Money"];
+        };
+        InvitationPreview: {
+            invitedBy: string | null;
+            /** @enum {string} */
+            kind: "INVITE" | "RECOVERY";
+            nickname: string | null;
+            /** @enum {string} */
+            role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
+            workspaceName: string;
+        };
+        InvitationView: {
+            createdByName: string | null;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "INVITE" | "RECOVERY";
+            nickname: string | null;
+            /** @enum {string} */
+            role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
+            token: string | null;
         };
         MeUser: {
             displayName: string;
@@ -449,6 +552,12 @@ export interface components {
             amount: string;
             /** @example BRL */
             currency: string;
+        };
+        NewUser: {
+            displayName: string;
+        } | null;
+        PreviewInvitationRequest: {
+            token: string;
         };
         RenameWorkspaceRequest: {
             name: string;
@@ -542,6 +651,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CsrfTokenView"];
+                };
+            };
+        };
+    };
+    acceptInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedInvitation"];
+                };
+            };
+        };
+    };
+    previewInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationPreview"];
                 };
             };
         };
@@ -913,6 +1070,78 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DashboardView"];
                 };
+            };
+        };
+    };
+    listInvitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationView"][];
+                };
+            };
+        };
+    };
+    createInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationView"];
+                };
+            };
+        };
+    };
+    revokeInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

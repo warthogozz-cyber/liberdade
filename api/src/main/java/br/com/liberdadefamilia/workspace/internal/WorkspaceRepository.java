@@ -5,9 +5,11 @@ import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
@@ -26,10 +28,12 @@ class WorkspaceRepository {
 
     private final JdbcClient jdbc;
     private final FamilyActivity activity;
+    private final Clock clock;
 
-    WorkspaceRepository(JdbcClient jdbc, FamilyActivity activity) {
+    WorkspaceRepository(JdbcClient jdbc, FamilyActivity activity, Clock clock) {
         this.jdbc = jdbc;
         this.activity = activity;
+        this.clock = clock;
     }
 
     /**
@@ -96,8 +100,12 @@ class WorkspaceRepository {
         List<MeRow> rows = jdbc.sql("""
                         select w.id, w.name, m.role, m.id as membership_id, w.timezone, w.base_currency,
                                m.getting_started_dismissed_at,
-                               (select count(*) from memberships o
-                                where o.workspace_id = w.id and o.status = 'ACTIVE') >= 2 as family_invited
+                               ((select count(*) from memberships o
+                                 where o.workspace_id = w.id and o.status = 'ACTIVE') >= 2
+                                or exists (select 1 from invitations i
+                                           where i.workspace_id = w.id and i.kind = 'INVITE'
+                                             and i.used_at is null and i.revoked_at is null
+                                             and i.expires_at > :now)) as family_invited
                         from memberships m
                         join workspaces w on w.id = m.workspace_id
                         where m.user_id = :userId
@@ -107,6 +115,7 @@ class WorkspaceRepository {
                         order by m.created_at, m.id""")
                 .param("userId", userId)
                 .param("workspaceId", workspaceId)
+                .param("now", OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC))
                 .query((rs, row) -> toRow(rs))
                 .list();
         Set<UUID> withTransactions =

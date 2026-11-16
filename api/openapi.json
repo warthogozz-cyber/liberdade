@@ -30,6 +30,66 @@
         ]
       }
     },
+    "/v1/invitations/accept": {
+      "post": {
+        "operationId": "acceptInvitation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedInvitation"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "public-invitation-controller"
+        ]
+      }
+    },
+    "/v1/invitations/preview": {
+      "post": {
+        "operationId": "previewInvitation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewInvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationPreview"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "public-invitation-controller"
+        ]
+      }
+    },
     "/v1/me": {
       "get": {
         "operationId": "me",
@@ -616,6 +676,115 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/invitations": {
+      "get": {
+        "operationId": "listInvitations",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "invitation-controller"
+        ]
+      },
+      "post": {
+        "operationId": "createInvitation",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationView"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "invitation-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/invitations/{id}": {
+      "delete": {
+        "operationId": "revokeInvitation",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "invitation-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/members": {
       "get": {
         "operationId": "listMembers",
@@ -985,6 +1154,38 @@
   },
   "components": {
     "schemas": {
+      "AcceptInvitationRequest": {
+        "required": [
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "newUser": {
+            "$ref": "#/components/schemas/NewUser"
+          },
+          "token": {
+            "maxLength": 43,
+            "minLength": 43,
+            "type": "string"
+          }
+        }
+      },
+      "AcceptedInvitation": {
+        "type": "object",
+        "properties": {
+          "membershipId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mustRegisterPasskey": {
+            "type": "boolean"
+          },
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "AccountView": {
         "type": "object",
         "properties": {
@@ -1160,6 +1361,34 @@
           }
         }
       },
+      "CreateInvitationRequest": {
+        "required": [
+          "nickname",
+          "role"
+        ],
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string"
+          },
+          "parentalConsent": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "ADULT",
+              "YOUTH",
+              "VIEWER"
+            ]
+          }
+        }
+      },
       "CreateTransactionRequest": {
         "required": [
           "accountId",
@@ -1301,6 +1530,79 @@
           }
         }
       },
+      "InvitationPreview": {
+        "type": "object",
+        "properties": {
+          "invitedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INVITE",
+              "RECOVERY"
+            ]
+          },
+          "nickname": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "ADULT",
+              "YOUTH",
+              "VIEWER"
+            ]
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        }
+      },
+      "InvitationView": {
+        "type": "object",
+        "properties": {
+          "createdByName": {
+            "type": "string",
+            "nullable": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INVITE",
+              "RECOVERY"
+            ]
+          },
+          "nickname": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "ADULT",
+              "YOUTH",
+              "VIEWER"
+            ]
+          },
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "MeUser": {
         "type": "object",
         "properties": {
@@ -1436,6 +1738,34 @@
             "pattern": "^[A-Z]{3}$",
             "type": "string",
             "example": "BRL"
+          }
+        }
+      },
+      "NewUser": {
+        "required": [
+          "displayName"
+        ],
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "maxLength": 200,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string"
+          }
+        },
+        "nullable": true
+      },
+      "PreviewInvitationRequest": {
+        "required": [
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "maxLength": 43,
+            "minLength": 43,
+            "type": "string"
           }
         }
       },
