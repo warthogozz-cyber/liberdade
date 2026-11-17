@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ConfirmDialog } from '@/shared/ui'
+import { ConfirmDialog } from './ConfirmDialog'
 
 // Unmounting closes the dialog before the next test.
 afterEach(cleanup)

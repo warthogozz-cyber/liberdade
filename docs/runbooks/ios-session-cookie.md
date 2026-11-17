@@ -37,7 +37,7 @@ com Google e sem o cookie de sessão.
 
 ## Onde anotar
 
-No PR do Plano 5 que põe o staging no ar, em um comentário com uma linha por medição, com:
+No PR 3 do Plano 5 (o que fecha o lançamento), em um comentário com uma linha por medição, com:
 
 - o modelo do aparelho e a versão do iOS;
 - a data e a hora;

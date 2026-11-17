@@ -1,6 +1,8 @@
 import { client, unwrap } from './client'
 import type {
+  AcceptDocumentsRequest,
   AccountView,
+  DocumentStatus,
   CreateAccountRequest,
   UpdateAccountRequest,
   CategoryKind,
@@ -19,6 +21,16 @@ import type {
 
 export function getMe(): Promise<MeView> {
   return unwrap(client.GET('/v1/me'))
+}
+
+/** The terms and the privacy policy, each with the version in force and the one the person accepted. */
+export function listDocuments(): Promise<DocumentStatus[]> {
+  return unwrap(client.GET('/v1/me/documents'))
+}
+
+/** Accepts both documents at these versions. A stale version is a 409 `documents.version-outdated`. */
+export async function acceptDocuments(body: AcceptDocumentsRequest): Promise<void> {
+  await unwrap(client.POST('/v1/me/documents/accept', { body }))
 }
 
 /** Closes the getting-started card for the signed-in member. A repeat keeps the first date. */

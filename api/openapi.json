@@ -211,6 +211,52 @@
         ]
       }
     },
+    "/v1/me/documents": {
+      "get": {
+        "operationId": "listMyDocuments",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentStatus"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "document-controller"
+        ]
+      }
+    },
+    "/v1/me/documents/accept": {
+      "post": {
+        "operationId": "acceptDocuments",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptDocumentsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "document-controller"
+        ]
+      }
+    },
     "/v1/me/export": {
       "post": {
         "operationId": "exportMyData",
@@ -262,6 +308,52 @@
         },
         "tags": [
           "getting-started-controller"
+        ]
+      }
+    },
+    "/v1/me/passkeys": {
+      "get": {
+        "operationId": "listMyPasskeys",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PasskeyView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "passkey-controller"
+        ]
+      }
+    },
+    "/v1/me/passkeys/{id}": {
+      "delete": {
+        "operationId": "removePasskey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "passkey-controller"
         ]
       }
     },
@@ -1604,6 +1696,23 @@
   },
   "components": {
     "schemas": {
+      "AcceptDocumentsRequest": {
+        "required": [
+          "privacy",
+          "terms"
+        ],
+        "type": "object",
+        "properties": {
+          "privacy": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "terms": {
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      },
       "AcceptInvitationRequest": {
         "required": [
           "token"
@@ -2080,6 +2189,31 @@
           }
         }
       },
+      "DocumentStatus": {
+        "type": "object",
+        "properties": {
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "acceptedVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "currentVersion": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "TERMS",
+              "PRIVACY",
+              "PARENTAL"
+            ]
+          }
+        }
+      },
       "InvitationPreview": {
         "type": "object",
         "properties": {
@@ -2337,6 +2471,26 @@
           }
         },
         "nullable": true
+      },
+      "PasskeyView": {
+        "type": "object",
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
       },
       "PreviewInvitationRequest": {
         "required": [

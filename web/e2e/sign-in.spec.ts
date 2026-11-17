@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './support.ts'
 
 test('sends a visitor without a session to the sign-in screen', async ({ page }) => {
   await page.goto('/')

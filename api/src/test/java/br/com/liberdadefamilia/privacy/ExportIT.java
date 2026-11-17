@@ -106,6 +106,27 @@ class ExportIT {
     }
 
     @Test
+    void exportIncludesAcceptedDocuments() {
+        Family f = family();
+        jdbc.sql("""
+                        insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
+                        values (:user, null, 'TERMS', 'terms-2026-11', :user),
+                               (:user, null, 'PRIVACY', 'privacy-2026-11', :user)""").param("user", f.bia).update();
+
+        String json = text(unzip(exportMine(f.bia)).get("dados.json"));
+
+        assertThat(JsonPath.<List<?>>read(json, "$.consents")).hasSize(2);
+        assertThat(JsonPath.<List<String>>read(json, "$.consents[*].purpose"))
+                .containsExactlyInAnyOrder("TERMS", "PRIVACY");
+        assertThat(JsonPath.<List<String>>read(json, "$.consents[*].documentVersion"))
+                .containsExactlyInAnyOrder("terms-2026-11", "privacy-2026-11");
+        assertThat(JsonPath.<List<Object>>read(json, "$.consents[*].workspaceId"))
+                .containsOnlyNulls();
+        assertThat(JsonPath.<List<Object>>read(json, "$.consents[*].familyName"))
+                .containsOnlyNulls();
+    }
+
+    @Test
     void myExportHasOnlyMyTransactions() {
         Family f = family();
 

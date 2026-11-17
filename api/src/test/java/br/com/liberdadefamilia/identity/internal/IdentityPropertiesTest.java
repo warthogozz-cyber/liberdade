@@ -17,17 +17,39 @@ class IdentityPropertiesTest {
     @EnableConfigurationProperties(IdentityProperties.class)
     static class Properties {}
 
+    /** The relying party is the host of the origin, which is always consistent with it. */
     private static ApplicationContextRunner withOrigin(String origin) {
+        return withOriginAndRpId(origin, origin.replaceFirst("^[a-z]+://", "").replaceFirst("[:/].*$", ""));
+    }
+
+    private static ApplicationContextRunner withOriginAndRpId(String origin, String rpId) {
         return new ApplicationContextRunner()
                 .withUserConfiguration(Properties.class)
                 .withPropertyValues(
                         "liberdade.web.origin=" + origin,
-                        "liberdade.webauthn.rp-id=localhost",
+                        "liberdade.webauthn.rp-id=" + rpId,
                         "liberdade.webauthn.rp-name=Liberdade");
     }
 
+    @Test
+    void acceptsProductionOrigin() {
+        withOrigin("https://app.liberdadefamilia.com.br")
+                .run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
+    void acceptsLocalhost() {
+        withOrigin("http://localhost:5173").run(context -> assertThat(context).hasNotFailed());
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = {"http://localhost:5173", "https://app.example.com", "https://app.example.com:8443"})
+    @ValueSource(
+            strings = {
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "https://app.example.com",
+                "https://app.example.com:8443"
+            })
     void acceptsSchemeHostAndPort(String origin) {
         withOrigin(origin).run(context -> {
             assertThat(context).hasNotFailed();
@@ -44,9 +66,15 @@ class IdentityPropertiesTest {
                 "https://app.example.com/",
                 "https://app.example.com/app",
                 "app.example.com",
-                "ftp://app.example.com"
+                "ftp://app.example.com",
+                "http://a@b",
+                "https://user@app.example.com",
+                "http://app.example.com",
+                "https://APP.example.com",
+                "https://app.example.com?x=1",
+                "https://app.example.com#top"
             })
-    void rejectsBlankTrailingSlashOrPath(String origin) {
+    void rejectsBadOrigins(String origin) {
         withOrigin(origin).run(context -> {
             assertThat(context).hasFailed();
             assertThat(context.getStartupFailure())
@@ -54,6 +82,21 @@ class IdentityPropertiesTest {
                     .isInstanceOf(BindValidationException.class)
                     .hasMessageContaining("liberdade.web.origin");
         });
+    }
+
+    @Test
+    void rejectsRpIdOutsideOrigin() {
+        withOriginAndRpId("https://app.example.com", "other.example.com").run(context -> {
+            assertThat(context).hasFailed();
+            assertThat(context.getStartupFailure())
+                    .rootCause()
+                    .isInstanceOf(BindValidationException.class)
+                    .hasMessageContaining("rpIdWithinOrigin");
+        });
+        withOriginAndRpId("https://app.example.com", "example.com")
+                .run(context -> assertThat(context).hasNotFailed());
+        withOriginAndRpId("https://app.example.com", "pp.example.com")
+                .run(context -> assertThat(context).hasFailed());
     }
 
     @ParameterizedTest

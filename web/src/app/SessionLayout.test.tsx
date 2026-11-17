@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
-import { http } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
 import { useRoutes } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { routes } from '@/app/routes'
-import { mockState, seedMockFamily } from '@/mocks/data'
+import { mockState, seedMockFamily, seedPendingDocuments } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
@@ -18,6 +18,49 @@ const ID = '0192f3a4-5b6c-7d8e-9f01-23456789abcd'
 function App() {
   return useRoutes(routes)
 }
+
+describe('SessionLayout documents', () => {
+  it('gateWhenPending', async () => {
+    seedMockFamily()
+    seedPendingDocuments()
+    renderWithProviders(<App />, { path: '/*', route: '/inicio' })
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Antes de começar' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('navigation', { name: 'Navegação principal' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('opensTheScreensWhileTheDocumentsLoad', async () => {
+    seedMockFamily()
+    seedPendingDocuments()
+    server.use(
+      http.get(`${API_URL}/v1/me/documents`, async () => {
+        await delay('infinite')
+      }),
+    )
+    renderWithProviders(<App />, { path: '/*', route: '/inicio' })
+
+    expect(
+      await screen.findByRole('navigation', { name: 'Navegação principal' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Antes de começar')).not.toBeInTheDocument()
+  })
+
+  it('noGateWhenOffline', async () => {
+    seedMockFamily()
+    seedPendingDocuments()
+    server.use(http.get(`${API_URL}/v1/me/documents`, () => HttpResponse.error()))
+    renderWithProviders(<App />, { path: '/*', route: '/inicio' })
+
+    expect(
+      await screen.findByRole('navigation', { name: 'Navegação principal' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Antes de começar')).not.toBeInTheDocument()
+  })
+})
 
 describe('SessionLayout', () => {
   it('sends the user’s overdue queued expense once a screen opens', async () => {

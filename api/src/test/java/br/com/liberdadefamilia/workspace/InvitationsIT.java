@@ -415,6 +415,60 @@ class InvitationsIT {
     }
 
     @Test
+    void sameCallerRetryGetsSameResult() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        UUID ws = workspaces.createFor(ana);
+        String token = tokenOf(createInvitation(ana, ws, ADULT_BODY));
+
+        MvcTestResult first = accept(token, null, bia);
+        MvcTestResult retry = accept(token, null, bia);
+
+        assertThat(first).hasStatusOk();
+        assertThat(retry).hasStatusOk();
+        assertThat(retry).bodyJson().extractingPath("$.workspaceId").isEqualTo(ws.toString());
+        assertThat(retry)
+                .bodyJson()
+                .extractingPath("$.membershipId")
+                .isEqualTo(workspaces.membershipOf(ws, bia).toString());
+        assertThat(memberships(ws, bia)).isOne();
+        assertThat(recorded.events()).filteredOn(MemberJoined.class::isInstance).hasSize(1);
+    }
+
+    @Test
+    void otherCallerAfterUseGets410() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        UUID carla = users.create("Carla Teste", "carla@example.com");
+        UUID ws = workspaces.createFor(ana);
+        String token = tokenOf(createInvitation(ana, ws, ADULT_BODY));
+        assertThat(accept(token, null, bia)).hasStatusOk();
+
+        MvcTestResult other = accept(token, null, carla);
+
+        assertThat(other).hasStatus(410);
+        assertThat(other).bodyJson().extractingPath("$.code").isEqualTo("invitation.gone");
+        assertThat(memberships(ws, carla)).isZero();
+    }
+
+    @Test
+    void removedMemberRetryGets410() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        UUID ws = workspaces.createFor(ana);
+        String token = tokenOf(createInvitation(ana, ws, ADULT_BODY));
+        assertThat(accept(token, null, bia)).hasStatusOk();
+        jdbc.sql("update memberships set status = 'REMOVED' where id = :id")
+                .param("id", workspaces.membershipOf(ws, bia))
+                .update();
+
+        MvcTestResult retry = accept(token, null, bia);
+
+        assertThat(retry).hasStatus(410);
+        assertThat(retry).bodyJson().extractingPath("$.code").isEqualTo("invitation.gone");
+    }
+
+    @Test
     void memberCannotAcceptAgain() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         UUID bia = users.create("Bia Teste", "bia@example.com");

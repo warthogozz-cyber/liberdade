@@ -43,8 +43,31 @@ export interface MockState {
   modules: Record<string, Partial<Record<Schemas['ModuleView']['key'], boolean>>>
   /** The signed-in person's own history, newest first (LGPD audit trail). */
   activity: Schemas['ActivityItem'][]
+  /** The signed-in person's own passkeys, newest first. */
+  passkeys: Schemas['PasskeyView'][]
+  /** Whether the person also signs in with Google; without it, the last passkey cannot be removed. */
+  hasGoogle: boolean
   /** The consents the signed-in person gave or received, newest first. */
   consents: MockConsent[]
+  /** The versions of the terms and the privacy policy in force. */
+  currentDocuments: Record<'TERMS' | 'PRIVACY', string>
+  /** The versions the signed-in person accepted; null while a document is still pending. */
+  acceptedDocuments: Record<'TERMS' | 'PRIVACY', { version: string; at: string } | null>
+}
+
+/** The versions in force, the same as LegalDocuments.java. */
+const CURRENT_DOCUMENTS: MockState['currentDocuments'] = {
+  TERMS: 'terms-2026-11',
+  PRIVACY: 'privacy-2026-11',
+}
+
+/** The person starts with both documents accepted, so previews open straight into the app. */
+function acceptedDocuments(): MockState['acceptedDocuments'] {
+  const at = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  return {
+    TERMS: { version: CURRENT_DOCUMENTS.TERMS, at },
+    PRIVACY: { version: CURRENT_DOCUMENTS.PRIVACY, at },
+  }
 }
 
 // The seed of LedgerSeeder.java: same emojis, names and order.
@@ -109,6 +132,20 @@ function initialActivity(): Schemas['ActivityItem'][] {
   ]
 }
 
+/** Two passkeys, so the list shows a removal that is allowed. */
+function initialPasskeys(): Schemas['PasskeyView'][] {
+  const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+  return [
+    {
+      id: 'mock-passkey-notebook',
+      label: 'Notebook',
+      createdAt: daysAgo(3),
+      lastUsedAt: daysAgo(1),
+    },
+    { id: 'mock-passkey-celular', label: 'Celular', createdAt: daysAgo(20), lastUsedAt: null },
+  ]
+}
+
 /** Ana vouched for a youth: she can take the consent back. */
 function initialConsents(): MockConsent[] {
   return [
@@ -149,7 +186,11 @@ function initialState(): MockState {
     invitations: [],
     modules: {},
     activity: initialActivity(),
+    passkeys: initialPasskeys(),
+    hasGoogle: true,
     consents: initialConsents(),
+    currentDocuments: { ...CURRENT_DOCUMENTS },
+    acceptedDocuments: acceptedDocuments(),
   }
 }
 
@@ -158,6 +199,11 @@ export const mockState: MockState = initialState()
 
 export function resetMockData(): void {
   Object.assign(mockState, initialState())
+}
+
+/** The `pendingDocuments` scenario: the person has accepted neither document, so the acceptance screen shows. */
+export function seedPendingDocuments(): void {
+  mockState.acceptedDocuments = { TERMS: null, PRIVACY: null }
 }
 
 /** Seeds a pending INVITE link to another family, as an Owner of it would have made. */

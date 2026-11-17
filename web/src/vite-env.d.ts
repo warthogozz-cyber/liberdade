@@ -6,6 +6,10 @@ interface ImportMetaEnv {
   readonly VITE_API_URL?: string
   /** 'true' starts the MSW worker before the first render (`corepack pnpm dev:mocks`). */
   readonly VITE_API_MOCKS?: string
+  /** Who controls the data, shown in the privacy policy; empty or unset uses the default. */
+  readonly VITE_PRIVACY_CONTROLLER?: string
+  /** The privacy contact e-mail, shown in the policy and the terms; empty or unset uses the default. */
+  readonly VITE_PRIVACY_CONTACT?: string
 }
 
 interface ImportMeta {

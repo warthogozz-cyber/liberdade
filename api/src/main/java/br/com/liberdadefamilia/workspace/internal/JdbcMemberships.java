@@ -165,6 +165,12 @@ class JdbcMemberships implements Memberships {
     @Override
     @Transactional
     public void detachUser(UUID userId) {
+        // The lock order of the whole app: the user's row first (the caller holds it), then memberships by id. The
+        // update below would take its rows in the order of the table, so they are locked in id order beforehand.
+        jdbc.sql("select id from memberships where user_id = :userId order by id for update")
+                .param("userId", userId)
+                .query(UUID.class)
+                .list();
         List<MemberSummary> ended = jdbc.sql("""
                         update memberships
                         set status = 'REMOVED', updated_at = now(), version = version + 1

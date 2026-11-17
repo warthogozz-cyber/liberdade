@@ -209,6 +209,10 @@ class InvitationService {
                 .lockByHash(InvitationTokens.hash(request.token()))
                 .orElseThrow(InvitationNotFoundException::new);
         Instant now = clock.instant();
+        Optional<AcceptResult> repeated = repeatedAccept(row, caller);
+        if (repeated.isPresent()) {
+            return repeated.get();
+        }
         if (row.isGone(now) || !creatorStillMayBringIn(row)) {
             throw new InvitationGoneException();
         }
@@ -243,7 +247,7 @@ class InvitationService {
         } else {
             membershipId = members.insert(row.workspaceId(), userId, row.role(), row.nickname(), consentAt, consentBy);
         }
-        invitations.markUsed(row.id(), now);
+        invitations.markUsed(row.id(), userId, now);
         events.publishEvent(
                 new MemberJoined(row.workspaceId(), membershipId, userId, row.role(), row.nickname(), consentBy));
         boolean created = caller.isEmpty();
@@ -251,6 +255,25 @@ class InvitationService {
                 new AcceptedInvitation(row.workspaceId(), membershipId, created),
                 created ? userId : null,
                 SignInMethod.INVITATION);
+    }
+
+    /**
+     * The answer of the first accept, for the person who took an INVITE link and asks again with their session (a lost
+     * response, a double tap). It only holds while they are still an active member; anyone else, or a member who has
+     * been removed since, finds the link gone. Nothing is written and nothing is published. The caller already has a
+     * session, so no passkey is asked for.
+     */
+    private Optional<AcceptResult> repeatedAccept(InvitationRow row, Optional<CurrentUser> caller) {
+        if (!row.used()
+                || row.kind() != InvitationKind.INVITE
+                || caller.isEmpty()
+                || !caller.get().id().equals(row.usedBy())) {
+            return Optional.empty();
+        }
+        return members.findByUser(row.workspaceId(), caller.get().id())
+                .filter(member -> member.status() == MembershipStatus.ACTIVE)
+                .map(member -> new AcceptResult(
+                        new AcceptedInvitation(row.workspaceId(), member.id(), false), null, SignInMethod.INVITATION));
     }
 
     /** Whether the person signs in with Google: a YOUTH signs in only with a passkey. */
@@ -292,7 +315,7 @@ class InvitationService {
             throw new InvitationGoneException();
         }
         members.markRecovered(row.workspaceId(), target.id(), now);
-        invitations.markUsed(row.id(), now);
+        invitations.markUsed(row.id(), target.userId(), now);
         events.publishEvent(new RecoveryUsed(row.workspaceId(), target.id(), target.userId()));
         return new AcceptResult(
                 new AcceptedInvitation(row.workspaceId(), target.id(), true), target.userId(), SignInMethod.RECOVERY);

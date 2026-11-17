@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { IntlProvider } from 'react-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { appMessages, locale } from '@/shared/i18n'
-import { Sheet } from '@/shared/ui'
+import { Sheet } from './Sheet'
 
 // Unmounting closes the sheet before the next test.
 afterEach(cleanup)

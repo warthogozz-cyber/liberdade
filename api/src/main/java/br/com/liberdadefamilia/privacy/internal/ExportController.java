@@ -20,7 +20,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 /**
  * The data export: a zip of JSON and spreadsheet-safe CSV. Both routes need a recent sign-in and share a budget of
@@ -51,7 +50,7 @@ class ExportController {
                             description = "An attachment with the file name of the zip.",
                             schema = @Schema(type = "string")),
             content = @Content(mediaType = "application/zip", schema = @Schema(type = "string", format = "binary")))
-    ResponseEntity<StreamingResponseBody> exportMyData(CurrentUser user) {
+    ResponseEntity<byte[]> exportMyData(CurrentUser user) {
         spend(user);
         return zip(service.exportMine(user.id()));
     }
@@ -71,7 +70,7 @@ class ExportController {
                             description = "An attachment with the file name of the zip.",
                             schema = @Schema(type = "string")),
             content = @Content(mediaType = "application/zip", schema = @Schema(type = "string", format = "binary")))
-    ResponseEntity<StreamingResponseBody> exportFamilyData(WorkspaceMember member, CurrentUser user) {
+    ResponseEntity<byte[]> exportFamilyData(WorkspaceMember member, CurrentUser user) {
         spend(user);
         return zip(service.exportFamily(member.workspaceId(), user.id()));
     }
@@ -83,7 +82,7 @@ class ExportController {
         }
     }
 
-    private static ResponseEntity<StreamingResponseBody> zip(ExportService.Archive archive) {
+    private static ResponseEntity<byte[]> zip(ExportService.Archive archive) {
         return ResponseEntity.ok()
                 .contentType(ZIP)
                 .cacheControl(CacheControl.noStore())
@@ -93,6 +92,6 @@ class ExportController {
                                 .filename(archive.filename())
                                 .build()
                                 .toString())
-                .body(archive.body());
+                .body(archive.content());
     }
 }

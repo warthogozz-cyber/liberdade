@@ -6,7 +6,9 @@ import br.com.liberdadefamilia.identity.SignInMethod;
 import br.com.liberdadefamilia.identity.SignedIn;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.time.Clock;
+import java.util.Collections;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
@@ -41,11 +43,17 @@ final class DefaultSessionSignIn implements SessionSignIn {
         } else {
             request.changeSessionId();
         }
+        // Nothing the anonymous session held survives the sign-in. That includes the CSRF token, which the
+        // session-backed repository keeps as an attribute: the next request asks for a new one.
+        HttpSession session = request.getSession();
+        for (String name : Collections.list(session.getAttributeNames())) {
+            session.removeAttribute(name);
+        }
         var authentication = new SessionUserAuthentication(new SessionUser(userId));
         SecurityContext context = new SecurityContextImpl(authentication);
         SecurityContextHolder.getContextHolderStrategy().setContext(context);
         contexts.saveContext(context, request, response);
-        request.getSession().setAttribute(RecentSignInInterceptor.AUTHENTICATED_AT, clock.instant());
+        session.setAttribute(RecentSignInInterceptor.AUTHENTICATED_AT, clock.instant());
         SecurityConfig.signedInIdleTimeout().onAuthentication(authentication, request, response);
         events.publishEvent(new SignedIn(userId, method, DeviceLabel.parse(request.getHeader(HttpHeaders.USER_AGENT))));
     }

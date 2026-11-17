@@ -54,7 +54,7 @@ describe('MorePage', () => {
 
       expect(await screen.findByText(workspace.name)).toBeInTheDocument()
       expect(screen.getByRole('link', { name: 'Módulos' })).toHaveAttribute('href', '/mais/modulos')
-      expect(screen.getByRole('link', { name: 'Privacidade' })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: /^Privacidade$/ })).toHaveAttribute(
         'href',
         '/mais/privacidade',
       )

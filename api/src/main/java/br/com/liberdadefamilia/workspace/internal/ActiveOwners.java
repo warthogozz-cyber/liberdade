@@ -14,7 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
  * The family's active Owners: an active OWNER membership whose person has not asked for their account to be deleted.
  *
  * <p>The rule that a family always keeps one is checked with the Owners' rows locked, so two requests (stepping down,
- * leaving, asking for the account to be deleted) cannot both pass it. The rows are locked in id order, the same order
+ * leaving, asking for the account to be deleted) cannot both pass it. A caller acting for a person has locked that
+ * person's user row before, the lock order of the app (user first, then memberships by id). The rows are locked in id order, the same order
  * for every caller, and who is leaving is read afterwards in a statement of its own: after waiting on the lock, that
  * read sees what the other transaction committed.
  */

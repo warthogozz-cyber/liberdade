@@ -23,6 +23,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 
 class DefaultSessionSignInTest {
 
@@ -64,6 +65,22 @@ class DefaultSessionSignInTest {
                 .isEqualTo(Boolean.TRUE);
         assertThat(events)
                 .containsExactly(new SignedIn(USER_ID, SignInMethod.INVITATION, new DeviceLabel("Edge", "Windows")));
+    }
+
+    @Test
+    void dropsWhatTheAnonymousSessionHeldIncludingTheCsrfToken() {
+        var session = request.getSession();
+        session.setAttribute("anonymous.marker", "x");
+        var csrfRepository = new HttpSessionCsrfTokenRepository();
+        csrfRepository.saveToken(csrfRepository.generateToken(request), request, response);
+        assertThat(csrfRepository.loadToken(request)).isNotNull();
+
+        signIn.signIn(request, response, USER_ID, SignInMethod.INVITATION);
+
+        assertThat(request.getSession().getAttribute("anonymous.marker")).isNull();
+        assertThat(csrfRepository.loadToken(request)).isNull();
+        assertThat(request.getSession().getAttribute(RecentSignInInterceptor.AUTHENTICATED_AT))
+                .isEqualTo(clock.instant());
     }
 
     @Test

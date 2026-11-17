@@ -318,7 +318,7 @@ Referência: **OWASP ASVS 5.0, nível 2**, com checklist revisado a cada release
 | Isolamento | `workspace_id` em toda tabela, FKs compostas, filtro obrigatório e testes entre famílias ([ADR-0008](adr/0008-workspace-isolation.md)). |
 | Limites | Limite de taxa em memória: 20 entradas por minuto por IP; 10 consultas ou aceites de convite por minuto por IP; 20 links (convite ou recuperação) por hora por usuário; 10 exportações por hora por usuário. |
 | Entrada | Bean Validation: valor > 0 e ≤ 999.999.999,99; descrição ≤ 140 caracteres. O React escapa a saída. |
-| Cabeçalhos | Front (Pages, `_headers`): CSP `default-src 'self'`, com `connect-src` só para a origem da API, `frame-ancestors 'none'` e `object-src 'none'`; HSTS de 1 ano; `X-Content-Type-Options: nosniff`; `Referrer-Policy: no-referrer`; `Permissions-Policy` sem câmera, microfone, localização e pagamento. API: cabeçalhos do Spring Security; o Caddy só remove o `Server`. |
+| Cabeçalhos | Front (Pages, `_headers`): CSP `default-src 'self'`, com `script-src 'self'` estrito, `style-src 'self' 'unsafe-inline'` (o Radix injeta `<style>` para travar a rolagem dos diálogos e nonce é impossível em hospedagem estática), `connect-src` só para a origem da API, `frame-ancestors 'none'` e `object-src 'none'`; HSTS de 1 ano; `X-Content-Type-Options: nosniff`; `Referrer-Policy: no-referrer`; `Permissions-Policy` sem câmera, microfone, localização e pagamento. API: cabeçalhos do Spring Security; o Caddy só remove o `Server`. |
 | Proxy | O perfil `prod` confia só na rede do Compose (`172.30.0.0/24`) para o `X-Forwarded-For`, então os limites por IP contam o IP de quem acessa e ninguém falsifica o cabeçalho. |
 | Segredos | SSM Parameter Store (SecureString), lidos no deploy; nunca no repositório. Secret scanning com push protection. |
 | Infra | EC2 sem SSH (SSM Session Manager), IMDSv2 obrigatório, só 80/443 abertos. RDS em sub-rede privada, acessível só pela EC2, com TLS obrigatório. EBS e RDS criptografados com KMS. GitHub → AWS por OIDC, sem chave fixa. |
@@ -332,7 +332,7 @@ Referência: **OWASP ASVS 5.0, nível 2**, com checklist revisado a cada release
   test do deploy.
 - **Logs:** driver `awslogs` do Docker → CloudWatch Logs (nível gratuito), grupos
   `/liberdade/production`, `/liberdade/staging` e `/liberdade/caddy`, retenção de 30 dias, JSON no
-  formato ECS. O Caddy não grava log de acesso, então nenhum IP vai para os logs.
+  formato ECS. O Caddy não grava log de acesso nem de erro HTTP, então nenhum IP vai para os logs.
 - **Alarmes** (e-mail por SNS, nível gratuito): falha de status da EC2 com recuperação automática,
   CPU da EC2 acima de 80% por 15 min, espaço livre do RDS abaixo de 2 GB e créditos de CPU do RDS
   abaixo de 30.

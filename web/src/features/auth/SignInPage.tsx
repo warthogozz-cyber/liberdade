@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { useNavigate, useSearchParams } from 'react-router'
+import { LegalLinks } from '@/features/legal/LegalLinks'
 import { ApiError } from '@/shared/api'
 import { startGoogleSignIn } from '@/shared/auth'
 import { signInWithPasskey } from '@/shared/auth/passkey'
@@ -139,6 +140,7 @@ export function SignInPage() {
       <p className="text-sm text-text-muted">
         <FormattedMessage id="signIn.noPassword" />
       </p>
+      <LegalLinks className="flex flex-col items-center text-sm" />
     </main>
   )
 }

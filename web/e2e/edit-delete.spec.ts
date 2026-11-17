@@ -1,15 +1,17 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import {
   createFamily,
   eraseAmount,
+  expect,
   money,
   newUser,
   notices,
   recordExpense,
   signInWithGoogle,
+  test,
   typeAmount,
-  waitForQueueToEmpty,
   waitForOfflineReady,
+  waitForQueueToEmpty,
 } from './support.ts'
 
 /** A signed-in family with one synced expense of R$ 10,00 in Mercado, on the list. */

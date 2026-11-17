@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { Navigate, Outlet, useNavigate } from 'react-router'
 import { PendingGate } from '@/app/PendingGate'
+import { useDocuments } from '@/features/legal/useDocuments'
 import { ApiError, postTransaction, queryKeys, useMe, type MeView } from '@/shared/api'
 import {
   applySentTransaction,
@@ -11,8 +12,41 @@ import {
   startOutboxSync,
 } from '@/shared/offline'
 
+// The acceptance screen is rare (a new person, or a new version): it loads only when needed.
+const DocumentsGate = lazy(() =>
+  import('@/features/legal/DocumentsGate').then((m) => ({ default: m.DocumentsGate })),
+)
+
 function logCleanupFailure(error: unknown): void {
   console.error('Could not clear the session after another tab changed it', error)
+}
+
+function Loading() {
+  return (
+    <main className="flex min-h-screen items-center justify-center p-6">
+      <p role="status">
+        <FormattedMessage id="common.loading" />
+      </p>
+    </main>
+  )
+}
+
+/**
+ * The family's screens, unless a document waits for the person's accept. Only an answer that says
+ * so puts the gate up. While the documents query is pending, and once it has failed or without a
+ * connection, the screens (`<Outlet/>`) show rather than a loading state, so offline use is never
+ * blocked (D13).
+ */
+function DocumentsGuard() {
+  const { pending } = useDocuments()
+  if (pending && pending.length > 0) {
+    return (
+      <Suspense fallback={<Loading />}>
+        <DocumentsGate />
+      </Suspense>
+    )
+  }
+  return <Outlet />
 }
 
 /**
@@ -61,7 +95,7 @@ export function SessionLayout() {
     return <Navigate to="/entrar" replace />
   }
   // Offline with a cached `me`, the screens open with the cache.
-  if (me.data) return me.data.user.deletionScheduledFor ? <PendingGate /> : <Outlet />
+  if (me.data) return me.data.user.deletionScheduledFor ? <PendingGate /> : <DocumentsGuard />
   if (me.isError) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
@@ -79,11 +113,5 @@ export function SessionLayout() {
     )
   }
   // Also while the saved cache is being restored: nothing redirects until `me` is known.
-  return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <p role="status">
-        <FormattedMessage id="common.loading" />
-      </p>
-    </main>
-  )
+  return <Loading />
 }

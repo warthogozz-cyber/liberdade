@@ -2,6 +2,7 @@ package br.com.liberdadefamilia.audit.internal;
 
 import br.com.liberdadefamilia.audit.AuditEntry;
 import br.com.liberdadefamilia.audit.AuditTrail;
+import br.com.liberdadefamilia.identity.PasskeyRemoved;
 import br.com.liberdadefamilia.identity.SignedIn;
 import br.com.liberdadefamilia.workspace.InvitationCreated;
 import br.com.liberdadefamilia.workspace.InvitationKind;
@@ -47,6 +48,11 @@ class AuditListeners {
                         "method", event.method().name(),
                         "browser", event.device().browser(),
                         "os", event.device().os()));
+    }
+
+    @EventListener
+    void on(PasskeyRemoved event) {
+        record(null, event.userId(), "passkey.removed", "USER", event.userId(), Map.of());
     }
 
     @EventListener

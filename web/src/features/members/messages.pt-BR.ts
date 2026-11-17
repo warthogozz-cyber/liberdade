@@ -68,6 +68,7 @@ export const membersMessages = {
   'accept.youthPasskeyOnly': 'Para o Jovem, a entrada é só por passkey.',
   'accept.youthSignOut':
     'Convites de Jovem só podem ser aceitos com uma passkey nova. Saia da sua conta para continuar.',
+  'accept.signOutContinue': 'Sair e continuar',
   'accept.passkeyTitle': 'Crie sua passkey para voltar depois',
   'accept.passkeyRequired':
     'Crie sua passkey para voltar depois. Sem ela, não dá para entrar de novo neste aparelho.',

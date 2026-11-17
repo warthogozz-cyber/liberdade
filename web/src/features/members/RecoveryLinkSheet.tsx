@@ -1,5 +1,5 @@
 import { useIntl } from 'react-intl'
-import { Sheet } from '@/shared/ui'
+import { Sheet } from '@/shared/ui/Sheet'
 import { InvitationLink } from './InvitationLink'
 import './register'
 

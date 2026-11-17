@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useIntl } from 'react-intl'
 import { Link } from 'react-router'
+import { LegalLinks } from '@/features/legal/LegalLinks'
 import { useCurrentWorkspace } from '@/shared/api'
 import { useOnline } from '@/shared/offline'
 import { useDocumentTitle } from '@/shared/ui'
@@ -9,6 +10,7 @@ import { ConsentList } from './ConsentList'
 import { DeleteAccountSheet } from './DeleteAccountSheet'
 import { DeleteFamilySheet } from './DeleteFamilySheet'
 import { ExportButtons } from './ExportButtons'
+import { PasskeyList } from './PasskeyList'
 import './register'
 
 /** The person's data: download it, see the consents and the history, and ask for its deletion. */
@@ -34,6 +36,10 @@ export function PrivacyPage() {
         {intl.formatMessage({ id: 'privacy.consents' })}
       </h2>
       <ConsentList />
+      <h2 className="mt-2 text-lg font-semibold">
+        {intl.formatMessage({ id: 'privacy.passkeys' })}
+      </h2>
+      <PasskeyList />
       <div className="mt-4 flex flex-col gap-3">
         {workspace?.role === 'OWNER' && (
           <button
@@ -54,6 +60,7 @@ export function PrivacyPage() {
           {intl.formatMessage({ id: 'privacy.deleteAccount' })}
         </button>
       </div>
+      <LegalLinks className="flex flex-col" />
       {deleting === 'account' && <DeleteAccountSheet onClose={() => setDeleting(undefined)} />}
       {deleting === 'family' && workspace && (
         <DeleteFamilySheet workspace={workspace} onClose={() => setDeleting(undefined)} />

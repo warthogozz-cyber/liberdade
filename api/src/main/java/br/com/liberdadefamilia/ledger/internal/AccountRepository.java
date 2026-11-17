@@ -94,6 +94,17 @@ class AccountRepository {
                 .single();
     }
 
+    /** Whether the membership holds any account of the family, archived ones included. */
+    boolean holdsAny(UUID workspaceId, UUID membershipId) {
+        return jdbc.sql("""
+                        select exists (select 1 from accounts
+                                       where workspace_id = :workspaceId and owner_membership_id = :membershipId)""")
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .query(Boolean.class)
+                .single();
+    }
+
     /** The currency of the family's first account, which is the one its wallet was born with. */
     Optional<Currency> firstCurrency(UUID workspaceId) {
         return jdbc.sql(

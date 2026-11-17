@@ -5,11 +5,12 @@ import { RootRedirect } from '@/app/RootRedirect'
 import { SessionLayout } from '@/app/SessionLayout'
 import { WorkspaceLayout } from '@/app/WorkspaceLayout'
 import { WelcomePage } from '@/features/onboarding/WelcomePage'
-import { NewTransactionPage } from '@/features/transactions/NewTransactionPage'
 
 // Secondary screens load on demand, so the first load stays small (chunk budget in CI). Copy this
-// shape for a new one: the page exports its component by name. `/lancar` (the first-expense path) and the
-// layouts stay static; `/inicio` and `/entrar` load on demand too (D27's fallback).
+// shape for a new one: the page exports its component by name. The layouts and the welcome page (a
+// new person's first screen) stay static. The new-expense route loads on demand too: its form pulls in the sheets and
+// the dialog library (about 35 KB gzip), and the service worker precaches the chunk, so recording
+// still works offline.
 export const routes: RouteObject[] = [
   {
     path: '/entrar',
@@ -24,6 +25,18 @@ export const routes: RouteObject[] = [
       })),
   },
   {
+    // Public: read before there is an account, and from the acceptance screen's new tab.
+    path: '/privacidade',
+    lazy: () =>
+      import('@/features/legal/PrivacyPolicyPage').then((m) => ({
+        Component: m.PrivacyPolicyPage,
+      })),
+  },
+  {
+    path: '/termos',
+    lazy: () => import('@/features/legal/TermsPage').then((m) => ({ Component: m.TermsPage })),
+  },
+  {
     element: <SessionLayout />,
     children: [
       { index: true, element: <RootRedirect /> },
@@ -32,7 +45,13 @@ export const routes: RouteObject[] = [
         element: <WorkspaceLayout />,
         children: [
           // Full screen, without the navigation.
-          { path: '/lancar', element: <NewTransactionPage /> },
+          {
+            path: '/lancar',
+            lazy: () =>
+              import('@/features/transactions/NewTransactionPage').then((m) => ({
+                Component: m.NewTransactionPage,
+              })),
+          },
           {
             element: <AppShell />,
             children: [

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkBudget, initialFiles } from './chunk-budget.mjs'
+import { checkBudget, composition, groupOf, initialFiles } from './chunk-budget.mjs'
 
 const KB = 1024
 
@@ -80,5 +80,58 @@ describe('chunk budget', () => {
 
     expect(files.filter((file) => file === 'assets/x.js')).toHaveLength(1)
     expect(files).toHaveLength(4)
+  })
+})
+
+describe('composition', () => {
+  it('groupsPnpmPackagesScopedPackagesAndSrcFolders', () => {
+    expect(groupOf('C:/x/node_modules/.pnpm/react@19/node_modules/react/index.js')).toBe('react')
+    expect(
+      groupOf(String.raw`C:\x\node_modules\.pnpm\a@1\node_modules\@radix-ui\react-dialog\i.js`),
+    ).toBe('@radix-ui/react-dialog')
+    expect(groupOf('C:/x/web/src/features/ledger/Page.tsx')).toBe('src/features')
+    expect(groupOf('C:/x/web/src/main.tsx')).toBe('src')
+    expect(groupOf('vite/preload-helper.js')).toBe('(other)')
+  })
+
+  it('groupsRelativeIds', () => {
+    expect(groupOf('../node_modules/.pnpm/react@19/node_modules/react/index.js')).toBe('react')
+    expect(groupOf('src/features/ledger/Page.tsx')).toBe('src/features')
+    expect(groupOf('src/main.tsx')).toBe('src')
+  })
+
+  it('doesNotCountAPackageNamedLikeSrcAsSrc', () => {
+    const manifest = { 'index.html': { file: 'assets/i.js', isEntry: true } }
+    const modules = {
+      'assets/i.js': { '../node_modules/.pnpm/s@1/node_modules/srcset/i.js': 1024 },
+    }
+
+    const rows = composition(manifest, modules, sizes({ 'assets/i.js': 1 }))
+
+    expect(rows).toEqual([{ group: 'srcset', kind: 'package', renderedKb: 1, gzipKb: 1 }])
+  })
+
+  it('splitsGzipByRenderedSizeAndSkipsLazyChunks', () => {
+    const manifest = {
+      'index.html': { file: 'assets/index.js', isEntry: true, imports: ['v.js'] },
+      'v.js': { file: 'assets/v.js' },
+      'l.js': { file: 'assets/l.js', isDynamicEntry: true },
+    }
+    const modules = {
+      'assets/index.js': { 'C:/w/src/app/App.tsx': 1024 },
+      'assets/v.js': {
+        'C:/n/node_modules/react/a.js': 3 * 1024,
+        'C:/n/node_modules/dexie/b.js': 1024,
+      },
+      'assets/l.js': { 'C:/n/node_modules/echarts/c.js': 99 * 1024 },
+    }
+
+    const rows = composition(manifest, modules, sizes({ 'assets/index.js': 10, 'assets/v.js': 40 }))
+
+    expect(rows).toEqual([
+      { group: 'react', kind: 'package', renderedKb: 3, gzipKb: 30 },
+      { group: 'dexie', kind: 'package', renderedKb: 1, gzipKb: 10 },
+      { group: 'src/app', kind: 'src', renderedKb: 1, gzipKb: 10 },
+    ])
   })
 })

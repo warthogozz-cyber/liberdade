@@ -5,7 +5,7 @@ import { ApiError, ReauthCancelledError } from '@/shared/api'
 import { useAccountDeletion } from '@/shared/api/privacy'
 import { useReauth } from '@/shared/auth'
 import { useOnline } from '@/shared/offline'
-import { Sheet } from '@/shared/ui'
+import { Sheet } from '@/shared/ui/Sheet'
 import { dangerButton, outlineButton } from './buttons'
 import './register'
 

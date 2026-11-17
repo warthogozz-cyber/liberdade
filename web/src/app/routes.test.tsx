@@ -17,6 +17,18 @@ function renderApp(route: string) {
 }
 
 describe('routes', () => {
+  it.each([
+    ['/privacidade', 'Política de privacidade'],
+    ['/termos', 'Termos de uso'],
+  ])('legalPagesArePublic: %s opens without a session', async (path, heading) => {
+    mockState.signedIn = false
+    // A lazy route loads only under a data router.
+    const { router } = renderWithProviders(null, { routes, route: path })
+
+    expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(path)
+  })
+
   it('sends / to the welcome page without a family', async () => {
     const { router } = renderApp('/')
 
@@ -104,7 +116,8 @@ describe('routes', () => {
 
   it('shows /lancar full screen, without the navigation', async () => {
     seedMockFamily()
-    renderApp('/lancar')
+    // A lazy route loads only under a data router.
+    renderWithProviders(null, { routes, route: '/lancar' })
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Novo gasto' })).toBeInTheDocument()
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
@@ -130,7 +143,7 @@ describe('lazy routes', () => {
   }
 
   it('lazyRoutesHaveNoStaticComponent', () => {
-    for (const path of ['/inicio', '/entrar', '/lancamentos', '/mais']) {
+    for (const path of ['/inicio', '/entrar', '/lancamentos', '/mais', '/lancar']) {
       const route = findRoute(routes, path)
       expect(route?.lazy, path).toBeTypeOf('function')
       expect(route?.Component, path).toBeUndefined()
@@ -138,8 +151,8 @@ describe('lazy routes', () => {
     }
   })
 
-  it('firstExpensePathStaysStatic', () => {
-    const route = findRoute(routes, '/lancar')
+  it('welcomePageStaysStatic', () => {
+    const route = findRoute(routes, '/boas-vindas')
     expect(route?.lazy).toBeUndefined()
     expect(route?.Component ?? route?.element).toBeDefined()
   })

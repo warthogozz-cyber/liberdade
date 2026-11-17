@@ -39,6 +39,8 @@ export function activityPhrase(intl: IntlShape, item: ActivityItem): string {
   if (item.action === 'auth.signed_in') {
     fixed.push(`activity.auth.signed_in.${part ?? ''}`, 'activity.auth.signed_in')
   }
+  if (item.action === 'documents.accepted') fixed.push('activity.documents.accepted')
+  if (item.action === 'passkey.removed') fixed.push('activity.passkey.removed')
   if (item.action === 'member.removed' && metadata.reason) {
     fixed.push(`activity.member.removed.${metadata.reason}`)
   }

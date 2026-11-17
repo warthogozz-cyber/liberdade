@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import type { CategoryView } from '@/shared/api'
 import { COLOR_DOT } from '@/features/categories/colorDot'
-import { Sheet } from '@/shared/ui'
+import { Sheet } from '@/shared/ui/Sheet'
 import { categoryLabel } from './listItems'
 
 interface CategoryPickerProps {

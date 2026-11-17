@@ -1,16 +1,20 @@
-import { expect, test, type BrowserContext } from '@playwright/test'
+import type { BrowserContext } from '@playwright/test'
 import {
+  addVirtualAuthenticator,
   completeGoogleSignIn,
+  CONTEXT_OPTIONS,
   createFamily,
   createInvitation,
+  expect,
   invitationBudget,
   newUser,
+  notices,
   openInvitation,
   signInBudget,
   signInWithGoogle,
   stubFirstReauthRequired,
+  test,
   withContext,
-  CONTEXT_OPTIONS,
 } from './support.ts'
 
 const AUTH_FILE = 'test-results/.auth/privacy.json'
@@ -124,5 +128,75 @@ test('signOutPropagates: signing out in one tab sends the other to /entrar', asy
 
     await expect(second).toHaveURL(/\/entrar/)
     await expect(first).toHaveURL(/\/entrar/)
+  })
+})
+
+test('managePasskeys: two passkeys show in Privacidade, one is removed after signing in again, and the history says so', async ({
+  browser,
+}) => {
+  test.setTimeout(180_000)
+  const ana = newUser('Ana')
+  await withContext(browser, async (_context, page) => {
+    const first = await addVirtualAuthenticator(page)
+    await signInWithGoogle(page, ana)
+    await createFamily(page, 'Ana')
+
+    await page.goto('/mais')
+    await page.getByRole('button', { name: 'Criar passkey neste aparelho' }).click()
+    await expect(page.getByRole('status')).toHaveText('Passkey criada.')
+
+    // The API excludes the credentials the person already has, so the second passkey comes from
+    // another virtual device.
+    await first.cdp.send('WebAuthn.removeVirtualAuthenticator', {
+      authenticatorId: first.authenticatorId,
+    })
+    const second = await addVirtualAuthenticator(page)
+    await page.getByRole('button', { name: 'Criar passkey neste aparelho' }).click()
+    await expect
+      .poll(async () => {
+        const { credentials } = await second.cdp.send('WebAuthn.getCredentials', {
+          authenticatorId: second.authenticatorId,
+        })
+        return credentials.length
+      })
+      .toBe(1)
+
+    await page.goto('/mais/privacidade')
+    const passkeys = page.getByRole('main').getByRole('listitem').filter({ hasText: 'Criada em' })
+    await expect(passkeys).toHaveCount(2)
+
+    // The API wants a recent sign-in, and this one is seconds old: the first request is answered
+    // with its own refusal to bring the dialog up; the ones after it are real.
+    await stubFirstReauthRequired(page, /\/v1\/me\/passkeys\/[^/]+$/, 'DELETE')
+    await passkeys
+      .first()
+      .getByRole('button', { name: /^Remover passkey/ })
+      .click()
+    await page
+      .getByRole('dialog', { name: /^Remover a passkey/ })
+      .getByRole('button', { name: 'Remover', exact: true })
+      .click()
+    const reauth = page.getByRole('dialog', { name: 'Confirme que é você' })
+    await expect(reauth).toBeVisible()
+    await signInBudget.reserve(1)
+    await reauth.getByRole('button', { name: 'Entrar com Google' }).click()
+    await completeGoogleSignIn(page, ana)
+
+    // Back where she was, she removes it again, and this time the API accepts.
+    await expect(page).toHaveURL('/mais/privacidade')
+    await expect(passkeys).toHaveCount(2)
+    await passkeys
+      .first()
+      .getByRole('button', { name: /^Remover passkey/ })
+      .click()
+    await page
+      .getByRole('dialog', { name: /^Remover a passkey/ })
+      .getByRole('button', { name: 'Remover', exact: true })
+      .click()
+    await expect(notices(page).getByText('Passkey removida.')).toBeVisible()
+    await expect(passkeys).toHaveCount(1)
+
+    await page.goto('/mais/privacidade/atividade')
+    await expect(page.getByRole('main').getByText('Removeu uma passkey')).toBeVisible()
   })
 })

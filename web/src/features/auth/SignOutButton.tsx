@@ -10,7 +10,7 @@ import {
   countOutboxForUser,
   useOnline,
 } from '@/shared/offline'
-import { ConfirmDialog } from '@/shared/ui'
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 
 interface SignOutButtonProps {
   /**
@@ -21,13 +21,19 @@ interface SignOutButtonProps {
   leave?: () => void | Promise<void>
   /** Runs once the session is gone from this device. */
   onSignedOut?: () => void
+  /** The label's message id; defaults to the plain "Sair". */
+  labelId?: 'signOut.button' | 'accept.signOutContinue'
 }
 
 /**
  * Signs out on the API, then forgets the person's queue and data on this device (D19). With expenses
  * still queued, it asks first, since signing out deletes them.
  */
-export function SignOutButton({ leave, onSignedOut }: SignOutButtonProps = {}) {
+export function SignOutButton({
+  leave,
+  onSignedOut,
+  labelId = 'signOut.button',
+}: SignOutButtonProps = {}) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const online = useOnline()
@@ -101,7 +107,7 @@ export function SignOutButton({ leave, onSignedOut }: SignOutButtonProps = {}) {
         disabled={busy || !online || !userId}
         onClick={() => void start()}
       >
-        <FormattedMessage id="signOut.button" />
+        <FormattedMessage id={labelId} />
       </button>
       {!online && (
         <p className="text-sm text-text-muted">

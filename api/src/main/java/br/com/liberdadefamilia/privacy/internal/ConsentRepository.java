@@ -20,7 +20,7 @@ class ConsentRepository {
     record Row(
             UUID id,
             UUID userId,
-            UUID workspaceId,
+            @Nullable UUID workspaceId,
             ConsentPurpose purpose,
             String documentVersion,
             @Nullable UUID grantedBy,
@@ -43,8 +43,13 @@ class ConsentRepository {
         this.jdbc = jdbc;
     }
 
+    /** A null family is a person's own acceptance of a document (TERMS or PRIVACY). */
     void insert(
-            UUID userId, UUID workspaceId, ConsentPurpose purpose, String documentVersion, @Nullable UUID grantedBy) {
+            UUID userId,
+            @Nullable UUID workspaceId,
+            ConsentPurpose purpose,
+            String documentVersion,
+            @Nullable UUID grantedBy) {
         jdbc.sql("""
                         insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
                         values (:userId, :workspaceId, :purpose, :documentVersion, :grantedBy)""")
@@ -66,6 +71,37 @@ class ConsentRepository {
                 .param("workspaceId", workspaceId)
                 .param("purpose", purpose.name())
                 .update();
+    }
+
+    /** Closes the person's open acceptance of the document: the version in force now is about to replace it. */
+    void supersedeOpenPersonal(UUID userId, ConsentPurpose purpose) {
+        String sql = """
+                update consents set superseded_at = now()
+                where user_id = :userId and workspace_id is null and purpose = :purpose
+                  and revoked_at is null and superseded_at is null""";
+        JdbcClient.StatementSpec statement = jdbc.sql(sql);
+        statement.param("userId", userId);
+        statement.param("purpose", purpose.name());
+        statement.update();
+    }
+
+    /** Serializes the person's acceptances: held until the transaction ends, so a second request waits its turn. */
+    void lockAcceptancesOf(UUID userId) {
+        jdbc.sql("select pg_advisory_xact_lock(hashtextextended('documents:' || :userId, 0))")
+                .param("userId", userId.toString())
+                .query()
+                .singleRow();
+    }
+
+    /** The person's open acceptances of the terms and the privacy policy. */
+    List<Row> openPersonal(UUID userId) {
+        return jdbc.sql("select " + COLUMNS + """
+                         from consents
+                        where user_id = :userId and workspace_id is null and revoked_at is null
+                          and superseded_at is null""")
+                .param("userId", userId)
+                .query(ConsentRepository::map)
+                .list();
     }
 
     /** Consents about me or given by me, revoked ones included, newest first. */
