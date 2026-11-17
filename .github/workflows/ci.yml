@@ -159,7 +159,8 @@ jobs:
             exit 1
           fi
       - name: Caddyfile keeps client addresses out of the logs
-        run: grep -q 'exclude http.log.error' deploy/Caddyfile
+        # Anchored on the directive line, so the explanatory comment in the Caddyfile cannot satisfy it.
+        run: grep -Eq '^[[:space:]]*exclude[[:space:]]+http\.log\.error[[:space:]]*$' deploy/Caddyfile
       - name: Caddyfile
         run: |
           image="$(grep -oE 'caddy:[^ ]+@sha256:[0-9a-f]{64}' deploy/compose.yaml | head -n 1)"
