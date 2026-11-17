@@ -203,15 +203,17 @@ O spec deixa estes pontos em aberto, e o plano decide:
     `liberdade-production`, criados pelo mantenedor com o domínio próprio de cada um.
   - O build lê `VITE_API_URL`, `VITE_PRIVACY_CONTROLLER` e `VITE_PRIVACY_CONTACT` das variáveis do
     Environment.
-  - Um plugin do Vite (`web/build/securityHeaders.ts`) gera `dist/_headers` com a CSP e os
+  - Um plugin do Vite (`web/config/securityHeaders.ts`) gera `dist/_headers` com a CSP e os
     cabeçalhos abaixo, e o `vite preview` serve os mesmos cabeçalhos, para o E2E rodar sob a CSP
     real.
-  - CSP: `default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' <origem da
+  - CSP: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' <origem da
     API>; img-src 'self' data:; font-src 'self'; worker-src 'self'; manifest-src 'self';
     frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`. O login com o
     Google é navegação (`location.assign`), não formulário nem `fetch`, então não entra na CSP. Os
     estilos que o React aplica pelo `style` passam pelo CSSOM, que a CSP não bloqueia; o E2E falha
     se aparecer qualquer violação (Task 14).
+    O `style-src` aceita estilo inline porque o Radix injeta uma tag `<style>` para travar a rolagem
+    dos diálogos e um nonce é impossível em hospedagem estática; o `script-src` continua estrito.
   - Demais cabeçalhos: `Strict-Transport-Security: max-age=31536000; includeSubDomains`,
     `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy:
     camera=(), microphone=(), geolocation=(), payment=(), usb=(), publickey-credentials-get=(self),

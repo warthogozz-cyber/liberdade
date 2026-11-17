@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { isAbsolute, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { VitePWA } from 'vite-plugin-pwa'
+import { securityHeadersPlugin } from './config/securityHeaders.ts'
 import type { Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
 
@@ -48,6 +49,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     chunkModules(),
+    securityHeadersPlugin(),
     // Installable, with the app shell cached (D27). `main.tsx` registers the worker itself.
     VitePWA({
       registerType: 'autoUpdate',
@@ -118,7 +120,12 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}', 'eslint/**/*.test.js', 'scripts/**/*.test.mjs'],
+    include: [
+      'src/**/*.test.{ts,tsx}',
+      'eslint/**/*.test.js',
+      'scripts/**/*.test.mjs',
+      'config/**/*.test.ts',
+    ],
     coverage: {
       provider: 'v8',
       include: ['src/**'],
