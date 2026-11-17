@@ -13,7 +13,9 @@ import org.springframework.test.context.ActiveProfiles;
  * With the {@code prod} profile only the compose network is a trusted proxy. The test client connects from loopback,
  * so its {@code X-Forwarded-For} must be ignored and the rate limiter must keep keying on the real peer address.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "liberdade.billing.gateway=asaas")
 @ActiveProfiles({"test", "prod"})
 @Import(TestcontainersConfiguration.class)
 class ForwardedHeadersUntrustedIT {

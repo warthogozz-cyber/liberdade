@@ -15,7 +15,8 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "server.tomcat.remoteip.internal-proxies=127.0.0.1/32, ::1/128")
+        properties = {"server.tomcat.remoteip.internal-proxies=127.0.0.1/32, ::1/128", "liberdade.billing.gateway=asaas"
+        })
 @ActiveProfiles({"test", "prod"})
 @Import(TestcontainersConfiguration.class)
 class ForwardedHeadersTrustedIT {
