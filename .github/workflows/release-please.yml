@@ -12,8 +12,60 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  retag:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    env:
+      IMAGE: ghcr.io/warthogozz-cyber/liberdade-api
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Wait for the image and tag it with the release
+        env:
+          SHA: ${{ github.sha }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$TAG_NAME" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$' || {
+            echo "release tag is not a valid image tag" >&2
+            exit 1
+          }
+          # The image is built by the main workflow for this same commit. Up to 30 minutes.
+          for _ in $(seq 1 60); do
+            if docker buildx imagetools inspect "$IMAGE:sha-$SHA" > /dev/null 2>&1; then
+              docker buildx imagetools create --tag "$IMAGE:$TAG_NAME" "$IMAGE:sha-$SHA"
+              exit 0
+            fi
+            echo "waiting for image sha-$SHA"
+            sleep 30
+          done
+          echo "image sha-$SHA missing or not public" >&2
+          exit 1
+
+  deploy-production:
+    needs: [release-please, retag]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+      ref: ${{ needs.release-please.outputs.tag_name }}
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write

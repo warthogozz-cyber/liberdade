@@ -31,7 +31,7 @@ jobs:
         with:
           images: ghcr.io/warthogozz-cyber/liberdade-api
           tags: |
-            type=sha
+            type=sha,format=long
             type=raw,value=main
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -44,3 +44,15 @@ jobs:
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy-staging:
+    needs: image
+    if: vars.DEPLOY_ENABLED == 'true'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+      ref: ${{ github.sha }}
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
