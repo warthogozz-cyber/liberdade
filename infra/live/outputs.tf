@@ -17,3 +17,11 @@ output "kms_key_arn" {
 output "rds_master_secret_arn" {
   value = try(aws_db_instance.main.master_user_secret[0].secret_arn, null)
 }
+
+output "deploy_role_arn" {
+  value = aws_iam_role.deploy.arn
+}
+
+output "alerts_topic_arn" {
+  value = aws_sns_topic.alerts.arn
+}
