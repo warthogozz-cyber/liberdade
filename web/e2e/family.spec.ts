@@ -1,9 +1,10 @@
-import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
+import type { Browser, BrowserContext, Page } from '@playwright/test'
 import {
-  CONTEXT_OPTIONS,
   completeGoogleSignIn,
+  CONTEXT_OPTIONS,
   createFamily,
   createInvitation,
+  expect,
   invitationBudget,
   joinAsYouth,
   money,
@@ -12,6 +13,7 @@ import {
   openInvitation,
   signInBudget,
   signInWithGoogle,
+  test,
   typeAmount,
   waitForQueueToEmpty,
   withContext,
@@ -166,5 +168,29 @@ test('tokenNotInHistory: opening the link leaves no token in the address', async
     expect(guest.url()).not.toContain(token)
     expect(guest.url()).toBe('http://localhost:5173/convite')
     expect(await guest.evaluate(() => window.location.hash)).toBe('')
+  })
+})
+
+test('signedInAccountOnYouthInvite: a signed-in Google account is told to sign out first', async ({
+  browser,
+}) => {
+  const dona = await ownerPage()
+  const link = await createInvitation(dona, 'Duda', 'Jovem')
+
+  await withContext(browser, async (_context, edu) => {
+    // Edu has an account of his own, with Google, and no family yet.
+    await signInWithGoogle(edu, newUser('Edu'))
+    await openInvitation(edu, link, /como Jovem/)
+    await invitationBudget.reserve(1)
+    await edu.getByRole('button', { name: 'Entrar na família' }).click()
+
+    // The API refuses (a Youth comes in only with a new passkey) and the page says so.
+    await expect(
+      edu.getByText(
+        'Convites de Jovem só podem ser aceitos com uma passkey nova. Saia da sua conta para continuar.',
+      ),
+    ).toBeVisible()
+    await expect(edu.getByRole('button', { name: 'Sair e continuar' })).toBeVisible()
+    await expect(edu.getByRole('button', { name: 'Entrar na família' })).toHaveCount(0)
   })
 })

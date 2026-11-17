@@ -1,5 +1,12 @@
-import { expect, test, type Page } from '@playwright/test'
-import { createFamily, newUser, signInWithGoogle, waitForOfflineReady } from './support.ts'
+import type { Page } from '@playwright/test'
+import {
+  createFamily,
+  expect,
+  newUser,
+  signInWithGoogle,
+  test,
+  waitForOfflineReady,
+} from './support.ts'
 
 const S1_LIMIT_MS = 60_000
 const SYNC_TIMEOUT_MS = 20_000

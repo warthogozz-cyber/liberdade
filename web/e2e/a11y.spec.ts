@@ -1,14 +1,20 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import {
+  acceptDocuments,
+  addVirtualAuthenticator,
+  completeGoogleSignIn,
   createFamily,
   createInvitation,
+  expect,
   joinAsYouth,
   newUser,
   openInvitation,
   recordExpense,
+  signInBudget,
   signInWithGoogle,
   stubFirstReauthRequired,
+  test,
   waitForQueueToEmpty,
   withContext,
 } from './support.ts'
@@ -52,6 +58,52 @@ test('/entrar meets WCAG 2.2 AA in both themes', async ({ page }) => {
     'Liberdade',
     page.getByRole('button', { name: 'Entrar com Google' }),
   )
+})
+
+test('the public legal pages meet WCAG 2.2 AA in both themes', async ({ page }) => {
+  await page.goto('/privacidade')
+  await expectNoViolations(
+    page,
+    'Política de privacidade',
+    page.getByRole('heading', { level: 2, name: 'Quem cuida dos seus dados?' }),
+  )
+
+  await page.goto('/termos')
+  await expectNoViolations(
+    page,
+    'Termos de uso',
+    page.getByRole('heading', { level: 2, name: 'O que é o Liberdade?' }),
+  )
+})
+
+test('the acceptance gate and the passkey list meet WCAG 2.2 AA in both themes', async ({
+  page,
+}) => {
+  await addVirtualAuthenticator(page)
+
+  // A new person stops at "Antes de começar", so the sign-in stops short of `signInWithGoogle`.
+  await signInBudget.reserve(1)
+  await page.goto('/entrar')
+  await page.getByRole('button', { name: 'Entrar com Google' }).click()
+  await completeGoogleSignIn(page, newUser())
+  await expectNoViolations(
+    page,
+    'Antes de começar',
+    page.getByRole('checkbox', { name: /Li e aceito os termos/ }),
+  )
+  await acceptDocuments(page)
+  await page.waitForURL('**/boas-vindas')
+  await createFamily(page)
+
+  await page.goto('/mais')
+  await page.getByRole('button', { name: 'Criar passkey neste aparelho' }).click()
+  await expect(page.getByRole('status')).toHaveText('Passkey criada.')
+
+  await page.goto('/mais/privacidade')
+  const row = page.getByRole('main').getByRole('listitem').filter({ hasText: 'Criada em' })
+  await expectNoViolations(page, 'Privacidade', row)
+  await row.getByRole('button', { name: /^Remover passkey/ }).click()
+  await expectNoViolationsOpen(page, page.getByRole('dialog', { name: /^Remover a passkey/ }))
 })
 
 test('/boas-vindas meets WCAG 2.2 AA in both themes', async ({ page }) => {

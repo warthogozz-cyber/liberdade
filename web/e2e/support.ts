@@ -11,12 +11,71 @@
 // with an empty log, which is the same risk the suite already had.
 import {
   expect,
+  test as base,
   type Browser,
   type BrowserContext,
   type CDPSession,
   type Locator,
   type Page,
 } from '@playwright/test'
+
+export { expect }
+
+/**
+ * What a test's browser contexts saw that must not happen: a Content Security Policy violation in
+ * the console, or a response with a 5xx status. It is listened to per `BrowserContext`, so pages
+ * opened later and the contexts a test makes itself are covered too.
+ */
+function watchContext(context: BrowserContext, findings: string[]): void {
+  context.on('console', (message) => {
+    if (message.text().includes('Content Security Policy')) {
+      findings.push(`CSP: ${message.text()}`)
+    }
+  })
+  context.on('response', (response) => {
+    if (response.status() >= 500) {
+      findings.push(`${response.status()} ${response.request().method()} ${response.url()}`)
+    }
+  })
+}
+
+/** The findings of the test running now, for the contexts that `withContext` opens inside it. */
+let activeFindings: string[] | undefined
+
+function failOnFindings(findings: string[]): void {
+  if (findings.length === 0) return
+  throw new Error(
+    `The browser saw ${findings.length} CSP violation(s) or 5xx response(s):\n${findings.join('\n')}`,
+  )
+}
+
+/**
+ * `test` with a guard on every test: it fails when any context of the test, the default one and the
+ * ones made through `browser.newContext` or `withContext`, logged a CSP violation or got a 5xx.
+ */
+export const test = base.extend<{ cspAndServerErrorGuard: void }>({
+  cspAndServerErrorGuard: [
+    async ({ browser, context }, provide) => {
+      const findings: string[] = []
+      watchContext(context, findings)
+      const newContext = browser.newContext.bind(browser)
+      browser.newContext = async (...args: Parameters<Browser['newContext']>) => {
+        const created = await newContext(...args)
+        watchContext(created, findings)
+        return created
+      }
+      activeFindings = findings
+      try {
+        await provide()
+      } finally {
+        activeFindings = undefined
+        browser.newContext = newContext
+      }
+      failOnFindings(findings)
+    },
+    { auto: true },
+  ],
+})
 
 const WINDOW_MS = 60_000
 /**
@@ -84,12 +143,12 @@ export async function signInWithGoogle(page: Page, user: E2EUser): Promise<void>
   await page.goto('/entrar')
   await page.getByRole('button', { name: 'Entrar com Google' }).click()
   await completeGoogleSignIn(page, user)
-  await acceptDocumentsGate(page)
+  await acceptDocuments(page)
   await page.waitForURL('**/boas-vindas')
 }
 
 /** A person with a new account accepts the terms and the policy before any screen of the family opens. */
-async function acceptDocumentsGate(page: Page): Promise<void> {
+export async function acceptDocuments(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1, name: 'Antes de começar' })).toBeVisible()
   await page.getByRole('checkbox', { name: /Li e aceito os termos/ }).check()
   await page.getByRole('button', { name: 'Continuar' }).click()
@@ -172,10 +231,14 @@ export async function withContext<T>(
   body: (context: BrowserContext, page: Page) => Promise<T>,
 ): Promise<T> {
   const context = await browser.newContext(CONTEXT_OPTIONS)
+  // Inside a test the guard already listens to this context; in a hook it only has this list.
+  const findings = activeFindings ?? []
+  if (!activeFindings) watchContext(context, findings)
   try {
     return await body(context, await context.newPage())
   } finally {
     await context.close()
+    if (!activeFindings) failOnFindings(findings)
   }
 }
 
