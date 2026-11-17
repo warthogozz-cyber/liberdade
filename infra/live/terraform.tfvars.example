@@ -1,0 +1,3 @@
+# Copy to terraform.tfvars (ignored by Git).
+alert_email       = "alerts@example.com"
+github_repository = "owner/repo"

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Prepares the host once, at first boot (D6, D9, D10). Changes to this file do not recreate the instance
+# (ignore_changes); the runbook explains how to apply them by hand through SSM.
+set -euo pipefail
+
+ROOT="${liberdade_root}"
+
+dnf install -y docker
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -fsSL -o /tmp/docker-compose \
+  "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-aarch64"
+echo "${compose_sha256}  /tmp/docker-compose" | sha256sum -c -
+install -m 0755 /tmp/docker-compose /usr/local/lib/docker/cli-plugins/docker-compose
+rm -f /tmp/docker-compose
+
+if ! swapon --show=NAME --noheadings | grep -q '^/swapfile$'; then
+  dd if=/dev/zero of=/swapfile bs=1M count=${swap_size_mb} status=none
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+mkdir -p "$ROOT/certs" "$ROOT/releases"
+curl -fsSL -o "$ROOT/certs/rds-bundle.pem" "${rds_bundle_url}"
+chmod 0644 "$ROOT/certs/rds-bundle.pem"
+
+systemctl enable --now docker
