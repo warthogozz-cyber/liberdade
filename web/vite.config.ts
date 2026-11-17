@@ -1,9 +1,21 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { isAbsolute, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { VitePWA } from 'vite-plugin-pwa'
 import type { Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
+
+const projectRoot = fileURLToPath(new URL('./', import.meta.url))
+
+/**
+ * Absolute ids become relative to the web project, with forward slashes, so the public file holds
+ * no build-machine path. Virtual ids (a leading NUL byte, or not absolute) stay as they are.
+ */
+function publicId(id: string): string {
+  if (id.startsWith('\0') || !isAbsolute(id)) return id
+  return relative(projectRoot, id).replaceAll('\\', '/')
+}
 
 /**
  * Writes `dist/chunk-modules.json`: each emitted chunk's file mapped to its modules and their
@@ -18,7 +30,7 @@ function chunkModules(): Plugin {
       for (const [file, item] of Object.entries(bundle)) {
         if (item.type !== 'chunk') continue
         map[file] = Object.fromEntries(
-          Object.entries(item.modules).map(([id, info]) => [id, info.renderedLength]),
+          Object.entries(item.modules).map(([id, info]) => [publicId(id), info.renderedLength]),
         )
       }
       this.emitFile({

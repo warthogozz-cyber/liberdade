@@ -94,6 +94,23 @@ describe('composition', () => {
     expect(groupOf('vite/preload-helper.js')).toBe('(other)')
   })
 
+  it('groupsRelativeIds', () => {
+    expect(groupOf('../node_modules/.pnpm/react@19/node_modules/react/index.js')).toBe('react')
+    expect(groupOf('src/features/ledger/Page.tsx')).toBe('src/features')
+    expect(groupOf('src/main.tsx')).toBe('src')
+  })
+
+  it('doesNotCountAPackageNamedLikeSrcAsSrc', () => {
+    const manifest = { 'index.html': { file: 'assets/i.js', isEntry: true } }
+    const modules = {
+      'assets/i.js': { '../node_modules/.pnpm/s@1/node_modules/srcset/i.js': 1024 },
+    }
+
+    const rows = composition(manifest, modules, sizes({ 'assets/i.js': 1 }))
+
+    expect(rows).toEqual([{ group: 'srcset', kind: 'package', renderedKb: 1, gzipKb: 1 }])
+  })
+
   it('splitsGzipByRenderedSizeAndSkipsLazyChunks', () => {
     const manifest = {
       'index.html': { file: 'assets/index.js', isEntry: true, imports: ['v.js'] },

@@ -56,9 +56,9 @@ export function groupOf(id) {
     const parts = path.slice(nm + 'node_modules/'.length).split('/')
     return parts[0].startsWith('@') ? `${parts[0]}/${parts[1]}` : parts[0]
   }
-  const src = path.lastIndexOf('/src/')
-  if (src !== -1) {
-    const parts = path.slice(src + 1).split('/')
+  const src = path.startsWith('src/') ? 0 : path.lastIndexOf('/src/') + 1
+  if (src > 0 || path.startsWith('src/')) {
+    const parts = path.slice(src).split('/')
     return parts.length > 2 ? `${parts[0]}/${parts[1]}` : parts[0]
   }
   return '(other)'
@@ -67,7 +67,8 @@ export function groupOf(id) {
 /**
  * What the initial load is made of. `modulesByFile` maps each chunk file to `{ moduleId: bytes }`
  * (the `chunk-modules.json` the build writes). A chunk's gzip size is split between its modules in
- * proportion to their rendered size, so the rows add up to the initial load's JS (an estimate: rendered sizes are before minification). Heaviest first.
+ * proportion to their rendered size, so the rows add up to the initial load's JS (an estimate:
+ * rendered sizes are before minification). Heaviest first.
  */
 export function composition(manifest, modulesByFile, gzipSize) {
   const groups = new Map()
@@ -87,7 +88,12 @@ export function composition(manifest, modulesByFile, gzipSize) {
   return [...groups.values()]
     .map((r) => ({
       group: r.group,
-      kind: r.group.startsWith('src') ? 'src' : r.group === '(other)' ? 'other' : 'package',
+      kind:
+        r.group === 'src' || r.group.startsWith('src/')
+          ? 'src'
+          : r.group === '(other)'
+            ? 'other'
+            : 'package',
       renderedKb: Math.round(r.renderedKb * 10) / 10,
       gzipKb: Math.round(r.gzipKb * 10) / 10,
     }))
