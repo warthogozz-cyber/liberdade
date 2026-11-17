@@ -19,7 +19,7 @@ anterior entra na `main`.
 
 | # | Plano | Escopo | Status |
 |---|---|---|---|
-| 6 | Cobrança e Retrato do mês | Planos Grátis e Família, pré-venda Fundadora, assinatura por Pix ou cartão, cancelamento e reembolso ([ADR-0015](../../adr/0015-revenue-model-and-billing.md)) | A escrever |
+| 6 | Cobrança e Retrato do mês | Pré-venda Família Fundadora no Asaas (pagamento único, reembolso em 7 dias) e Retrato do mês grátis ([spec](../specs/2026-11-17-liberdade-plan-6-billing-design.md), [ADR-0015](../../adr/0015-revenue-model-and-billing.md)) | Spec em revisão |
 | 7 | v0.2 Planejamento | Orçamento, metas, reserva, recorrências, sincronização ao vivo, forma de pagamento, país e moeda no modelo, movimento e som | A escrever |
 | 8 | v0.3 Indicadores e gamificação | Indicadores com fonte, sequência e conquistas, dicas e tours, importação OFX/CSV | A escrever |
 | 9 | v0.4 Trilhas de renda extra | Projetos de renda extra em trilhas com modelos prontos | A escrever |

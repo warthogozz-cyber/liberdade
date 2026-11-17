@@ -23,7 +23,7 @@ desligadas.
 
 O primeiro público é a família do mantenedor (dois adultos e jovens), em uso diário real. Logo
 depois da v0.1, o Plano 6 abre o app para outras famílias, com um plano Grátis completo para o dia a
-dia e um plano Família pago ([ADR-0015](adr/0015-revenue-model-and-billing.md), proposto). Antes da
+dia e um plano Família pago ([ADR-0015](adr/0015-revenue-model-and-billing.md), aceito). Antes da
 primeira cobrança: revisão de LGPD e da marca (INPI), CNPJ confirmado por um contador e termos de uso
 com reembolso e cancelamento.
 
@@ -192,15 +192,17 @@ Para o Jovem, saldo total e painel consideram só as contas em que ele é titula
 
 ### Plano 6 — Cobrança e Retrato do mês
 
-Os limites exatos de cada plano e o processador de pagamento ficam no spec do Plano 6. Aqui ficam as
-regras que valem para qualquer escolha.
+O desenho está no [spec do Plano 6](superpowers/specs/2026-11-17-liberdade-plan-6-billing-design.md).
+No Plano 6, o único produto à venda é a pré-venda Família Fundadora (R$ 89 por um ano, pagamento
+único no Asaas). O mensal e o anual, com assinatura recorrente, abrem com a v0.2/v0.3; as regras de
+US-15 e US-16 para eles valem quando abrirem.
 
 **US-14 Planos Grátis e Família** (ADR-0015)
-- O plano Grátis cobre o uso do dia a dia: lançar, ver o saldo e o painel do mês, convidar a família
-  e metas básicas. S2 continua passando sem assinatura.
-- O plano Família libera o que dá mais trabalho ou custa mais (por exemplo: jovens com mesada e
-  missões, metas ilimitadas, importação de extrato, Retrato do mês, Feira).
-- Em Ajustes > Plano, qualquer membro vê o plano atual; só o Dono assina, troca ou cancela.
+- O plano Grátis fica com tudo o que o app faz hoje: lançar, ver o saldo e o painel do mês, convidar
+  a família, o papel de Jovem e o Retrato do mês. S2 continua passando sem plano pago.
+- O plano Família libera o que dá mais trabalho ou custa mais e ainda vai sair (por exemplo: jovens
+  com mesada e missões, metas ilimitadas, importação de extrato, Feira).
+- Em Mais > Plano, qualquer membro vê o plano atual; só o Dono compra, assina, troca ou cancela.
 - O app nunca pressiona: nada de contagem regressiva, "seus dados vão sumir" ou aviso no meio de um
   lançamento.
 
@@ -209,16 +211,17 @@ regras que valem para qualquer escolha.
   app nunca vê nem guarda dados de cartão.
 - O plano só muda quando o processador confirma o pagamento. Se a confirmação falhar ou atrasar, a
   família continua no Grátis e vê o motivo, sem perder nada.
-- Na pré-venda Família Fundadora, o preço fica travado enquanto a assinatura estiver ativa.
+- Na pré-venda Família Fundadora, o Dono paga R$ 89 uma vez e a família vira Fundadora por 1 ano,
+  sem cobrança automática. O preço fica travado na renovação.
 
 **US-16 Cancelar e pedir reembolso** (CDC art. 49)
-- Cancelar leva um clique em Ajustes > Plano, sem formulário nem ligação. O acesso pago vale até o
-  fim do período já pago.
+- Cancelar leva um clique em Mais > Plano, sem formulário nem ligação. O acesso pago vale até o
+  fim do período já pago. A Fundadora não tem o que cancelar, porque nada renova.
 - Nos 7 primeiros dias, o Dono pede o reembolso integral no mesmo lugar.
 - Ao voltar para o Grátis, nada é apagado: o que só existe no plano Família fica visível, só para
   leitura.
 
-**US-17 Retrato do mês**
+**US-17 Retrato do mês** (grátis para todos)
 - Um cartão com o resumo do mês só em percentuais (por exemplo: "Mercado: 32% dos gastos",
   "guardou 12% da renda"), sem valores em reais e sem nomes.
 - A imagem é gerada no aparelho; compartilhar usa o menu do sistema ou baixa o arquivo. Nada vai
