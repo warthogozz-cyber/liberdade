@@ -114,9 +114,15 @@ jobs:
               "for f in deploy.sh compose.yaml Caddyfile; do curl -fsSL \"https://raw.githubusercontent.com/$REPO/$SHA/deploy/$f\" -o \"$dir/$f\"; done",
               "bash \"$dir/deploy.sh\" \"$TARGET_ENV\" \"sha-$SHA\" \"$dir\""
             ],
-            executionTimeout: ["600"]
+            executionTimeout: ["900"]
           }' > "$params"
-          command_id="$(aws ssm send-command             --instance-ids "$EC2_INSTANCE_ID"             --document-name AWS-RunShellScript             --comment "deploy $TARGET_ENV sha-$SHA"             --timeout-seconds 120             --parameters "file://$params"             --query Command.CommandId --output text)"
+          command_id="$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "deploy $TARGET_ENV sha-$SHA" \
+            --timeout-seconds 120 \
+            --parameters "file://$params" \
+            --query Command.CommandId --output text)"
           echo "command $command_id sent"
           # 120 s delivery + 900 s execution + 60 s margin, so SSM reports TimedOut itself.
           deadline=$((SECONDS + 1080))
@@ -124,7 +130,9 @@ jobs:
           last_error=
           while [ "$SECONDS" -lt "$deadline" ]; do
             sleep 10
-            if out="$(aws ssm get-command-invocation               --command-id "$command_id" --instance-id "$EC2_INSTANCE_ID"               --query Status --output text 2>&1)"; then
+            if out="$(aws ssm get-command-invocation \
+              --command-id "$command_id" --instance-id "$EC2_INSTANCE_ID" \
+              --query Status --output text 2>&1)"; then
               status="$out"
               last_error=
             elif printf '%s' "$out" | grep -q 'InvocationDoesNotExist'; then
@@ -145,9 +153,11 @@ jobs:
             echo "last error: $last_error" >&2
           fi
           echo "----- standard output -----"
-          aws ssm get-command-invocation --command-id "$command_id" --instance-id "$EC2_INSTANCE_ID"             --query StandardOutputContent --output text || true
+          aws ssm get-command-invocation --command-id "$command_id" --instance-id "$EC2_INSTANCE_ID" \
+            --query StandardOutputContent --output text || true
           echo "----- standard error -----"
-          aws ssm get-command-invocation --command-id "$command_id" --instance-id "$EC2_INSTANCE_ID"             --query StandardErrorContent --output text || true
+          aws ssm get-command-invocation --command-id "$command_id" --instance-id "$EC2_INSTANCE_ID" \
+            --query StandardErrorContent --output text || true
           if [ "$status" != "Success" ]; then
             echo "deploy did not succeed (status $status)" >&2
             exit 1
