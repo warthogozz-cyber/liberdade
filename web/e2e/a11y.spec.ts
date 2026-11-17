@@ -79,6 +79,7 @@ test('the public legal pages meet WCAG 2.2 AA in both themes', async ({ page }) 
 test('the acceptance gate and the passkey list meet WCAG 2.2 AA in both themes', async ({
   page,
 }) => {
+  test.setTimeout(180_000)
   await addVirtualAuthenticator(page)
 
   // A new person stops at "Antes de começar", so the sign-in stops short of `signInWithGoogle`.

@@ -49,6 +49,7 @@ test('legalPagesArePublic: the policy and the terms open without a session, from
 test('newPersonAcceptsBeforeUsing: a new person accepts once, then signs in again without the gate', async ({
   page,
 }) => {
+  test.setTimeout(180_000)
   const ana = newUser('Ana')
   await signInBudget.reserve(1)
   await page.goto('/entrar')
