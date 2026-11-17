@@ -1,6 +1,6 @@
 # Plano 6 — Cobrança e Retrato do mês: design
 
-> **Status:** rascunho para revisão do mantenedor · **Data:** 2026-11-17
+> **Status:** aprovado pelo mantenedor em 2026-11-17 · **Data:** 2026-11-17
 >
 > Base: `main` em 33bbbe7 (PR #41), [ADR-0015](../../adr/0015-revenue-model-and-billing.md),
 > [PRD US-14 a US-17](../../prd.md#plano-6--cobrança-e-retrato-do-mês) e o
