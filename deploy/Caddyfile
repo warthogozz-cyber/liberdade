@@ -1,5 +1,5 @@
 {
-	# Errors only, and no access log: no client address reaches the logs.
+	# No access log. Only error-level entries are logged, and on proxy errors they can still include the client address.
 	log {
 		output stderr
 		level ERROR

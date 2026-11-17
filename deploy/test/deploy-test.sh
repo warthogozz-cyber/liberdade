@@ -55,7 +55,7 @@ tag_in_file() {
 
 run_deploy() {
   local tag="$1" timeout="$2" code=0
-  HEALTH_TIMEOUT_SECONDS="$timeout" LIBERDADE_ROOT="$WORK/root" bash "$DEPLOY/deploy.sh" production "$tag" "$DEPLOY" || code=$?
+  HEALTH_TIMEOUT_SECONDS="$timeout" LIBERDADE_ROOT="$WORK/root" bash "$DEPLOY/deploy.sh" production "$tag" "$DEPLOY" 2>&1 | tee "$WORK/deploy.log" || code=${PIPESTATUS[0]}
   return "$code"
 }
 
@@ -94,6 +94,7 @@ echo "== scenario 2: bad release rolls back to the good one"
 code=0
 run_deploy "$BAD_TAG" 30 || code=$?
 check "exit code" 1 "$code"
+check "output says it rolled back" "rolled back to $GOOD_TAG" "$(grep -x "rolled back to .*" "$WORK/deploy.log" || true)"
 check "tags.env is back on the good tag" "$GOOD_TAG" "$(tag_in_file)"
 check "container is healthy again" healthy "$(container_health)"
 

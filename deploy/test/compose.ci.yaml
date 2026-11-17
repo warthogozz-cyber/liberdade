@@ -2,7 +2,8 @@
 # that the test writes (CI_ENV_FILE). Test values only.
 services:
   db:
-    image: postgres:18
+    # Multi-arch index digest of postgres:18. arm64 manifest: sha256:ede0133b5b300f7609629c2bd8ac2cf8cbaf830527200ea2cbecf80f4481f2d3
+    image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
     environment:
       POSTGRES_DB: liberdade
       POSTGRES_USER: liberdade

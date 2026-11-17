@@ -88,24 +88,37 @@ wait_healthy() {
   done
 }
 
-# 2. Validate the release's Compose file, then install it with the Caddyfile.
+# 2. Validate the release's Compose file. Nothing is installed on the host until step 3 has succeeded.
 docker compose -f "$RELEASE/compose.yaml" config -q
-cp -f "$RELEASE/compose.yaml" "$ROOT/compose.yaml"
-# cp rewrites the same inode, which keeps the single-file bind mount in Caddy pointing at the new content.
-cp -f "$RELEASE/Caddyfile" "$ROOT/Caddyfile"
 touch "$TAGS"
 
-# 3. Environment file from SSM, one NAME=value line per parameter. Prints nothing about values.
+# 3. Environment file from SSM, one NAME='value' line per parameter. Prints nothing about values.
+# Single quotes are literal in the Compose dotenv format; unquoted, it would expand $VAR, cut at " #" and
+# trim whitespace, silently corrupting passwords. A value that cannot be single-quoted fails the deploy,
+# and the message names only the parameter.
 if [ "$ENV_SOURCE" = ssm ]; then
   (
     umask 077
     mkdir -p "$ENV_DIR"
     tmp="$(mktemp "$ENV_DIR/$ENVIRONMENT.env.XXXXXX")"
     trap 'rm -f "$tmp"' EXIT
+    last="(none)"
     aws ssm get-parameters-by-path --path "/liberdade/$ENVIRONMENT/" --with-decryption --recursive \
       --query 'Parameters[].[Name,Value]' --output text |
-      while IFS=$'\t' read -r name value; do
-        printf '%s=%s\n' "${name##*/}" "$value"
+      while IFS= read -r line; do
+        if [[ "$line" != *$'\t'* ]]; then
+          echo "deploy: unexpected SSM output after parameter $last (a value with a line break?)" >&2
+          exit 1
+        fi
+        name="${line%%$'\t'*}"
+        name="${name##*/}"
+        value="${line#*$'\t'}"
+        if [[ "$value" == *"'"* || "$value" == *$'\r'* ]]; then
+          echo "deploy: the value of parameter $name has a single quote or a carriage return" >&2
+          exit 1
+        fi
+        printf "%s='%s'\n" "$name" "$value"
+        last="$name"
       done >"$tmp"
     [ -s "$tmp" ] || {
       echo "deploy: no SSM parameters under /liberdade/$ENVIRONMENT/" >&2
@@ -116,6 +129,27 @@ if [ "$ENV_SOURCE" = ssm ]; then
   )
 fi
 
+# Install the host files, keeping the previous ones for a rollback. cp rewrites the same inode, which keeps
+# the single-file bind mount in Caddy pointing at the new content.
+HOST_FILES=(compose.yaml Caddyfile)
+rm -rf "$ROOT/.previous"
+mkdir -p "$ROOT/.previous"
+for f in "${HOST_FILES[@]}"; do
+  if [ -f "$ROOT/$f" ]; then
+    cp -f "$ROOT/$f" "$ROOT/.previous/$f"
+  fi
+  cp -f "$RELEASE/$f" "$ROOT/$f"
+done
+
+restore_host_files() {
+  local f
+  for f in "${HOST_FILES[@]}"; do
+    if [ -f "$ROOT/.previous/$f" ]; then
+      cp -f "$ROOT/.previous/$f" "$ROOT/$f"
+    fi
+  done
+}
+
 # 4 and 5. Switch the tag, pull, start, and reload Caddy. Any failure here counts as an unhealthy deploy.
 switch_to() {
   # Chained with && because errexit is off inside functions that run in an if condition.
@@ -124,38 +158,44 @@ switch_to() {
     dc up -d --no-deps "$SERVICE"
 }
 
+# up -d is idempotent: it recreates Caddy only when its image or config changed, so a digest bump applies.
 reload_caddy() {
-  [ "${LIBERDADE_SKIP_CADDY:-0}" = 1 ] && return 0
-  if [ -n "$(dc ps -q --status running caddy)" ]; then
-    dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile
-  else
-    dc up -d caddy
+  if [ "${LIBERDADE_SKIP_CADDY:-0}" = 1 ]; then
+    return 0
   fi
+  dc up -d --no-deps caddy &&
+    dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile
 }
 
 PREVIOUS="$(get_tag "$TAG_KEY")"
 
 if switch_to "$TAG" && reload_caddy && wait_healthy "$HEALTH_TIMEOUT"; then
-  # 8. Housekeeping: old unused images, and only the 5 newest releases.
+  # 8. Housekeeping: old unused images, and only the 5 newest releases. Never fails a healthy deploy.
   docker image prune -af --filter "until=168h" >/dev/null || true
-  find "$ROOT/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -rn | tail -n +6 | cut -d' ' -f2- |
-    while IFS= read -r old; do
-      if ! [ "$old" -ef "$RELEASE" ]; then
-        rm -rf -- "$old"
-      fi
-    done
+  {
+    find "$ROOT/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -rn | tail -n +6 | cut -d' ' -f2- |
+      while IFS= read -r old; do
+        if ! [ "$old" -ef "$RELEASE" ]; then
+          rm -rf -- "$old" || true
+        fi
+      done
+  } || true
   echo "deployed $TAG to $ENVIRONMENT"
   exit 0
 fi
 
-# 7. Roll back.
+# 7. Roll back: the previous tag, and the previous host files with a Caddy reload.
 echo "deploy: $TAG did not become healthy in $ENVIRONMENT" >&2
 if [ -z "$PREVIOUS" ]; then
   set_tag "$TAG_KEY"
   dc rm -sf "$SERVICE" || true
+  restore_host_files
+  reload_caddy || true
   die "no previous release to roll back to"
 fi
+restore_host_files
 switch_to "$PREVIOUS" || true
+reload_caddy || true
 wait_healthy "$ROLLBACK_TIMEOUT" || echo "deploy: the previous release is not healthy either" >&2
 echo "rolled back to $PREVIOUS"
 exit 1
