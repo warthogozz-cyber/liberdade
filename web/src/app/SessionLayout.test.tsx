@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
-import { http, HttpResponse } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
 import { useRoutes } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { routes } from '@/app/routes'
@@ -31,6 +31,22 @@ describe('SessionLayout documents', () => {
     expect(
       screen.queryByRole('navigation', { name: 'Navegação principal' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('opensTheScreensWhileTheDocumentsLoad', async () => {
+    seedMockFamily()
+    seedPendingDocuments()
+    server.use(
+      http.get(`${API_URL}/v1/me/documents`, async () => {
+        await delay('infinite')
+      }),
+    )
+    renderWithProviders(<App />, { path: '/*', route: '/inicio' })
+
+    expect(
+      await screen.findByRole('navigation', { name: 'Navegação principal' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Antes de começar')).not.toBeInTheDocument()
   })
 
   it('noGateWhenOffline', async () => {

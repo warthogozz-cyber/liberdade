@@ -68,9 +68,12 @@ describe('DocumentsGate', () => {
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.click(continueButton())
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Os documentos mudaram')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Publicamos uma nova versão dos documentos',
+    )
     await waitFor(() => expect(lists).toBe(2))
     expect(screen.getByRole('heading', { level: 1, name: 'Antes de começar' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Recarregar' })).toBeVisible()
   })
 
   it('disabledOffline', async () => {

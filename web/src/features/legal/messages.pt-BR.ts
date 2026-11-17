@@ -5,12 +5,12 @@ export const legalMessages = {
 
   'policy.title': 'Política de privacidade',
   'policy.intro':
-    'Aqui você lê, em palavras simples, o que o Liberdade faz com os seus dados. Seguimos a Lei Geral de Proteção de Dados (LGPD).',
+    'Aqui você lê, em palavras simples, o que o Liberdade faz com os seus dados. Seguimos a Lei Geral de Proteção de Dados (LGPD), que garante o acesso fácil a estas informações (art. 9).',
 
   'policy.who.title': 'Quem cuida dos seus dados?',
   'policy.who.p1':
-    'O controlador dos dados é {controller}. Essa pessoa também é a encarregada pelo tratamento dos dados.',
-  'policy.who.p2': 'Para falar com ela, escreva para {email}.',
+    'O controlador dos dados é {controller}. O controlador também atua como encarregado pelo tratamento de dados (LGPD, art. 41).',
+  'policy.who.p2': 'Para falar com o encarregado, escreva para {email}.',
 
   'policy.data.title': 'Que dados guardamos e para quê?',
   'policy.data.intro': 'Guardamos só o que o app precisa para funcionar:',

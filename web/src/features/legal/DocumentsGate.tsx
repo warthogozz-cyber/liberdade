@@ -65,6 +65,15 @@ export function DocumentsGate() {
           {intl.formatMessage({ id: error })}
         </p>
       )}
+      {error === 'legal.gate.outdated' && (
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="min-h-12 rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          {intl.formatMessage({ id: 'legal.gate.reload' })}
+        </button>
+      )}
       <button
         type="button"
         disabled={!checked || !online || busy}

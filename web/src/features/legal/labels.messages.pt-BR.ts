@@ -12,6 +12,8 @@ export const legalLabelsMessages = {
   'legal.gate.checkbox': 'Li e aceito os termos de uso e a política de privacidade',
   'legal.gate.continue': 'Continuar',
   'legal.gate.offline': 'Sem conexão. Para aceitar, volte a ficar online.',
-  'legal.gate.outdated': 'Os documentos mudaram. Leia a versão atual e aceite de novo.',
+  'legal.gate.outdated':
+    'Publicamos uma nova versão dos documentos. Recarregue a página para ler e aceitar.',
+  'legal.gate.reload': 'Recarregar',
   'legal.gate.failed': 'Não deu para registrar o aceite. Tente de novo.',
 } as const

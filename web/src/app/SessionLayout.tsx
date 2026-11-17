@@ -37,7 +37,7 @@ function Loading() {
  * without a connection, the screens open (D13).
  */
 function DocumentsGuard() {
-  const { pending, loading } = useDocuments()
+  const { pending } = useDocuments()
   if (pending && pending.length > 0) {
     return (
       <Suspense fallback={<Loading />}>
@@ -45,7 +45,7 @@ function DocumentsGuard() {
       </Suspense>
     )
   }
-  return loading ? <Loading /> : <Outlet />
+  return <Outlet />
 }
 
 /**

@@ -8,8 +8,6 @@ export interface Documents {
    * on an error: only a real answer can put the gate up, so offline never locks the family out (D13).
    */
   pending: DocumentStatus[] | undefined
-  /** True from the first request until it answers or fails once. */
-  loading: boolean
   /** Accepts the versions this build shows. A 409 reloads the list before it throws. */
   accept(): Promise<void>
 }
@@ -36,8 +34,6 @@ export function useDocuments(): Documents {
       (document) =>
         document.purpose !== 'PARENTAL' && document.acceptedVersion !== document.currentVersion,
     ),
-    // Once a request has failed, the person is let in while the retries go on.
-    loading: query.isPending && query.fetchStatus === 'fetching' && query.failureCount === 0,
     // `onSettled` reloads the list on success and on a 409 alike.
     accept: () => mutation.mutateAsync(),
   }
