@@ -85,6 +85,8 @@ Fundadora cobre os R$ 329/mês com 46 famílias, ou 32 com reserva (taxas de 17/
 Orçamento por categoria com avisos gentis, metas da família, reserva de emergência, recorrências
 previstas, tags. Também:
 
+- **projeção do saldo** para o fim do mês e os próximos 3 meses, a partir das recorrências e da
+  média dos gastos variáveis, e a divisão entre **gastos fixos e variáveis** no painel (US-29);
 - **sincronização ao vivo** entre os aparelhos da família (SSE): o gasto de um aparece na tela do
   outro sem recarregar;
 - **forma de pagamento** em cada lançamento (Pix, crédito, débito, boleto, TED, dinheiro);

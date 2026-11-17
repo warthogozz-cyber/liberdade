@@ -53,7 +53,7 @@ com reembolso e cancelamento.
 |---|---|---|
 | v0.1 Núcleo | Login sem senha, família e convites, papéis, contas, categorias, receitas, gastos e transferências (inclusive offline), saldo, painel do mês, onboarding em 60 s, módulos ligáveis, exportar e excluir conta | RF-01, RF-02 (parcial), RF-04 Controle, RF-05 (parcial) |
 | Plano 6 Cobrança | Planos Grátis e Família, pré-venda Fundadora, assinatura por Pix ou cartão, cancelamento em um clique, reembolso em 7 dias, Retrato do mês | ADR-0015 |
-| v0.2 Planejamento | Orçamento por categoria, metas, reserva de emergência, recorrências, tags, sincronização ao vivo, forma de pagamento, país, moeda e idioma no modelo, movimento e som | RF-02, RF-14 (metas em família) |
+| v0.2 Planejamento | Orçamento por categoria, metas, reserva de emergência, recorrências, projeção do saldo, gastos fixos e variáveis, tags, sincronização ao vivo, forma de pagamento, país, moeda e idioma no modelo, movimento e som | RF-02, RF-14 (metas em família) |
 | v0.3 Indicadores e jogo | Selic, CDI, IPCA e dólar com fonte e data; calculadora educativa; sequências, conquistas e celebrações; dicas e tours; importação de extrato OFX/CSV | RF-02, RF-04 Tracking, RF-05 (parcial), RF-14 (parcial) |
 | v0.4 Trilhas de renda extra | Projeto de renda extra com custos, preço, margem, ponto de equilíbrio, ROI, payback e real vs. planejado, em trilhas com modelos prontos | RF-04 Novo Projeto, RF-09 (trilhas) |
 | Plano 10 Feira | Mercados perto de casa (OpenStreetMap), mapa só ao tocar, cartões dos mercados, preços pela NFC-e | RF-12 (parcial) |
@@ -269,6 +269,15 @@ US-15 e US-16 para eles valem quando abrirem.
 **US-28 Som opcional**
 - Em Ajustes, uma chave liga sons curtos só para conquistas, com prévia. Desligado por padrão.
 - Regras de movimento e som no [design system](design-system.md#5-movimento-e-som).
+
+**US-29 Projeção do saldo e gastos fixos e variáveis**
+- O painel mostra o saldo previsto para o fim do mês e para os próximos 3 meses: saldo de hoje mais
+  as recorrências previstas (US-23) e a média dos gastos variáveis dos últimos 3 meses.
+- Cada gasto é **fixo** ou **variável**. Por padrão é fixo quando vem de uma recorrência; a família
+  pode marcar uma categoria como fixa. O painel separa os dois totais.
+- A projeção se atualiza na hora a cada lançamento e aparece sempre como "estimativa", com a conta
+  explicada em um toque. Sem histórico suficiente, mostra só o que vem das recorrências.
+- O detalhe (regras, telas e cálculo) fica no spec do Plano 7.
 
 ### v0.3 — Indicadores e gamificação (módulos "Indicadores" e "Conquistas")
 
