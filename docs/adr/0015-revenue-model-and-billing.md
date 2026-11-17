@@ -1,7 +1,7 @@
 # ADR-0015: Modelo de receita e cobrança
 
-- **Status:** Proposto. O spec do Plano 6 confirma os preços e o meio de pagamento e muda o status
-  para Aceito.
+- **Status:** Aceito em 2026-11-17, com as decisões do
+  [spec do Plano 6](../superpowers/specs/2026-11-17-liberdade-plan-6-billing-design.md).
 - **Data:** 2026-11-17
 
 ## Contexto
@@ -19,35 +19,48 @@
 - O app é um PWA. Cobrando por Pix ou cartão na web, a cobrança não passa pelas lojas de apps. Não
   há texto oficial sobre PWA; é uma inferência a partir das regras das lojas para apps nativos.
 
-## Decisão (proposta)
+## Decisão
 
-- **Plano Grátis, para sempre.** Uma família com lançamentos manuais, painel do mês e metas
-  básicas, para o convite da família funcionar. O spec do Plano 6 define o limite exato (por
-  exemplo, até 2 adultos).
+- **Plano Grátis, para sempre.** Fica com tudo o que o app faz hoje, inclusive o papel de Jovem e o
+  convite da família, sem limite de membros. Nada que já existe passa a ser pago.
 - **Plano Família:** R$ 14,90/mês ou R$ 119/ano, por família inteira, não por pessoa. Inclui o que
-  dá mais trabalho ou custa mais: jovens com mesada e missões, metas ilimitadas, importação de
-  extrato, Retrato do mês e retrospectiva, renda extra e suporte.
-- **Pré-venda Família Fundadora:** R$ 89/ano, com o preço travado enquanto a assinatura estiver
-  ativa, acesso ao beta e voto no que vem a seguir.
-  - Vagas limitadas só se o limite for real.
+  dá mais trabalho ou custa mais e ainda vai sair: jovens com mesada e missões, metas ilimitadas,
+  importação de extrato, retrospectiva, Feira, renda extra e suporte. **O mensal e o anual abrem
+  com a v0.2/v0.3**, quando houver recurso pago de verdade.
+- **Retrato do mês é grátis para todos**, com um rodapé discreto do app. É o primeiro motivo para
+  alguém de fora conhecer o app, e cobrar por ele travaria esse efeito.
+- **Pré-venda Família Fundadora, o único produto à venda no Plano 6:** R$ 89 por um ano, pagamento
+  único por Pix ou cartão, sem cobrança recorrente.
+  - Dá o plano Família por 1 ano; cada recurso pago entra assim que sair. Hoje inclui um tema de
+    cor e o selo "Família Fundadora".
+  - O preço fica travado na renovação. A renovação fica para depois do Plano 6.
+  - Fica aberta até o mensal abrir, sem limite de vagas e sem contagem regressiva.
   - Nada de "vitalício": seria custo para sempre, sem receita.
 - **Regras para qualquer plano:**
-  - cancelamento em um clique, sem pegadinha;
-  - reembolso fácil em 7 dias (direito de arrependimento do CDC, art. 49);
+  - cancelamento em um clique, sem pegadinha (na Fundadora não há o que cancelar, porque nada
+    renova);
+  - reembolso integral em 7 dias, em um toque (direito de arrependimento do CDC, art. 49); depois
+    disso, o acesso vale até o fim do ano pago;
   - o app nunca guarda dados de cartão: quem guarda é o processador de pagamento;
   - nada de anúncios, venda de dados ou link de afiliado de investimento.
-- **Meio de pagamento:** Stripe ou Asaas, escolhido no spec do Plano 6. O critério que decide é o
-  **Pix Automático** (cobrança recorrente por Pix): o Stripe Brasil ainda não oferece, segundo a
-  página de suporte consultada. As taxas são conferidas de novo na página oficial antes da escolha.
+- **Meio de pagamento: Asaas**, pelo Checkout hospedado (Pix e cartão). Decidiu o **Pix
+  Automático** para o mensal que vem depois (o Stripe Brasil ainda não oferece, segundo a página de
+  suporte consultada) e a emissão de NFS-e pelo próprio Asaas (≈ R$ 0,49 por nota). O app não manda
+  dados de quem paga: CPF, nome e cartão ficam só no Asaas.
+- **Dados de pagamento guardados por 5 anos** depois do pagamento, mesmo com a família excluída
+  (obrigação fiscal), sem ligação com a família.
 - **Antes da primeira cobrança:**
-  - um contador confirma o CNPJ (MEI ou ME), o CNAE e o anexo do Simples Nacional;
+  - um contador confirma o CNPJ (MEI ou ME), o CNAE, o anexo do Simples Nacional e a NFS-e; só
+    então a chave de produção do Asaas entra;
   - os termos de uso trazem as regras de reembolso e cancelamento;
   - a política de privacidade passa a citar o processador de pagamento.
 
 ## Custos e ponto de equilíbrio
 
-Taxas consultadas em 2026-11-16, antes de impostos. São estes os números que o spec do Plano 6
-confere de novo.
+Taxas consultadas em 2026-11-16, antes de impostos. O spec do Plano 6 conferiu de novo em
+2026-11-17: o Pix do Asaas aparece como R$ 0,99 ao lado de R$ 1,99, mais ≈ R$ 0,49 de NFS-e. Pelo
+pior caso (R$ 2,48), a Fundadora deixa R$ 86,52 por ano (≈ R$ 7,21/mês) e cobre os R$ 329 com
+**46** famílias, ou **32** com reserva.
 
 | Preço | Taxa do meio de pagamento | Líquido por família/mês | Famílias para cobrir R$ 329 | Com reserva (R$ 228) |
 |---|---|---|---|---|
@@ -90,8 +103,8 @@ Fontes (consultadas em 2026-11-16): [Stripe Brasil, preços](https://stripe.com/
 
 ## Consequências
 
-- O app passa a ter um módulo de cobrança: assinatura, webhooks do provedor e o plano de cada
-  família. O desenho fica no spec do Plano 6.
+- O app passa a ter um módulo de cobrança: pedidos, webhooks do Asaas e o plano de cada família. O
+  desenho fica no spec do Plano 6. A assinatura recorrente entra com o mensal.
 - Abrir para outras famílias vem antes da v0.4. A revisão de LGPD e da marca (INPI) acontece antes
   da primeira cobrança, e não mais depois da v0.4.
 - O plano Grátis continua completo para o uso do dia a dia. O que é pago nunca é ameaça nem

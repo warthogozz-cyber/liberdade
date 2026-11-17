@@ -19,6 +19,6 @@ quando houver, custo. Um ADR aceito não é editado; se a decisão mudar, um nov
 | [0012](0012-data-access-jdbcclient.md) | Acesso a dados com JdbcClient e SQL explícito | Aceito |
 | [0013](0013-property-tests-without-jqwik.md) | Testes de propriedade sem jqwik | Aceito |
 | [0014](0014-dns-cloudflare-and-costs.md) | DNS no Cloudflare e custos atualizados | Aceito |
-| [0015](0015-revenue-model-and-billing.md) | Modelo de receita e cobrança | Proposto |
+| [0015](0015-revenue-model-and-billing.md) | Modelo de receita e cobrança | Aceito |
 
 Modelo: [0001](0001-record-architecture-decisions.md).

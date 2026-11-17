@@ -7,7 +7,7 @@
 > R$ 5,42 (30/10/2026), salvo onde outra data é indicada.
 >
 > **Mudança de 2026-11-17:** a cobrança veio para logo depois da v0.1 (Plano 6), para haver receita
-> antes de os créditos da AWS acabarem ([ADR-0015](adr/0015-revenue-model-and-billing.md), proposto).
+> antes de os créditos da AWS acabarem ([ADR-0015](adr/0015-revenue-model-and-billing.md), aceito).
 > A abertura para outras famílias vem junto, antes da v0.4.
 
 ## Visão geral
@@ -60,26 +60,33 @@ US$ 200 ≈ R$ 1.146) cobrem cerca de 3,5 meses. Preços de 16/11/2026 com PTAX 
 
 ### Plano 6 — Cobrança e Retrato do mês (M)
 
-Planos Grátis e Família, pré-venda Família Fundadora, assinatura por Pix ou cartão num processador
-de pagamento (o app nunca guarda dados de cartão), cancelamento em um clique e reembolso em 7 dias.
-Junto vem o **Retrato do mês**: um cartão compartilhável com o resumo do mês só em percentuais, sem
-valores, gerado no aparelho.
+Planos Grátis e Família e a **pré-venda Família Fundadora**: R$ 89 por um ano, pagamento único por
+Pix ou cartão no Checkout do Asaas (o app nunca vê CPF nem cartão), reembolso integral em 7 dias em
+um toque. O mensal e o anual, com assinatura, abrem com a v0.2/v0.3. Junto vem o **Retrato do mês**,
+grátis para todos: um cartão compartilhável com o resumo do mês só em percentuais, sem valores,
+gerado no aparelho. Desenho no
+[spec do Plano 6](superpowers/specs/2026-11-17-liberdade-plan-6-billing-design.md).
 
 **Sai quando:**
-- uma família consegue assinar, cancelar e pedir reembolso no staging, com o processador em modo
-  de teste;
-- o plano Grátis continua completo para o uso do dia a dia (S2 passa sem assinatura);
-- um contador confirmou o CNPJ e o enquadramento, e os termos de uso trazem reembolso e
-  cancelamento.
+- no staging, com o Asaas em sandbox, uma família compra por Pix e por cartão, vira Fundadora, pede
+  o reembolso e volta ao Grátis;
+- o plano Grátis continua completo (S2 passa sem compra);
+- o Retrato funciona no Android e no iOS sem chamada de rede;
+- os termos de uso e a política de privacidade novos estão publicados no staging (na produção,
+  entram quando a cobrança ligar).
 
-**Custo:** R$ 0 fixo; só a taxa por transação do processador. Ponto de equilíbrio: 24 famílias no
-mensal de R$ 14,90 no cartão, ou 34 no anual de R$ 119 no Pix (ADR-0015, taxas de 16/11/2026).
+A chave de produção entra depois, quando um contador confirmar o CNPJ, o enquadramento e a NFS-e.
+
+**Custo:** R$ 0 fixo; só a taxa por transação. Pelo pior caso (Pix R$ 1,99 + NFS-e R$ 0,49), a
+Fundadora cobre os R$ 329/mês com 46 famílias, ou 32 com reserva (taxas de 17/11/2026).
 
 ### v0.2 Planejamento (M) — Plano 7
 
 Orçamento por categoria com avisos gentis, metas da família, reserva de emergência, recorrências
 previstas, tags. Também:
 
+- **projeção do saldo** para o fim do mês e os próximos 3 meses, a partir das recorrências e da
+  média dos gastos variáveis, e a divisão entre **gastos fixos e variáveis** no painel (US-29);
 - **sincronização ao vivo** entre os aparelhos da família (SSE): o gasto de um aparece na tela do
   outro sem recarregar;
 - **forma de pagamento** em cada lançamento (Pix, crédito, débito, boleto, TED, dinheiro);
