@@ -5,7 +5,7 @@
 #
 # Test-only variables: LIBERDADE_ROOT (default /opt/liberdade), LIBERDADE_ENV_SOURCE (ssm, the default,
 # or file: the env file already exists), LIBERDADE_COMPOSE_EXTRA (one more Compose file),
-# LIBERDADE_SKIP_CADDY=1, HEALTH_TIMEOUT_SECONDS (default 180).
+# LIBERDADE_SKIP_CADDY=1, LIBERDADE_ENV_DIR (default /run/liberdade), HEALTH_TIMEOUT_SECONDS (default 180).
 # ROLLBACK_TIMEOUT_SECONDS (default 180) bounds the wait after a rollback.
 # LOCK_WAIT_SECONDS (default 300) bounds the wait for another deploy holding the host lock.
 set -euo pipefail
@@ -15,7 +15,7 @@ ENV_SOURCE="${LIBERDADE_ENV_SOURCE:-ssm}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT_SECONDS:-180}"
 ROLLBACK_TIMEOUT="${ROLLBACK_TIMEOUT_SECONDS:-180}"
 LOCK_WAIT="${LOCK_WAIT_SECONDS:-300}"
-ENV_DIR=/run/liberdade
+ENV_DIR="${LIBERDADE_ENV_DIR:-/run/liberdade}"
 TAGS="$ROOT/tags.env"
 
 die() {
@@ -128,6 +128,12 @@ if [ "$ENV_SOURCE" = ssm ]; then
       exit 1
     }
     chmod 600 "$tmp"
+    # Keep the current file for a rollback (same 0600 mode, from umask 077). A first deploy has none.
+    if [ -f "$ENV_DIR/$ENVIRONMENT.env" ]; then
+      cp -p "$ENV_DIR/$ENVIRONMENT.env" "$ENV_DIR/$ENVIRONMENT.env.previous"
+    else
+      rm -f "$ENV_DIR/$ENVIRONMENT.env.previous"
+    fi
     mv -f "$tmp" "$ENV_DIR/$ENVIRONMENT.env"
   )
 fi
@@ -151,6 +157,13 @@ restore_host_files() {
       cp -f "$ROOT/.previous/$f" "$ROOT/$f"
     fi
   done
+}
+
+# Puts the previous environment file back, if this deploy kept one.
+restore_env_file() {
+  if [ -f "$ENV_DIR/$ENVIRONMENT.env.previous" ]; then
+    cp -p "$ENV_DIR/$ENVIRONMENT.env.previous" "$ENV_DIR/$ENVIRONMENT.env"
+  fi
 }
 
 # 4 and 5. Switch the tag, pull, start, and reload Caddy. Any failure here counts as an unhealthy deploy.
@@ -197,6 +210,7 @@ if [ -z "$PREVIOUS" ]; then
   die "no previous release to roll back to"
 fi
 restore_host_files
+restore_env_file
 switch_to "$PREVIOUS" || true
 reload_caddy || true
 wait_healthy "$ROLLBACK_TIMEOUT" || echo "deploy: the previous release is not healthy either" >&2

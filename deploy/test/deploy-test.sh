@@ -15,6 +15,7 @@ TAGS_FILE="$WORK/root/tags.env"
 export CI_ENV_FILE="$WORK/api.env"
 export LIBERDADE_ENV_SOURCE=file
 export LIBERDADE_SKIP_CADDY=1
+export LIBERDADE_ENV_DIR="$WORK/envdir"
 export LIBERDADE_COMPOSE_EXTRA="$HERE/compose.ci.yaml"
 FAILURES=0
 
@@ -77,6 +78,17 @@ WEB_ORIGIN=https://app.example.com
 WEBAUTHN_RP_ID=example.com
 ENVFILE
 
+# Scenario 2 reads its environment from a fake aws that returns different values than the file on disk.
+mkdir -p "$WORK/envdir" "$WORK/fakebin"
+printf "ENV_MARKER='before-deploy'
+" >"$WORK/envdir/production.env"
+cat >"$WORK/fakebin/aws" <<'FAKEAWS'
+#!/usr/bin/env bash
+printf 'ENV_MARKER	changed-by-ssm
+'
+FAKEAWS
+chmod +x "$WORK/fakebin/aws"
+
 docker tag "$GOOD_BASE" "$IMAGE:$GOOD_TAG"
 docker build -q -f "$HERE/Dockerfile.unhealthy" --build-arg "BASE_IMAGE=$GOOD_BASE" -t "$IMAGE:$BAD_TAG" "$HERE" >/dev/null
 
@@ -91,9 +103,11 @@ check "tags.env has the good tag" "$GOOD_TAG" "$(tag_in_file)"
 check "container is healthy" healthy "$(container_health)"
 
 echo "== scenario 2: bad release rolls back to the good one"
+env_before="$(cat "$WORK/envdir/production.env")"
 code=0
-run_deploy "$BAD_TAG" 30 || code=$?
+PATH="$WORK/fakebin:$PATH" LIBERDADE_ENV_SOURCE=ssm run_deploy "$BAD_TAG" 30 || code=$?
 check "exit code" 1 "$code"
+check "env file is back to its content before the deploy" "$env_before" "$(cat "$WORK/envdir/production.env")"
 check "output says it rolled back" "rolled back to $GOOD_TAG" "$(grep -x "rolled back to .*" "$WORK/deploy.log" || true)"
 check "tags.env is back on the good tag" "$GOOD_TAG" "$(tag_in_file)"
 check "container is healthy again" healthy "$(container_health)"
