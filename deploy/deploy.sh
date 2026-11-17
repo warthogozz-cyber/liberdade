@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# Usage: deploy.sh <staging|production> <tag> <release-dir>
+# Exit 0: the new version is healthy. Exit 1: rolled back to the previous version, or there was none.
+# Never prints the environment or the contents of the secret file.
+#
+# Test-only variables: LIBERDADE_ROOT (default /opt/liberdade), LIBERDADE_ENV_SOURCE (ssm, the default,
+# or file: the env file already exists), LIBERDADE_COMPOSE_EXTRA (one more Compose file),
+# LIBERDADE_SKIP_CADDY=1, HEALTH_TIMEOUT_SECONDS (default 180).
+# ROLLBACK_TIMEOUT_SECONDS (default 180) bounds the wait after a rollback.
+set -euo pipefail
+
+ROOT="${LIBERDADE_ROOT:-/opt/liberdade}"
+ENV_SOURCE="${LIBERDADE_ENV_SOURCE:-ssm}"
+HEALTH_TIMEOUT="${HEALTH_TIMEOUT_SECONDS:-180}"
+ROLLBACK_TIMEOUT="${ROLLBACK_TIMEOUT_SECONDS:-180}"
+ENV_DIR=/run/liberdade
+TAGS="$ROOT/tags.env"
+
+die() {
+  echo "deploy: $*" >&2
+  exit 1
+}
+
+# 1. Arguments and tag format.
+[ "$#" -eq 3 ] || die "usage: deploy.sh <staging|production> <tag> <release-dir>"
+ENVIRONMENT="$1"
+TAG="$2"
+RELEASE="$3"
+case "$ENVIRONMENT" in
+  staging) TAG_KEY=STAGING_TAG ;;
+  production) TAG_KEY=PRODUCTION_TAG ;;
+  *) die "environment must be staging or production" ;;
+esac
+SERVICE="api-$ENVIRONMENT"
+[[ "$TAG" =~ ^sha-[0-9a-f]{40}$ ]] || die "tag must look like sha-<40 hex characters>"
+if ! [ -f "$RELEASE/compose.yaml" ] || ! [ -f "$RELEASE/Caddyfile" ]; then
+  die "release folder needs compose.yaml and Caddyfile"
+fi
+case "$ENV_SOURCE" in ssm | file) ;; *) die "LIBERDADE_ENV_SOURCE must be ssm or file" ;; esac
+[[ "$HEALTH_TIMEOUT" =~ ^[0-9]+$ ]] || die "HEALTH_TIMEOUT_SECONDS must be a number"
+[[ "$ROLLBACK_TIMEOUT" =~ ^[0-9]+$ ]] || die "ROLLBACK_TIMEOUT_SECONDS must be a number"
+
+# One deploy at a time: both environments share tags.env and the Caddyfile.
+mkdir -p "$ROOT/releases"
+exec 9>"$ROOT/.deploy.lock"
+flock -n 9 || die "another deploy is running"
+
+dc() {
+  local -a files=(-f "$ROOT/compose.yaml")
+  if [ -n "${LIBERDADE_COMPOSE_EXTRA:-}" ]; then
+    files+=(-f "$LIBERDADE_COMPOSE_EXTRA")
+  fi
+  docker compose --project-directory "$ROOT" "${files[@]}" --env-file "$TAGS" "$@"
+}
+
+get_tag() {
+  local line
+  line="$(grep -E "^$1=" "$TAGS" || true)"
+  printf '%s' "${line#*=}"
+}
+
+# Rewrites tags.env atomically; with a value, sets the key, without one, removes it.
+set_tag() {
+  local tmp
+  tmp="$(mktemp "$ROOT/tags.env.XXXXXX")"
+  grep -vE "^$1=" "$TAGS" >"$tmp" || true
+  if [ "$#" -ge 2 ]; then
+    printf '%s=%s\n' "$1" "$2" >>"$tmp"
+  fi
+  mv -f "$tmp" "$TAGS"
+}
+
+# Waits for the container health status. Fails fast on unhealthy and at the deadline.
+wait_healthy() {
+  local deadline=$((SECONDS + $1)) cid status
+  while :; do
+    cid="$(dc ps -q "$SERVICE")"
+    status=none
+    if [ -n "$cid" ]; then
+      status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cid")"
+    fi
+    case "$status" in
+      healthy) return 0 ;;
+      unhealthy) return 1 ;;
+    esac
+    [ "$SECONDS" -lt "$deadline" ] || return 1
+    sleep 2
+  done
+}
+
+# 2. Validate the release's Compose file, then install it with the Caddyfile.
+docker compose -f "$RELEASE/compose.yaml" config -q
+cp -f "$RELEASE/compose.yaml" "$ROOT/compose.yaml"
+# cp rewrites the same inode, which keeps the single-file bind mount in Caddy pointing at the new content.
+cp -f "$RELEASE/Caddyfile" "$ROOT/Caddyfile"
+touch "$TAGS"
+
+# 3. Environment file from SSM, one NAME=value line per parameter. Prints nothing about values.
+if [ "$ENV_SOURCE" = ssm ]; then
+  (
+    umask 077
+    mkdir -p "$ENV_DIR"
+    tmp="$(mktemp "$ENV_DIR/$ENVIRONMENT.env.XXXXXX")"
+    trap 'rm -f "$tmp"' EXIT
+    aws ssm get-parameters-by-path --path "/liberdade/$ENVIRONMENT/" --with-decryption --recursive \
+      --query 'Parameters[].[Name,Value]' --output text |
+      while IFS=$'\t' read -r name value; do
+        printf '%s=%s\n' "${name##*/}" "$value"
+      done >"$tmp"
+    [ -s "$tmp" ] || {
+      echo "deploy: no SSM parameters under /liberdade/$ENVIRONMENT/" >&2
+      exit 1
+    }
+    chmod 600 "$tmp"
+    mv -f "$tmp" "$ENV_DIR/$ENVIRONMENT.env"
+  )
+fi
+
+# 4 and 5. Switch the tag, pull, start, and reload Caddy. Any failure here counts as an unhealthy deploy.
+switch_to() {
+  # Chained with && because errexit is off inside functions that run in an if condition.
+  set_tag "$TAG_KEY" "$1" &&
+    dc pull --quiet --policy missing "$SERVICE" &&
+    dc up -d --no-deps "$SERVICE"
+}
+
+reload_caddy() {
+  [ "${LIBERDADE_SKIP_CADDY:-0}" = 1 ] && return 0
+  if [ -n "$(dc ps -q --status running caddy)" ]; then
+    dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+  else
+    dc up -d caddy
+  fi
+}
+
+PREVIOUS="$(get_tag "$TAG_KEY")"
+
+if switch_to "$TAG" && reload_caddy && wait_healthy "$HEALTH_TIMEOUT"; then
+  # 8. Housekeeping: old unused images, and only the 5 newest releases.
+  docker image prune -af --filter "until=168h" >/dev/null || true
+  find "$ROOT/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -rn | tail -n +6 | cut -d' ' -f2- |
+    while IFS= read -r old; do
+      if ! [ "$old" -ef "$RELEASE" ]; then
+        rm -rf -- "$old"
+      fi
+    done
+  echo "deployed $TAG to $ENVIRONMENT"
+  exit 0
+fi
+
+# 7. Roll back.
+echo "deploy: $TAG did not become healthy in $ENVIRONMENT" >&2
+if [ -z "$PREVIOUS" ]; then
+  set_tag "$TAG_KEY"
+  dc rm -sf "$SERVICE" || true
+  die "no previous release to roll back to"
+fi
+switch_to "$PREVIOUS" || true
+wait_healthy "$ROLLBACK_TIMEOUT" || echo "deploy: the previous release is not healthy either" >&2
+echo "rolled back to $PREVIOUS"
+exit 1

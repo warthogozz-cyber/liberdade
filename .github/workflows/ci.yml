@@ -130,3 +130,51 @@ jobs:
           # data license for its tables from the Unicode Character Database, which is permissive.
           # It comes in through workbox-build and runs only at build time.
           allow-dependencies-licenses: pkg:npm/unicode-match-property-value-ecmascript@2.2.1
+
+  deploy-lint:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      # Multi-arch index digests. arm64 manifests: actionlint sha256:33ffa3f1ad576165ea9c26f726884defdc411fb1fcb9ccc6a117b2f554ba1723,
+      # shellcheck sha256:4d7c931ae7ee555483ceac75379369f1bc5f01807be6638d12ede9ce29a27b53.
+      ACTIONLINT_IMAGE: rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+      SHELLCHECK_IMAGE: koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" -w /repo "$ACTIONLINT_IMAGE" -color
+      - name: shellcheck
+        run: docker run --rm -v "$PWD:/mnt" "$SHELLCHECK_IMAGE" deploy/*.sh deploy/test/*.sh
+      - name: Compose file
+        run: docker compose -f deploy/compose.yaml --env-file deploy/tags.env.example config -q
+      - name: Compose subnet matches the trusted proxy range
+        run: |
+          subnet="$(grep -oE 'subnet: *[0-9./]+' deploy/compose.yaml | head -n 1 | sed -E 's/subnet: *//')"
+          proxies="$(grep -E '^server\.tomcat\.remoteip\.internal-proxies=' api/src/main/resources/application-prod.properties | cut -d= -f2-)"
+          if [ -z "$subnet" ] || [ "$subnet" != "$proxies" ]; then
+            echo "::error::Compose subnet '$subnet' differs from server.tomcat.remoteip.internal-proxies '$proxies'"
+            exit 1
+          fi
+      - name: Caddyfile
+        run: |
+          image="$(grep -oE 'caddy:[^ ]+@sha256:[0-9a-f]{64}' deploy/compose.yaml | head -n 1)"
+          test -n "$image"
+          docker run --rm -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" "$image" \
+            caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+  deploy-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the API image
+        run: docker build -t liberdade-api-ci:local api
+      - name: Deploy and roll back
+        run: bash deploy/test/deploy-test.sh liberdade-api-ci:local

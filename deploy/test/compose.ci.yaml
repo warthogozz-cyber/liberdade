@@ -1,0 +1,33 @@
+# Extra Compose file for deploy-test.sh: no awslogs, no RDS bundle, a local Postgres and an env file
+# that the test writes (CI_ENV_FILE). Test values only.
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: liberdade
+      POSTGRES_USER: liberdade
+      POSTGRES_PASSWORD: ci-only
+    networks:
+      - liberdade
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U liberdade -d liberdade"]
+      interval: 3s
+      retries: 20
+
+  api-production:
+    env_file: !override
+      - ${CI_ENV_FILE:?}
+    volumes: !override []
+    logging: !override
+      driver: json-file
+
+  api-staging:
+    env_file: !override
+      - ${CI_ENV_FILE:?}
+    volumes: !override []
+    logging: !override
+      driver: json-file
+
+  caddy:
+    logging: !override
+      driver: json-file

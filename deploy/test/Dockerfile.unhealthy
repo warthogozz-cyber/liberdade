@@ -1,0 +1,4 @@
+# The good API image that never starts the API, so its healthcheck never passes.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+ENTRYPOINT ["sleep","infinity"]

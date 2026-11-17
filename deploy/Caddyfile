@@ -1,0 +1,17 @@
+{
+	# Errors only, and no access log: no client address reaches the logs.
+	log {
+		output stderr
+		level ERROR
+	}
+}
+
+api.liberdadefamilia.com.br {
+	header -Server
+	reverse_proxy api-production:8080
+}
+
+api-staging.liberdadefamilia.com.br {
+	header -Server
+	reverse_proxy api-staging:8080
+}
