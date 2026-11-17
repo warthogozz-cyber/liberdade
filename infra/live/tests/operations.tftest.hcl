@@ -217,6 +217,64 @@ run "alarms_cover_the_basics" {
   }
 }
 
+run "alarms_watch_the_right_resources" {
+  command = plan
+
+  assert {
+    condition = (
+      aws_cloudwatch_metric_alarm.ec2_status.namespace == "AWS/EC2" &&
+      aws_cloudwatch_metric_alarm.ec2_cpu.namespace == "AWS/EC2" &&
+      aws_cloudwatch_metric_alarm.rds_storage.namespace == "AWS/RDS" &&
+      aws_cloudwatch_metric_alarm.rds_cpu_credits.namespace == "AWS/RDS"
+    )
+    error_message = "Alarms must use the AWS/EC2 and AWS/RDS namespaces."
+  }
+
+  assert {
+    condition = (
+      aws_cloudwatch_metric_alarm.ec2_status.dimensions["InstanceId"] == "i-0123456789abcdef0" &&
+      aws_cloudwatch_metric_alarm.ec2_cpu.dimensions["InstanceId"] == "i-0123456789abcdef0"
+    )
+    error_message = "EC2 alarms must be dimensioned by the host instance id."
+  }
+
+  assert {
+    condition = (
+      aws_cloudwatch_metric_alarm.rds_storage.dimensions["DBInstanceIdentifier"] == aws_db_instance.main.identifier &&
+      aws_cloudwatch_metric_alarm.rds_cpu_credits.dimensions["DBInstanceIdentifier"] == aws_db_instance.main.identifier
+    )
+    error_message = "RDS alarms must be dimensioned by the DB identifier."
+  }
+
+  assert {
+    condition = alltrue([
+      for a in [
+        aws_cloudwatch_metric_alarm.ec2_status,
+        aws_cloudwatch_metric_alarm.ec2_cpu,
+        aws_cloudwatch_metric_alarm.rds_storage,
+        aws_cloudwatch_metric_alarm.rds_cpu_credits,
+      ] : contains(a.ok_actions, aws_sns_topic.alerts.arn)
+    ])
+    error_message = "Every alarm must announce recovery on the alerts topic."
+  }
+
+  assert {
+    condition = alltrue([
+      for a in [
+        aws_cloudwatch_metric_alarm.ec2_cpu,
+        aws_cloudwatch_metric_alarm.rds_storage,
+        aws_cloudwatch_metric_alarm.rds_cpu_credits,
+      ] : !contains(a.alarm_actions, "arn:aws:automate:sa-east-1:ec2:recover") && !contains(a.ok_actions, "arn:aws:automate:sa-east-1:ec2:recover")
+    ]) && !contains(aws_cloudwatch_metric_alarm.ec2_status.ok_actions, "arn:aws:automate:sa-east-1:ec2:recover")
+    error_message = "ec2:recover must be only on the status alarm, and only as an alarm action."
+  }
+
+  assert {
+    condition     = aws_cloudwatch_metric_alarm.ec2_status.treat_missing_data == "notBreaching"
+    error_message = "A planned stop or replacement must not fire the status alarm."
+  }
+}
+
 run "instance_recovers_itself" {
   command = plan
 
@@ -232,6 +290,11 @@ run "budget_ignores_credits" {
   assert {
     condition     = one(aws_budgets_budget.monthly.cost_types).include_credit == false && one(aws_budgets_budget.monthly.cost_types).include_refund == false
     error_message = "The budget must exclude credits and refunds."
+  }
+
+  assert {
+    condition     = aws_budgets_budget.monthly.limit_amount == "60" && aws_budgets_budget.monthly.limit_unit == "USD" && aws_budgets_budget.monthly.time_unit == "MONTHLY"
+    error_message = "The budget must be 60 USD per month by default."
   }
 
   assert {

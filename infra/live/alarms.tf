@@ -20,8 +20,10 @@ resource "aws_cloudwatch_metric_alarm" "ec2_status" {
   threshold           = 0
   period              = 60
   evaluation_periods  = 2
-  treat_missing_data  = "breaching"
-  alarm_actions       = [aws_sns_topic.alerts.arn, "arn:aws:automate:sa-east-1:ec2:recover"]
+  # A planned stop or a replacement must not page anyone or fire recover.
+  treat_missing_data = "notBreaching"
+  alarm_actions      = [aws_sns_topic.alerts.arn, "arn:aws:automate:sa-east-1:ec2:recover"]
+  ok_actions         = [aws_sns_topic.alerts.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "ec2_cpu" {
@@ -37,6 +39,7 @@ resource "aws_cloudwatch_metric_alarm" "ec2_cpu" {
   evaluation_periods  = 3
   treat_missing_data  = "missing"
   alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_storage" {
@@ -52,6 +55,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage" {
   evaluation_periods  = 1
   treat_missing_data  = "missing"
   alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_cpu_credits" {
@@ -67,4 +71,5 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_credits" {
   evaluation_periods  = 1
   treat_missing_data  = "missing"
   alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
 }
