@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.billing.internal;
 
 import java.util.List;
+import java.util.Locale;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -22,7 +23,8 @@ public record BillingProperties(
     public BillingProperties {
         checkoutHosts = checkoutHosts == null ? List.of() : List.copyOf(checkoutHosts);
         webhookToken = webhookToken == null ? "" : webhookToken;
-        gateway = gateway == null ? "asaas" : gateway;
+        gateway =
+                gateway == null || gateway.isBlank() ? "asaas" : gateway.strip().toLowerCase(Locale.ROOT);
         asaas = asaas == null ? new Asaas("", "") : asaas;
     }
 

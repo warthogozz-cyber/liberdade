@@ -34,6 +34,13 @@ class BillingStartupCheckTest {
     }
 
     @Test
+    void prodWithFakeInAnyCaseFails() {
+        assertThatThrownBy(() -> check(properties(true, " FAKE "), "prod").run(new DefaultApplicationArguments()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("billing.gateway=fake is not allowed in prod");
+    }
+
+    @Test
     void fakeOutsideProdIsFine() {
         assertThatCode(() -> check(properties(true, "fake"), "dev").run(new DefaultApplicationArguments()))
                 .doesNotThrowAnyException();
