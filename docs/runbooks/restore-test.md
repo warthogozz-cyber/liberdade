@@ -52,7 +52,8 @@ aws rds restore-db-instance-to-point-in-time \
   --db-parameter-group-name liberdade-postgres18 \
   --vpc-security-group-ids <id do grupo de segurança> \
   --no-publicly-accessible \
-  --no-multi-az \n  --no-deletion-protection
+  --no-multi-az \
+  --no-deletion-protection
 ```
 
 3. Espere a instância ficar disponível (uns 15 a 30 minutos) e anote a hora de fim:
@@ -119,7 +120,8 @@ não). Sem dado pessoal: só números.
 
    ```bash
    NEW_PW="$(openssl rand -hex 24)"
-   aws rds modify-db-instance --db-instance-identifier liberdade-restore-test      --master-user-password "$NEW_PW" --apply-immediately
+   aws rds modify-db-instance --db-instance-identifier liberdade-restore-test \
+     --master-user-password "$NEW_PW" --apply-immediately
    export PGPASSWORD="$NEW_PW"
    unset NEW_PW
    ```
