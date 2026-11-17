@@ -7,7 +7,7 @@ ROOT="${liberdade_root}"
 
 dnf install -y docker
 mkdir -p /usr/local/lib/docker/cli-plugins
-curl -fsSL -o /tmp/docker-compose \
+curl -fsSL --retry 5 --retry-connrefused -o /tmp/docker-compose \
   "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-aarch64"
 echo "${compose_sha256}  /tmp/docker-compose" | sha256sum -c -
 install -m 0755 /tmp/docker-compose /usr/local/lib/docker/cli-plugins/docker-compose
@@ -22,7 +22,7 @@ if ! swapon --show=NAME --noheadings | grep -q '^/swapfile$'; then
 fi
 
 mkdir -p "$ROOT/certs" "$ROOT/releases"
-curl -fsSL -o "$ROOT/certs/rds-bundle.pem" "${rds_bundle_url}"
+curl -fsSL --retry 5 --retry-connrefused -o "$ROOT/certs/rds-bundle.pem" "${rds_bundle_url}"
 chmod 0644 "$ROOT/certs/rds-bundle.pem"
 
 systemctl enable --now docker

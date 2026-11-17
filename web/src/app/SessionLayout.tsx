@@ -33,8 +33,9 @@ function Loading() {
 
 /**
  * The family's screens, unless a document waits for the person's accept. Only an answer that says
- * so puts the gate up: while the first try is out, a moment of loading; once it has failed, or
- * without a connection, the screens open (D13).
+ * so puts the gate up. While the documents query is pending, and once it has failed or without a
+ * connection, the screens (`<Outlet/>`) show rather than a loading state, so offline use is never
+ * blocked (D13).
  */
 function DocumentsGuard() {
   const { pending } = useDocuments()
