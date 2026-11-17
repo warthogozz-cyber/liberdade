@@ -51,6 +51,7 @@ jobs:
     with:
       environment: staging
       ref: ${{ github.sha }}
+    # inherit on purpose: CLOUDFLARE_API_TOKEN is an Environment secret, resolved by the deploy job that sets environment:
     secrets: inherit
     permissions:
       contents: read

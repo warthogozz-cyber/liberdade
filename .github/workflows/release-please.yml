@@ -61,11 +61,12 @@ jobs:
 
   deploy-production:
     needs: [release-please, retag]
-    if: needs.release-please.outputs.release_created == 'true'
+    if: needs.release-please.outputs.release_created == 'true' && vars.DEPLOY_ENABLED == 'true'
     uses: ./.github/workflows/deploy.yml
     with:
       environment: production
       ref: ${{ needs.release-please.outputs.tag_name }}
+    # inherit on purpose: CLOUDFLARE_API_TOKEN is an Environment secret, resolved by the deploy job that sets environment:
     secrets: inherit
     permissions:
       contents: read
