@@ -52,7 +52,7 @@ aws rds restore-db-instance-to-point-in-time \
   --db-parameter-group-name liberdade-postgres18 \
   --vpc-security-group-ids <id do grupo de segurança> \
   --no-publicly-accessible \
-  --no-multi-az
+  --no-multi-az \n  --no-deletion-protection
 ```
 
 3. Espere a instância ficar disponível (uns 15 a 30 minutos) e anote a hora de fim:
@@ -115,9 +115,18 @@ não). Sem dado pessoal: só números.
 
 1. Se o `psql` não autenticar: a senha mestre pode ter sido trocada pela rotação do Secrets Manager
    (leia de novo), ou a instância restaurada não herdou a senha mestre. Nesse caso, e só nessa
-   instância temporária, troque a senha dela com
-   `aws rds modify-db-instance --db-instance-identifier liberdade-restore-test --master-user-password <senha gerada>`.
-   Nunca faça isso na `liberdade`.
+   instância temporária, troque a senha dela, sem digitar a senha na linha de comando:
+
+   ```bash
+   NEW_PW="$(openssl rand -hex 24)"
+   aws rds modify-db-instance --db-instance-identifier liberdade-restore-test      --master-user-password "$NEW_PW" --apply-immediately
+   export PGPASSWORD="$NEW_PW"
+   unset NEW_PW
+   ```
+
+   Use essa senha (`PGPASSWORD`) no passo 5 e dê `unset PGPASSWORD` ao terminar. Nunca faça isso na
+   `liberdade`.
+
 2. Se o `psql` não conectar: confira que a instância restaurada usa o mesmo grupo de segurança da
    original (só ele aceita a conexão vinda do host) e que a sessão da porta 15433 está aberta.
 3. Se a restauração falhar ou as contagens não baterem: abra uma issue com o erro e o instante

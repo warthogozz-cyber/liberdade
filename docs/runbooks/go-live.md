@@ -19,13 +19,13 @@ passos anteriores.
 
 ## Antes de começar
 
-- Uma conta Google de teste (a sua e a de 1 pessoa da família) para os passos 9 e 14.
+- Uma conta Google de teste (a sua e a de 1 pessoa da família) para os passos 8 e 14.
 - Um cartão para a AWS e o Registro.br, e uma caixa de e-mail que você leia (os avisos da AWS e o
   `privacidade@` vão para ela).
 - No computador: `git`, `gh` (autenticado), `tofu` 1.13.2, `aws` CLI v2 com o plugin Session Manager,
   `psql` 15 ou mais novo, `jq`, `openssl` e `dig`. No Windows, use o Git Bash e prefixe com
   `MSYS_NO_PATHCONV=1` os comandos do `aws ssm` cujo nome começa com `/` (senão o Git Bash troca o
-  caminho).
+  caminho). Os blocos abaixo com esses comandos já começam com `export MSYS_NO_PATHCONV=1`.
 - Onde este roteiro diz `<seu e-mail>`, `<senha gerada>` ou `<id da conta>`, troque pelo seu valor.
   Nenhum desses valores entra no repositório. Segredos vão para o SSM como `SecureString` com
   `--key-id alias/liberdade`, nunca para arquivo versionado nem para o chat.
@@ -147,7 +147,7 @@ exit
 
 Compare o hash com o que a AWS publica para esse pacote, se a página de certificados da RDS
 trouxer um SHA-256 para ele. Se não trouxer, guarde o hash no PR 3 e trate como lacuna conhecida
-(veja "Se falhar"). O arquivo precisa ter conteúdo (centenas de linhas `BEGIN CERTIFICATE`).
+(veja "Se falhar"). O arquivo precisa ter pelo menos um certificado: confira com `grep -c 'BEGIN CERTIFICATE'` (o resultado não pode ser 0).
 
 ### 5. Confirmar o e-mail de alertas
 
@@ -214,9 +214,9 @@ Os dois devolvem o `elastic_ip`. Ainda não há HTTPS: o Caddy só sobe no prime
 O `infra/sql/bootstrap.sql` cria os usuários `liberdade_production` e `liberdade_staging` e os
 bancos de mesmo nome. Precisa do `psql` 15 ou mais novo (usa `\getenv`) e lê as senhas das
 variáveis de ambiente `PRODUCTION_PASSWORD` e `STAGING_PASSWORD` (não de `-v`). Nunca rodou antes:
-este é o primeiro uso. Use um terminal só, do começo ao fim deste passo.
+este é o primeiro uso. Use dois terminais: um só para a sessão de porta (passo 1) e um de trabalho para o resto, sem fechá-lo até o fim do passo.
 
-1. Abra a sessão de encaminhamento de porta, num terminal separado, e deixe aberta (troque
+1. Abra a sessão de encaminhamento de porta no primeiro terminal e deixe-a aberta (troque
    `<host da RDS>` pelo `rds_endpoint` sem o `:5432`):
 
 ```bash
@@ -230,6 +230,7 @@ aws ssm start-session --target <instance_id> \
    RDS e muda a cada rotação, então leia na hora:
 
 ```bash
+export MSYS_NO_PATHCONV=1
 export PRODUCTION_PASSWORD="$(openssl rand -hex 32)"
 export STAGING_PASSWORD="$(openssl rand -hex 32)"
 aws ssm put-parameter --name /liberdade/production/SPRING_DATASOURCE_PASSWORD \
@@ -263,52 +264,9 @@ Conferir:
   `liberdade_production` e `liberdade_staging`, cada um com o dono de mesmo nome.
 - O erro `PRODUCTION_PASSWORD and STAGING_PASSWORD must both be set` quer dizer que uma variável
   não foi exportada.
-- Os dois parâmetros `SPRING_DATASOURCE_PASSWORD` existem (passo 8 confere a lista toda).
+- Os dois parâmetros `SPRING_DATASOURCE_PASSWORD` existem (o passo 9 confere a lista toda).
 
-### 8. Parâmetros do SSM (D7)
-
-O `deploy.sh` lê tudo que está em `/liberdade/<ambiente>/` e grava `/run/liberdade/<ambiente>.env`
-no host. Crie os parâmetros de cada ambiente (`staging` e `production`). Segredos são
-`SecureString` com `--key-id alias/liberdade`; o resto é `String`. Um valor não pode ter aspas
-simples nem quebra de linha (o deploy recusa).
-
-| Parâmetro                    | Tipo         | Valor em `staging`                                                                                         | Valor em `production`                 |
-| ---------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `SPRING_DATASOURCE_URL`      | String       | `jdbc:postgresql://<rds_endpoint>/liberdade_staging?sslmode=verify-full&sslrootcert=/certs/rds-bundle.pem` | o mesmo, com `/liberdade_production`  |
-| `SPRING_DATASOURCE_USERNAME` | String       | `liberdade_staging`                                                                                        | `liberdade_production`                |
-| `SPRING_DATASOURCE_PASSWORD` | SecureString | já criado no passo 7                                                                                       | já criado no passo 7                  |
-| `GOOGLE_CLIENT_ID`           | String       | do passo 9                                                                                                 | do passo 9                            |
-| `GOOGLE_CLIENT_SECRET`       | SecureString | do passo 9                                                                                                 | do passo 9                            |
-| `WEB_ORIGIN`                 | String       | `https://staging.liberdadefamilia.com.br`                                                                  | `https://app.liberdadefamilia.com.br` |
-| `WEBAUTHN_RP_ID`             | String       | `staging.liberdadefamilia.com.br`                                                                          | `app.liberdadefamilia.com.br`         |
-| `SPRING_PROFILES_ACTIVE`     | String       | `prod`                                                                                                     | `prod`                                |
-
-O `<rds_endpoint>` é o output inteiro, com a porta (`host:5432`). O caminho
-`/certs/rds-bundle.pem` é onde o `compose.yaml` monta o pacote de certificados dentro do container.
-
-Exemplos (um comando por parâmetro; repita com `--overwrite` para corrigir um valor):
-
-```bash
-aws ssm put-parameter --name /liberdade/staging/WEB_ORIGIN \
-  --type String --value https://staging.liberdadefamilia.com.br
-aws ssm put-parameter --name /liberdade/staging/GOOGLE_CLIENT_SECRET \
-  --type SecureString --key-id alias/liberdade --value '<segredo do cliente OAuth>'
-```
-
-Conferir (só nomes, sem valores):
-
-```bash
-for env in staging production; do
-  aws ssm get-parameters-by-path --path /liberdade/$env/ \
-    --query 'Parameters[].[Name,Type]' --output text
-done
-```
-
-Cada ambiente lista os 8 parâmetros, com `SecureString` em `SPRING_DATASOURCE_PASSWORD` e
-`GOOGLE_CLIENT_SECRET`. Faça os passos 9 e 10 antes de fechar esta lista (os dois parâmetros do
-Google vêm do passo 9).
-
-### 9. Clientes OAuth do Google (D16)
+### 8. Clientes OAuth do Google (D16)
 
 Um cliente por ambiente, no Google Cloud Console (APIs e serviços > Credenciais > Criar
 credenciais > ID do cliente OAuth, tipo "Aplicativo da Web"):
@@ -322,10 +280,58 @@ credenciais > ID do cliente OAuth, tipo "Aplicativo da Web"):
 2. Se o Google pedir verificação do app, deixe-o em modo "Teste" e cadastre as contas da família
    como usuários de teste. Isso basta para a v0.1.
 3. Guarde o ID e o segredo de cada cliente nos parâmetros `GOOGLE_CLIENT_ID` e
-   `GOOGLE_CLIENT_SECRET` do passo 8.
+   `GOOGLE_CLIENT_SECRET` do passo 9.
 
 Conferir: os dois clientes existem, cada um com só o seu redirecionamento, e os 4 parâmetros do
 Google estão no SSM.
+
+### 9. Parâmetros do SSM (D7)
+
+O `deploy.sh` lê tudo que está em `/liberdade/<ambiente>/` e grava `/run/liberdade/<ambiente>.env`
+no host. Crie os parâmetros de cada ambiente (`staging` e `production`). Segredos são
+`SecureString` com `--key-id alias/liberdade`; o resto é `String`. Um valor não pode ter aspas
+simples nem quebra de linha (o deploy recusa).
+
+| Parâmetro                    | Tipo         | Valor em `staging`                                                                                         | Valor em `production`                 |
+| ---------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `SPRING_DATASOURCE_URL`      | String       | `jdbc:postgresql://<rds_endpoint>/liberdade_staging?sslmode=verify-full&sslrootcert=/certs/rds-bundle.pem` | o mesmo, com `/liberdade_production`  |
+| `SPRING_DATASOURCE_USERNAME` | String       | `liberdade_staging`                                                                                        | `liberdade_production`                |
+| `SPRING_DATASOURCE_PASSWORD` | SecureString | já criado no passo 7                                                                                       | já criado no passo 7                  |
+| `GOOGLE_CLIENT_ID`           | String       | do passo 8                                                                                                 | do passo 8                            |
+| `GOOGLE_CLIENT_SECRET`       | SecureString | do passo 8                                                                                                 | do passo 8                            |
+| `WEB_ORIGIN`                 | String       | `https://staging.liberdadefamilia.com.br`                                                                  | `https://app.liberdadefamilia.com.br` |
+| `WEBAUTHN_RP_ID`             | String       | `staging.liberdadefamilia.com.br`                                                                          | `app.liberdadefamilia.com.br`         |
+| `SPRING_PROFILES_ACTIVE`     | String       | `prod`                                                                                                     | `prod`                                |
+
+O `<rds_endpoint>` é o output inteiro, com a porta (`host:5432`). O caminho
+`/certs/rds-bundle.pem` é onde o `compose.yaml` monta o pacote de certificados dentro do container.
+
+Exemplos (um comando por parâmetro; repita com `--overwrite` para corrigir um valor):
+
+```bash
+export MSYS_NO_PATHCONV=1
+aws ssm put-parameter --name /liberdade/staging/WEB_ORIGIN \
+  --type String --value https://staging.liberdadefamilia.com.br
+read -rs -p "Segredo do cliente OAuth (não aparece ao digitar): " GOOGLE_SECRET; echo
+aws ssm put-parameter --name /liberdade/staging/GOOGLE_CLIENT_SECRET \
+  --type SecureString --key-id alias/liberdade --value "$GOOGLE_SECRET"
+unset GOOGLE_SECRET
+```
+
+Assim o segredo não fica no histórico do terminal. Faça o mesmo para o de `production`.
+
+Conferir (só nomes, sem valores):
+
+```bash
+export MSYS_NO_PATHCONV=1
+for env in staging production; do
+  aws ssm get-parameters-by-path --path /liberdade/$env/ \
+    --query 'Parameters[].[Name,Type]' --output text
+done
+```
+
+Cada ambiente lista os 8 parâmetros, com `SecureString` em `SPRING_DATASOURCE_PASSWORD` e
+`GOOGLE_CLIENT_SECRET`.
 
 ### 10. Projetos do Pages e redirecionamento do topo
 
@@ -395,8 +401,11 @@ do front.
    `preview.yml` lê `vars.CLOUDFLARE_ACCOUNT_ID` e, se não achar, o segredo de repositório de mesmo
    nome. Depois que um deploy de preview passar com a variável, apague o segredo antigo
    `CLOUDFLARE_ACCOUNT_ID`.
-6. **Não crie ainda** `DEPLOY_ENABLED`: ela liga os deploys no passo 13.
-7. **Pacote do GHCR público.** O pacote `liberdade-api` só existe depois do primeiro push na `main`
+6. O `preview.yml` publica os previews dos PRs a partir do Environment `preview`, que lê
+   `secrets.CLOUDFLARE_API_TOKEN` e publica no projeto Pages `liberdade`. Isso já existe e não
+   precisa de mudança.
+7. **Não crie ainda** `DEPLOY_ENABLED`: ela liga os deploys no passo 13.
+8. **Pacote do GHCR público.** O pacote `liberdade-api` só existe depois do primeiro push na `main`
    (o workflow "Publish image" cria). Em Packages > `liberdade-api` > Package settings > Change
    visibility, escolha Public.
 
@@ -417,12 +426,23 @@ gh variable list --env staging
 gh variable list --env production
 gh secret list --env staging
 gh secret list --env production
-docker logout ghcr.io
-docker pull ghcr.io/warthogozz-cyber/liberdade-api:main
 ```
 
+Confira que o pacote é público, sem Docker e sem login: peça um token anônimo e busque o manifesto
+da imagem de um commit da `main` (troque `<SHA>` pelo SHA completo do último commit da `main`):
+
+```bash
+TOKEN="$(curl -fsS 'https://ghcr.io/token?scope=repository:warthogozz-cyber/liberdade-api:pull' | jq -r .token)"
+curl -fsSI -H "Authorization: Bearer $TOKEN" \
+  -H 'Accept: application/vnd.oci.image.index.v1+json' \
+  https://ghcr.io/v2/warthogozz-cyber/liberdade-api/manifests/sha-<SHA> | head -n 1
+unset TOKEN
+```
+
+Também vale abrir a página do pacote numa janela anônima (sem login no GitHub): ela precisa abrir.
+
 Cada ambiente mostra as 8 variáveis e o segredo `CLOUDFLARE_API_TOKEN`; a variável `DEPLOY_ENABLED`
-ainda não existe; o `docker pull` anônimo funciona.
+ainda não existe; a conferência anônima do pacote responde `HTTP/2 200`.
 
 ### 13. Ligar o deploy
 
@@ -510,7 +530,7 @@ Explorer (compare com R$ 329 por mês sob demanda; a decisão da reserva de 1 an
   sessão e confira que a senha mestre veio do Secrets Manager (`rds_master_secret_arn`).
 - **Deploy do staging fica vermelho:** leia a saída do host no workflow. O `deploy.sh` volta sozinho
   à versão anterior; na primeira vez, não há anterior e o ambiente fica sem API. Causas comuns:
-  parâmetro faltando ou com aspas simples no valor (passo 8), imagem não pública (passo 12), senha
+  parâmetro faltando ou com aspas simples no valor (passo 9), imagem não pública (passo 12), senha
   do banco diferente da do `bootstrap.sql`. Corrija e dispare o deploy de novo (Actions > Deploy).
 - **Deploy sem a variável `PAGES_PROJECT`, `API_URL`, `WEB_URL` ou `CLOUDFLARE_ACCOUNT_ID`:** o job
   `web` diz qual está vazia. Complete no Environment e rode de novo.
