@@ -332,7 +332,7 @@ Referência: **OWASP ASVS 5.0, nível 2**, com checklist revisado a cada release
   test do deploy.
 - **Logs:** driver `awslogs` do Docker → CloudWatch Logs (nível gratuito), grupos
   `/liberdade/production`, `/liberdade/staging` e `/liberdade/caddy`, retenção de 30 dias, JSON no
-  formato ECS. O Caddy não grava log de acesso, então nenhum IP vai para os logs.
+  formato ECS. O Caddy não grava log de acesso nem de erro HTTP, então nenhum IP vai para os logs.
 - **Alarmes** (e-mail por SNS, nível gratuito): falha de status da EC2 com recuperação automática,
   CPU da EC2 acima de 80% por 15 min, espaço livre do RDS abaixo de 2 GB e créditos de CPU do RDS
   abaixo de 30.

@@ -275,8 +275,8 @@ O spec deixa estes pontos em aberto, e o plano decide:
 - **D11. Observabilidade.**
   - Logs: driver `awslogs` do Docker, grupos `/liberdade/production`, `/liberdade/staging` e
     `/liberdade/caddy`, retenção de 30 dias, criados pelo OpenTofu. O perfil `prod` grava logs em
-    JSON ECS (`logging.structured.format.console=ecs`). O Caddy não grava log de acesso, então
-    nenhum IP vai para os logs.
+    JSON ECS (`logging.structured.format.console=ecs`). O Caddy não grava log de acesso nem de erro
+    HTTP, então nenhum IP vai para os logs.
   - Alarmes, com aviso por e-mail num tópico SNS: falha de status da EC2 (com recuperação
     automática da instância), CPU da EC2 acima de 80% por 15 min, espaço livre da RDS abaixo de 2 GB
     e saldo de créditos de CPU da RDS abaixo de 30.

@@ -158,6 +158,8 @@ jobs:
             echo "::error::Compose subnet '$subnet' differs from server.tomcat.remoteip.internal-proxies '$proxies'"
             exit 1
           fi
+      - name: Caddyfile keeps client addresses out of the logs
+        run: grep -q 'exclude http.log.error' deploy/Caddyfile
       - name: Caddyfile
         run: |
           image="$(grep -oE 'caddy:[^ ]+@sha256:[0-9a-f]{64}' deploy/compose.yaml | head -n 1)"

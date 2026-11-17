@@ -1,17 +1,26 @@
 {
-	# No access log. Only error-level entries are logged, and on proxy errors they can still include the client address.
-	log {
+	# Caddy keeps no access log and no HTTP error log, so no client address reaches the logs. The default logger
+	# keeps only server errors, such as TLS and ACME ones. exclude http.log.error drops the per-request error
+	# entries (they carry the remote address and the User-Agent), for example the 502s while the API restarts.
+	log default {
 		output stderr
 		level ERROR
+		exclude http.log.error
 	}
 }
 
 api.liberdadefamilia.com.br {
 	header -Server
-	reverse_proxy api-production:8080
+	reverse_proxy api-production:8080 {
+		lb_try_duration 60s
+		lb_try_interval 1s
+	}
 }
 
 api-staging.liberdadefamilia.com.br {
 	header -Server
-	reverse_proxy api-staging:8080
+	reverse_proxy api-staging:8080 {
+		lb_try_duration 60s
+		lb_try_interval 1s
+	}
 }
