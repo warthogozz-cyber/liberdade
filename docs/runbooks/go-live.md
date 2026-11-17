@@ -379,7 +379,9 @@ Quem faz isto é você, na hora (configuração do repositório). Em Settings do
      na `main` e passa o tag do release só como entrada `ref` (o que o `actions/checkout` baixa), então
      a execução fica na `main` e não é preciso liberar tags. O GitHub pede a aprovação duas vezes
      numa produção, uma no job `api` e outra no job `web`.
-   - `staging`: sem revisor. Pode limitar a `main` também.
+   - `staging`: sem revisor, mas **com** Deployment branches "Selected branches" e só a regra `main`
+     (obrigatório). O papel de deploy do staging chega ao mesmo host que guarda os segredos da
+     produção, então qualquer branch que pudesse disparar o staging ganharia acesso de root lá.
 3. **Variáveis por Environment** (as mesmas 8 nos dois, com valores diferentes):
 
 | Variável                | `staging`                                     | `production`                          |
@@ -428,6 +430,9 @@ gh secret list --env staging
 gh secret list --env production
 ```
 
+Confira também, em Settings > Environments, que `staging` e `production` têm Deployment branches
+em "Selected branches" com só a regra `main`.
+
 Confira que o pacote é público, sem Docker e sem login: peça um token anônimo e busque o manifesto
 da imagem de um commit da `main` (troque `<SHA>` pelo SHA completo do último commit da `main`):
 
@@ -454,8 +459,9 @@ gh variable set DEPLOY_ENABLED --body true
 
 2. Dispare o deploy do staging. O jeito normal é um push na `main`. Se a `main` já está atualizada,
    use Actions > Deploy > Run workflow, com `environment` = `staging` e `ref` = o SHA completo
-   (40 caracteres) do último commit da `main`. O SHA precisa ter imagem `sha-<SHA>` no GHCR (todo
-   commit da `main` tem).
+   (40 caracteres) do último commit da `main`. O SHA precisa ter imagem `sha-<SHA>` no GHCR (quase
+   todo commit da `main` tem). Se o job disser que a imagem não existe, rode de novo o workflow
+   `main` desse commit (Actions > a execução > Re-run) ou dispare-o.
 
 Conferir: o workflow "Deploy" fica verde, com os jobs `api` e `web` e o passo "Smoke test". Na
 primeira vez, o Caddy sobe e emite os certificados de `api-staging`; pode levar um ou dois minutos
@@ -475,7 +481,8 @@ bash deploy/smoke.sh https://api-staging.liberdadefamilia.com.br https://staging
 
 Conferir: login com o Google, passkey e gasto funcionam; `/privacidade` e `/termos` abrem; o
 `smoke.sh` termina com `smoke: web ok`. Os logs do staging em CloudWatch (`/liberdade/staging`)
-estão em JSON, sem dado pessoal.
+estão em JSON, sem dado pessoal. O Caddy não grava log de acesso nem de erro HTTP, então nenhum
+endereço de cliente aparece em `/liberdade/caddy`.
 
 ### 15. iPhone e restauração
 
