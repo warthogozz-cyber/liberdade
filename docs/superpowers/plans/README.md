@@ -11,3 +11,16 @@ aprendeu na execução.
 | 3 | [Ver e organizar](2026-11-16-liberdade-plan-3-view-and-organize.md) | Receitas e transferências, contas, categorias, saldo, painel do mês, editar e excluir com "Desfazer", primeiros passos (US-04, US-06, US-07, US-08, US-13) | Exemplo da seção 7.1 do PRD correto no painel; cobertura do domínio ≥ 90% (S4) | Concluído |
 | 4 | [Família e privacidade](2026-11-16-liberdade-plan-4-family-and-privacy.md) | Convites, papéis, Jovem com consentimento parental, módulos ligáveis, auditoria, exportar e excluir conta (US-09 a US-12) | S2 passa com todos os módulos opcionais desligados; exportação e exclusão funcionam | Concluído |
 | 5 | [No ar](2026-11-16-liberdade-plan-5-go-live.md) | AWS em São Paulo (staging e produção), deploy por SSM, domínio, política de privacidade publicada, medição do cookie de sessão no iOS no staging ([runbook](../../runbooks/ios-session-cookie.md)), uso pela família por 2 semanas | v0.1 em produção com deploy só pelo pipeline (S5) | Em execução |
+
+## Próximos planos
+
+A ordem segue o [roadmap](../../roadmap.md) revisto em 2026-11-17. Cada um é escrito quando o
+anterior entra na `main`.
+
+| # | Plano | Escopo | Status |
+|---|---|---|---|
+| 6 | Cobrança e Retrato do mês | Planos Grátis e Família, pré-venda Fundadora, assinatura por Pix ou cartão, cancelamento e reembolso ([ADR-0015](../../adr/0015-revenue-model-and-billing.md)) | A escrever |
+| 7 | v0.2 Planejamento | Orçamento, metas, reserva, recorrências, sincronização ao vivo, forma de pagamento, país e moeda no modelo, movimento e som | A escrever |
+| 8 | v0.3 Indicadores e gamificação | Indicadores com fonte, sequência e conquistas, dicas e tours, importação OFX/CSV | A escrever |
+| 9 | v0.4 Trilhas de renda extra | Projetos de renda extra em trilhas com modelos prontos | A escrever |
+| 10 | Feira | Mercados do OpenStreetMap, mapa ao tocar, cartões dos mercados, preços pela NFC-e | A escrever |

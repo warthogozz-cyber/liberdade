@@ -1,6 +1,7 @@
 # Liberdade — PRD do MVP
 
-> **Status:** rascunho para revisão · **Data:** 2026-11-02 · **Escopo:** Fase 1 (v0.1 → v0.4)
+> **Status:** rascunho para revisão · **Data:** 2026-11-17 · **Escopo:** Fase 1 (v0.1 → v0.4), com a
+> cobrança logo depois da v0.1 (Plano 6) e a Feira depois da v0.4 (Plano 10)
 >
 > Este documento é o spec do produto. Arquitetura, dados, design e decisões técnicas estão nos
 > documentos listados na seção 13.
@@ -20,8 +21,11 @@ desligadas.
 
 ## 2. Público do MVP
 
-O primeiro público é a família do mantenedor (dois adultos e jovens), em uso diário real e sem
-cobrança. Abrir para outras famílias só depois da v0.4, com revisão de LGPD, marca (INPI) e custos.
+O primeiro público é a família do mantenedor (dois adultos e jovens), em uso diário real. Logo
+depois da v0.1, o Plano 6 abre o app para outras famílias, com um plano Grátis completo para o dia a
+dia e um plano Família pago ([ADR-0015](adr/0015-revenue-model-and-billing.md), proposto). Antes da
+primeira cobrança: revisão de LGPD e da marca (INPI), CNPJ confirmado por um contador e termos de uso
+com reembolso e cancelamento.
 
 | Persona | Papel no app | O que precisa |
 |---|---|---|
@@ -48,18 +52,20 @@ cobrança. Abrir para outras famílias só depois da v0.4, com revisão de LGPD,
 | Versão | Entrega | RFs |
 |---|---|---|
 | v0.1 Núcleo | Login sem senha, família e convites, papéis, contas, categorias, receitas, gastos e transferências (inclusive offline), saldo, painel do mês, onboarding em 60 s, módulos ligáveis, exportar e excluir conta | RF-01, RF-02 (parcial), RF-04 Controle, RF-05 (parcial) |
-| v0.2 Planejamento | Orçamento por categoria, metas, reserva de emergência, recorrências, tags | RF-02, RF-14 (metas em família) |
-| v0.3 Indicadores e jogo | Selic, CDI, IPCA e dólar com fonte e data; calculadora educativa; sequências, conquistas e celebrações | RF-04 Tracking, RF-14 (parcial) |
-| v0.4 Novo Projeto | Projeto de renda extra com custos, preço, margem, ponto de equilíbrio, ROI, payback e real vs. planejado | RF-04 Novo Projeto, RF-09 (3 modelos) |
+| Plano 6 Cobrança | Planos Grátis e Família, pré-venda Fundadora, assinatura por Pix ou cartão, cancelamento em um clique, reembolso em 7 dias, Retrato do mês | ADR-0015 |
+| v0.2 Planejamento | Orçamento por categoria, metas, reserva de emergência, recorrências, tags, sincronização ao vivo, forma de pagamento, país, moeda e idioma no modelo, movimento e som | RF-02, RF-14 (metas em família) |
+| v0.3 Indicadores e jogo | Selic, CDI, IPCA e dólar com fonte e data; calculadora educativa; sequências, conquistas e celebrações; dicas e tours; importação de extrato OFX/CSV | RF-02, RF-04 Tracking, RF-05 (parcial), RF-14 (parcial) |
+| v0.4 Trilhas de renda extra | Projeto de renda extra com custos, preço, margem, ponto de equilíbrio, ROI, payback e real vs. planejado, em trilhas com modelos prontos | RF-04 Novo Projeto, RF-09 (trilhas) |
+| Plano 10 Feira | Mercados perto de casa (OpenStreetMap), mapa só ao tocar, cartões dos mercados, preços pela NFC-e | RF-12 (parcial) |
 
 ### Fora do MVP (fases 2+, cada uma com spec próprio)
 
 Construtor com fórmulas reativas (RF-03); multimoeda com cotação nas contas (RF-02); catálogo de
 investimentos (RF-08); ranking de bancos (RF-07); biblioteca completa de renda extra (RF-09);
-referências e fontes (RF-10); agente de IA (RF-11); geolocalização e preços (RF-12); redes sociais
-(RF-13); modos Dicas e Notícias (RF-04); trilhas de aprendizagem (RF-06); níveis e desafios
-(RF-14); contas privadas entre adultos; importação de extrato (OFX/CSV); Open Finance; apps nas
-lojas.
+referências e fontes (RF-10); agente de IA (RF-11); mapa de preços compartilhado entre famílias
+(RF-12); redes sociais (RF-13); modos Dicas e Notícias (RF-04); trilhas de aprendizagem (RF-06);
+níveis e desafios (RF-14); contas privadas entre adultos; Open Finance; apps nas lojas; outros
+países e idiomas na interface.
 
 ## 5. Glossário
 
@@ -70,6 +76,11 @@ lojas.
 - **Lançamento**: receita, gasto ou transferência entre contas.
 - **Módulo**: conjunto de funções que a família liga ou desliga (Planejamento, Indicadores,
   Conquistas, Novo Projeto). O núcleo (Controle) está sempre ligado.
+- **Plano**: o que a família assina, Grátis ou Família. O plano é da família inteira, não de cada
+  pessoa. Módulo e plano são coisas diferentes: desligar um módulo só esconde; o plano define o que
+  está disponível.
+- **Forma de pagamento**: como um lançamento foi pago (Pix, crédito, débito, boleto, TED, dinheiro).
+  Não confundir com a conta, que diz de onde o dinheiro saiu.
 
 ## 6. Requisitos por versão
 
@@ -179,6 +190,41 @@ Para o Jovem, saldo total e painel consideram só as contas em que ele é titula
 - Depois do primeiro gasto, uma lista "Primeiros passos" sugere: adicionar contas, convidar a
   família e criar passkey. Dá para dispensar e ela não volta.
 
+### Plano 6 — Cobrança e Retrato do mês
+
+Os limites exatos de cada plano e o processador de pagamento ficam no spec do Plano 6. Aqui ficam as
+regras que valem para qualquer escolha.
+
+**US-14 Planos Grátis e Família** (ADR-0015)
+- O plano Grátis cobre o uso do dia a dia: lançar, ver o saldo e o painel do mês, convidar a família
+  e metas básicas. S2 continua passando sem assinatura.
+- O plano Família libera o que dá mais trabalho ou custa mais (por exemplo: jovens com mesada e
+  missões, metas ilimitadas, importação de extrato, Retrato do mês, Feira).
+- Em Ajustes > Plano, qualquer membro vê o plano atual; só o Dono assina, troca ou cancela.
+- O app nunca pressiona: nada de contagem regressiva, "seus dados vão sumir" ou aviso no meio de um
+  lançamento.
+
+**US-15 Assinar**
+- O Dono escolhe mensal ou anual e paga por Pix ou cartão na página do processador de pagamento. O
+  app nunca vê nem guarda dados de cartão.
+- O plano só muda quando o processador confirma o pagamento. Se a confirmação falhar ou atrasar, a
+  família continua no Grátis e vê o motivo, sem perder nada.
+- Na pré-venda Família Fundadora, o preço fica travado enquanto a assinatura estiver ativa.
+
+**US-16 Cancelar e pedir reembolso** (CDC art. 49)
+- Cancelar leva um clique em Ajustes > Plano, sem formulário nem ligação. O acesso pago vale até o
+  fim do período já pago.
+- Nos 7 primeiros dias, o Dono pede o reembolso integral no mesmo lugar.
+- Ao voltar para o Grátis, nada é apagado: o que só existe no plano Família fica visível, só para
+  leitura.
+
+**US-17 Retrato do mês**
+- Um cartão com o resumo do mês só em percentuais (por exemplo: "Mercado: 32% dos gastos",
+  "guardou 12% da renda"), sem valores em reais e sem nomes.
+- A imagem é gerada no aparelho; compartilhar usa o menu do sistema ou baixa o arquivo. Nada vai
+  para o servidor.
+- Cada membro gera o retrato só com os dados que já vê (o Jovem, com as contas em que é titular).
+
 ### v0.2 — Planejamento
 
 **US-20 Orçamento mensal por categoria**
@@ -200,6 +246,26 @@ Para o Jovem, saldo total e painel consideram só as contas em que ele é titula
 
 **US-24 Tags**
 - Tags livres nos lançamentos e filtro por tag.
+
+**US-25 Sincronização ao vivo**
+- Com o app aberto, um lançamento feito em outro aparelho da família aparece em poucos segundos, sem
+  recarregar, com um destaque discreto e sem som.
+- O Jovem só recebe o que já pode ver (US-10).
+- Sem conexão, nada muda: ao reconectar, a lista se atualiza.
+
+**US-26 Forma de pagamento** (RF-02)
+- Campo opcional em receitas e gastos: Pix, crédito, débito, boleto, TED ou dinheiro.
+- Filtro por forma de pagamento na lista e no painel.
+
+**US-27 País, moeda base e idioma no modelo**
+- A família guarda país, moeda base e idioma; os lançamentos guardam a moeda. Para todas as famílias
+  atuais: Brasil, BRL e pt-BR.
+- A interface continua só em pt-BR e BRL até a Fase 6. O objetivo é não precisar migrar dados quando
+  outros países chegarem.
+
+**US-28 Som opcional**
+- Em Ajustes, uma chave liga sons curtos só para conquistas, com prévia. Desligado por padrão.
+- Regras de movimento e som no [design system](design-system.md#5-movimento-e-som).
 
 ### v0.3 — Indicadores e gamificação (módulos "Indicadores" e "Conquistas")
 
@@ -224,7 +290,19 @@ Para o Jovem, saldo total e painel consideram só as contas em que ele é titula
 - Celebração visual curta, que respeita `prefers-reduced-motion`. Nenhuma conquista premia gastar,
   se endividar ou arriscar.
 
-### v0.4 — Novo Projeto (módulo "Novo Projeto")
+**US-34 Dicas no contexto e tours** (RF-05 parcial)
+- Uma dica curta aparece na primeira vez que a pessoa abre uma tela nova; um tour de até 4 passos
+  explica cada módulo ao ser ligado.
+- Tudo pode ser dispensado, e uma chave em Ajustes desliga todas as dicas.
+
+**US-35 Importar extrato** (RF-02)
+- Importa arquivos OFX e CSV do banco para uma conta escolhida.
+- Antes de gravar, o app mostra os lançamentos com categoria sugerida e marca os que parecem
+  repetidos (mesmo valor, data e descrição); a pessoa revisa e confirma.
+- Importar o mesmo arquivo duas vezes não duplica nada. O arquivo não fica guardado depois da
+  importação.
+
+### v0.4 — Trilhas de renda extra (módulo "Novo Projeto")
 
 **US-40 Criar projeto de renda extra**
 - Nome, tipo, investimento inicial (itens), custos fixos mensais (itens) e produtos com custo
@@ -238,9 +316,24 @@ Para o Jovem, saldo total e painel consideram só as contas em que ele é titula
 - Vendas e custos reais são lançamentos normais da família marcados com o projeto. O app compara
   real e planejado e mostra o payback real.
 
-**US-43 Modelos prontos** (RF-09 parcial)
-- Três modelos: doces gourmet, produto digital e serviço, com valores de exemplo marcados "exemplo:
-  ajuste para a sua realidade".
+**US-43 Trilhas com modelos prontos** (RF-09 parcial)
+- Trilhas: culinária, produtos digitais, conteúdo, revenda e serviços. Cada uma traz um modelo de
+  projeto com valores de exemplo marcados "exemplo: ajuste para a sua realidade" e passos curtos.
+- Uma trilha de investimentos é só conteúdo educativo, com o aviso da CVM; não cria projeto nem
+  sugere produto.
+
+### Plano 10 — Feira (recurso do plano Família)
+
+**US-50 Mercados perto de casa** (RF-12 parcial)
+- A família escolhe de onde partir: a localização do aparelho (precisa ou aproximada, só com
+  permissão) ou um endereço digitado. Sem permissão, o endereço manual funciona igual.
+- Lista de mercados do OpenStreetMap com distância, com a atribuição da licença ODbL.
+- O mapa do Google e o Instagram do mercado só carregam depois de um toque; antes disso, nada vai
+  para terceiros. Links para abrir no Maps ou no Waze.
+
+**US-51 Preços pela nota fiscal** (RF-12 parcial)
+- Escanear o QR da NFC-e de uma compra registra os preços dos itens daquele mercado para a família.
+- A família compara uma lista de compras entre mercados com os preços que ela mesma registrou.
 
 ## 7. Regras de cálculo
 
@@ -320,8 +413,9 @@ mensal = 300 × 2,70 − 270,00 = **R$ 540,00**; payback = **2 meses** (540,00 n
 | Offline | Lançar funciona sem conexão; leitura usa o último dado em cache com aviso de data. |
 | Acessibilidade | WCAG 2.2 AA, tema claro e escuro, `prefers-reduced-motion`, alvos de toque ≥ 44 px. |
 | Plataformas | Últimas 2 versões de Chrome, Edge, Firefox e Safari; Android 10+ e iOS 16.4+ como PWA. |
-| i18n | Todos os textos externalizados; pt-BR primeiro; datas e moeda via `Intl`. |
-| Privacidade | Sem anúncios e sem analytics de terceiros. Logs sem valores nem descrições de lançamentos. |
+| i18n | Todos os textos externalizados; pt-BR primeiro; datas e moeda via `Intl`. País, moeda base e idioma no modelo desde a v0.2. |
+| Privacidade | Sem anúncios e sem analytics de terceiros. Logs sem valores nem descrições de lançamentos. Mapas e embeds de terceiros só carregam depois de um toque. |
+| Pacote inicial | PWA ≤ 200 KB no carregamento inicial (`check:chunks`); cobrança, som, importação e Feira carregam sob demanda. |
 | Segurança | OWASP ASVS 5.0 nível 2 como referência (detalhes em [arquitetura](architecture.md#9-segurança)). |
 
 ## 10. Conformidade e ética
@@ -333,6 +427,11 @@ mensal = 300 × 2,70 − 270,00 = **R$ 540,00**; payback = **2 meses** (540,00 n
 - **CVM:** indicadores e qualquer conteúdo de investimento são educativos, com aviso visível. O app
   compara, explica e simula; não recomenda valores mobiliários. A norma vigente será conferida
   antes da fase de investimentos (fase 4).
+- **CDC:** direito de arrependimento de 7 dias com reembolso integral (art. 49), cancelamento tão
+  fácil quanto assinar, preço e renovação claros antes de pagar.
+- **Pagamentos:** o processador de pagamento guarda os dados de cartão; o app só guarda o estado da
+  assinatura. A política de privacidade cita o processador como operador antes da primeira
+  cobrança.
 - **Gamificação ética:** sem dark patterns, sem urgência falsa, sem punição por ausência, sem
   notificações entre 21h e 8h e nenhuma recompensa ligada a gastar ou arriscar.
 
@@ -341,17 +440,17 @@ mensal = 300 × 2,70 − 270,00 = **R$ 540,00**; payback = **2 meses** (540,00 n
 | RF | Onde entra |
 |---|---|
 | RF-01 Estrutura e colaboração | v0.1 (família, membros, papéis); grupos e organizações na fase 2 |
-| RF-02 Núcleo financeiro | v0.1 e v0.2; multimoeda, cripto e investimentos na fase 4 |
+| RF-02 Núcleo financeiro | v0.1 e v0.2 (forma de pagamento; país e moeda no modelo); importação OFX/CSV (v0.3); multimoeda, cripto e investimentos na fase 4 |
 | RF-03 Construtor | Fase 2 |
 | RF-04 Modos de uso | Controle (v0.1), Tracking (v0.3), Novo Projeto (v0.4); Construtor (fase 2); Dicas (fase 3); Notícias (fase 4) |
-| RF-05 Guias passo a passo | Onboarding (v0.1), guia do Novo Projeto (v0.4); demais na fase 3 |
+| RF-05 Guias passo a passo | Onboarding (v0.1), dicas e tours (v0.3), passos das trilhas (v0.4); demais na fase 3 |
 | RF-06 Trilhas | Fase 3 |
 | RF-07 Ranking de bancos | Fase 4 |
 | RF-08 Catálogo de investimentos | Fase 4 |
-| RF-09 Biblioteca de renda extra | 3 modelos (v0.4); biblioteca na fase 2 |
+| RF-09 Biblioteca de renda extra | Trilhas com modelos prontos (v0.4); biblioteca na fase 2 |
 | RF-10 Referências e fontes | `SourceStamp` desde a v0.3; curadoria na fase 4 |
 | RF-11 Agente de IA | Fase 3 |
-| RF-12 Geolocalização e preços | Fase 5 |
+| RF-12 Geolocalização e preços | Feira (Plano 10); mapa de preços compartilhado na fase 5 |
 | RF-13 Redes sociais | Fase 5 |
 | RF-14 Gamificação | Metas em família (v0.2); sequências, conquistas, celebrações (v0.3); níveis e desafios (fase 2) |
 
@@ -362,8 +461,13 @@ mensal = 300 × 2,70 − 270,00 = **R$ 540,00**; payback = **2 meses** (540,00 n
 | Escopo gigante | Nunca entregar | Versões pequenas e usáveis; cada fase com spec próprio |
 | Regulação CVM | Sanção se virar recomendação | Tom educativo, aviso visível, revisão da norma antes da fase 4 |
 | Dados de menores (LGPD art. 14) | Tratamento irregular | Consentimento parental, apelido em vez de nome, sem e-mail obrigatório |
-| Custo da AWS | ≈ R$ 329/mês sem retorno direto | AWS só liga no fim da v0.1; reserva de 1 ano reduz para ≈ R$ 228 ([ADR-0014](adr/0014-dns-cloudflare-and-costs.md)) |
-| Nome "Liberdade" é palavra comum | Marca fraca no INPI, buscas poluídas | Sem impacto no uso familiar; revisar antes de abrir ao público |
+| Custo da AWS | ≈ R$ 329/mês | Reserva de 1 ano reduz para ≈ R$ 228 ([ADR-0014](adr/0014-dns-cloudflare-and-costs.md)); cobrança no Plano 6: 24 famílias no mensal cobrem o custo ([ADR-0015](adr/0015-revenue-model-and-billing.md)) |
+| Nome "Liberdade" é palavra comum | Marca fraca no INPI, buscas poluídas | Revisar antes da primeira cobrança |
+| Impostos e CNPJ | Cobrar sem o enquadramento certo | Contador confirma CNPJ, CNAE e anexo do Simples antes da primeira cobrança |
+| Reembolso e cancelamento (CDC) | Reclamação e estorno no cartão | Cancelamento em um clique e reembolso integral em 7 dias, testados no staging |
+| Abertura antecipada | Suporte e LGPD com outras famílias antes da v0.4 | Plano Grátis simples de manter; política de privacidade e termos revisados; canal de suporte simples |
+| Dependência do processador de pagamento | Sem cobrança se ele cair ou mudar a taxa | Estado da assinatura guardado no app; taxas conferidas no spec do Plano 6; trocar de provedor sem mexer no domínio |
+| Diluição de escopo com outros países | Atrasar o essencial do Brasil | Só o modelo de dados na v0.2; interface e cobrança de outros países só na Fase 6 |
 | Instância única | Queda derruba o app | Backups com restauração pontual; recriação por IaC; migração para ECS documentada |
 | Dependência do Google | Sem login se o Google cair | Passkeys como segundo caminho |
 | Projeto dentro do OneDrive | Sincronização de milhares de arquivos de build, travas no `.git` | Mover a pasta para fora do OneDrive antes do primeiro código |

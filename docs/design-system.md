@@ -1,6 +1,6 @@
 # Design system
 
-> **Status:** rascunho para revisão · **Data:** 2026-11-02 · Estilo: **calmo e confiável**
+> **Status:** rascunho para revisão · **Data:** 2026-11-17 · Estilo: **calmo e confiável**
 
 ## 1. Princípios
 
@@ -55,17 +55,47 @@ O tema segue o sistema (`prefers-color-scheme`) e pode ser fixado em Ajustes.
   títulos.
 - **Valores em destaque** (saldo do painel): 32 px, peso 600.
 
-## 4. Espaço, forma e movimento
+## 4. Espaço e forma
 
 - **Espaçamento:** base de 4 px (4, 8, 12, 16, 24, 32, 48).
 - **Raios:** 8 px (campos, chips), 12 px (cards), 16 px (folhas e diálogos).
 - **Alvos de toque:** mínimo de 44 × 44 px.
-- **Movimento:** 150–250 ms, `ease-out`. Com `prefers-reduced-motion`, as transições viram troca
-  instantânea e as celebrações viram um ícone estático.
 - **Layout:** mobile primeiro. Barra de navegação inferior até 768 px; barra lateral acima disso.
   Botão "+ Lançar" fixo no centro da barra inferior.
 
-## 5. Componentes
+## 5. Movimento e som
+
+O movimento explica o que mudou; o som confirma uma conquista. Nenhum dos dois é enfeite, e o app
+funciona igual sem eles.
+
+### Movimento
+
+| Duração | Uso |
+|---|---|
+| 150 ms | Mudança de estado: botão pressionado, chip selecionado, chave liga/desliga |
+| 200 ms | Entrada de conteúdo: item novo na lista, toast, número do saldo atualizando |
+| 250 ms | Folhas, diálogos e troca de tela |
+
+- Curva `ease-out` em tudo; nada de quique nem de molas longas.
+- Anima só `transform` e `opacity`, para não travar o celular.
+- **Celebrações** (meta atingida, sequência de 4 semanas): até 1 s, uma vez por evento, e sem
+  bloquear a tela. Gasto e orçamento estourado nunca são celebrados.
+- Lançamento que chega de outro aparelho da família (v0.2) entra com o destaque de 200 ms, sem som.
+- Com `prefers-reduced-motion`, as transições viram troca instantânea e as celebrações viram um
+  ícone estático.
+
+### Som
+
+- **Desligado por padrão.** Liga em Ajustes, com uma chave e uma prévia.
+- Sintetizado no aparelho com a Web Audio API: sem arquivos de áudio para baixar.
+- Só para eventos positivos (meta atingida, primeiro gasto, sequência). Nunca para avisos, erros ou
+  orçamento estourado: som de alerta aumenta a ansiedade.
+- Só depois de uma ação da pessoa, nunca sozinho (os navegadores também exigem isso).
+- Volume baixo e curto (até 300 ms); respeita o modo silencioso quando o sistema informa.
+- O código do som carrega sob demanda, só depois que a pessoa liga, e fica fora do pacote inicial
+  de 200 KB.
+
+## 6. Componentes
 
 | Componente | Comportamento |
 |---|---|
@@ -86,7 +116,7 @@ O tema segue o sistema (`prefers-color-scheme`) e pode ser fixado em Ajustes.
 
 Base: primitivas Radix + Tailwind, no estilo shadcn/ui (o código dos componentes fica no repositório).
 
-## 6. Voz e tom
+## 7. Voz e tom
 
 - Fala com **"você"**, frases curtas, verbos no presente.
 - Explica o conceito antes do termo técnico: "Reserva de emergência: dinheiro guardado para
@@ -96,7 +126,7 @@ Base: primitivas Radix + Tailwind, no estilo shadcn/ui (o código dos componente
   voltar."
 - Celebra o hábito, não o gasto: "4 semanas registrando! Sua família está no controle."
 
-## 7. Gamificação ética
+## 8. Gamificação ética
 
 | Pode | Não pode |
 |---|---|
@@ -106,7 +136,7 @@ Base: primitivas Radix + Tailwind, no estilo shadcn/ui (o código dos componente
 | Notificação útil e rara, desligável | Notificação entre 21h e 8h, urgência falsa, contagem regressiva |
 | Linguagem de apoio | Culpa, vergonha ou comparação |
 
-## 8. Acessibilidade
+## 9. Acessibilidade
 
 - WCAG 2.2 AA: contraste, foco visível (anel `primary` de 2 px), navegação completa por teclado,
   rótulos em todos os campos e alvos de 44 px.
