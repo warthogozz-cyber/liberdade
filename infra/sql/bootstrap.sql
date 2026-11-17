@@ -1,9 +1,22 @@
 -- Creates the two application roles and databases (D9). Run by the maintainer over an SSM port-forwarding
--- session, as the RDS master user. Passwords come in as psql variables, never in this file:
---   psql "host=127.0.0.1 port=15432 dbname=postgres user=liberdade_admin sslmode=require" \
---     -v production_password="$PRODUCTION_PASSWORD" -v staging_password="$STAGING_PASSWORD" \
+-- session, as the RDS master user, with psql 15 or newer. The passwords come in through environment
+-- variables, never in this file or on the command line:
+--   PRODUCTION_PASSWORD=... STAGING_PASSWORD=... \
+--     psql "host=127.0.0.1 port=15432 dbname=postgres user=liberdade_admin sslmode=require" \
 --     -f infra/sql/bootstrap.sql
--- Safe to run again: each statement is generated only when the role or database is missing.
+-- Create-only: it can run again without error, but it never rotates the password of a role that already
+-- exists. Change those with ALTER ROLE.
+
+\set ON_ERROR_STOP on
+\getenv production_password PRODUCTION_PASSWORD
+\getenv staging_password STAGING_PASSWORD
+
+-- An unset environment variable leaves the psql variable undefined.
+SELECT (:{?production_password} AND :{?staging_password}) AS passwords_set \gset
+\if :passwords_set
+\else
+  DO $$ BEGIN RAISE EXCEPTION 'PRODUCTION_PASSWORD and STAGING_PASSWORD must both be set'; END $$;
+\endif
 
 -- Roles
 SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', 'liberdade_production', :'production_password')

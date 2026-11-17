@@ -10,7 +10,7 @@ x-api: &api
   networks:
     - liberdade
   volumes:
-    - /certs/rds-bundle.pem:/certs/rds-bundle.pem:ro
+    - ./certs/rds-bundle.pem:/certs/rds-bundle.pem:ro
   healthcheck:
     # The JRE image has no curl/wget, so use bash's /dev/tcp (same check as the root compose.yaml).
     test:

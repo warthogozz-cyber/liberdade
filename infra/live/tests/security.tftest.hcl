@@ -67,9 +67,11 @@ run "instance_has_no_ssh_key" {
   command = plan
 
   assert {
-    # The mock provider fills the optional computed key_name with a random string, so the plan value says
-    # nothing; assert on the configuration itself: no .tf file may set key_name.
-    condition     = aws_instance.host.instance_type == "t4g.small" && alltrue([for f in fileset(".", "*.tf") : !strcontains(file(f), "key_name")])
+    # Configuration lint: the mock provider fills the computed key_name with a random string, so the plan
+    # value says nothing. No .tf file may assign key_name (a comment mentioning it is fine).
+    condition = aws_instance.host.instance_type == "t4g.small" && alltrue([
+      for f in fileset(path.module, "*.tf") : !can(regex("key_name\\s*=", file("${path.module}/${f}")))
+    ])
     error_message = "The instance must have no key pair (access is by SSM only)."
   }
 }
@@ -237,5 +239,15 @@ run "instance_role_least_privilege" {
   assert {
     condition     = toset([aws_iam_role_policy_attachment.ssm_core.policy_arn]) == toset(["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"])
     error_message = "Only AmazonSSMManagedInstanceCore may be attached as a managed policy."
+  }
+}
+
+run "instance_gets_public_ip_at_launch" {
+  command = plan
+
+  # No NAT: without a public IP at launch, user_data cannot reach dnf or GitHub on first boot.
+  assert {
+    condition     = aws_instance.host.associate_public_ip_address == true
+    error_message = "The instance must get a public IP at launch."
   }
 }

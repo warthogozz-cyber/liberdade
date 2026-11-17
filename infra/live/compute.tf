@@ -101,12 +101,12 @@ resource "aws_security_group" "instance" {
 }
 
 resource "aws_instance" "host" {
-  ami                    = nonsensitive(data.aws_ssm_parameter.al2023_arm64_ami.value)
-  instance_type          = "t4g.small"
-  subnet_id              = aws_subnet.public.id
-  vpc_security_group_ids = [aws_security_group.instance.id]
-  iam_instance_profile   = aws_iam_instance_profile.instance.name
-  monitoring             = true
+  ami                         = nonsensitive(data.aws_ssm_parameter.al2023_arm64_ami.value)
+  instance_type               = "t4g.small"
+  subnet_id                   = aws_subnet.public.id
+  vpc_security_group_ids      = [aws_security_group.instance.id]
+  iam_instance_profile        = aws_iam_instance_profile.instance.name
+  associate_public_ip_address = true
 
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     compose_version = "v5.6.1"
