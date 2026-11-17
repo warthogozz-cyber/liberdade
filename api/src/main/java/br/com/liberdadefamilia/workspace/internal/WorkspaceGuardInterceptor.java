@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.workspace.internal;
 import br.com.liberdadefamilia.workspace.Modules;
 import br.com.liberdadefamilia.workspace.RequiresModule;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
+import br.com.liberdadefamilia.workspace.WorkspaceRequests;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -33,11 +34,9 @@ import org.springframework.web.servlet.HandlerMapping;
  *       comes after the role check, so a role that may not use the route never learns whether the module is on.
  * </ol>
  *
- * <p>Otherwise the {@link WorkspaceMember} goes into a request attribute for {@link WorkspaceMemberArgumentResolver}.
+ * <p>Otherwise the {@link WorkspaceMember} goes goes into the request ({@link WorkspaceRequests#member}), where {@link WorkspaceMemberArgumentResolver} reads it.
  */
 class WorkspaceGuardInterceptor implements HandlerInterceptor {
-
-    static final String MEMBER_ATTRIBUTE = WorkspaceMember.class.getName();
 
     private final AuthenticationTrustResolver trust = new AuthenticationTrustResolverImpl();
     private final WorkspaceRepository workspaces;
@@ -67,7 +66,7 @@ class WorkspaceGuardInterceptor implements HandlerInterceptor {
         if (module != null && !modules.isEnabled(member.workspaceId(), module.value())) {
             throw new ModuleDisabledException();
         }
-        request.setAttribute(MEMBER_ATTRIBUTE, member);
+        WorkspaceRequests.attach(request, member);
         return true;
     }
 
