@@ -191,16 +191,40 @@ describe('AcceptInvitationPage', () => {
     expect(screen.getByText('Para o Jovem, a entrada é só por passkey.')).toBeInTheDocument()
   })
 
-  it('signedInYouthMustSignOutFirst', async () => {
+  it('signedInYouthInviteTriesApi', async () => {
+    seedMockFamily()
+    seedMockInvitation({ token: TOKEN, role: 'YOUTH' })
+    let accepts = 0
+    server.use(
+      http.post(ACCEPT, () => {
+        accepts += 1
+        // No answer: the default handler takes the request next.
+      }),
+    )
+    renderAccept()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Entrar na família' }))
+
+    expect(await screen.findByText('Início da família')).toBeInTheDocument()
+    expect(accepts).toBe(1)
+    expect(screen.queryByRole('button', { name: 'Sair e continuar' })).not.toBeInTheDocument()
+  })
+
+  it('youthNeedsPasskeyAtAcceptKeepsTheToken', async () => {
     seedMockFamily()
     seedMockInvitation({ token: TOKEN, role: 'YOUTH' })
     const logouts: string[] = []
     server.use(
+      http.post(ACCEPT, () =>
+        problem(422, 'invitation.youth-needs-passkey', 'Detalhe do servidor.'),
+      ),
       http.post(`${API_URL}/logout`, ({ request }) => {
         logouts.push(request.method)
       }),
     )
     const { router } = renderAccept()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Entrar na família' }))
 
     expect(
       await screen.findByText(
@@ -208,45 +232,19 @@ describe('AcceptInvitationPage', () => {
       ),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Entrar na família' })).not.toBeInTheDocument()
-    const signOut = screen.getByRole('button', { name: 'Sair' })
+    // The link is still good: the token stays for the person to come back to it.
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe(TOKEN)
+    const signOut = screen.getByRole('button', { name: 'Sair e continuar' })
     await waitFor(() => expect(signOut).toBeEnabled())
     fireEvent.click(signOut)
 
     // Signed out, the same link now asks for a new passkey-only account.
     expect(await screen.findByLabelText('Como você se chama?')).toBeInTheDocument()
-    // The form shows before the session's storage goes; the sign-out ends with the broadcast.
     await waitFor(() => expect(broadcastSignedOut).toHaveBeenCalledOnce())
     expect(logouts).toEqual(['POST'])
     expect(router.state.location.pathname).toBe('/convite')
     expect(sessionStorage.getItem(TOKEN_KEY)).toBe(TOKEN)
     expect(screen.queryByRole('button', { name: 'Entrar com Google' })).not.toBeInTheDocument()
-  })
-
-  it('youthNeedsPasskeyAtAcceptKeepsTheToken', async () => {
-    mockState.signedIn = false
-    seedMockInvitation({ token: TOKEN, role: 'YOUTH' })
-    server.use(
-      http.post(ACCEPT, () =>
-        problem(422, 'invitation.youth-needs-passkey', 'Detalhe do servidor.'),
-      ),
-    )
-    renderAccept()
-
-    fireEvent.change(await screen.findByLabelText('Como você se chama?'), {
-      target: { value: 'Leo Teste' },
-    })
-    // The page did not see the session, but the API did.
-    mockState.signedIn = true
-    fireEvent.click(screen.getByRole('button', { name: 'Criar passkey neste aparelho' }))
-
-    expect(
-      await screen.findByText(
-        'Convites de Jovem só podem ser aceitos com uma passkey nova. Saia da sua conta para continuar.',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.queryByText('Detalhe do servidor.')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument()
-    expect(sessionStorage.getItem(TOKEN_KEY)).toBe(TOKEN)
   })
 
   it('goneMessage', async () => {

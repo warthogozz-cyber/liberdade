@@ -387,10 +387,14 @@ export function AcceptInvitationPage() {
               {intl.formatMessage({ id: 'accept.recoverAction' })}
             </button>
           </>
-        ) : youthSignOut || (signedIn && preview.role === 'YOUTH') ? (
+        ) : youthSignOut ? (
           <>
             <p>{intl.formatMessage({ id: 'accept.youthSignOut' })}</p>
-            <SignOutButton leave={leaveSession} onSignedOut={signedOut} />
+            <SignOutButton
+              leave={leaveSession}
+              onSignedOut={signedOut}
+              labelId="accept.signOutContinue"
+            />
           </>
         ) : signedIn ? (
           <button

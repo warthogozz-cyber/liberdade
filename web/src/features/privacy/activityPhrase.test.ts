@@ -23,6 +23,10 @@ describe('activityPhrase', () => {
     expect(phrase('documents.accepted')).toBe('Aceitou os termos e a política de privacidade')
   })
 
+  it('passkeyRemoved', () => {
+    expect(phrase('passkey.removed')).toBe('Removeu uma passkey')
+  })
+
   it('keepsTheGenericLineForAnUnknownAction', () => {
     expect(phrase('something.new')).toBe('Alteração na conta')
   })

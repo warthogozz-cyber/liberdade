@@ -8,6 +8,7 @@ function workspace(ws: string) {
 export const queryKeys = {
   me: ['me'] as const,
   documents: ['me', 'documents'] as const,
+  passkeys: ['me', 'passkeys'] as const,
   workspace,
   accounts: (ws: string) => [...workspace(ws), 'accounts'] as const,
   categories: (ws: string, kind: CategoryKind) => [...workspace(ws), 'categories', kind] as const,

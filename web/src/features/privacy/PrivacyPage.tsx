@@ -10,6 +10,7 @@ import { ConsentList } from './ConsentList'
 import { DeleteAccountSheet } from './DeleteAccountSheet'
 import { DeleteFamilySheet } from './DeleteFamilySheet'
 import { ExportButtons } from './ExportButtons'
+import { PasskeyList } from './PasskeyList'
 import './register'
 
 /** The person's data: download it, see the consents and the history, and ask for its deletion. */
@@ -35,6 +36,10 @@ export function PrivacyPage() {
         {intl.formatMessage({ id: 'privacy.consents' })}
       </h2>
       <ConsentList />
+      <h2 className="mt-2 text-lg font-semibold">
+        {intl.formatMessage({ id: 'privacy.passkeys' })}
+      </h2>
+      <PasskeyList />
       <div className="mt-4 flex flex-col gap-3">
         {workspace?.role === 'OWNER' && (
           <button

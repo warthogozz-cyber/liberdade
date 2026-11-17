@@ -8,11 +8,12 @@ import { API_URL } from './config'
 import { csrfFetch } from './csrf'
 import { errorFromResponse, fromFetchFailure } from './errors'
 import { queryKeys } from './queryKeys'
-import type { ModuleKey } from './types'
+import type { ModuleKey, PasskeyView } from './types'
 import type { components } from './schema'
 
 export type ActivityItem = components['schemas']['ActivityItem']
 export type ConsentView = components['schemas']['ConsentView']
+export type { PasskeyView }
 
 const activityKey = ['me', 'activity'] as const
 const consentsKey = ['me', 'consents'] as const
@@ -23,6 +24,16 @@ export function listActivity(): Promise<ActivityItem[]> {
 
 export function listConsents(): Promise<ConsentView[]> {
   return unwrap(client.GET('/v1/me/consents'))
+}
+
+/** The signed-in person's passkeys, newest first. */
+export function listPasskeys(): Promise<PasskeyView[]> {
+  return unwrap(client.GET('/v1/me/passkeys'))
+}
+
+/** Removes a passkey. The last way in is a 422 `passkey.last-method`; needs a recent sign-in. */
+export async function removePasskey(id: string): Promise<void> {
+  await unwrap(client.DELETE('/v1/me/passkeys/{id}', { params: { path: { id } } }))
 }
 
 /** Takes a consent back; a Youth it covers leaves the family. Needs a recent sign-in. */
@@ -83,6 +94,24 @@ export function useActivity() {
 
 export function useConsents() {
   return useQuery({ queryKey: consentsKey, queryFn: listConsents, meta: { persist: false } })
+}
+
+export function usePasskeys() {
+  // Personal data: kept in memory only, never saved to the device.
+  return useQuery({ queryKey: queryKeys.passkeys, queryFn: listPasskeys, meta: { persist: false } })
+}
+
+/** Removes a passkey, then refreshes the list and the history that records it. */
+export function useRemovePasskey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => removePasskey(id),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.passkeys }),
+        queryClient.invalidateQueries({ queryKey: activityKey }),
+      ]),
+  })
 }
 
 /** Revokes a consent, then refreshes the consents, the family's people and the signed-in person's data. */
