@@ -33,6 +33,14 @@ describe('PasskeyList', () => {
     expect(screen.getByRole('button', { name: 'Remover passkey Notebook' })).toBeEnabled()
   })
 
+  it('removeDisabledOffline', async () => {
+    seedMockFamily()
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderWithProviders(<PasskeyList />)
+
+    expect(await screen.findByRole('button', { name: 'Remover passkey Notebook' })).toBeDisabled()
+  })
+
   it('empty', async () => {
     seedMockFamily()
     mockState.passkeys = []

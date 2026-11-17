@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { ApiError, ReauthCancelledError } from '@/shared/api'
 import { useRemovePasskey, type PasskeyView } from '@/shared/api/privacy'
@@ -23,9 +23,14 @@ export function RemovePasskeySheet({
   const run = useReauth()
   const remove = useRemovePasskey()
   const [error, setError] = useState<string>()
+  // The reauth dialog keeps `run` going after the 403, so the mutation's own flag is not enough.
+  const [busy, setBusy] = useState(false)
+  const working = useRef(false)
 
   async function confirm() {
-    if (!online || remove.isPending) return
+    if (!online || working.current) return
+    working.current = true
+    setBusy(true)
     setError(undefined)
     try {
       await run(() => remove.mutateAsync(passkey.id))
@@ -40,6 +45,9 @@ export function RemovePasskeySheet({
           intl.formatMessage({ id: 'common.actionFailed' }),
       )
       return
+    } finally {
+      working.current = false
+      setBusy(false)
     }
     toast.show({ message: intl.formatMessage({ id: 'privacy.passkey.removed' }) })
     onClose()
@@ -61,11 +69,13 @@ export function RemovePasskeySheet({
           </p>
         )}
         {!online && (
-          <p className="text-text-muted">{intl.formatMessage({ id: 'privacy.offline' })}</p>
+          <p className="text-text-muted">
+            {intl.formatMessage({ id: 'privacy.passkeys.offline' })}
+          </p>
         )}
         <button
           type="button"
-          disabled={!online || remove.isPending}
+          disabled={!online || busy}
           onClick={() => void confirm()}
           className={dangerButton}
         >

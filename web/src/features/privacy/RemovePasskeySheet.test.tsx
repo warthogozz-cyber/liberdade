@@ -55,6 +55,36 @@ describe('RemovePasskeySheet', () => {
     expect(mockState.activity[0]?.action).toBe('passkey.removed')
   })
 
+  it('cancelledReauthKeepsPasskey', async () => {
+    seedMockFamily()
+    let calls = 0
+    server.use(
+      http.delete(`${API_URL}/v1/me/passkeys/:id`, () => {
+        calls += 1
+        return problem(403, 'auth.reauthentication-required', 'Confirme que é você.')
+      }),
+    )
+    renderWithProviders(<PasskeyList />)
+
+    await askToRemove('Celular')
+    fireEvent.click(screen.getByRole('button', { name: 'Remover' }))
+    await screen.findByRole('button', { name: 'Usar passkey' })
+    // While the dialog is open, a second tap must not start another attempt.
+    expect(
+      screen
+        .getAllByRole('button', { name: 'Remover', hidden: true })
+        .every((b) => b.hasAttribute('disabled')),
+    ).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Usar passkey' })).not.toBeInTheDocument(),
+    )
+    expect(calls).toBe(1)
+    expect(mockState.passkeys.some((passkey) => passkey.label === 'Celular')).toBe(true)
+    expect(await screen.findByRole('button', { name: 'Remover' })).toBeEnabled()
+  })
+
   it('lastMethodMessage', async () => {
     seedMockFamily()
     mockState.hasGoogle = false

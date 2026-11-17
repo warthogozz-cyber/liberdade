@@ -24,6 +24,7 @@ export const privacyMessages = {
   'privacy.consent.revokedToast': 'Consentimento revogado.',
   'privacy.cancel': 'Cancelar',
   'privacy.passkeys': 'Passkeys',
+  'privacy.passkeys.offline': 'Sem conexão. Dá para remover quando o sinal voltar.',
   'privacy.passkeys.empty': 'Nenhuma passkey neste perfil',
   'privacy.passkeys.loadFailed': 'Não deu para carregar as passkeys.',
   'privacy.passkey.created': 'Criada em {date}',
