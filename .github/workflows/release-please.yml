@@ -61,6 +61,7 @@ jobs:
 
   deploy-production:
     needs: [release-please, retag]
+    if: needs.release-please.outputs.release_created == 'true'
     uses: ./.github/workflows/deploy.yml
     with:
       environment: production

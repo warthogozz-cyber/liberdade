@@ -7,12 +7,14 @@
 # or file: the env file already exists), LIBERDADE_COMPOSE_EXTRA (one more Compose file),
 # LIBERDADE_SKIP_CADDY=1, HEALTH_TIMEOUT_SECONDS (default 180).
 # ROLLBACK_TIMEOUT_SECONDS (default 180) bounds the wait after a rollback.
+# LOCK_WAIT_SECONDS (default 300) bounds the wait for another deploy holding the host lock.
 set -euo pipefail
 
 ROOT="${LIBERDADE_ROOT:-/opt/liberdade}"
 ENV_SOURCE="${LIBERDADE_ENV_SOURCE:-ssm}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT_SECONDS:-180}"
 ROLLBACK_TIMEOUT="${ROLLBACK_TIMEOUT_SECONDS:-180}"
+LOCK_WAIT="${LOCK_WAIT_SECONDS:-300}"
 ENV_DIR=/run/liberdade
 TAGS="$ROOT/tags.env"
 
@@ -39,11 +41,12 @@ fi
 case "$ENV_SOURCE" in ssm | file) ;; *) die "LIBERDADE_ENV_SOURCE must be ssm or file" ;; esac
 [[ "$HEALTH_TIMEOUT" =~ ^[0-9]+$ ]] || die "HEALTH_TIMEOUT_SECONDS must be a number"
 [[ "$ROLLBACK_TIMEOUT" =~ ^[0-9]+$ ]] || die "ROLLBACK_TIMEOUT_SECONDS must be a number"
+[[ "$LOCK_WAIT" =~ ^[0-9]+$ ]] || die "LOCK_WAIT_SECONDS must be a number"
 
 # One deploy at a time: both environments share tags.env and the Caddyfile.
 mkdir -p "$ROOT/releases"
 exec 9>"$ROOT/.deploy.lock"
-flock -n 9 || die "another deploy is running"
+flock -w "$LOCK_WAIT" 9 || die "another deploy is still running after ${LOCK_WAIT}s"
 
 dc() {
   local -a files=(-f "$ROOT/compose.yaml")

@@ -4,15 +4,14 @@ on:
   push:
     branches: [main]
 
-concurrency:
-  group: publish-image
-  cancel-in-progress: false
-
 permissions: {}
 
 jobs:
   image:
     runs-on: ubuntu-24.04-arm
+    concurrency:
+      group: publish-image
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
