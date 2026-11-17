@@ -4,7 +4,11 @@ import { flushSync } from 'react-dom'
 import { useIntl } from 'react-intl'
 import { Link, useNavigate } from 'react-router'
 import { SignOutButton } from '@/features/auth/SignOutButton'
+import { legalConfig } from '@/features/legal/legalConfig'
+import { AgreeNotice } from '@/features/legal/LegalLink'
+import '@/features/legal/labels.register'
 import {
+  acceptDocuments,
   ApiError,
   getMe,
   queryKeys,
@@ -203,6 +207,17 @@ export function AcceptInvitationPage() {
       return
     }
     setFinishFailed(false)
+    // Joining is the person's accept of the terms and the policy shown on this page. Best effort and
+    // safe to repeat: if it fails, the signed-in layout asks again before the family opens.
+    try {
+      await acceptDocuments({
+        terms: legalConfig.versions.terms,
+        privacy: legalConfig.versions.privacy,
+      })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.documents })
+    } catch {
+      // Left for the gate.
+    }
     if (done.freshSession) broadcastSignedIn(me.user.id)
     selectWorkspace(done.workspaceId)
     // Saved past the throttle, so a reload right away finds the family, not the welcome page.
@@ -426,6 +441,7 @@ export function AcceptInvitationPage() {
             </form>
           </>
         )}
+        <AgreeNotice className="text-sm text-text-muted" />
         {!online && (
           <p className="text-text-muted">{intl.formatMessage({ id: 'accept.offline' })}</p>
         )}

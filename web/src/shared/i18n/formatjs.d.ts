@@ -4,6 +4,10 @@ import type { accountsMessages } from '@/features/accounts/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { categoriesMessages } from '@/features/categories/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
+import type { legalLabelsMessages } from '@/features/legal/labels.messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
+import type { legalMessages } from '@/features/legal/messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
 import type { membersMessages } from '@/features/members/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { modulesMessages } from '@/features/modules/messages.pt-BR'
@@ -30,6 +34,8 @@ declare global {
         | keyof typeof categoriesMessages
         | keyof typeof dashboardMessages
         | keyof typeof gettingStartedMessages
+        | keyof typeof legalLabelsMessages
+        | keyof typeof legalMessages
         | keyof typeof membersMessages
         | keyof typeof modulesMessages
         | keyof typeof privacyMessages

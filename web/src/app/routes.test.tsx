@@ -17,6 +17,18 @@ function renderApp(route: string) {
 }
 
 describe('routes', () => {
+  it.each([
+    ['/privacidade', 'Política de privacidade'],
+    ['/termos', 'Termos de uso'],
+  ])('legalPagesArePublic: %s opens without a session', async (path, heading) => {
+    mockState.signedIn = false
+    // A lazy route loads only under a data router.
+    const { router } = renderWithProviders(null, { routes, route: path })
+
+    expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(path)
+  })
+
   it('sends / to the welcome page without a family', async () => {
     const { router } = renderApp('/')
 

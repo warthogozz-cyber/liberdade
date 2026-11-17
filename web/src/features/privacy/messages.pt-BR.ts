@@ -89,6 +89,7 @@ export const privacyMessages = {
   'activity.module.toggled.on.other': '{actor} ligou o módulo {module}',
   'activity.module.toggled.off.me': 'Você desligou o módulo {module}',
   'activity.module.toggled.off.other': '{actor} desligou o módulo {module}',
+  'activity.documents.accepted': 'Aceitou os termos e a política de privacidade',
   'activity.workspace.renamed.me': 'Você renomeou a família',
   'activity.workspace.renamed.other': '{actor} renomeou a família',
   'activity.data.exported.ME.me': 'Você baixou os seus dados',

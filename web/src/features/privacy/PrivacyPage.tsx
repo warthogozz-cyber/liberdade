@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useIntl } from 'react-intl'
 import { Link } from 'react-router'
+import { LegalLinks } from '@/features/legal/LegalLinks'
 import { useCurrentWorkspace } from '@/shared/api'
 import { useOnline } from '@/shared/offline'
 import { useDocumentTitle } from '@/shared/ui'
@@ -54,6 +55,7 @@ export function PrivacyPage() {
           {intl.formatMessage({ id: 'privacy.deleteAccount' })}
         </button>
       </div>
+      <LegalLinks className="flex flex-col" />
       {deleting === 'account' && <DeleteAccountSheet onClose={() => setDeleting(undefined)} />}
       {deleting === 'family' && workspace && (
         <DeleteFamilySheet workspace={workspace} onClose={() => setDeleting(undefined)} />

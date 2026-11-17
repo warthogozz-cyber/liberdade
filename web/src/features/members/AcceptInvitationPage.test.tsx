@@ -2,7 +2,7 @@ import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import type { PersistedClient } from '@tanstack/react-query-persist-client'
 import { http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mockState, seedMockFamily, seedMockInvitation } from '@/mocks/data'
+import { mockState, seedMockFamily, seedMockInvitation, seedPendingDocuments } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL, postJson, type MeView } from '@/shared/api'
@@ -75,6 +75,45 @@ describe('AcceptInvitationPage', () => {
     expect(readSelectedWorkspaceId()).toBe('ws-b')
     expect(mockState.workspaces.some((workspace) => workspace.id === 'ws-b')).toBe(true)
     expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
+  })
+
+  it('acceptsDocumentsAfterInvite', async () => {
+    seedMockFamily()
+    seedPendingDocuments()
+    seedMockInvitation({ token: TOKEN })
+    let sent: unknown
+    server.use(
+      http.post(`${API_URL}/v1/me/documents/accept`, async ({ request }) => {
+        sent = await request.clone().json()
+        // No answer: the default handler takes the request next.
+      }),
+    )
+    renderAccept()
+
+    expect(await screen.findByRole('link', { name: /Termos de uso/ })).toHaveAttribute(
+      'href',
+      '/termos',
+    )
+    expect(screen.getByRole('link', { name: /Política de privacidade/ })).toHaveAttribute(
+      'rel',
+      'noopener noreferrer',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar na família' }))
+
+    expect(await screen.findByText('Início da família')).toBeInTheDocument()
+    expect(sent).toEqual({ terms: 'terms-2026-11', privacy: 'privacy-2026-11' })
+    expect(mockState.acceptedDocuments.TERMS?.version).toBe('terms-2026-11')
+  })
+
+  it('joinsEvenWhenAcceptingDocumentsFails', async () => {
+    seedMockFamily()
+    seedMockInvitation({ token: TOKEN })
+    server.use(http.post(`${API_URL}/v1/me/documents/accept`, () => problem(500, 'server.error')))
+    renderAccept()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Entrar na família' }))
+
+    expect(await screen.findByText('Início da família')).toBeInTheDocument()
   })
 
   it('joinedFamilyIsSavedForAReload', async () => {
@@ -370,11 +409,13 @@ describe('AcceptInvitationPage', () => {
       })
       fireEvent.click(screen.getByRole('button', { name: 'Criar passkey neste aparelho' }))
       await screen.findByRole('heading', { name: 'Crie sua passkey para voltar depois' })
-      // The accept itself used the token of the anonymous session.
-      expect(csrfAsks).toHaveLength(1)
+      // The accept used the token of the anonymous session, and accepting the documents asked for the
+      // new session's own (a reused one would be refused).
+      expect(csrfAsks).toHaveLength(2)
 
       await postJson('/logout')
 
+      // Logging out reuses the token of the new session.
       expect(csrfAsks).toHaveLength(2)
     } finally {
       server.events.removeListener('request:start', record)

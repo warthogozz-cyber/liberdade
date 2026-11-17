@@ -1,5 +1,6 @@
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
+import { LegalLinks } from '@/features/legal/LegalLinks'
 import { WorkspaceSwitcher } from '@/features/members/WorkspaceSwitcher'
 import { PasskeyButton } from '@/features/auth/PasskeyButton'
 import { SignOutButton } from '@/features/auth/SignOutButton'
@@ -64,6 +65,7 @@ export function MorePage() {
       </Link>
       <WorkspaceSwitcher />
       <PasskeyButton />
+      <LegalLinks className="flex flex-col" />
       <SignOutButton />
     </main>
   )

@@ -25,6 +25,18 @@ export const routes: RouteObject[] = [
       })),
   },
   {
+    // Public: read before there is an account, and from the acceptance screen's new tab.
+    path: '/privacidade',
+    lazy: () =>
+      import('@/features/legal/PrivacyPolicyPage').then((m) => ({
+        Component: m.PrivacyPolicyPage,
+      })),
+  },
+  {
+    path: '/termos',
+    lazy: () => import('@/features/legal/TermsPage').then((m) => ({ Component: m.TermsPage })),
+  },
+  {
     element: <SessionLayout />,
     children: [
       { index: true, element: <RootRedirect /> },

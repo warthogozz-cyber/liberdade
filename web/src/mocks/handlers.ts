@@ -801,6 +801,7 @@ export const handlers = [
       )
     }
     const now = new Date().toISOString()
+    let recorded = false
     for (const purpose of ['TERMS', 'PRIVACY'] as const) {
       const accepted = mockState.acceptedDocuments[purpose]
       if (accepted?.version !== mockState.currentDocuments[purpose]) {
@@ -808,7 +809,20 @@ export const handlers = [
           version: mockState.currentDocuments[purpose],
           at: now,
         }
+        recorded = true
       }
+    }
+    // Like the API, only an accept that changed something reaches the history.
+    if (recorded) {
+      mockState.activity.unshift({
+        id: crypto.randomUUID(),
+        action: 'documents.accepted',
+        occurredAt: now,
+        workspaceId: null,
+        actorName: mockState.user.displayName,
+        byMe: true,
+        metadata: {},
+      })
     }
     return new HttpResponse(null, { status: 204 })
   }),

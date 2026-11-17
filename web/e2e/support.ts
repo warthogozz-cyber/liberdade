@@ -84,7 +84,15 @@ export async function signInWithGoogle(page: Page, user: E2EUser): Promise<void>
   await page.goto('/entrar')
   await page.getByRole('button', { name: 'Entrar com Google' }).click()
   await completeGoogleSignIn(page, user)
+  await acceptDocumentsGate(page)
   await page.waitForURL('**/boas-vindas')
+}
+
+/** A person with a new account accepts the terms and the policy before any screen of the family opens. */
+async function acceptDocumentsGate(page: Page): Promise<void> {
+  await expect(page.getByRole('heading', { level: 1, name: 'Antes de começar' })).toBeVisible()
+  await page.getByRole('checkbox', { name: /Li e aceito os termos/ }).check()
+  await page.getByRole('button', { name: 'Continuar' }).click()
 }
 
 /** Creates the family with the suggested name, landing on the new expense. */

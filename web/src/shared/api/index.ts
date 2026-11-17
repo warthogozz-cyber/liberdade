@@ -4,9 +4,11 @@ export { forgetSelectedWorkspace } from './workspaceChoice'
 export { resetCsrf } from './csrf'
 export { postJson } from './client'
 export {
+  acceptDocuments,
   createWorkspace,
   deleteTransaction,
   getMe,
+  listDocuments,
   listModules,
   postTransaction,
   restoreTransaction,
@@ -55,6 +57,7 @@ export type {
   CreateInvitationRequest,
   CreateTransactionRequest,
   DashboardView,
+  DocumentStatus,
   InvitationPreview,
   InvitationView,
   MeUser,
