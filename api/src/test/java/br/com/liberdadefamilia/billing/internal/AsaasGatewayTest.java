@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.billing.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
@@ -53,6 +54,7 @@ class AsaasGatewayTest {
         server.expect(requestTo(BASE + "/v3/checkouts"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header("access_token", "test-key"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("\"value\":89.00")))
                 .andExpect(jsonPath("$.items[0].value").value(89.00))
                 .andExpect(jsonPath("$.items[0].name").value("Família Fundadora"))
                 .andExpect(jsonPath("$.items[0].quantity").value(1))
@@ -132,6 +134,53 @@ class AsaasGatewayTest {
         server.expect(requestTo(BASE + "/v3/payments?checkoutSession=chk_1")).andRespond(request -> {
             throw new IOException("boom segredo");
         });
+
+        assertThatThrownBy(() -> gateway.findPayment("chk_1"))
+                .isInstanceOf(PaymentGatewayException.class)
+                .hasMessage("asaas status 0");
+    }
+
+    @Test
+    void findPaymentEncodesTheCheckoutId() {
+        server.expect(requestTo(BASE + "/v3/payments?checkoutSession=a%26b%3Dc"))
+                .andRespond(withSuccess("{\"data\":[]}", MediaType.APPLICATION_JSON));
+
+        assertThat(gateway.findPayment("a&b=c")).isEmpty();
+        server.verify();
+    }
+
+    @Test
+    void findPaymentAcceptsBracesInTheId() {
+        server.expect(requestTo(BASE + "/v3/payments?checkoutSession=%7Bx%7D"))
+                .andRespond(withSuccess("{\"data\":[]}", MediaType.APPLICATION_JSON));
+
+        assertThat(gateway.findPayment("{x}")).isEmpty();
+    }
+
+    @Test
+    void theBeanIsCreatableWithoutAKey() {
+        BillingProperties noKey =
+                new BillingProperties(true, true, "asaas", List.of(), "", new BillingProperties.Asaas("", ""));
+
+        assertThatCode(() -> new AsaasGateway(noKey)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void blankLinkIsAGatewayError() {
+        server.expect(requestTo(BASE + "/v3/checkouts"))
+                .andRespond(withSuccess("{\"id\":\"c1\",\"link\":\"\"}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> gateway.createCheckout(new CheckoutRequest(UUID.randomUUID(), "https://app.test/x")))
+                .isInstanceOf(PaymentGatewayException.class)
+                .hasMessage("asaas status 0");
+    }
+
+    @Test
+    void badPaymentDateIsAGatewayError() {
+        server.expect(requestTo(BASE + "/v3/payments?checkoutSession=chk_1"))
+                .andRespond(withSuccess(
+                        "{\"data\":[{\"id\":\"p\",\"status\":\"RECEIVED\",\"paymentDate\":\"17/11/2026\"}]}",
+                        MediaType.APPLICATION_JSON));
 
         assertThatThrownBy(() -> gateway.findPayment("chk_1"))
                 .isInstanceOf(PaymentGatewayException.class)

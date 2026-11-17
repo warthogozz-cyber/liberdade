@@ -9,6 +9,7 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,9 @@ class AsaasGateway implements PaymentGateway {
         this.client = builder.baseUrl(properties.asaas().baseUrl())
                 .defaultHeader("access_token", properties.asaas().apiKey())
                 .defaultHeader("User-Agent", "liberdade-api")
+                .defaultStatusHandler(status -> !status.is2xxSuccessful(), (req, res) -> {
+                    throw new PaymentGatewayException(res.getStatusCode().value());
+                })
                 .build();
     }
 
@@ -90,40 +94,41 @@ class AsaasGateway implements PaymentGateway {
                 "externalReference", request.orderId().toString(),
                 "items", List.of(item),
                 "callback", Map.of("successUrl", callbackUrl, "cancelUrl", callbackUrl, "expiredUrl", callbackUrl));
-        JsonNode response = exchange(() -> client.post()
-                .uri("/v3/checkouts")
-                .body(body)
-                .retrieve()
-                .onStatus(status -> !status.is2xxSuccessful(), (req, res) -> {
-                    throw new PaymentGatewayException(res.getStatusCode().value());
-                })
-                .body(JsonNode.class));
-        return new CheckoutSession(
-                response.path("id").asString(), URI.create(response.path("link").asString()));
+        JsonNode response = exchange(
+                () -> client.post().uri("/v3/checkouts").body(body).retrieve().body(JsonNode.class));
+        String id = text(response, "id");
+        String link = text(response, "link");
+        if (id.isBlank() || link.isBlank()) {
+            throw new PaymentGatewayException(0);
+        }
+        try {
+            return new CheckoutSession(id, URI.create(link));
+        } catch (IllegalArgumentException e) {
+            throw new PaymentGatewayException(0);
+        }
     }
 
     @Override
     public Optional<PaymentInfo> findPayment(String checkoutId) {
         JsonNode response = exchange(() -> client.get()
-                .uri(uri -> uri.path("/v3/payments")
-                        .queryParam("checkoutSession", checkoutId)
-                        .build())
+                .uri("/v3/payments?checkoutSession={id}", checkoutId)
                 .retrieve()
-                .onStatus(status -> !status.is2xxSuccessful(), (req, res) -> {
-                    throw new PaymentGatewayException(res.getStatusCode().value());
-                })
                 .body(JsonNode.class));
         JsonNode first = response.path("data").path(0);
         if (first.isMissingNode() || first.isNull()) {
             return Optional.empty();
         }
-        String date = first.path("paymentDate").asString("");
-        return Optional.of(new PaymentInfo(
-                first.path("id").asString(),
-                first.path("status").asString(),
-                date.isEmpty()
-                        ? null
-                        : LocalDate.parse(date).atStartOfDay(SAO_PAULO).toInstant()));
+        String date = text(first, "paymentDate");
+        try {
+            return Optional.of(new PaymentInfo(
+                    text(first, "id"),
+                    text(first, "status"),
+                    date.isEmpty()
+                            ? null
+                            : LocalDate.parse(date).atStartOfDay(SAO_PAULO).toInstant()));
+        } catch (DateTimeParseException e) {
+            throw new PaymentGatewayException(0);
+        }
     }
 
     @Override
@@ -132,16 +137,21 @@ class AsaasGateway implements PaymentGateway {
                 .uri("/v3/payments/{id}/refund", paymentId)
                 .body(Map.of())
                 .retrieve()
-                .onStatus(status -> !status.is2xxSuccessful(), (req, res) -> {
-                    throw new PaymentGatewayException(res.getStatusCode().value());
-                })
                 .toBodilessEntity());
+    }
+
+    private static String text(JsonNode node, String field) {
+        return node.path(field).asString("");
     }
 
     /** Timeouts and IO errors have no status: they become {@code PaymentGatewayException(0)}, without their text. */
     private static <T> T exchange(Supplier<T> call) {
         try {
-            return call.get();
+            T result = call.get();
+            if (result == null) {
+                throw new PaymentGatewayException(0);
+            }
+            return result;
         } catch (RestClientException e) {
             throw new PaymentGatewayException(0);
         }

@@ -31,7 +31,9 @@ class FakePaymentGatewayTest {
 
         assertThatThrownBy(() -> gateway.refund("pay_1"))
                 .isInstanceOf(PaymentGatewayException.class)
-                .hasMessage("asaas status 400");
+                .hasMessage("asaas status 400")
+                .satisfies(
+                        e -> assertThat(((PaymentGatewayException) e).status()).isEqualTo(400));
         assertThatCode(() -> gateway.refund("pay_1")).doesNotThrowAnyException();
     }
 
