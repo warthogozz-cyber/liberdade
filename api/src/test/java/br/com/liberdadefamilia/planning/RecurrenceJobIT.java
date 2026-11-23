@@ -14,9 +14,12 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -26,6 +29,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /** The daily job keeps the planned transactions two months ahead. The family is made on 2026-11-23. */
 @SpringBootTest
+@ExtendWith(OutputCaptureExtension.class)
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, RecurrenceJobIT.Config.class})
 class RecurrenceJobIT {
@@ -97,9 +101,13 @@ class RecurrenceJobIT {
     }
 
     @Test
-    void oneFamilyFailingDoesNotStopOthers() {
-        Family broken = family("ana@example.com");
-        Family healthy = family("bia@example.com");
+    void oneFamilyFailingDoesNotStopOthers(CapturedOutput output) {
+        Family first = family("ana@example.com");
+        Family second = family("bia@example.com");
+        // The job goes family by family in id order: the broken one is the one that comes first.
+        boolean firstComesFirst = first.ws.compareTo(second.ws) < 0;
+        Family broken = firstComesFirst ? first : second;
+        Family healthy = firstComesFirst ? second : first;
         // The foreign keys are switched off for this one transaction, so the rule points at an account that is gone.
         tx.executeWithoutResult(status -> {
             jdbc.sql("set local session_replication_role = replica").update();
@@ -112,6 +120,11 @@ class RecurrenceJobIT {
 
         assertThat(dates(broken.rule)).isEmpty();
         assertThat(dates(healthy.rule)).containsExactly("2026-11-10", "2026-12-10");
+        assertThat(output.getAll()).contains("recurrence job failed for a family: java.lang.IllegalStateException");
+        // Archived, so later runs of the suite do not log this family again.
+        jdbc.sql("update recurring_rules set archived_at = now() where id = :id")
+                .param("id", broken.rule)
+                .update();
     }
 
     private Family family(String email) {
