@@ -61,8 +61,8 @@ function PlanBody({
     return <p>{intl.formatMessage({ id: 'common.loading' })}</p>
   }
   const ended = refresh.status === 'EXPIRED' || refresh.status === 'CANCELED'
-  // An order waits for payment: no second checkout until it is settled.
-  const pending = open?.status === 'CREATED'
+  // No second checkout while this screen is still waiting on the order it came back to.
+  const pending = waitingId !== null && !refresh.exhausted
   const founder = data.key === 'FAMILY'
   return (
     // The accent lives on this container only, not on the whole app.

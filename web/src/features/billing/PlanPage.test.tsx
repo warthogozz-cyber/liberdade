@@ -152,6 +152,7 @@ describe('PlanPage', () => {
     renderPlan('/mais/plano?pedido=o1')
 
     expect(await screen.findByRole('status')).toHaveTextContent(/esperando a confirmação do Asaas/)
+    expect(screen.queryByRole('button', { name: 'Ser Família Fundadora' })).not.toBeInTheDocument()
     const before = planCalls
     for (let i = 0; i < 30; i += 1) await act(() => vi.advanceTimersByTimeAsync(5000))
 
@@ -161,6 +162,8 @@ describe('PlanPage', () => {
       await screen.findByText(/Ainda não recebemos a confirmação do Asaas/),
     ).toBeInTheDocument()
     expect(screen.queryByText(/esperando a confirmação/)).not.toBeInTheDocument()
+    // The wait is over: the owner can start a new checkout.
+    expect(screen.getByRole('button', { name: 'Ser Família Fundadora' })).toBeInTheDocument()
     await waitFor(() => expect(planCalls).toBeGreaterThan(before))
     await act(() => vi.advanceTimersByTimeAsync(30_000))
     expect(refreshCalls).toBe(24)
@@ -176,6 +179,18 @@ describe('PlanPage', () => {
 
     expect(await screen.findByRole('status')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ser Família Fundadora' })).not.toBeInTheDocument()
+  })
+
+  it('openOrderWithoutReturnStillShowsTheBuyButton', async () => {
+    const workspace = seedMockFamily()
+    plan(workspace.id, {
+      ...FREE,
+      openOrder: { id: 'o1', status: 'CREATED', refundReason: null },
+    })
+    renderPlan()
+
+    expect(await screen.findByRole('button', { name: 'Ser Família Fundadora' })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('returnWithoutAMatchingOrderDoesNotPoll', async () => {
