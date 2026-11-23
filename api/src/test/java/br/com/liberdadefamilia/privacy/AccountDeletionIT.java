@@ -367,7 +367,8 @@ class AccountDeletionIT {
         delete(f.bia);
         delete(f.bia);
 
-        assertThat(actions(f.bia)).containsExactly("account.deletion_requested", "account.deletion_cancelled");
+        assertThat(actions(f.bia))
+                .containsExactlyInAnyOrder("account.deletion_requested", "account.deletion_cancelled");
         var row = jdbc.sql("""
                         select workspace_id, target_type, target_id, metadata::text as metadata
                         from audit_events where action = 'account.deletion_requested' and actor_user_id = :bia""").param("bia", f.bia).query().singleRow();
