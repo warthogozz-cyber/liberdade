@@ -62,7 +62,7 @@ US$ 200 ≈ R$ 1.146) cobrem cerca de 3,5 meses. Preços de 16/11/2026 com PTAX 
 
 Planos Grátis e Família e a **pré-venda Família Fundadora**: R$ 89 por um ano, pagamento único por
 Pix ou cartão no Checkout do Asaas (o app nunca vê CPF nem cartão), reembolso integral em 7 dias em
-um toque. O mensal e o anual, com assinatura, abrem com a v0.2/v0.3. Junto vem o **Retrato do mês**,
+um toque. O mensal e o anual, com assinatura, abrem com a v0.3 (Plano 8) ou depois. Junto vem o **Retrato do mês**,
 grátis para todos: um cartão compartilhável com o resumo do mês só em percentuais, sem valores,
 gerado no aparelho. Desenho no
 [spec do Plano 6](superpowers/specs/2026-11-17-liberdade-plan-6-billing-design.md).

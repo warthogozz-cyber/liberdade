@@ -26,7 +26,8 @@
 - **Plano Família:** R$ 14,90/mês ou R$ 119/ano, por família inteira, não por pessoa. Inclui o que
   dá mais trabalho ou custa mais e ainda vai sair: jovens com mesada e missões, metas ilimitadas,
   importação de extrato, retrospectiva, Feira, renda extra e suporte. **O mensal e o anual abrem
-  com a v0.2/v0.3**, quando houver recurso pago de verdade.
+  com a v0.3 (Plano 8) ou depois**, junto com a importação de extrato, quando houver recurso pago
+  de verdade (decidido em 2026-11-23, no spec do Plano 7).
 - **Retrato do mês é grátis para todos**, com um rodapé discreto do app. É o primeiro motivo para
   alguém de fora conhecer o app, e cobrar por ele travaria esse efeito.
 - **Pré-venda Família Fundadora, o único produto à venda no Plano 6:** R$ 89 por um ano, pagamento
