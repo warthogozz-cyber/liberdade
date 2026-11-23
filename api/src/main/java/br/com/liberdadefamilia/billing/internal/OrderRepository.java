@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
@@ -173,6 +174,25 @@ class OrderRepository {
                 .param("ws", ws)
                 .query(OrderRepository::map)
                 .optional();
+    }
+
+    /** Orders waiting for their refund that were asked for after the cutoff, oldest first. */
+    List<OrderRow> refundPendingSince(Instant cutoff) {
+        return jdbc.sql("select " + COLUMNS + """
+                         from billing_orders
+                        where status = 'REFUND_PENDING' and refund_requested_at > :cutoff
+                        order by refund_requested_at, id""")
+                .param("cutoff", Timestamp.from(cutoff))
+                .query(OrderRepository::map)
+                .list();
+    }
+
+    /** Paid orders that have a checkout but not yet the payment id, oldest first. */
+    List<OrderRow> paidWithoutPaymentId() {
+        return jdbc.sql("select " + COLUMNS + """
+                         from billing_orders
+                        where status = 'PAID' and asaas_payment_id is null and asaas_checkout_id is not null
+                        order by paid_at, id""").query(OrderRepository::map).list();
     }
 
     private static OrderRow map(ResultSet rs, int row) throws SQLException {

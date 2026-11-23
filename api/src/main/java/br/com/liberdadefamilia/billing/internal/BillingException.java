@@ -21,6 +21,15 @@ final class BillingException extends DomainException {
         return new BillingException(404, "billing.order-not-found", "Não encontramos esse pedido.");
     }
 
+    static BillingException refundWindowClosed() {
+        return new BillingException(
+                409, "billing.refund-window-closed", "O prazo de 7 dias para o reembolso já passou.");
+    }
+
+    static BillingException refundNotAllowed() {
+        return new BillingException(409, "billing.refund-not-allowed", "Esse pedido não pode ser reembolsado.");
+    }
+
     static BillingException checkoutFailed() {
         return new BillingException(
                 502, "billing.checkout-failed", "Não conseguimos abrir o pagamento agora. Tente de novo em instantes.");

@@ -1140,6 +1140,30 @@ export const handlers = [
     return HttpResponse.json(view)
   }),
 
+  http.post(url('/v1/workspaces/:ws/billing/orders/:id/refund'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER') return roleDenied()
+    const { billing } = mockState
+    const order = billing.orders.find(
+      (candidate) => candidate.id === params.id && candidate.workspaceId === workspace.id,
+    )
+    if (!order) return problem(404, 'billing.order-not-found', 'Não encontramos esse pedido.')
+    if (order.status !== 'PAID') {
+      return problem(409, 'billing.refund-not-allowed', 'Esse pedido não pode ser reembolsado.')
+    }
+    // The plan ends at once; the refund itself is the gateway's business.
+    order.status = 'REFUND_PENDING'
+    billing.plan = { key: 'FREE', endsAt: null }
+    const view: Schemas['OrderView'] = {
+      id: order.id,
+      status: order.status,
+      refundReason: 'CUSTOMER',
+    }
+    return HttpResponse.json(view, { status: 202 })
+  }),
+
   http.get(url('/v1/workspaces/:ws/modules'), ({ params }) => {
     const workspace = guard(String(params.ws))
     if (workspace instanceof Response) return workspace

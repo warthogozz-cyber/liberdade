@@ -761,6 +761,47 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/billing/orders/{id}/refund": {
+      "post": {
+        "operationId": "refund",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderView"
+                }
+              }
+            },
+            "description": "Accepted"
+          }
+        },
+        "tags": [
+          "billing-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/categories": {
       "get": {
         "operationId": "listCategories",

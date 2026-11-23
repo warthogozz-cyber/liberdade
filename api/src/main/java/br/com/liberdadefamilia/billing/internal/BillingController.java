@@ -23,16 +23,19 @@ class BillingController {
 
     private final CheckoutService checkout;
     private final OrderPayments payments;
+    private final RefundService refunds;
     private final RateLimiter checkoutLimiter;
     private final RateLimiter refreshLimiter;
 
     BillingController(
             CheckoutService checkout,
             OrderPayments payments,
+            RefundService refunds,
             @Qualifier("checkoutRateLimiter") RateLimiter checkoutLimiter,
             @Qualifier("refreshRateLimiter") RateLimiter refreshLimiter) {
         this.checkout = checkout;
         this.payments = payments;
+        this.refunds = refunds;
         this.checkoutLimiter = checkoutLimiter;
         this.refreshLimiter = refreshLimiter;
     }
@@ -58,5 +61,13 @@ class BillingController {
             throw new RateLimitedException(refreshLimiter.retryAfterSeconds(key));
         }
         return payments.refresh(id, member.workspaceId());
+    }
+
+    /** The owner takes the payment back within 7 days: the plan ends now and the refund goes to the gateway. */
+    @PostMapping("/v1/workspaces/{ws}/billing/orders/{id}/refund")
+    @WorkspaceScoped(allow = {OWNER})
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    OrderView refund(WorkspaceMember member, @PathVariable UUID id) {
+        return refunds.refund(id, member.workspaceId());
     }
 }

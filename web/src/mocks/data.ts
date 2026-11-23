@@ -67,7 +67,7 @@ export interface MockPlan {
 export interface MockOrder {
   id: string
   workspaceId: string
-  status: 'CREATED' | 'CANCELED' | 'PAID'
+  status: 'CREATED' | 'CANCELED' | 'PAID' | 'REFUND_PENDING'
   checkoutUrl: string
 }
 

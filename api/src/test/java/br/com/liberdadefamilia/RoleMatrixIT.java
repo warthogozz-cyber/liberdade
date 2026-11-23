@@ -361,6 +361,10 @@ class RoleMatrixIT {
     static Stream<Row> billingRows() {
         return Stream.of(
                         ownerOnly("POST " + W + "/billing/checkout", W + "/billing/checkout", null),
+                        ownerOnly(
+                                "POST " + W + "/billing/orders/{id}/refund",
+                                W + "/billing/orders/{paidOrder}/refund",
+                                null),
                         each(
                                 "POST " + W + "/billing/orders/{id}/refresh",
                                 W + "/billing/orders/{order}/refresh",
@@ -487,6 +491,15 @@ class RoleMatrixIT {
     private MvcTestResult call(Family family, Row row) {
         String path = family.resolve(row.path());
         UUID caller = family.callers.get(row.role());
+        if (row.path().contains("{paidOrder}")) {
+            // The paid order is the origin of a plan that is running, as it is the day after the payment.
+            jdbc.sql("""
+                            insert into workspace_plans (workspace_id, plan_key, founder, source_order_id, starts_at, ends_at)
+                            values (:ws, 'FAMILY', true, :order, now() - interval '1 minute', now() + interval '1 year')""")
+                    .param("ws", family.ids.get("ws"))
+                    .param("order", family.ids.get("paidOrder"))
+                    .update();
+        }
         var request = mvc.method(HttpMethod.valueOf(row.method())).uri(path).with(TestUsers.signedIn(caller, null));
         if (!row.method().equals("GET")) {
             request.with(CsrfSession.start(mvc, TestUsers.signedIn(caller, null)));
@@ -526,6 +539,11 @@ class RoleMatrixIT {
                         insert into billing_orders (workspace_id, product, amount_cents, currency, status)
                         values (:ws, 'FOUNDER_2026', 8900, 'BRL', 'CREATED')
                         returning id""").param("ws", ws).query(UUID.class).single());
+        UUID paid = jdbc.sql("""
+                        insert into billing_orders (workspace_id, product, amount_cents, currency, status, paid_at)
+                        values (:ws, 'FOUNDER_2026', 8900, 'BRL', 'PAID', now() - interval '1 minute')
+                        returning id""").param("ws", ws).query(UUID.class).single();
+        ids.put("paidOrder", paid);
         ids.put("wallet", account(ws, "Carteira de Leo", "CASH", leoMembership, false));
         ids.put("corrente", account(ws, "Corrente", "CHECKING", null, false));
         ids.put("archivedAccount", account(ws, "Antiga", "CHECKING", null, true));
