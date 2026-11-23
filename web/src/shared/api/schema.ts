@@ -1090,6 +1090,12 @@ export interface components {
             occurredOn: string;
             /** @enum {string|null} */
             paymentMethod: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
+            /** Format: uuid */
+            recurringRuleId: string | null;
+            /** Format: date */
+            scheduledOn: string | null;
+            /** @enum {string} */
+            status: "CONFIRMED" | "PLANNED";
             tags: string[];
             /** Format: uuid */
             toAccountId: string | null;

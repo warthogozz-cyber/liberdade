@@ -3136,6 +3136,23 @@
               "CASH"
             ]
           },
+          "recurringRuleId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "scheduledOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED",
+              "PLANNED"
+            ]
+          },
           "tags": {
             "type": "array",
             "items": {

@@ -34,7 +34,7 @@ class TransactionRepository {
      */
     private static final String COLUMNS = """
             id, kind, amount, currency, occurred_on, account_id, to_account_id, category_id, description, payment_method,
-            member_id, created_at, version,
+            status, scheduled_on, recurring_rule_id, member_id, created_at, version,
             (select coalesce(array_agg(tg.name order by lower(tg.name), tg.id), cast('{}' as text[]))
              from transaction_tags tt
              join tags tg on tg.workspace_id = tt.workspace_id and tg.id = tt.tag_id
@@ -231,7 +231,8 @@ class TransactionRepository {
     /**
      * The transactions on or after {@code from} and before {@code until}, newest first (D20). With a category, only
      * that category and its subcategories; with an account, the transactions leaving or entering it; with a payment
-     * method, only those paid that way; with a tag, only those that have it. Only those that touch the scope.
+     * method, only those paid that way; with a tag, only those that have it. Only those that touch the scope. Planned
+     * ones come only as {@code planned} says.
      */
     List<TransactionView> between(
             UUID workspaceId,
@@ -241,12 +242,14 @@ class TransactionRepository {
             @Nullable UUID accountId,
             @Nullable PaymentMethod paymentMethod,
             @Nullable UUID tagId,
+            Planned planned,
             AccountScope scope) {
         return jdbc.sql("select " + COLUMNS + """
                          from transactions
                         where workspace_id = :workspaceId
-                          and occurred_on >= :from
-                          and occurred_on < :until
+                          and (occurred_on >= :from and occurred_on < :until
+                               or (cast(:overdue as boolean) and status = 'PLANNED' and occurred_on < :from))
+                          and (status = 'CONFIRMED' or cast(:planning as boolean))
                           and deleted_at is null
                           and (cast(:categoryId as uuid) is null
                                or category_id in (select c.id
@@ -273,6 +276,8 @@ class TransactionRepository {
                 .param("accountId", accountId)
                 .param("paymentMethod", methodName(paymentMethod))
                 .param("tagId", tagId)
+                .param("planning", planned.shown())
+                .param("overdue", planned.overdue())
                 .param("scopeIds", scope.sqlArray())
                 .query(TransactionRepository::view)
                 .list();
@@ -295,6 +300,7 @@ class TransactionRepository {
                         from transactions
                         where workspace_id = :workspaceId
                           and occurred_on <= :monthEnd
+                          and status = 'CONFIRMED'
                           and deleted_at is null
                           and (cast(:paymentMethod as text) is null or payment_method = cast(:paymentMethod as text))
                           and """ + VISIBLE + """
@@ -329,6 +335,7 @@ class TransactionRepository {
                          and c.id = t.category_id
                         where t.workspace_id = :workspaceId
                           and t.kind = 'EXPENSE'
+                          and t.status = 'CONFIRMED'
                           and t.deleted_at is null
                           and t.occurred_on >= :previousStart
                           and t.occurred_on < :nextStart
@@ -354,12 +361,14 @@ class TransactionRepository {
     /**
      * Removes for good the transactions deleted before the cutoff, in every family, and returns how many. The one method
      * here without a {@code workspaceId}: the nightly purge sweeps all families at once and serves no request, so there
-     * is no family to scope it to, and it only removes rows that their own families already deleted.
+     * is no family to scope it to, and it only removes rows that their own families already deleted. A transaction of a
+     * recurring rule stays, skipped or not: purging it would free its occurrence, and the generator would make it again.
      */
     int purgeDeletedBefore(Instant cutoff) {
         return jdbc.sql("""
                         delete from transactions
                         where deleted_at is not null
+                          and recurring_rule_id is null
                           and deleted_at < :cutoff""")
                 .param("cutoff", OffsetDateTime.ofInstant(cutoff, ZoneOffset.UTC))
                 .update();
@@ -377,6 +386,9 @@ class TransactionRepository {
                 rs.getString("description"),
                 method(rs.getString("payment_method")),
                 tagNames(rs.getArray("tags")),
+                rs.getString("status"),
+                rs.getObject("scheduled_on", LocalDate.class),
+                rs.getObject("recurring_rule_id", UUID.class),
                 rs.getObject("member_id", UUID.class),
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
                 rs.getLong("version"));
@@ -403,4 +415,10 @@ class TransactionRepository {
      * editable).
      */
     record StoredTransaction(TransactionView view, UUID createdBy, boolean deleted) {}
+
+    /**
+     * Whether a list brings the planned transactions: {@code shown} when the planning module is on, and {@code overdue}
+     * to also bring those of earlier months, which are still waiting.
+     */
+    record Planned(boolean shown, boolean overdue) {}
 }

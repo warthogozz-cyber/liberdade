@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.ledger.internal.TransactionPurgeJob;
+import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestIds;
 import br.com.liberdadefamilia.support.TestLedger;
@@ -12,6 +13,7 @@ import br.com.liberdadefamilia.support.TestWorkspaces;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -76,6 +78,40 @@ class TransactionPurgeJobIT {
         assertThat(exists(old)).isFalse();
         assertThat(exists(recent)).isTrue();
         assertThat(exists(active)).isTrue();
+    }
+
+    /** A skipped occurrence stays for good: purging it would free its slot, and the generator would make it again. */
+    @Test
+    void purgeKeepsSkippedPlanned() {
+        UUID rule = jdbc.sql("""
+                        insert into recurring_rules
+                            (workspace_id, kind, amount, currency, account_id, category_id, frequency, interval,
+                             start_on)
+                        values (:ws, 'EXPENSE', 10, 'BRL', :account, :category, 'MONTHLY', 1, '2026-10-02')
+                        returning id""")
+                .param("ws", workspaceId)
+                .param("account", ledger.walletOf(workspaceId))
+                .param("category", ledger.categoryOf(workspaceId, "EXPENSE", "Mercado"))
+                .query(UUID.class)
+                .single();
+        UUID skipped = ledger.insertPlanned(
+                workspaceId,
+                ledger.walletOf(workspaceId),
+                ledger.categoryOf(workspaceId, "EXPENSE", "Mercado"),
+                Money.brl("10.00"),
+                LocalDate.of(2026, 10, 2),
+                rule,
+                membershipId);
+        jdbc.sql("update transactions set deleted_at = :at where id = :id")
+                .param("at", OffsetDateTime.ofInstant(NOW.minus(Duration.ofDays(31)), ZoneOffset.UTC))
+                .param("id", skipped)
+                .update();
+        UUID ordinary = stored(NOW.minus(Duration.ofDays(31)));
+
+        job.purge();
+
+        assertThat(exists(skipped)).isTrue();
+        assertThat(exists(ordinary)).isFalse();
     }
 
     @Test

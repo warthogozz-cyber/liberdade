@@ -79,7 +79,7 @@ class FamilyPurgeJobIT {
         UUID ws = workspaces.createFor(ana);
         UUID membership = workspaces.addMember(ws, bia, Role.ADULT, "Bibi");
         ledger.expense(ws, membership, ledger.categoryOf(ws, "EXPENSE", "Mercado"), "9.90", LocalDate.now());
-        jdbc.sql("insert into workspace_modules (workspace_id, module_key, enabled) values (:ws, 'planning', true)")
+        jdbc.sql("insert into workspace_modules (workspace_id, module_key, enabled) values (:ws, 'indicators', true)")
                 .param("ws", ws)
                 .update();
         jdbc.sql("""

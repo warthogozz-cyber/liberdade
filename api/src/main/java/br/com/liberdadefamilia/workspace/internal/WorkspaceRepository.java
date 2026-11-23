@@ -88,6 +88,14 @@ class WorkspaceRepository {
                 .single();
     }
 
+    /** Turns the planning module on for a new family: it is on by default (the owner may switch it off). */
+    void enablePlanning(UUID workspaceId) {
+        jdbc.sql("""
+                        insert into workspace_modules (workspace_id, module_key, enabled)
+                        values (:workspaceId, 'planning', true)
+                        on conflict do nothing""").param("workspaceId", workspaceId).update();
+    }
+
     /** The families the user is an active member of: one query for the memberships, one for the activity. */
     List<MeWorkspace> activeWorkspacesOf(UUID userId) {
         return meWorkspaces(userId, null);

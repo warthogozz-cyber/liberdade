@@ -2,10 +2,13 @@ package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.ledger.domain.TransactionDateRange;
+import br.com.liberdadefamilia.ledger.internal.TransactionRepository.Planned;
 import br.com.liberdadefamilia.ledger.internal.TransactionRepository.StoredTransaction;
 import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.shared.PaymentMethod;
 import br.com.liberdadefamilia.workspace.Memberships;
+import br.com.liberdadefamilia.workspace.ModuleKey;
+import br.com.liberdadefamilia.workspace.Modules;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -36,6 +39,7 @@ class TransactionService {
     private final TagRepository tagLinks;
     private final TagService tags;
     private final Memberships memberships;
+    private final Modules modules;
     private final Clock clock;
 
     TransactionService(
@@ -45,6 +49,7 @@ class TransactionService {
             TagRepository tagLinks,
             TagService tags,
             Memberships memberships,
+            Modules modules,
             Clock clock) {
         this.accounts = accounts;
         this.categories = categories;
@@ -52,6 +57,7 @@ class TransactionService {
         this.tagLinks = tagLinks;
         this.tags = tags;
         this.memberships = memberships;
+        this.modules = modules;
         this.clock = clock;
     }
 
@@ -118,6 +124,9 @@ class TransactionService {
         StoredTransaction stored =
                 transactions.findOwn(workspaceId, id, scope, caller).orElseThrow(TransactionService::notFound);
         checkEditable(stored, request.version());
+        if (stored.view().planned()) {
+            throw new LedgerRejectedException("transaction.planned", "Confirme o previsto antes de editar.");
+        }
         UUID memberId = request.memberId() == null ? stored.view().memberId() : request.memberId();
         checkAgainstFamily(member, scope, Proposed.of(request, memberId), stored.view());
         TransactionView updated = transactions
@@ -202,7 +211,8 @@ class TransactionService {
 
     /**
      * The month's transactions in the member's scope, newest first, optionally of one category (with its
-     * subcategories), one account, one payment method or one tag.
+     * subcategories), one account, one payment method or one tag. The planned ones come only with the planning module
+     * on, and, in the family's current month, those of earlier months that are still waiting come too.
      *
      * @throws LedgerRejectedException when the month is out of range
      */
@@ -214,6 +224,8 @@ class TransactionService {
             @Nullable PaymentMethod paymentMethod,
             @Nullable UUID tagId) {
         checkMonth(member, month);
+        boolean planning = modules.isEnabled(member.workspaceId(), ModuleKey.PLANNING);
+        Planned planned = new Planned(planning, planning && month.equals(YearMonth.from(today(member))));
         return transactions.between(
                 member.workspaceId(),
                 month.atDay(1),
@@ -222,6 +234,7 @@ class TransactionService {
                 accountId,
                 paymentMethod,
                 tagId,
+                planned,
                 accounts.scopeFor(member));
     }
 

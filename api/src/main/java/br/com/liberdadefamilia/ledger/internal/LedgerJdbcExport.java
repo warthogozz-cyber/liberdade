@@ -26,7 +26,7 @@ class LedgerJdbcExport implements LedgerExport {
             join accounts a on a.workspace_id = t.workspace_id and a.id = t.account_id
             left join accounts ta on ta.workspace_id = t.workspace_id and ta.id = t.to_account_id
             left join categories c on c.workspace_id = t.workspace_id and c.id = t.category_id
-            where t.workspace_id = :workspaceId and t.deleted_at is null""";
+            where t.workspace_id = :workspaceId and t.deleted_at is null and t.status = 'CONFIRMED'""";
 
     private static final String NEWEST_FIRST = "\n order by t.occurred_on desc, t.created_at desc, t.id desc";
 

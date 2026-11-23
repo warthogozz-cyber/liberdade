@@ -26,7 +26,9 @@ class LedgerFamilyActivity implements FamilyActivity {
         return new HashSet<>(jdbc.sql("""
                         select distinct workspace_id
                         from transactions
-                        where workspace_id in (:workspaceIds) and deleted_at is null""")
+                        where workspace_id in (:workspaceIds)
+                          and deleted_at is null
+                          and status = 'CONFIRMED'""")
                 .param("workspaceIds", workspaceIds)
                 .query(UUID.class)
                 .list());

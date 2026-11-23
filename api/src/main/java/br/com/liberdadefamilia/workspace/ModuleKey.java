@@ -4,7 +4,10 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Locale;
 import java.util.Optional;
 
-/** The optional modules a family can switch on. Off by default; lowercase in JSON, in paths and in the database. */
+/**
+ * The optional modules a family can switch on. Planning is on in a new family, the others are off; lowercase in JSON,
+ * in paths and in the database.
+ */
 public enum ModuleKey {
     PLANNING,
     INDICATORS,

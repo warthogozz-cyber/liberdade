@@ -99,7 +99,7 @@ class ModulesIT {
     Modules modules;
 
     @Test
-    void allOffByDefault() {
+    void newFamilyHasPlanningOn() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         UUID ws = workspaces.createFor(ana);
 
@@ -116,8 +116,11 @@ class ModulesIT {
                 .bodyJson()
                 .extractingPath("$[*].enabled")
                 .asArray()
-                .containsExactly(false, false, false, false);
-        assertThat(modules.isEnabled(ws, ModuleKey.PLANNING)).isFalse();
+                .containsExactly(true, false, false, false);
+        assertThat(modules.isEnabled(ws, ModuleKey.PLANNING)).isTrue();
+        assertThat(modules.isEnabled(ws, ModuleKey.INDICATORS)).isFalse();
+        assertThat(modules.isEnabled(ws, ModuleKey.GAMIFICATION)).isFalse();
+        assertThat(modules.isEnabled(ws, ModuleKey.VENTURES)).isFalse();
     }
 
     @Test
@@ -129,10 +132,10 @@ class ModulesIT {
         workspaces.addMember(ws, bia, ADULT);
         workspaces.addMember(ws, vera, VIEWER);
 
-        MvcTestResult put = put(bia, ws, "planning", "{\"enabled\":true}");
+        MvcTestResult put = put(bia, ws, "indicators", "{\"enabled\":true}");
 
         assertThat(put).hasStatusOk();
-        assertThat(put).bodyJson().extractingPath("$.key").isEqualTo("planning");
+        assertThat(put).bodyJson().extractingPath("$.key").isEqualTo("indicators");
         assertThat(put).bodyJson().extractingPath("$.enabled").isEqualTo(true);
         for (UUID caller : List.of(ana, bia, vera)) {
             MvcTestResult list = get(caller, "/v1/workspaces/" + ws + "/modules");
@@ -141,9 +144,9 @@ class ModulesIT {
                     .bodyJson()
                     .extractingPath("$[*].enabled")
                     .asArray()
-                    .containsExactly(true, false, false, false);
+                    .containsExactly(true, true, false, false);
         }
-        assertThat(modules.isEnabled(ws, ModuleKey.PLANNING)).isTrue();
+        assertThat(modules.isEnabled(ws, ModuleKey.INDICATORS)).isTrue();
     }
 
     @Test
@@ -209,6 +212,8 @@ class ModulesIT {
         workspaces.addMember(ws, vera, VIEWER);
         String route = "/v1/workspaces/" + ws + "/module-probe/planning";
 
+        // Planning is on in a new family: the route answers 403 once it is switched off.
+        assertThat(put(ana, ws, "planning", "{\"enabled\":false}")).hasStatusOk();
         MvcTestResult off = get(vera, route);
         assertThat(off).hasStatus(403);
         assertThat(off).bodyJson().extractingPath("$.code").isEqualTo("module.disabled");

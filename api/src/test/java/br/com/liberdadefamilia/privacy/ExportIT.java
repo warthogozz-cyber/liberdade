@@ -220,7 +220,7 @@ class ExportIT {
         String json = text(files.get("dados.json"));
         assertThat(JsonPath.<String>read(json, "$.workspace.name")).isEqualTo("Família Teste");
         assertThat(JsonPath.<List<?>>read(json, "$.members")).hasSize(2);
-        assertThat(JsonPath.<Boolean>read(json, "$.modules.planning")).isFalse();
+        assertThat(JsonPath.<Boolean>read(json, "$.modules.planning")).isTrue();
         assertThat(JsonPath.<String>read(json, "$.transactions[0].amount.currency"))
                 .isEqualTo("BRL");
         for (Map.Entry<String, byte[]> file : files.entrySet()) {

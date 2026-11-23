@@ -229,7 +229,7 @@ class AuditIT {
         assertThat(invited).hasStatus(201);
         UUID invitationId = UUID.fromString(JsonPath.read(body(invited), "$.id"));
         assertThat(revoke(ana, ws, invitationId)).hasStatus(204);
-        assertThat(toggle(ana, ws, "planning", true)).hasStatusOk();
+        assertThat(toggle(ana, ws, "indicators", true)).hasStatusOk();
         MvcTestResult recovery = recover(ana, ws, leoMembership);
         assertThat(recovery).hasStatus(201);
         UUID recoveryId = UUID.fromString(JsonPath.read(body(recovery), "$.id"));
@@ -243,7 +243,7 @@ class AuditIT {
                         tuple("workspace.renamed", "WORKSPACE", ws, ana, Map.of()),
                         tuple("invitation.created", "INVITATION", invitationId, ana, Map.of("role", "VIEWER")),
                         tuple("invitation.revoked", "INVITATION", invitationId, ana, Map.of()),
-                        tuple("module.toggled", "MODULE", null, ana, Map.of("key", "planning", "enabled", "true")),
+                        tuple("module.toggled", "MODULE", null, ana, Map.of("key", "indicators", "enabled", "true")),
                         tuple("recovery.created", "MEMBERSHIP", leoMembership, ana, Map.of()),
                         tuple("recovery.used", "MEMBERSHIP", leoMembership, leo, Map.of()),
                         tuple("member.removed", "MEMBERSHIP", biaMembership, ana, Map.of("reason", "BY_OWNER")));
