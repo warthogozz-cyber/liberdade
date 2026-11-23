@@ -5,6 +5,7 @@ import { centsToApi, parseCents, parseTypedAmount, typedAmount } from '@/shared/
 import { useOnline } from '@/shared/offline'
 import { Sheet } from '@/shared/ui/Sheet'
 import './more.register'
+import { canActOnPlanned } from './listItems'
 import { usePlannedActions } from './usePlannedActions'
 
 interface PlannedSheetProps {
@@ -25,13 +26,13 @@ const button =
 export function PlannedSheet({ workspace, planned, accounts, onClose }: PlannedSheetProps) {
   const intl = useIntl()
   const online = useOnline()
-  const { confirmPlanned, skipPlanned, busy } = usePlannedActions(workspace)
+  const { confirmPlanned, skipPlanned, busy } = usePlannedActions(workspace, onClose)
   const [amount, setAmount] = useState(() => typedAmount(parseCents(planned.amount.amount)))
   const [date, setDate] = useState(planned.scheduledOn ?? planned.occurredOn)
   const [accountId, setAccountId] = useState(planned.accountId)
   const cents = parseTypedAmount(amount)
   const choices = accounts.filter(({ id, archivedAt }) => archivedAt === null || id === accountId)
-  const canAct = workspace.role !== 'VIEWER'
+  const canAct = canActOnPlanned(workspace.role, planned, new Set(accounts.map(({ id }) => id)))
   const disabled = !online || busy
 
   async function confirm() {

@@ -11,7 +11,7 @@ import {
 import { localDate } from '@/shared/i18n'
 import { parseCents } from '@/shared/money'
 import { useOnline } from '@/shared/offline'
-import { categoryLabel, transferRoute } from './listItems'
+import { canActOnPlanned, categoryLabel, transferRoute } from './listItems'
 import './more.register'
 import { usePlannedActions } from './usePlannedActions'
 
@@ -46,8 +46,9 @@ export function PlannedSection({
   if (planned.length === 0) return null
 
   const today = localDate(new Date(), workspace.timezone)
-  // Viewers see what is planned; they confirm and skip nothing.
-  const canAct = workspace.role !== 'VIEWER'
+  // Viewers see what is planned; they confirm and skip nothing. A youth acts only on a planned one
+  // whose accounts are all theirs: one that comes from an adult's account is for looking.
+  const canAct = (item: TransactionView) => canActOnPlanned(workspace.role, item, accounts)
   const shortDate = (date: string) =>
     intl.formatDate(`${date}T00:00:00Z`, { day: '2-digit', month: '2-digit', timeZone: 'UTC' })
 
@@ -56,7 +57,7 @@ export function PlannedSection({
       <h2 id={headingId} className="text-sm font-semibold text-text-muted">
         <FormattedMessage id="planned.title" />
       </h2>
-      {canAct && !online && (
+      {planned.some(canAct) && !online && (
         <p className="mt-1 text-sm text-text-muted">
           <FormattedMessage id="transactions.offlineEditing" />
         </p>
@@ -87,9 +88,9 @@ export function PlannedSection({
                     shortDate(scheduledOn)
                   )
                 }
-                to={canAct ? `/lancar?editar=${item.id}&mes=${month}` : undefined}
+                to={canAct(item) ? `/lancar?editar=${item.id}&mes=${month}` : undefined}
               />
-              {canAct && (
+              {canAct(item) && (
                 <button
                   type="button"
                   disabled={!online || busy}

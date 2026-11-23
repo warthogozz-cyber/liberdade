@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mockState, seedMockFamily } from '@/mocks/data'
+import { mockState, seedMockFamily, type MockAccount } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL, type MeWorkspace, type TransactionView } from '@/shared/api'
@@ -39,14 +39,18 @@ function planned(workspace: MeWorkspace, scheduledOn: string): TransactionView {
   return view
 }
 
-function renderSection(workspace: MeWorkspace, items: TransactionView[]) {
+function renderSection(
+  workspace: MeWorkspace,
+  items: TransactionView[],
+  accounts: MockAccount[] = mockState.accounts,
+) {
   return renderWithProviders(
     <PlannedSection
       workspace={workspace}
       planned={items}
       month="2026-11"
       categories={new Map(mockState.categories.map((each) => [each.id, each]))}
-      accounts={new Map(mockState.accounts.map((each) => [each.id, each]))}
+      accounts={new Map(accounts.map((each) => [each.id, each]))}
     />,
     { path: '/lancamentos' },
   )
@@ -120,6 +124,40 @@ describe('PlannedSection', () => {
     const section = within(await screen.findByRole('region', { name: 'Previstos' }))
     expect(section.getByText('Aluguel')).toBeInTheDocument()
     expect(section.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('is view-only for a youth on a planned transfer from another member account', async () => {
+    const workspace = { ...seedMockFamily(), role: 'YOUTH' as const }
+    const own = mockState.accounts[0]
+    const adults = '0192f3a4-0000-7000-8000-0000000000a9'
+    const allowance = plannedView(
+      {
+        id: PLANNED_ID,
+        kind: 'TRANSFER',
+        amount: { amount: '50.00', currency: 'BRL' },
+        occurredOn: '2026-11-14',
+        accountId: adults,
+        toAccountId: own.id,
+        description: 'Mesada',
+      },
+      '2026-11-14',
+      { memberId: workspace.membershipId, version: 0 },
+    )
+    renderSection(workspace, [allowance], [own])
+
+    const section = within(await screen.findByRole('region', { name: 'Previstos' }))
+    expect(section.getByText('Mesada')).toBeInTheDocument()
+    expect(section.queryByRole('button')).not.toBeInTheDocument()
+    expect(section.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('still lets a youth act on a planned one on their own account', async () => {
+    const workspace = { ...seedMockFamily(), role: 'YOUTH' as const }
+    renderSection(workspace, [planned(workspace, '2026-11-14')], [mockState.accounts[0]])
+
+    const section = within(await screen.findByRole('region', { name: 'Previstos' }))
+    expect(section.getByRole('button', { name: 'Confirmar Aluguel' })).toBeEnabled()
+    expect(section.getByRole('link')).toBeInTheDocument()
   })
 
   it('renders nothing without planned ones', () => {

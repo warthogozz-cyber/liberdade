@@ -15,9 +15,11 @@ import './more.register'
 /**
  * Confirming and skipping a planned transaction, with the notices both screens share. Both calls
  * need the connection (they never go through the queue), so the caller disables its buttons while
- * offline. A planned one that is gone or changed (404, 409) says so; the list is fetched again.
+ * offline. A planned one that is gone or changed (404, 409) says so; the list is fetched again. A
+ * screen that shows one planned transaction passes `onStale`, which runs before the notice, so that
+ * it can close and the notice is not left under its modal.
  */
-export function usePlannedActions(workspace: MeWorkspace) {
+export function usePlannedActions(workspace: MeWorkspace, onStale?: () => void) {
   const intl = useIntl()
   const toast = useToast()
   const queryClient = useQueryClient()
@@ -26,6 +28,7 @@ export function usePlannedActions(workspace: MeWorkspace) {
 
   function failed(error: unknown) {
     if (error instanceof ApiError && (error.status === 404 || error.status === 409)) {
+      onStale?.()
       toast.show({ message: intl.formatMessage({ id: 'planned.changed' }) })
       return
     }

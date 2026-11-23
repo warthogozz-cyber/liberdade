@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -36,15 +37,22 @@ function renderSheet(workspace: MeWorkspace) {
   )
   mockState.transactions.push(view)
   const onClose = vi.fn()
-  renderWithProviders(
-    <PlannedSheet
-      workspace={workspace}
-      planned={view}
-      accounts={mockState.accounts}
-      onClose={onClose}
-    />,
-    { path: '/lancamentos' },
-  )
+  // The screen that opens the sheet closes it: the sheet is gone once `onClose` is called.
+  function Host() {
+    const [open, setOpen] = useState(true)
+    return open ? (
+      <PlannedSheet
+        workspace={workspace}
+        planned={view}
+        accounts={mockState.accounts}
+        onClose={() => {
+          onClose()
+          setOpen(false)
+        }}
+      />
+    ) : null
+  }
+  renderWithProviders(<Host />, { path: '/lancamentos' })
   return { onClose }
 }
 
@@ -94,18 +102,61 @@ describe('PlannedSheet', () => {
     await waitFor(() => expect(restored).toEqual([PLANNED_ID]))
   })
 
-  it('says the planned one changed on a 409', async () => {
-    const workspace = seedMockFamily()
-    server.use(
-      http.post(`${API_URL}/v1/workspaces/:ws/transactions/:id/confirm`, () =>
-        problem(409, 'transaction.version-conflict', 'mudou'),
-      ),
+  it.each([
+    ['confirm', 'Confirmar', 409, 'transaction.version-conflict'],
+    ['confirm', 'Confirmar', 409, 'transaction.not-planned'],
+    ['skip', 'Pular', 404, 'transaction.not-found'],
+    ['confirm', 'Confirmar', 404, 'transaction.not-found'],
+  ])(
+    'closes on a stale snapshot (%s, %i %s) and says it changed once the sheet is gone',
+    async (action, label, status, code) => {
+      const workspace = seedMockFamily()
+      server.use(
+        http.post(`${API_URL}/v1/workspaces/:ws/transactions/:id/${action}`, () =>
+          problem(status, code, 'mudou'),
+        ),
+      )
+      const { onClose } = renderSheet(workspace)
+
+      fireEvent.click((await sheet()).getByRole('button', { name: label }))
+
+      await waitFor(() => expect(onClose).toHaveBeenCalled())
+      // No `hidden: true`: with the modal closed the notices are reachable.
+      const region = await screen.findByRole('region', { name: 'Notificações' })
+      expect(
+        await within(region).findByText('Esse previsto mudou. Confira a lista.'),
+      ).toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'Previsto' })).not.toBeInTheDocument()
+    },
+  )
+
+  it('shows no buttons when a youth does not hold every account', async () => {
+    const workspace = { ...seedMockFamily(), role: 'YOUTH' as const }
+    const view = plannedView(
+      {
+        id: PLANNED_ID,
+        kind: 'TRANSFER',
+        amount: { amount: '50.00', currency: 'BRL' },
+        occurredOn: '2026-11-14',
+        accountId: '0192f3a4-0000-7000-8000-0000000000a9',
+        toAccountId: mockState.accounts[0].id,
+      },
+      '2026-11-14',
+      { memberId: workspace.membershipId, version: 0 },
     )
-    renderSheet(workspace)
+    renderWithProviders(
+      <PlannedSheet
+        workspace={workspace}
+        planned={view}
+        accounts={[mockState.accounts[0]]}
+        onClose={vi.fn()}
+      />,
+      { path: '/lancamentos' },
+    )
 
-    fireEvent.click((await sheet()).getByRole('button', { name: 'Confirmar' }))
-
-    expect(await toasts().findByText('Esse previsto mudou. Confira a lista.')).toBeInTheDocument()
+    const dialog = await sheet()
+    expect(dialog.queryByRole('button', { name: 'Confirmar' })).not.toBeInTheDocument()
+    expect(dialog.queryByRole('button', { name: 'Pular' })).not.toBeInTheDocument()
   })
 
   it('disables both buttons while offline', async () => {

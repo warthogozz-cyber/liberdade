@@ -80,7 +80,8 @@ export const privacy2026121Messages = {
     'Registro dos avisos de pagamento, sem o conteúdo: 180 dias.',
   'policy.2026-12.1.retention.payer':
     'CPF, nome, e-mail e cartão de quem paga: ficam só no Asaas, pelos prazos das regras dele.',
-  'policy.2026-12.1.retention.transaction': 'Lançamento excluído: apagado de vez após 30 dias.',
+  'policy.2026-12.1.retention.transaction':
+    'Lançamento excluído: apagado de vez após 30 dias. O que uma recorrência fez e foi excluído ou pulado espera também até o segundo mês depois da data prevista, para não ser criado de novo.',
   'policy.2026-12.1.retention.invitations': 'Convites usados ou vencidos: apagados após 90 dias.',
   'policy.2026-12.1.retention.trail': 'Trilha de atividade: 12 meses.',
   'policy.2026-12.1.retention.backups':

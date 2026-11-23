@@ -100,3 +100,18 @@ export function transferRoute(
   const to = toAccountId ? (accounts.get(toAccountId)?.name ?? unseen) : ''
   return `${from} → ${to}`
 }
+
+/**
+ * Whether the person may confirm, skip or edit a planned transaction. A youth may only when every
+ * account it touches is one of theirs, the same as the server's rule (the youth's account list holds
+ * only their own accounts); anyone else but a viewer always may.
+ */
+export function canActOnPlanned(
+  role: string,
+  planned: Pick<TransactionView, 'accountId' | 'toAccountId'>,
+  held: { has(accountId: string): boolean },
+): boolean {
+  if (role === 'VIEWER') return false
+  if (role !== 'YOUTH') return true
+  return held.has(planned.accountId) && (!planned.toAccountId || held.has(planned.toAccountId))
+}
