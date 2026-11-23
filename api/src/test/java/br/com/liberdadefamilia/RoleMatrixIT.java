@@ -366,6 +366,16 @@ class RoleMatrixIT {
                                 W + "/billing/orders/{paidOrder}/refund",
                                 null),
                         each(
+                                "GET " + W + "/billing/plan",
+                                W + "/billing/plan",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        ownerOnly(
+                                "PUT " + W + "/billing/plan/theme", W + "/billing/plan/theme", "{\"theme\":\"OCEAN\"}"),
+                        each(
                                 "POST " + W + "/billing/orders/{id}/refresh",
                                 W + "/billing/orders/{order}/refresh",
                                 null,
@@ -444,6 +454,7 @@ class RoleMatrixIT {
     @MethodSource("rows")
     void roleGetsWhatTheMatrixSays(Row row) {
         Family family = family();
+        runningPlanFor(family, row);
         String before = family.snapshot();
 
         MvcTestResult result = call(family, row);
@@ -488,11 +499,12 @@ class RoleMatrixIT {
 
     // --- the family each row runs against ---
 
-    private MvcTestResult call(Family family, Row row) {
-        String path = family.resolve(row.path());
-        UUID caller = family.callers.get(row.role());
-        if (row.path().contains("{paidOrder}")) {
-            // The paid order is the origin of a plan that is running, as it is the day after the payment.
+    /**
+     * The routes that need a running plan get one before the snapshot is taken: the paid order is its origin, as it is
+     * the day after the payment. The shared family has none, since a plan makes the owner's checkout a 409.
+     */
+    private void runningPlanFor(Family family, Row row) {
+        if (row.path().contains("{paidOrder}") || row.path().endsWith("/billing/plan/theme")) {
             jdbc.sql("""
                             insert into workspace_plans (workspace_id, plan_key, founder, source_order_id, starts_at, ends_at)
                             values (:ws, 'FAMILY', true, :order, now() - interval '1 minute', now() + interval '1 year')""")
@@ -500,6 +512,11 @@ class RoleMatrixIT {
                     .param("order", family.ids.get("paidOrder"))
                     .update();
         }
+    }
+
+    private MvcTestResult call(Family family, Row row) {
+        String path = family.resolve(row.path());
+        UUID caller = family.callers.get(row.role());
         var request = mvc.method(HttpMethod.valueOf(row.method())).uri(path).with(TestUsers.signedIn(caller, null));
         if (!row.method().equals("GET")) {
             request.with(CsrfSession.start(mvc, TestUsers.signedIn(caller, null)));
@@ -672,7 +689,11 @@ class RoleMatrixIT {
                                 'invitations', (select json_agg(i order by i.id) from invitations i
                                                 where i.workspace_id = :ws),
                                 'modules', (select json_agg(x order by x.module_key) from workspace_modules x
-                                            where x.workspace_id = :ws))::text""").param("ws", ws).query(String.class).single();
+                                            where x.workspace_id = :ws),
+                                'orders', (select json_agg(o order by o.id) from billing_orders o
+                                           where o.workspace_id = :ws),
+                                'plan', (select row_to_json(p) from workspace_plans p
+                                         where p.workspace_id = :ws))::text""").param("ws", ws).query(String.class).single();
         }
     }
 

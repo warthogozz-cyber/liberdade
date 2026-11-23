@@ -802,6 +802,73 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/billing/plan": {
+      "get": {
+        "operationId": "plan",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDetails"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "billing-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/billing/plan/theme": {
+      "put": {
+        "operationId": "setTheme",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThemeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "billing-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/categories": {
       "get": {
         "operationId": "listCategories",
@@ -2648,6 +2715,62 @@
           }
         }
       },
+      "PlanDetails": {
+        "type": "object",
+        "properties": {
+          "canPurchase": {
+            "type": "boolean"
+          },
+          "canRefund": {
+            "type": "boolean"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "founder": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string",
+            "enum": [
+              "FREE",
+              "FAMILY"
+            ]
+          },
+          "openOrder": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrderView"
+              }
+            ],
+            "nullable": true
+          },
+          "paidOrderId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "presaleOpen": {
+            "type": "boolean"
+          },
+          "refundDeadline": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "theme": {
+            "type": "string",
+            "enum": [
+              "TEAL",
+              "OCEAN",
+              "FOREST",
+              "PLUM"
+            ]
+          }
+        }
+      },
       "PreviewInvitationRequest": {
         "required": [
           "token"
@@ -2672,6 +2795,23 @@
             "minLength": 0,
             "pattern": "[^\\x00]*",
             "type": "string"
+          }
+        }
+      },
+      "ThemeRequest": {
+        "required": [
+          "theme"
+        ],
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": "string",
+            "enum": [
+              "TEAL",
+              "OCEAN",
+              "FOREST",
+              "PLUM"
+            ]
           }
         }
       },

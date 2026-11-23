@@ -25,6 +25,7 @@ class CheckoutService {
     private static final Logger log = LoggerFactory.getLogger(CheckoutService.class);
 
     private final BillingProperties properties;
+    private final BillingStatus billingStatus;
     private final Plans plans;
     private final OrderRepository orders;
     private final PaymentGateway gateway;
@@ -34,6 +35,7 @@ class CheckoutService {
 
     CheckoutService(
             BillingProperties properties,
+            BillingStatus billingStatus,
             Plans plans,
             OrderRepository orders,
             PaymentGateway gateway,
@@ -41,6 +43,7 @@ class CheckoutService {
             TransactionTemplate tx,
             @Value("${liberdade.web.origin}") String webOrigin) {
         this.properties = properties;
+        this.billingStatus = billingStatus;
         this.plans = plans;
         this.orders = orders;
         this.gateway = gateway;
@@ -50,7 +53,7 @@ class CheckoutService {
     }
 
     CheckoutView start(WorkspaceMember member) {
-        if (!properties.presaleOpen()) {
+        if (!billingStatus.presaleOpen()) {
             throw BillingException.unavailable();
         }
         if (plans.current(member.workspaceId()).key() != PlanKey.FREE) {

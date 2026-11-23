@@ -5,15 +5,21 @@ import static br.com.liberdadefamilia.workspace.Role.OWNER;
 import static br.com.liberdadefamilia.workspace.Role.VIEWER;
 import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 
+import br.com.liberdadefamilia.billing.PlanKey;
+import br.com.liberdadefamilia.billing.RequiresPlan;
 import br.com.liberdadefamilia.shared.RateLimitedException;
 import br.com.liberdadefamilia.shared.RateLimiter;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
+import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,6 +30,7 @@ class BillingController {
     private final CheckoutService checkout;
     private final OrderPayments payments;
     private final RefundService refunds;
+    private final PlanDetailsService planDetails;
     private final RateLimiter checkoutLimiter;
     private final RateLimiter refreshLimiter;
 
@@ -31,11 +38,13 @@ class BillingController {
             CheckoutService checkout,
             OrderPayments payments,
             RefundService refunds,
+            PlanDetailsService planDetails,
             @Qualifier("checkoutRateLimiter") RateLimiter checkoutLimiter,
             @Qualifier("refreshRateLimiter") RateLimiter refreshLimiter) {
         this.checkout = checkout;
         this.payments = payments;
         this.refunds = refunds;
+        this.planDetails = planDetails;
         this.checkoutLimiter = checkoutLimiter;
         this.refreshLimiter = refreshLimiter;
     }
@@ -69,5 +78,21 @@ class BillingController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     OrderView refund(WorkspaceMember member, @PathVariable UUID id) {
         return refunds.refund(id, member.workspaceId());
+    }
+
+    /** The family's plan and what the caller may do about it. */
+    @GetMapping("/v1/workspaces/{ws}/billing/plan")
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
+    PlanDetails plan(WorkspaceMember member) {
+        return planDetails.details(member);
+    }
+
+    /** The owner picks the Founder theme; it needs the family plan. */
+    @PutMapping("/v1/workspaces/{ws}/billing/plan/theme")
+    @WorkspaceScoped(allow = {OWNER})
+    @RequiresPlan(PlanKey.FAMILY)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void setTheme(WorkspaceMember member, @Valid @RequestBody ThemeRequest request) {
+        planDetails.setTheme(member.workspaceId(), request.theme());
     }
 }

@@ -388,6 +388,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/billing/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["plan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/billing/plan/theme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setTheme"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/categories": {
         parameters: {
             query?: never;
@@ -928,11 +960,32 @@ export interface components {
             /** Format: date-time */
             lastUsedAt: string | null;
         };
+        PlanDetails: {
+            canPurchase: boolean;
+            canRefund: boolean;
+            /** Format: date-time */
+            endsAt: string | null;
+            founder: boolean;
+            /** @enum {string} */
+            key: "FREE" | "FAMILY";
+            openOrder: components["schemas"]["OrderView"] | null;
+            /** Format: uuid */
+            paidOrderId: string | null;
+            presaleOpen: boolean;
+            /** Format: date-time */
+            refundDeadline: string | null;
+            /** @enum {string} */
+            theme: "TEAL" | "OCEAN" | "FOREST" | "PLUM";
+        };
         PreviewInvitationRequest: {
             token: string;
         };
         RenameWorkspaceRequest: {
             name: string;
+        };
+        ThemeRequest: {
+            /** @enum {string} */
+            theme: "TEAL" | "OCEAN" | "FOREST" | "PLUM";
         };
         TransactionView: {
             /** Format: uuid */
@@ -1599,6 +1652,54 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OrderView"];
                 };
+            };
+        };
+    };
+    plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanDetails"];
+                };
+            };
+        };
+    };
+    setTheme: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ThemeRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

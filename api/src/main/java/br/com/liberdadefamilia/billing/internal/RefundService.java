@@ -6,6 +6,7 @@ import br.com.liberdadefamilia.billing.domain.RefundWindow;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 /** The owner's 7-day refund: the rules that decide whether an order may be taken back. */
@@ -32,10 +33,7 @@ class RefundService {
         OrderRepository.OrderRow order =
                 orders.findForWorkspace(orderId, workspaceId).orElseThrow(BillingException::orderNotFound);
         Instant now = clock.instant();
-        if (order.status() != OrderStatus.PAID
-                || order.refundReason() == RefundReason.DUPLICATE
-                || order.paidAt() == null
-                || !originatesRunningPlan(orderId, workspaceId, now)) {
+        if (!isOrigin(order, plans.find(workspaceId).orElse(null), now)) {
             throw BillingException.refundNotAllowed();
         }
         if (!RefundWindow.isOpen(order.paidAt(), now)) {
@@ -47,10 +45,26 @@ class RefundService {
         return new OrderView(after.id(), after.status(), after.refundReason());
     }
 
-    private boolean originatesRunningPlan(UUID orderId, UUID workspaceId, Instant now) {
-        return plans.find(workspaceId)
-                .filter(plan ->
-                        orderId.equals(plan.sourceOrderId()) && plan.endsAt().isAfter(now))
+    /** Whether the family may take its payment back now: the same rules the refund applies, window included. */
+    boolean canRefund(UUID workspaceId) {
+        Instant now = clock.instant();
+        PlanRepository.PlanRow plan = plans.find(workspaceId).orElse(null);
+        if (plan == null || plan.sourceOrderId() == null) {
+            return false;
+        }
+        return orders.findForWorkspace(plan.sourceOrderId(), workspaceId)
+                .filter(order -> isOrigin(order, plan, now) && RefundWindow.isOpen(order.paidAt(), now))
                 .isPresent();
+    }
+
+    /** A paid order, not a duplicate, that the family's running plan came from. */
+    private static boolean isOrigin(
+            OrderRepository.OrderRow order, PlanRepository.@Nullable PlanRow plan, Instant now) {
+        return order.status() == OrderStatus.PAID
+                && order.refundReason() != RefundReason.DUPLICATE
+                && order.paidAt() != null
+                && plan != null
+                && order.id().equals(plan.sourceOrderId())
+                && plan.endsAt().isAfter(now);
     }
 }

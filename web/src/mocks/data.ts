@@ -61,6 +61,8 @@ export interface MockState {
 export interface MockPlan {
   key: 'FREE' | 'FAMILY'
   endsAt: string | null
+  /** The Founder theme the owner picked; TEAL when none. */
+  theme?: Schemas['PlanDetails']['theme']
 }
 
 /** One checkout the mock opened. */

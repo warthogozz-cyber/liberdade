@@ -76,7 +76,7 @@ class WebhookController {
     }
 
     private boolean authentic(@Nullable String given) {
-        if (!status.webhookTokenValid()) {
+        if (!status.configured() || !status.webhookTokenValid()) {
             return false;
         }
         byte[] expected = properties.webhookToken().getBytes(StandardCharsets.UTF_8);

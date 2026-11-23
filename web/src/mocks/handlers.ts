@@ -1164,6 +1164,45 @@ export const handlers = [
     return HttpResponse.json(view, { status: 202 })
   }),
 
+  http.get(url('/v1/workspaces/:ws/billing/plan'), ({ params }) => {
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    const { billing } = mockState
+    const running = billing.plan.key === 'FAMILY'
+    const owned = billing.orders.filter((order) => order.workspaceId === workspace.id)
+    const paid = running ? owned.find((order) => order.status === 'PAID') : undefined
+    const open = owned.find(
+      (order) => order.status === 'CREATED' || order.status === 'REFUND_PENDING',
+    )
+    const view: Schemas['PlanDetails'] = {
+      key: running ? 'FAMILY' : 'FREE',
+      founder: running,
+      endsAt: running ? billing.plan.endsAt : null,
+      theme: running ? (billing.plan.theme ?? 'TEAL') : 'TEAL',
+      presaleOpen: true,
+      canPurchase: workspace.role === 'OWNER' && !running,
+      canRefund: workspace.role === 'OWNER' && paid !== undefined,
+      refundDeadline: null,
+      paidOrderId: paid?.id ?? null,
+      openOrder: open ? { id: open.id, status: open.status, refundReason: null } : null,
+    }
+    return HttpResponse.json(view)
+  }),
+
+  http.put(url('/v1/workspaces/:ws/billing/plan/theme'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER') return roleDenied()
+    const { billing } = mockState
+    if (billing.plan.key !== 'FAMILY') {
+      return problem(403, 'plan.required', 'Este recurso é do plano Família.')
+    }
+    const body = (await request.json()) as Schemas['ThemeRequest']
+    billing.plan = { ...billing.plan, theme: body.theme }
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.get(url('/v1/workspaces/:ws/modules'), ({ params }) => {
     const workspace = guard(String(params.ws))
     if (workspace instanceof Response) return workspace
