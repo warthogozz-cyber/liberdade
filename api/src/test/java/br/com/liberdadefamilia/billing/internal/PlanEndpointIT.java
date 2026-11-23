@@ -41,6 +41,8 @@ class PlanEndpointIT {
     }
 
     private static final Instant BASE = Instant.parse("2026-12-01T12:00:00Z");
+    /** BASE is 09:00 on 01/12 in São Paulo, so the window runs through 08/12 and closes at 00:00 on 09/12. */
+    private static final String LAST_REFUND_DAY_ENDS = "2026-12-09T03:00:00Z";
 
     @Autowired
     MockMvcTester mvc;
@@ -90,7 +92,7 @@ class PlanEndpointIT {
         clock.freeze(BASE);
         UUID id = newOrder(f);
         orders.setCheckoutId(id, "chk_fake_" + id);
-        gateway.markPaid("chk_fake_" + id, "pay_" + id, BASE);
+        gateway.markPaid("chk_fake_" + id, "pay_" + id);
         payments.applyPaid(id, BASE, "pay_" + id);
         return id;
     }
@@ -146,9 +148,27 @@ class PlanEndpointIT {
         body.extractingPath("$.canRefund").isEqualTo(true);
         body.extractingPath("$.canPurchase").isEqualTo(false);
         body.extractingPath("$.paidOrderId").isEqualTo(order.toString());
-        body.extractingPath("$.refundDeadline")
-                .isEqualTo(BASE.plus(Duration.ofDays(7)).toString());
+        body.extractingPath("$.refundDeadline").isEqualTo(LAST_REFUND_DAY_ENDS);
         body.extractingPath("$.endsAt").isNotNull();
+    }
+
+    @Test
+    void canRefundMatchesTheRefundRouteAtTheDeadline() {
+        Family f = family();
+        paidOrder(f);
+        Instant deadline = Instant.parse(LAST_REFUND_DAY_ENDS);
+
+        clock.freeze(deadline.minusSeconds(1));
+        assertThat(getPlan(f.owner, f.ws))
+                .bodyJson()
+                .extractingPath("$.canRefund")
+                .isEqualTo(true);
+
+        clock.freeze(deadline);
+        assertThat(getPlan(f.owner, f.ws))
+                .bodyJson()
+                .extractingPath("$.canRefund")
+                .isEqualTo(false);
     }
 
     @Test
@@ -173,8 +193,7 @@ class PlanEndpointIT {
         var body = assertThat(result).bodyJson();
         body.extractingPath("$.key").isEqualTo("FAMILY");
         body.extractingPath("$.canRefund").isEqualTo(false);
-        body.extractingPath("$.refundDeadline")
-                .isEqualTo(BASE.plus(Duration.ofDays(7)).toString());
+        body.extractingPath("$.refundDeadline").isEqualTo(LAST_REFUND_DAY_ENDS);
     }
 
     @Test

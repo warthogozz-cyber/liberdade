@@ -36,7 +36,7 @@ const FOUNDER: PlanDetails = {
   endsAt: '2027-11-17T15:00:00Z',
   canPurchase: false,
   canRefund: true,
-  refundDeadline: '2026-11-24T15:00:00Z',
+  refundDeadline: '2026-11-25T03:00:00Z',
   paidOrderId: 'o1',
 }
 

@@ -134,7 +134,8 @@ usa chama o pacote raiz (`Plans`, `@RequiresPlan`, `BillingExport`) ou ouve os e
   (`POST .../billing/orders/{id}/refresh`) chamam `OrderPayments.applyPaid`. A linha do pedido
   decide quem age, então não há plano em dobro. Se a família já tinha plano ou deixou de existir,
   o pagamento vira reembolso `DUPLICATE`.
-- **Reembolso.** Em até 7 dias (`RefundWindow`), `POST .../billing/orders/{id}/refund` põe o pedido
+- **Reembolso.** Em até 7 dias (`RefundWindow`: o dia do pagamento não conta e o sétimo dia vale
+  inteiro, no fuso de São Paulo), `POST .../billing/orders/{id}/refund` põe o pedido
   em `REFUND_PENDING`, encerra o plano e, depois do commit, pede o estorno ao Asaas. Se o Asaas
   falhar, o pedido espera a rotina horária (a cada hora, até 72 h). O estorno confirmado
   (`PAYMENT_REFUNDED`) leva a `REFUNDED`.

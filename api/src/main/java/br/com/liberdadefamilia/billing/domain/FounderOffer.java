@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.billing.domain;
 
+import br.com.liberdadefamilia.shared.Money;
 import java.time.Instant;
 import java.time.ZoneOffset;
 
@@ -7,8 +8,11 @@ import java.time.ZoneOffset;
 public final class FounderOffer {
 
     public static final String PRODUCT = "FOUNDER_2026";
-    public static final long PRICE_CENTS = 8900L;
-    public static final String CURRENCY = "BRL";
+    public static final Money PRICE = Money.brl("89.00");
+    /** The price in integer cents, as the order rows store it. */
+    public static final long PRICE_CENTS = PRICE.amount().movePointRight(2).longValueExact();
+
+    public static final String CURRENCY = PRICE.currency().getCurrencyCode();
     public static final String NAME = "Família Fundadora";
     public static final String DESCRIPTION = "Plano Família por 1 ano";
 

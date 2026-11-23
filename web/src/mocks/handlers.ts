@@ -66,6 +66,20 @@ const MODULE_KEYS: Schemas['ModuleView']['key'][] = [
 ]
 
 /** The four modules in the API's order, off unless the family switched them on. */
+const SAO_PAULO_OFFSET_MS = 3 * 60 * 60 * 1000
+
+/**
+ * The refund deadline as RefundWindow.java computes it: 00:00 in São Paulo (UTC-3, no daylight saving)
+ * eight local days after the payment day, so the last allowed day is the seventh one.
+ */
+function refundDeadline(paidAt: number): string {
+  const local = new Date(paidAt - SAO_PAULO_OFFSET_MS)
+  return new Date(
+    Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + 8) +
+      SAO_PAULO_OFFSET_MS,
+  ).toISOString()
+}
+
 function moduleViews(workspaceId: string): Schemas['ModuleView'][] {
   const on = mockState.modules[workspaceId] ?? {}
   return MODULE_KEYS.map((key) => ({ key, enabled: on[key] === true }))
@@ -1191,9 +1205,7 @@ export const handlers = [
       canPurchase: workspace.role === 'OWNER' && !running,
       canRefund: workspace.role === 'OWNER' && paid !== undefined,
       refundDeadline:
-        workspace.role === 'OWNER' && paid !== undefined
-          ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-          : null,
+        workspace.role === 'OWNER' && paid !== undefined ? refundDeadline(Date.now()) : null,
       paidOrderId: paid?.id ?? null,
       openOrder: open ? { id: open.id, status: open.status, refundReason: null } : null,
     }

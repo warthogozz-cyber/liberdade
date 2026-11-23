@@ -2,8 +2,12 @@ package br.com.liberdadefamilia.billing.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import br.com.liberdadefamilia.shared.Money;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.SplittableRandom;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -18,13 +22,19 @@ class RefundWindowProperties {
     private static final int CASES = 1000;
     private static final long TEN_DAYS = Duration.ofDays(10).toSeconds();
     private static final long WINDOW = 604_800;
+    private static final long EIGHT_DAYS = Duration.ofDays(8).toSeconds();
+    private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
 
     @ParameterizedTest
     @MethodSource("moments")
     void refundWindowIsHalfOpen(Instant paidAt, long offsetSeconds) {
         Instant now = paidAt.plusSeconds(offsetSeconds);
+        Instant deadline = RefundWindow.deadline(paidAt);
 
-        assertThat(RefundWindow.isOpen(paidAt, now)).isEqualTo(offsetSeconds >= 0 && offsetSeconds < WINDOW);
+        assertThat(RefundWindow.isOpen(paidAt, now)).isEqualTo(offsetSeconds >= 0 && now.isBefore(deadline));
+        if (offsetSeconds >= 0 && offsetSeconds < WINDOW) {
+            assertThat(RefundWindow.isOpen(paidAt, now)).isTrue();
+        }
     }
 
     @ParameterizedTest
@@ -32,7 +42,13 @@ class RefundWindowProperties {
     void closesExactlyAtTheDeadline(Instant paidAt, long ignored) {
         Instant deadline = RefundWindow.deadline(paidAt);
 
-        assertThat(deadline).isEqualTo(paidAt.plusSeconds(WINDOW));
+        ZonedDateTime local = deadline.atZone(SAO_PAULO);
+        assertThat(local.toLocalTime()).isEqualTo(LocalTime.MIDNIGHT);
+        assertThat(local.toLocalDate())
+                .isEqualTo(paidAt.atZone(SAO_PAULO).toLocalDate().plusDays(8));
+        assertThat(Duration.between(paidAt, deadline).toSeconds())
+                .isGreaterThan(WINDOW)
+                .isLessThanOrEqualTo(EIGHT_DAYS);
         assertThat(RefundWindow.isOpen(paidAt, deadline)).isFalse();
         assertThat(RefundWindow.isOpen(paidAt, deadline.minusSeconds(1))).isTrue();
         assertThat(RefundWindow.isOpen(paidAt, paidAt)).isTrue();
@@ -48,6 +64,7 @@ class RefundWindowProperties {
 
     @Test
     void offerIsEightyNineReais() {
+        assertThat(FounderOffer.PRICE).isEqualTo(Money.brl("89.00"));
         assertThat(FounderOffer.PRICE_CENTS).isEqualTo(8900L);
         assertThat(FounderOffer.PRODUCT).isEqualTo("FOUNDER_2026");
         assertThat(FounderOffer.CURRENCY).isEqualTo("BRL");

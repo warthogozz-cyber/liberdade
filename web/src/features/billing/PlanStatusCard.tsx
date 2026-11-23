@@ -32,6 +32,8 @@ export function PlanStatusCard({ ws, plan, isOwner, online }: PlanStatusCardProp
     })
   const short = (value: string) =>
     intl.formatDate(value, { day: '2-digit', month: '2-digit', timeZone: DATE_ZONE })
+  // The deadline is exclusive (00:00 of the day after the last one), so the hint names the day before it.
+  const lastDay = (deadline: string) => short(new Date(Date.parse(deadline) - 1).toISOString())
 
   async function pick(theme: FounderTheme) {
     if (theme === plan.theme) return
@@ -76,7 +78,7 @@ export function PlanStatusCard({ ws, plan, isOwner, online }: PlanStatusCardProp
             <p>
               {intl.formatMessage(
                 { id: 'billing.refund.hint' },
-                { date: short(plan.refundDeadline) },
+                { date: lastDay(plan.refundDeadline) },
               )}
             </p>
           )}

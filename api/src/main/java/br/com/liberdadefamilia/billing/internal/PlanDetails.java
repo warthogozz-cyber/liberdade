@@ -7,7 +7,12 @@ import java.time.Instant;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
-/** The family's plan as the plan page needs it, with what the caller may do about it. */
+/**
+ * The family's plan as the plan page needs it, with what the caller may do about it.
+ *
+ * @param refundDeadline when the refund closes, exclusive: 00:00 in São Paulo after the last allowed day, so the page
+ *     shows the day before it
+ */
 record PlanDetails(
         PlanKey key,
         boolean founder,
