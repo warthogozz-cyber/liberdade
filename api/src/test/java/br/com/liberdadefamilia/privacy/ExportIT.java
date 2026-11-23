@@ -88,7 +88,7 @@ class ExportIT {
         Map<String, byte[]> files = unzip(result);
         assertThat(files).containsOnlyKeys("dados.json", "lancamentos.csv", "atividade.csv");
         String json = text(files.get("dados.json"));
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(1);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(2);
         assertThat(JsonPath.<String>read(json, "$.profile.email")).isEqualTo("bia@example.com");
         assertThat(JsonPath.<String>read(json, "$.profile.displayName")).isEqualTo("Bia Teste");
         assertThat(JsonPath.<List<?>>read(json, "$.memberships")).hasSize(2);
@@ -226,6 +226,44 @@ class ExportIT {
         for (Map.Entry<String, byte[]> file : files.entrySet()) {
             assertThat(text(file.getValue())).as(file.getKey()).doesNotContain("@example.com");
         }
+    }
+
+    @Test
+    void familyExportIncludesBilling() {
+        Family f = family();
+        UUID order = jdbc.sql("""
+                        insert into billing_orders (workspace_id, requested_by, product, amount_cents, currency, status,
+                                                    asaas_checkout_id, asaas_payment_id, paid_at)
+                        values (:ws, :by, 'FOUNDER_2026', 8900, 'BRL', 'PAID', 'chk_secret', 'pay_secret',
+                                '2026-12-01T12:00:00Z')
+                        returning id""")
+                .param("ws", f.ws)
+                .param("by", f.ana)
+                .query(UUID.class)
+                .single();
+        jdbc.sql("""
+                        insert into workspace_plans (workspace_id, plan_key, founder, source_order_id, starts_at, ends_at)
+                        values (:ws, 'FAMILY', true, :order, '2026-12-01T12:00:00Z', '2027-12-31T23:59:59Z')""").param("ws", f.ws).param("order", order).update();
+
+        String json = text(unzip(exportFamily(f.ana, f.ws)).get("dados.json"));
+
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(2);
+        assertThat(JsonPath.<String>read(json, "$.orders[0].status")).isEqualTo("PAID");
+        assertThat(JsonPath.<String>read(json, "$.orders[0].amount")).isEqualTo("89.00");
+        assertThat(JsonPath.<String>read(json, "$.orders[0].currency")).isEqualTo("BRL");
+        assertThat(JsonPath.<Boolean>read(json, "$.plan.founder")).isTrue();
+        assertThat(JsonPath.<String>read(json, "$.plan.key")).isEqualTo("FAMILY");
+        assertThat(json).doesNotContain("chk_").doesNotContain("pay_");
+    }
+
+    @Test
+    void familyExportWithoutBillingHasNoOrdersAndNoPlan() {
+        Family f = family();
+
+        String json = text(unzip(exportFamily(f.ana, f.ws)).get("dados.json"));
+
+        assertThat(JsonPath.<List<?>>read(json, "$.orders")).isEmpty();
+        assertThat(JsonPath.<Object>read(json, "$.plan")).isNull();
     }
 
     @Test
