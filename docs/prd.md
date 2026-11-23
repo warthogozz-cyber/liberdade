@@ -194,7 +194,7 @@ Para o Jovem, saldo total e painel consideram só as contas em que ele é titula
 
 O desenho está no [spec do Plano 6](superpowers/specs/2026-11-17-liberdade-plan-6-billing-design.md).
 No Plano 6, o único produto à venda é a pré-venda Família Fundadora (R$ 89 por um ano, pagamento
-único no Asaas). O mensal e o anual, com assinatura recorrente, abrem com a v0.2/v0.3; as regras de
+único no Asaas). O mensal e o anual, com assinatura recorrente, abrem com a v0.3 (Plano 8) ou depois; as regras de
 US-15 e US-16 para eles valem quando abrirem.
 
 **US-14 Planos Grátis e Família** (ADR-0015)
@@ -238,6 +238,8 @@ US-15 e US-16 para eles valem quando abrirem.
 **US-21 Metas** (RF-14 metas em família)
 - Nome, valor-alvo, prazo opcional e ícone. Aportes manuais ou conta vinculada.
 - Mostra progresso e aporte mensal sugerido (seção 7.4). Celebração ao atingir.
+- No plano Grátis, até 3 metas ativas (concluídas e arquivadas não contam); no Família, sem limite.
+  Com a cobrança desligada, não há limite.
 
 **US-22 Reserva de emergência**
 - A família marca quais contas são reserva. O app mostra quantos meses de gastos ela cobre
@@ -272,7 +274,8 @@ US-15 e US-16 para eles valem quando abrirem.
 
 **US-29 Projeção do saldo e gastos fixos e variáveis**
 - O painel mostra o saldo previsto para o fim do mês e para os próximos 3 meses: saldo de hoje mais
-  as recorrências previstas (US-23) e a média dos gastos variáveis dos últimos 3 meses.
+  as recorrências previstas (US-23), menos a média dos gastos que não vêm de recorrência nos últimos
+  3 meses (fixos ou variáveis).
 - Cada gasto é **fixo** ou **variável**. Por padrão é fixo quando vem de uma recorrência; a família
   pode marcar uma categoria como fixa. O painel separa os dois totais.
 - A projeção se atualiza na hora a cada lançamento e aparece sempre como "estimativa", com a conta
