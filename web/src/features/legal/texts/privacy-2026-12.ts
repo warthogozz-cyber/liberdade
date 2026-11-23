@@ -70,7 +70,7 @@ export const privacy202612Messages = {
   'policy.2026-12.retention.intro':
     'Guardamos os dados enquanto a sua conta existir. Depois, estes são os prazos:',
   'policy.2026-12.retention.deletion':
-    'Conta ou família excluída: 30 dias de carência, para você mudar de ideia. Depois disso, apagamos tudo de vez, menos os pedidos de compra e o registro dos avisos de pagamento. Eles ficam sem ligação com a família, pelos prazos dos próximos itens.',
+    'Conta ou família excluída: 30 dias de carência, para você mudar de ideia. Depois disso, apagamos tudo de vez, menos os pedidos de compra e o registro dos avisos de pagamento. Os pedidos perdem a ligação com quem comprou e, se a família for excluída, também com ela. Eles ficam guardados pelos prazos dos próximos itens.',
   'policy.2026-12.retention.paidOrders':
     'Pedido pago: 5 anos depois do pagamento, por obrigação fiscal, mesmo que a família seja excluída antes. Na exclusão, o pedido perde a ligação com a família e com quem comprou: ficam o produto, o valor, as datas, o estado e os códigos do Asaas.',
   'policy.2026-12.retention.unpaidOrders': 'Pedido nunca pago (cancelado ou vencido): 180 dias.',

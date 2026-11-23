@@ -92,7 +92,7 @@ describe('PrivacyPolicyPage', () => {
     expect(screen.getByText(/o Liberdade não pede nem guarda esses dados/)).toBeVisible()
     expect(
       screen.getByText(
-        /menos os pedidos de compra e o registro dos avisos de pagamento\. Eles ficam sem ligação com a família/,
+        /menos os pedidos de compra e o registro dos avisos de pagamento. Os pedidos perdem a ligação com quem comprou e, se a família for excluída, também com ela/,
       ),
     ).toBeVisible()
     expect(screen.getByText(/ficam o produto, o valor, as datas/)).toBeVisible()
