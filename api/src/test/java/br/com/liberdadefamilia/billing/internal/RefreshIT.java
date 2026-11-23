@@ -7,24 +7,38 @@ import br.com.liberdadefamilia.billing.PlanKey;
 import br.com.liberdadefamilia.billing.Plans;
 import br.com.liberdadefamilia.billing.domain.FounderOffer;
 import br.com.liberdadefamilia.support.CsrfSession;
+import br.com.liberdadefamilia.support.TestClock;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
 import br.com.liberdadefamilia.workspace.Role;
-import java.time.Instant;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /** The payer's return page asks us to look at the order again. */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, RefreshIT.Config.class})
 class RefreshIT {
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class Config {
+
+        @Bean
+        @Primary
+        TestClock testClock() {
+            return new TestClock();
+        }
+    }
 
     @Autowired
     MockMvcTester mvc;
@@ -43,6 +57,14 @@ class RefreshIT {
 
     @Autowired
     TestWorkspaces workspaces;
+
+    @Autowired
+    TestClock clock;
+
+    @AfterEach
+    void releaseClock() {
+        clock.release();
+    }
 
     private record Family(UUID owner, UUID ws) {}
 
@@ -71,7 +93,7 @@ class RefreshIT {
     void refreshActivatesWhenAsaasConfirms() {
         Family f = family();
         UUID order = openOrder(f);
-        gateway.markPaid("chk_fake_" + order, "pay_" + order, Instant.now().minusSeconds(60));
+        gateway.markPaid("chk_fake_" + order, "pay_" + order, clock.instant().minusSeconds(60));
 
         MvcTestResult result = refresh(f.owner, f.ws, order);
 
@@ -118,6 +140,8 @@ class RefreshIT {
 
     @Test
     void thirtyFirstRefreshIsRateLimited() {
+        // A stopped clock keeps all 31 calls in one window of the limiter.
+        clock.freeze(clock.instant());
         Family f = family();
         UUID order = openOrder(f);
         for (int i = 0; i < 30; i++) {
