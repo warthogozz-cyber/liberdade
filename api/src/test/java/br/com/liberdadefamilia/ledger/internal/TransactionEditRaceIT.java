@@ -13,6 +13,7 @@ import br.com.liberdadefamilia.support.TestWorkspaces;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -111,10 +112,14 @@ class TransactionEditRaceIT {
                 .isTrue();
     }
 
-    /** Runs the other write right before the repository's conditional update, then the update itself. */
+    /**
+     * Runs the other write right before the repository's conditional update, then the update itself. The write runs
+     * on its own thread, so on its own connection and committed: the edit is in a transaction that the 409 rolls back,
+     * and the other tab's write is not part of it.
+     */
     private void beforeTheUpdate(Runnable otherWrite) {
         doAnswer(invocation -> {
-                    otherWrite.run();
+                    CompletableFuture.runAsync(otherWrite).join();
                     return invocation.callRealMethod();
                 })
                 .when(transactions)

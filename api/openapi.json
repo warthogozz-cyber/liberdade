@@ -1624,6 +1624,126 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/tags": {
+      "get": {
+        "operationId": "listTags",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TagView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "tag-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/tags/{id}": {
+      "patch": {
+        "operationId": "renameTag",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameTagRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "tag-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/tags/{id}/archive": {
+      "post": {
+        "operationId": "archiveTag",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Archived, or already archived"
+          }
+        },
+        "tags": [
+          "tag-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/transactions": {
       "get": {
         "operationId": "listTransactions",
@@ -1683,6 +1803,16 @@
                 "BANK_TRANSFER",
                 "CASH"
               ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "tagId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "nullable": true
             }
           }
         ],
@@ -2344,6 +2474,14 @@
               "CASH"
             ]
           },
+          "tags": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string",
+              "nullable": true
+            }
+          },
           "toAccountId": {
             "type": "string",
             "format": "uuid",
@@ -2881,6 +3019,20 @@
           }
         }
       },
+      "RenameTagRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 30,
+            "minLength": 0,
+            "pattern": "[^\\p{Cc}]*",
+            "type": "string"
+          }
+        }
+      },
       "RenameWorkspaceRequest": {
         "required": [
           "name"
@@ -2891,6 +3043,23 @@
             "maxLength": 60,
             "minLength": 0,
             "pattern": "[^\\x00]*",
+            "type": "string"
+          }
+        }
+      },
+      "TagView": {
+        "type": "object",
+        "properties": {
+          "archivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
             "type": "string"
           }
         }
@@ -2966,6 +3135,12 @@
               "BANK_TRANSFER",
               "CASH"
             ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "toAccountId": {
             "type": "string",
@@ -3147,6 +3322,14 @@
               "BANK_TRANSFER",
               "CASH"
             ]
+          },
+          "tags": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string",
+              "nullable": true
+            }
           },
           "toAccountId": {
             "type": "string",

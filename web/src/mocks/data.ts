@@ -31,6 +31,8 @@ export interface MockState {
   accounts: MockAccount[]
   /** In seed order: the 13 expense categories, then the 6 income ones. */
   categories: Schemas['CategoryView'][]
+  /** The family's tags, made by naming them on a transaction. */
+  tags: Schemas['TagView'][]
   /** Every stored transaction, deleted or not: a deleted id stays taken and restorable. */
   transactions: TransactionView[]
   /** Ids of the deleted transactions, left out of every list and sum. */
@@ -198,6 +200,7 @@ function initialState(): MockState {
     workspaces: [],
     accounts: [],
     categories: [],
+    tags: [],
     transactions: [],
     deletedTransactionIds: new Set(),
     members: {},

@@ -660,6 +660,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listTags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/tags/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["renameTag"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/tags/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveTag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/transactions": {
         parameters: {
             query?: never;
@@ -836,6 +884,7 @@ export interface components {
             occurredOn: string;
             /** @enum {string|null} */
             paymentMethod?: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
+            tags?: (string | null)[] | null;
             /** Format: uuid */
             toAccountId?: string | null;
         };
@@ -1005,7 +1054,17 @@ export interface components {
         PreviewInvitationRequest: {
             token: string;
         };
+        RenameTagRequest: {
+            name: string;
+        };
         RenameWorkspaceRequest: {
+            name: string;
+        };
+        TagView: {
+            /** Format: date-time */
+            archivedAt: string | null;
+            /** Format: uuid */
+            id: string;
             name: string;
         };
         ThemeRequest: {
@@ -1031,6 +1090,7 @@ export interface components {
             occurredOn: string;
             /** @enum {string|null} */
             paymentMethod: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
+            tags: string[];
             /** Format: uuid */
             toAccountId: string | null;
             /** Format: int64 */
@@ -1077,6 +1137,7 @@ export interface components {
             occurredOn: string;
             /** @enum {string|null} */
             paymentMethod?: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
+            tags?: (string | null)[] | null;
             /** Format: uuid */
             toAccountId?: string | null;
             /** Format: int64 */
@@ -2195,6 +2256,79 @@ export interface operations {
             };
         };
     };
+    listTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagView"][];
+                };
+            };
+        };
+    };
+    renameTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameTagRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagView"];
+                };
+            };
+        };
+    };
+    archiveTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived, or already archived */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listTransactions: {
         parameters: {
             query: {
@@ -2202,6 +2336,7 @@ export interface operations {
                 categoryId?: string | null;
                 accountId?: string | null;
                 paymentMethod?: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
+                tagId?: string | null;
             };
             header?: never;
             path: {

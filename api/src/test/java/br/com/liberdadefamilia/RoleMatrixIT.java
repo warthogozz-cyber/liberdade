@@ -115,6 +115,7 @@ class RoleMatrixIT {
                         dashboardRows(),
                         categoryRows(),
                         transactionRows(),
+                        tagRows(),
                         memberRows(),
                         invitationRows(),
                         workspaceRows(),
@@ -167,6 +168,14 @@ class RoleMatrixIT {
                 Outcome.OK,
                 Outcome.OK,
                 Outcome.OK);
+    }
+
+    static Stream<Row> tagRows() {
+        return Stream.of(
+                        each("GET " + W + "/tags", W + "/tags", null, Outcome.OK, Outcome.OK, Outcome.OK, Outcome.OK),
+                        ownerAndAdult("PATCH " + W + "/tags/{id}", W + "/tags/{feira}", "{\"name\":\"Outra\"}"),
+                        ownerAndAdult("POST " + W + "/tags/{id}/archive", W + "/tags/{feira}/archive", null))
+                .flatMap(group -> group);
     }
 
     static Stream<Row> categoryRows() {
@@ -573,6 +582,12 @@ class RoleMatrixIT {
                         insert into categories (workspace_id, kind, name, archived_at)
                         values (:ws, 'EXPENSE', 'Antiga', now())
                         returning id""").param("ws", ws).query(UUID.class).single());
+        ids.put(
+                "feira",
+                jdbc.sql("insert into tags (workspace_id, name) values (:ws, 'feira') returning id")
+                        .param("ws", ws)
+                        .query(UUID.class)
+                        .single());
         ids.put("familyExpense", transaction(ws, ids.get("corrente"), null, ids.get("mercado"), anaMembership, false));
         ids.put("familyDeleted", transaction(ws, ids.get("corrente"), null, ids.get("mercado"), anaMembership, true));
         ids.put("youthOwn", transaction(ws, ids.get("wallet"), null, ids.get("mercado"), leoMembership, false));

@@ -5,6 +5,7 @@ import br.com.liberdadefamilia.ledger.domain.CategoryTotal;
 import br.com.liberdadefamilia.ledger.domain.Flow;
 import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.shared.PaymentMethod;
+import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -27,9 +28,17 @@ import org.springframework.stereotype.Component;
 @Component
 class TransactionRepository {
 
+    /**
+     * The columns of a {@link TransactionView}, tags included. Right after an insert or an update, the tags in {@code
+     * returning} are those from before it: the service sets the saved ones with {@link TransactionView#withTags}.
+     */
     private static final String COLUMNS = """
             id, kind, amount, currency, occurred_on, account_id, to_account_id, category_id, description, payment_method,
-            member_id, created_at, version""";
+            member_id, created_at, version,
+            (select coalesce(array_agg(tg.name order by lower(tg.name), tg.id), cast('{}' as text[]))
+             from transaction_tags tt
+             join tags tg on tg.workspace_id = tt.workspace_id and tg.id = tt.tag_id
+             where tt.workspace_id = transactions.workspace_id and tt.transaction_id = transactions.id) as tags""";
 
     /** The transaction touches the scope: it leaves or enters an account in it (a transfer from outside included). */
     private static final String VISIBLE = AccountScope.sqlTouches("account_id", "to_account_id");
@@ -222,7 +231,7 @@ class TransactionRepository {
     /**
      * The transactions on or after {@code from} and before {@code until}, newest first (D20). With a category, only
      * that category and its subcategories; with an account, the transactions leaving or entering it; with a payment
-     * method, only those paid that way. Only those that touch the scope.
+     * method, only those paid that way; with a tag, only those that have it. Only those that touch the scope.
      */
     List<TransactionView> between(
             UUID workspaceId,
@@ -231,6 +240,7 @@ class TransactionRepository {
             @Nullable UUID categoryId,
             @Nullable UUID accountId,
             @Nullable PaymentMethod paymentMethod,
+            @Nullable UUID tagId,
             AccountScope scope) {
         return jdbc.sql("select " + COLUMNS + """
                          from transactions
@@ -248,6 +258,12 @@ class TransactionRepository {
                                or account_id = cast(:accountId as uuid)
                                or to_account_id = cast(:accountId as uuid))
                           and (cast(:paymentMethod as text) is null or payment_method = cast(:paymentMethod as text))
+                          and (cast(:tagId as uuid) is null
+                               or exists (select 1
+                                          from transaction_tags tt
+                                          where tt.workspace_id = transactions.workspace_id
+                                            and tt.transaction_id = transactions.id
+                                            and tt.tag_id = cast(:tagId as uuid)))
                           and """ + VISIBLE + """
                         order by occurred_on desc, created_at desc, id desc""")
                 .param("workspaceId", workspaceId)
@@ -256,6 +272,7 @@ class TransactionRepository {
                 .param("categoryId", categoryId)
                 .param("accountId", accountId)
                 .param("paymentMethod", methodName(paymentMethod))
+                .param("tagId", tagId)
                 .param("scopeIds", scope.sqlArray())
                 .query(TransactionRepository::view)
                 .list();
@@ -359,9 +376,14 @@ class TransactionRepository {
                 rs.getObject("category_id", UUID.class),
                 rs.getString("description"),
                 method(rs.getString("payment_method")),
+                tagNames(rs.getArray("tags")),
                 rs.getObject("member_id", UUID.class),
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
                 rs.getLong("version"));
+    }
+
+    private static List<String> tagNames(Array array) throws SQLException {
+        return List.of((String[]) array.getArray());
     }
 
     private static @Nullable String methodName(@Nullable PaymentMethod method) {

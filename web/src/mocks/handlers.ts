@@ -371,9 +371,76 @@ function sameContent(stored: TransactionView, request: TransactionView) {
     stored.categoryId === request.categoryId &&
     stored.memberId === request.memberId &&
     stored.description === request.description &&
-    stored.paymentMethod === request.paymentMethod
+    stored.paymentMethod === request.paymentMethod &&
+    sameNames(stored.tags, request.tags)
   )
 }
+
+const tagKey = (name: string) => name.trim().toLowerCase()
+
+function sameNames(a: string[], b: string[]) {
+  const keys = (names: string[]) => [...new Set(names.map(tagKey))].sort()
+  return JSON.stringify(keys(a)) === JSON.stringify(keys(b))
+}
+
+/** The names a transaction ends up with: each tag once, spelled as the family's tag if it has one. */
+function tagNamesOf(names: (string | null)[]): string[] {
+  const byKey = new Map<string, string>()
+  for (const raw of names) {
+    const name = (raw ?? '').trim()
+    if (!byKey.has(tagKey(name))) {
+      const known = mockState.tags.find(
+        (tag) => tag.archivedAt === null && tagKey(tag.name) === tagKey(name),
+      )
+      byKey.set(tagKey(name), known ? known.name : name)
+    }
+  }
+  return [...byKey.values()].sort((x, y) => tagKey(x).localeCompare(tagKey(y)))
+}
+
+/** Makes the tags of these names that the family does not have yet. */
+function makeTags(names: string[]) {
+  for (const name of names) {
+    const known = mockState.tags.some(
+      (tag) => tag.archivedAt === null && tagKey(tag.name) === tagKey(name),
+    )
+    if (!known) mockState.tags.push({ id: crypto.randomUUID(), name, archivedAt: null })
+  }
+}
+
+const tagNotFound = () => problem(404, 'tag.not-found', 'Tag não encontrada.')
+const MAX_TAGS = 200
+const MAX_TAG_NAMES = 5
+const MAX_TAG_LENGTH = 30
+
+/** The field errors of a list of tag names, as the API's validator finds them. */
+function tagErrors(names: unknown): FieldError[] {
+  if (names === undefined || names === null) return []
+  const valid =
+    Array.isArray(names) &&
+    names.every(
+      (name) =>
+        typeof name === 'string' &&
+        name.trim().length > 0 &&
+        [...name.trim()].length <= MAX_TAG_LENGTH &&
+        // eslint-disable-next-line no-control-regex
+        !/[\u0000-\u001f\u007f-\u009f]/.test(name),
+    ) &&
+    new Set(names.map((name: string) => tagKey(name))).size <= MAX_TAG_NAMES
+  return valid ? [] : [{ field: 'tags', code: 'TagNames' }]
+}
+
+/** Whether the names would make the family's 201st active tag. */
+function overTagLimit(names: string[]) {
+  const fresh = names.filter(
+    (name) =>
+      !mockState.tags.some((tag) => tag.archivedAt === null && tagKey(tag.name) === tagKey(name)),
+  )
+  return mockState.tags.filter((tag) => tag.archivedAt === null).length + fresh.length > MAX_TAGS
+}
+
+const tagLimit = () =>
+  rejected('tag.limit', `A família já tem ${MAX_TAGS} tags. Arquive alguma para criar outra.`)
 
 const MIN_DATE = '2000-01-01'
 const DAYS_AHEAD = 366
@@ -1717,6 +1784,65 @@ export const handlers = [
     },
   ),
 
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/tags'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    return HttpResponse.json(
+      mockState.tags
+        .filter((tag) => tag.archivedAt === null)
+        .sort((x, y) => tagKey(x.name).localeCompare(tagKey(y.name))),
+    )
+  }),
+
+  http.patch<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/tags/:id'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as { name?: unknown } | undefined
+      if (typeof body !== 'object' || body === null) return malformed()
+      if (body.name === undefined || tagErrors([body.name]).length > 0) {
+        return invalid([{ field: 'name', code: 'Size' }])
+      }
+      const tag = mockState.tags.find((each) => each.id === params.id && each.archivedAt === null)
+      if (!tag) return tagNotFound()
+      const name = (body.name as string).trim()
+      if (
+        mockState.tags.some(
+          (each) =>
+            each.id !== tag.id && each.archivedAt === null && tagKey(each.name) === tagKey(name),
+        )
+      ) {
+        return problem(409, 'tag.name-taken', 'Já existe uma tag com esse nome.')
+      }
+      // A transaction shows its tags by name, so the new name follows the tag everywhere.
+      for (const transaction of mockState.transactions) {
+        transaction.tags = transaction.tags
+          .map((each) => (each === tag.name ? name : each))
+          .sort((x, y) => tagKey(x).localeCompare(tagKey(y)))
+      }
+      tag.name = name
+      return HttpResponse.json(tag)
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/tags/:id/archive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const tag = mockState.tags.find((each) => each.id === params.id)
+      if (!tag) return tagNotFound()
+      // Archiving again changes nothing; the tag stays on the transactions that have it.
+      tag.archivedAt ??= new Date().toISOString()
+      return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/transactions'), ({ request, params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace
@@ -1724,8 +1850,9 @@ export const handlers = [
     const month = search.get('month') ?? ''
     const categoryId = search.get('categoryId')
     const accountId = search.get('accountId')
+    const tagId = search.get('tagId')
     if (!MONTH.test(month)) return malformed()
-    if ([categoryId, accountId].some((id) => id !== null && !UUID.test(id))) return malformed()
+    if ([categoryId, accountId, tagId].some((id) => id !== null && !UUID.test(id))) return malformed()
     const outOfRange = monthOutOfRange(workspace, month)
     if (outOfRange) return outOfRange
     // A category takes its subcategories along; an account, what leaves it and what enters it.
@@ -1734,11 +1861,14 @@ export const handlers = [
         .filter((category) => category.id === categoryId || category.parentId === categoryId)
         .map((category) => category.id),
     )
+    const tagName = mockState.tags.find((tag) => tag.id === tagId)?.name
     return HttpResponse.json(
       activeTransactions()
         .filter(
           (transaction) =>
             transaction.occurredOn.startsWith(`${month}-`) &&
+            (tagId === null ||
+              (tagName !== undefined && transaction.tags.some((name) => name === tagName))) &&
             (categoryId === null ||
               (transaction.categoryId !== null && inCategory.has(transaction.categoryId))) &&
             (accountId === null ||
@@ -1761,6 +1891,7 @@ export const handlers = [
     if (key === null || !UUID.test(key)) return malformed()
     if (typeof body !== 'object' || body === null || !readable(body)) return malformed()
     const { errors, cents, description } = validateTransaction(body, CREATE_REQUIRED)
+    errors.push(...tagErrors(body.tags))
     if (errors.length > 0) return invalid(errors)
     if (body.id !== key || !UUID_V7.test(body.id)) {
       return rejected('transaction.invalid-id', 'O identificador do lançamento é inválido.')
@@ -1775,6 +1906,7 @@ export const handlers = [
       categoryId: body.categoryId ?? null,
       description,
       paymentMethod: body.paymentMethod ?? null,
+      tags: tagNamesOf(body.tags ?? []),
       memberId: body.memberId ?? workspace.membershipId,
       createdAt: new Date().toISOString(),
       version: 0,
@@ -1788,6 +1920,8 @@ export const handlers = [
     }
     const failure = familyRuleFailure(workspace, transaction)
     if (failure) return failure
+    if (overTagLimit(transaction.tags)) return tagLimit()
+    makeTags(transaction.tags)
     mockState.transactions.push(transaction)
     return HttpResponse.json(transaction, { status: 201 })
   }),
@@ -1802,6 +1936,7 @@ export const handlers = [
       const body = (await readJson(request)) as UpdateTransactionRequest | undefined
       if (typeof body !== 'object' || body === null || !readable(body)) return malformed()
       const { errors, cents, description } = validateTransaction(body, UPDATE_REQUIRED)
+      errors.push(...tagErrors(body.tags))
       if (errors.length > 0) return invalid(errors)
       const stored = storedTransaction(params.id)
       if (!stored) return transactionNotFound()
@@ -1827,11 +1962,15 @@ export const handlers = [
         categoryId: body.categoryId ?? null,
         description,
         paymentMethod: body.paymentMethod ?? null,
+        // No tags keeps the ones it has; a list, even an empty one, replaces them.
+        tags: body.tags == null ? current.tags : tagNamesOf(body.tags),
         memberId: body.memberId ?? current.memberId,
         version: current.version + 1,
       }
       const failure = familyRuleFailure(workspace, edited, current)
       if (failure) return failure
+      if (overTagLimit(edited.tags)) return tagLimit()
+      makeTags(edited.tags)
       Object.assign(current, edited)
       return HttpResponse.json(current)
     },

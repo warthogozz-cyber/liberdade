@@ -41,6 +41,7 @@ export function transactionView(
     categoryId: request.categoryId ?? null,
     description: request.description ?? null,
     paymentMethod: request.paymentMethod ?? null,
+    tags: (request.tags ?? []).filter((name) => name !== null),
     createdAt,
     memberId: 'member',
     version: 0,

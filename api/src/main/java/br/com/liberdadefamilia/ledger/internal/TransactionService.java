@@ -15,9 +15,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Records, edits, deletes and restores transactions. Recording is idempotent: the device makes the id, and sending
@@ -30,6 +33,8 @@ class TransactionService {
     private final AccountRepository accounts;
     private final CategoryRepository categories;
     private final TransactionRepository transactions;
+    private final TagRepository tagLinks;
+    private final TagService tags;
     private final Memberships memberships;
     private final Clock clock;
 
@@ -37,11 +42,15 @@ class TransactionService {
             AccountRepository accounts,
             CategoryRepository categories,
             TransactionRepository transactions,
+            TagRepository tagLinks,
+            TagService tags,
             Memberships memberships,
             Clock clock) {
         this.accounts = accounts;
         this.categories = categories;
         this.transactions = transactions;
+        this.tagLinks = tagLinks;
+        this.tags = tags;
         this.memberships = memberships;
         this.clock = clock;
     }
@@ -55,6 +64,7 @@ class TransactionService {
      * @throws TransactionIdConflictException when the id is taken by other data or by another family, or, for the
      *     youth, by a transaction they did not record
      */
+    @Transactional
     Recorded record(WorkspaceMember member, UUID idempotencyKey, CreateTransactionRequest request) {
         UUID workspaceId = member.workspaceId();
         if (!request.id().equals(idempotencyKey) || request.id().version() != 7) {
@@ -71,7 +81,7 @@ class TransactionService {
         Optional<TransactionView> created =
                 transactions.insertIfAbsent(workspaceId, member.membershipId(), memberId, request);
         if (created.isPresent()) {
-            return new Recorded(created.get(), true);
+            return new Recorded(saveTags(member, created.get(), request.tags()), true);
         }
         // The id was taken since the lookup: by the other tap of a double tap, by another family, or by a transaction
         // out of the scope, which answers as the other family's would.
@@ -100,6 +110,7 @@ class TransactionService {
      * @throws LedgerConflictException when it was deleted, or changed since the screen opened (with {@code current})
      * @throws LedgerRejectedException when a family rule fails
      */
+    @Transactional
     TransactionView update(WorkspaceMember member, UUID id, UpdateTransactionRequest request) {
         UUID workspaceId = member.workspaceId();
         AccountScope scope = accounts.scopeFor(member);
@@ -109,7 +120,7 @@ class TransactionService {
         checkEditable(stored, request.version());
         UUID memberId = request.memberId() == null ? stored.view().memberId() : request.memberId();
         checkAgainstFamily(member, scope, Proposed.of(request, memberId), stored.view());
-        return transactions
+        TransactionView updated = transactions
                 .update(workspaceId, id, scope, caller, memberId, request)
                 .orElseThrow(() -> {
                     // Someone else edited or deleted it between the checks and the update.
@@ -119,6 +130,16 @@ class TransactionService {
                     checkEditable(now, request.version());
                     return versionConflict(now.view());
                 });
+        List<String> names = request.tags();
+        return names == null ? updated.withTags(stored.view().tags()) : saveTags(member, updated, names);
+    }
+
+    /** Makes the transaction's tags the ones with these names, and returns it with them. */
+    private TransactionView saveTags(
+            WorkspaceMember member, TransactionView transaction, @Nullable List<String> names) {
+        UUID workspaceId = member.workspaceId();
+        tagLinks.replaceLinks(workspaceId, transaction.id(), tags.resolve(member, names));
+        return transaction.withTags(tagLinks.namesOf(workspaceId, transaction.id()));
     }
 
     /**
@@ -181,7 +202,7 @@ class TransactionService {
 
     /**
      * The month's transactions in the member's scope, newest first, optionally of one category (with its
-     * subcategories), one account or one payment method.
+     * subcategories), one account, one payment method or one tag.
      *
      * @throws LedgerRejectedException when the month is out of range
      */
@@ -190,7 +211,8 @@ class TransactionService {
             YearMonth month,
             @Nullable UUID categoryId,
             @Nullable UUID accountId,
-            @Nullable PaymentMethod paymentMethod) {
+            @Nullable PaymentMethod paymentMethod,
+            @Nullable UUID tagId) {
         checkMonth(member, month);
         return transactions.between(
                 member.workspaceId(),
@@ -199,6 +221,7 @@ class TransactionService {
                 categoryId,
                 accountId,
                 paymentMethod,
+                tagId,
                 accounts.scopeFor(member));
     }
 
@@ -360,7 +383,15 @@ class TransactionService {
                 && Objects.equals(stored.toAccountId(), request.toAccountId())
                 && Objects.equals(stored.categoryId(), request.categoryId())
                 && Objects.equals(stored.description(), request.description())
-                && stored.paymentMethod() == request.paymentMethod();
+                && stored.paymentMethod() == request.paymentMethod()
+                && tagKeys(stored.tags()).equals(tagKeys(request.tags()));
+    }
+
+    /** The tags as a resend compares them: stripped, lower case, each once. */
+    private static Set<String> tagKeys(@Nullable List<String> names) {
+        return names == null
+                ? Set.of()
+                : names.stream().map(TagNamesValidator::key).collect(Collectors.toSet());
     }
 
     /** A recorded transaction, and whether this request created it. */
