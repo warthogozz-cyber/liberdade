@@ -740,6 +740,22 @@ export interface paths {
         patch: operations["updateTransaction"];
         trace?: never;
     };
+    "/v1/workspaces/{ws}/transactions/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirmTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/transactions/{id}/restore": {
         parameters: {
             query?: never;
@@ -750,6 +766,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["restoreTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/transactions/{id}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["skipTransaction"];
         delete?: never;
         options?: never;
         head?: never;
@@ -823,6 +855,15 @@ export interface components {
             checkoutUrl: string;
             /** Format: uuid */
             orderId: string;
+        };
+        ConfirmTransactionRequest: {
+            /** Format: uuid */
+            accountId?: string | null;
+            amount?: components["schemas"]["Money"];
+            /** Format: date */
+            occurredOn?: string | null;
+            /** Format: int64 */
+            version: number;
         };
         ConsentView: {
             canRevoke: boolean;
@@ -1059,6 +1100,10 @@ export interface components {
         };
         RenameWorkspaceRequest: {
             name: string;
+        };
+        SkipTransactionRequest: {
+            /** Format: int64 */
+            version: number;
         };
         TagView: {
             /** Format: date-time */
@@ -2476,6 +2521,34 @@ export interface operations {
             };
         };
     };
+    confirmTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmTransactionRequest"];
+            };
+        };
+        responses: {
+            /** @description Confirmed: the transaction as it is now, entered under who confirmed it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionView"];
+                };
+            };
+        };
+    };
     restoreTransaction: {
         parameters: {
             query?: never;
@@ -2497,6 +2570,32 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TransactionView"];
                 };
+            };
+        };
+    };
+    skipTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkipTransactionRequest"];
+            };
+        };
+        responses: {
+            /** @description Skipped: deleted, and restorable like any deleted transaction */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

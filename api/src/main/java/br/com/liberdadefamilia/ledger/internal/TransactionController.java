@@ -7,6 +7,8 @@ import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 
 import br.com.liberdadefamilia.ledger.internal.TransactionService.Recorded;
 import br.com.liberdadefamilia.shared.PaymentMethod;
+import br.com.liberdadefamilia.workspace.ModuleKey;
+import br.com.liberdadefamilia.workspace.RequiresModule;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -94,6 +96,28 @@ class TransactionController {
             content = @Content(schema = @Schema(implementation = TransactionView.class)))
     TransactionView restoreTransaction(@PathVariable UUID id, WorkspaceMember member) {
         return service.restore(member, id);
+    }
+
+    @PostMapping("/v1/workspaces/{ws}/transactions/{id}/confirm")
+    @RequiresModule(ModuleKey.PLANNING)
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH})
+    @ApiResponse(
+            responseCode = "200",
+            description = "Confirmed: the transaction as it is now, entered under who confirmed it",
+            content = @Content(schema = @Schema(implementation = TransactionView.class)))
+    TransactionView confirmTransaction(
+            @PathVariable UUID id, @Valid @RequestBody ConfirmTransactionRequest request, WorkspaceMember member) {
+        return service.confirm(member, id, request);
+    }
+
+    @PostMapping("/v1/workspaces/{ws}/transactions/{id}/skip")
+    @RequiresModule(ModuleKey.PLANNING)
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH})
+    @ApiResponse(responseCode = "204", description = "Skipped: deleted, and restorable like any deleted transaction")
+    ResponseEntity<Void> skipTransaction(
+            @PathVariable UUID id, @Valid @RequestBody SkipTransactionRequest request, WorkspaceMember member) {
+        service.skip(member, id, request);
+        return ResponseEntity.noContent().build();
     }
 
     /**

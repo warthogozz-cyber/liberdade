@@ -115,6 +115,7 @@ class RoleMatrixIT {
                         dashboardRows(),
                         categoryRows(),
                         transactionRows(),
+                        plannedRows(),
                         tagRows(),
                         memberRows(),
                         invitationRows(),
@@ -318,6 +319,41 @@ class RoleMatrixIT {
                                         restore,
                                         W + "/transactions/{youthTransferOutDeleted}/restore",
                                         null,
+                                        Outcome.NOT_FOUND)))
+                .flatMap(group -> group);
+    }
+
+    /**
+     * Confirming and skipping a planned transaction: the adults act on one in the "Corrente", the youth on one in his
+     * wallet, and then on one that is not his, which answers as if it did not exist.
+     */
+    static Stream<Row> plannedRows() {
+        String confirm = "POST " + W + "/transactions/{id}/confirm";
+        String skip = "POST " + W + "/transactions/{id}/skip";
+        String version = "{\"version\":0}";
+        return Stream.of(
+                        notYouth(confirm, W + "/transactions/{plannedFamily}/confirm", version, Outcome.FORBIDDEN),
+                        Stream.of(
+                                new Row(
+                                        YOUTH,
+                                        confirm,
+                                        W + "/transactions/{plannedYouth}/confirm",
+                                        version,
+                                        Outcome.OK),
+                                new Row(
+                                        YOUTH,
+                                        confirm,
+                                        W + "/transactions/{plannedFamily}/confirm",
+                                        version,
+                                        Outcome.NOT_FOUND)),
+                        notYouth(skip, W + "/transactions/{plannedFamily}/skip", version, Outcome.FORBIDDEN),
+                        Stream.of(
+                                new Row(YOUTH, skip, W + "/transactions/{plannedYouth}/skip", version, Outcome.OK),
+                                new Row(
+                                        YOUTH,
+                                        skip,
+                                        W + "/transactions/{plannedFamily}/skip",
+                                        version,
                                         Outcome.NOT_FOUND)))
                 .flatMap(group -> group);
     }
@@ -606,6 +642,8 @@ class RoleMatrixIT {
         ids.put(
                 "youthTransferOutDeleted",
                 transaction(ws, ids.get("wallet"), ids.get("corrente"), null, leoMembership, true));
+        ids.put("plannedFamily", planned(ws, ids.get("corrente"), ids.get("mercado"), anaMembership));
+        ids.put("plannedYouth", planned(ws, ids.get("wallet"), ids.get("mercado"), anaMembership));
         byte[] tokenHash = new byte[32];
         RANDOM.nextBytes(tokenHash);
         ids.put(
@@ -661,6 +699,24 @@ class RoleMatrixIT {
                 .param("category", category)
                 .param("membership", membership)
                 .param("deleted", deleted)
+                .update();
+        return id;
+    }
+
+    /** A planned expense of 5.00 for 2026-11-04, made by the membership. */
+    private UUID planned(UUID ws, UUID account, UUID category, UUID membership) {
+        UUID id = TestIds.v7();
+        jdbc.sql("""
+                        insert into transactions
+                            (id, workspace_id, kind, amount, currency, occurred_on, account_id, category_id,
+                             member_id, created_by, status, scheduled_on)
+                        values (:id, :ws, 'EXPENSE', 5, 'BRL', date '2026-11-04', :account, :category,
+                                :membership, :membership, 'PLANNED', date '2026-11-04')""")
+                .param("id", id)
+                .param("ws", ws)
+                .param("account", account)
+                .param("category", category)
+                .param("membership", membership)
                 .update();
         return id;
     }

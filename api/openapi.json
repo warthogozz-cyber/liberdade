@@ -2017,6 +2017,57 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/transactions/{id}/confirm": {
+      "post": {
+        "operationId": "confirmTransaction",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmTransactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionView"
+                }
+              }
+            },
+            "description": "Confirmed: the transaction as it is now, entered under who confirmed it"
+          }
+        },
+        "tags": [
+          "transaction-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/transactions/{id}/restore": {
       "post": {
         "operationId": "restoreTransaction",
@@ -2051,6 +2102,50 @@
               }
             },
             "description": "Restored, or already active: the transaction as it is"
+          }
+        },
+        "tags": [
+          "transaction-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/transactions/{id}/skip": {
+      "post": {
+        "operationId": "skipTransaction",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkipTransactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Skipped: deleted, and restorable like any deleted transaction"
           }
         },
         "tags": [
@@ -2246,6 +2341,31 @@
           "orderId": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "ConfirmTransactionRequest": {
+        "required": [
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -3044,6 +3164,18 @@
             "minLength": 0,
             "pattern": "[^\\x00]*",
             "type": "string"
+          }
+        }
+      },
+      "SkipTransactionRequest": {
+        "required": [
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

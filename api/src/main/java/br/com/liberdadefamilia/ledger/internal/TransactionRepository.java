@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.ledger.internal;
 
+import br.com.liberdadefamilia.ledger.PlannedTemplate;
 import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.ledger.domain.CategoryTotal;
 import br.com.liberdadefamilia.ledger.domain.Flow;
@@ -51,6 +52,16 @@ class TransactionRepository {
             (cast(:scopeIds as uuid[]) is null
              or (created_by = :caller
                  and account_id = any(cast(:scopeIds as uuid[]))
+                 and (to_account_id is null or to_account_id = any(cast(:scopeIds as uuid[])))))""";
+
+    /**
+     * Under a restricted scope, the caller holds the transaction: every account it touches is in the scope, whoever
+     * recorded it. This is who may confirm or skip a planned transaction, which a rule made, not the youth. Under {@link
+     * AccountScope#all()}, always true.
+     */
+    private static final String HELD = """
+            (cast(:scopeIds as uuid[]) is null
+             or (account_id = any(cast(:scopeIds as uuid[]))
                  and (to_account_id is null or to_account_id = any(cast(:scopeIds as uuid[])))))""";
 
     private final JdbcClient jdbc;
@@ -130,9 +141,9 @@ class TransactionRepository {
     }
 
     /**
-     * Replaces the transaction's data, if it is still at the given version, not deleted and the caller's to change
-     * under the scope, and moves it to the next version. Empty when the version moved on or the transaction was deleted
-     * (or never existed, or is not the caller's).
+     * Replaces the transaction's data, if it is still at the given version, confirmed, not deleted and the caller's to
+     * change under the scope, and moves it to the next version. Empty when the version moved on, the transaction was
+     * deleted or turned planned (or never existed, or is not the caller's): a planned one changes only by confirming.
      */
     Optional<TransactionView> update(
             UUID workspaceId,
@@ -158,6 +169,7 @@ class TransactionRepository {
                         where workspace_id = :workspaceId
                           and id = :id
                           and version = :version
+                          and status = 'CONFIRMED'
                           and deleted_at is null
                           and """ + OWN + """
                         returning\s""" + COLUMNS)
@@ -226,6 +238,142 @@ class TransactionRepository {
                 .param("caller", caller)
                 .query(TransactionRepository::view)
                 .optional();
+    }
+
+    /**
+     * A transaction of this family, deleted or not, that the caller holds under the scope (see {@link #HELD}): the one
+     * a confirm or a skip acts on. Out of the scope it is as absent as one that never existed.
+     */
+    Optional<StoredTransaction> findHeld(UUID workspaceId, UUID id, AccountScope scope) {
+        return jdbc.sql("select " + COLUMNS + """
+                        , created_by, deleted_at is not null as deleted
+                         from transactions
+                        where workspace_id = :workspaceId
+                          and id = :id
+                          and """ + HELD)
+                .param("workspaceId", workspaceId)
+                .param("id", id)
+                .param("scopeIds", scope.sqlArray())
+                .query(TransactionRepository::stored)
+                .optional();
+    }
+
+    /**
+     * Makes a planned transaction a confirmed one, with the data given, entered by {@code memberId}, if it is still at
+     * the version, planned, not deleted and held by the caller under the scope. {@code created_by} and {@code
+     * scheduled_on} stay. Empty when any of that stopped being true.
+     */
+    Optional<TransactionView> confirm(
+            UUID workspaceId,
+            UUID id,
+            AccountScope scope,
+            UUID memberId,
+            long version,
+            Money amount,
+            LocalDate occurredOn,
+            UUID accountId) {
+        return jdbc.sql("""
+                        update transactions
+                        set status = 'CONFIRMED',
+                            member_id = :memberId,
+                            amount = :amount,
+                            currency = :currency,
+                            occurred_on = :occurredOn,
+                            account_id = :accountId,
+                            version = version + 1,
+                            updated_at = now()
+                        where workspace_id = :workspaceId
+                          and id = :id
+                          and deleted_at is null
+                          and status = 'PLANNED'
+                          and version = :version
+                          and """ + HELD + """
+                        returning\s""" + COLUMNS)
+                .param("workspaceId", workspaceId)
+                .param("id", id)
+                .param("scopeIds", scope.sqlArray())
+                .param("version", version)
+                .param("memberId", memberId)
+                .param("amount", amount.amount())
+                .param("currency", amount.currency().getCurrencyCode())
+                .param("occurredOn", occurredOn)
+                .param("accountId", accountId)
+                .query(TransactionRepository::view)
+                .optional();
+    }
+
+    /**
+     * Marks a planned transaction as deleted at {@code now}, if it is still at the version, planned, not deleted and
+     * held by the caller under the scope. Whether it was; the restore of a deleted transaction brings it back.
+     */
+    boolean skip(UUID workspaceId, UUID id, AccountScope scope, long version, Instant now) {
+        return jdbc.sql("""
+                        update transactions
+                        set deleted_at = :now,
+                            version = version + 1,
+                            updated_at = now()
+                        where workspace_id = :workspaceId
+                          and id = :id
+                          and deleted_at is null
+                          and status = 'PLANNED'
+                          and version = :version
+                          and """ + HELD)
+                        .param("workspaceId", workspaceId)
+                        .param("id", id)
+                        .param("scopeIds", scope.sqlArray())
+                        .param("version", version)
+                        .param("now", OffsetDateTime.ofInstant(now, ZoneOffset.UTC))
+                        .update()
+                == 1;
+    }
+
+    /**
+     * Plans one occurrence of a recurring rule, dated and scheduled on {@code scheduledOn}, made and entered by the
+     * membership. Whether it was; false when the rule already has the occurrence (even deleted).
+     */
+    boolean insertPlanned(
+            UUID workspaceId, UUID ruleId, LocalDate scheduledOn, PlannedTemplate template, UUID authorMembershipId) {
+        return jdbc.sql("""
+                        insert into transactions
+                            (id, workspace_id, kind, amount, currency, occurred_on,
+                             account_id, to_account_id, category_id, description, payment_method, member_id,
+                             created_by, status, recurring_rule_id, scheduled_on)
+                        values (uuidv7(), :workspaceId, :kind, :amount, :currency, :scheduledOn,
+                                :accountId, :toAccountId, :categoryId, :description, :paymentMethod, :author,
+                                :author, 'PLANNED', :ruleId, :scheduledOn)
+                        on conflict do nothing""")
+                        .param("workspaceId", workspaceId)
+                        .param("kind", template.kind().name())
+                        .param("amount", template.amount().amount())
+                        .param("currency", template.amount().currency().getCurrencyCode())
+                        .param("scheduledOn", scheduledOn)
+                        .param("accountId", template.accountId())
+                        .param("toAccountId", template.toAccountId())
+                        .param("categoryId", template.categoryId())
+                        .param("description", template.description())
+                        .param("paymentMethod", methodName(template.paymentMethod()))
+                        .param("author", authorMembershipId)
+                        .param("ruleId", ruleId)
+                        .update()
+                == 1;
+    }
+
+    /**
+     * Removes for good the rule's planned transactions that are not deleted and are scheduled on or after {@code from},
+     * and returns how many. Confirmed and skipped ones stay, which keeps their occurrences taken.
+     */
+    int deletePlannedFrom(UUID workspaceId, UUID ruleId, LocalDate from) {
+        return jdbc.sql("""
+                        delete from transactions
+                        where workspace_id = :workspaceId
+                          and recurring_rule_id = :ruleId
+                          and status = 'PLANNED'
+                          and deleted_at is null
+                          and scheduled_on >= :from""")
+                .param("workspaceId", workspaceId)
+                .param("ruleId", ruleId)
+                .param("from", from)
+                .update();
     }
 
     /**
