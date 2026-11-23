@@ -1,12 +1,15 @@
 import { cleanup, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
 import { TermsPage } from './TermsPage'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllEnvs()
+})
 
 function renderTerms() {
   return renderWithProviders(<TermsPage />, { path: '/termos' })
@@ -54,6 +57,34 @@ describe('TermsPage', () => {
     expect(screen.getByText(/art\. 49/)).toBeVisible()
     expect(screen.getByText(/não se renova sozinho/)).toBeVisible()
     expect(screen.getAllByText(/privacidade@liberdadefamilia\.com\.br/).length).toBeGreaterThan(0)
+  })
+
+  it('namesTheSellerWithNeutralDefaults', () => {
+    vi.stubEnv('VITE_PRIVACY_CONTROLLER', '')
+    vi.stubEnv('VITE_PRIVACY_CONTROLLER_DOCUMENT', '')
+    vi.stubEnv('VITE_PRIVACY_CONTROLLER_ADDRESS', ' ')
+    renderTerms()
+
+    expect(
+      screen.getByText(
+        'Quem vende o plano é o mantenedor do projeto Liberdade, CPF ou CNPJ a informar, com endereço em local a informar. Para falar sobre a compra, escreva para privacidade@liberdadefamilia.com.br.',
+      ),
+    ).toBeVisible()
+  })
+
+  it('namesTheConfiguredSeller', () => {
+    vi.stubEnv('VITE_PRIVACY_CONTROLLER', 'Instituto Exemplo')
+    vi.stubEnv('VITE_PRIVACY_CONTROLLER_DOCUMENT', 'CNPJ 00.000.000/0000-00')
+    vi.stubEnv('VITE_PRIVACY_CONTROLLER_ADDRESS', 'Rua Exemplo, 1, Cidade Exemplo')
+    vi.stubEnv('VITE_PRIVACY_CONTACT', 'contato@example.com')
+    renderTerms()
+
+    expect(
+      screen.getByText(
+        'Quem vende o plano é Instituto Exemplo, CNPJ 00.000.000/0000-00, com endereço em Rua Exemplo, 1, Cidade Exemplo. Para falar sobre a compra, escreva para contato@example.com.',
+      ),
+    ).toBeVisible()
+    expect(screen.queryByText(/a informar/)).not.toBeInTheDocument()
   })
 
   it('showsTheVersionTheApiSays', async () => {

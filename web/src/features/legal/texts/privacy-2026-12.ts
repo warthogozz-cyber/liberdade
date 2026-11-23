@@ -62,7 +62,7 @@ export const privacy202612Messages = {
     'Cloudflare: entrega do site, DNS e encaminhamento de e-mail.',
   'policy.2026-12.partners.google': 'Google: o login com a sua conta Google.',
   'policy.2026-12.partners.asaas':
-    'Asaas: o pagamento do plano Família Fundadora e a nota fiscal. Na página dele, quem paga informa CPF, nome, e-mail e, se for o caso, o cartão. Esses dados ficam só no Asaas, pelas regras dele: o Liberdade nunca os recebe nem guarda.',
+    'Asaas: o pagamento do plano Família Fundadora e a nota fiscal. Na página dele, quem paga informa CPF, nome, e-mail e, se for o caso, o cartão. Esses dados ficam no Asaas, pelas regras dele: o Liberdade não pede nem guarda esses dados.',
   'policy.2026-12.partners.transfer':
     'A Cloudflare e o Google podem tratar dados fora do Brasil. Essa transferência internacional acontece por eles, como operadores (LGPD, art. 33).',
 
@@ -70,9 +70,9 @@ export const privacy202612Messages = {
   'policy.2026-12.retention.intro':
     'Guardamos os dados enquanto a sua conta existir. Depois, estes são os prazos:',
   'policy.2026-12.retention.deletion':
-    'Conta ou família excluída: 30 dias de carência, para você mudar de ideia. Depois disso, apagamos tudo de vez, menos os pedidos pagos (veja o próximo item).',
+    'Conta ou família excluída: 30 dias de carência, para você mudar de ideia. Depois disso, apagamos tudo de vez, menos os pedidos de compra e o registro dos avisos de pagamento. Eles ficam sem ligação com a família, pelos prazos dos próximos itens.',
   'policy.2026-12.retention.paidOrders':
-    'Pedido pago: 5 anos depois do pagamento, por obrigação fiscal, mesmo que a família seja excluída antes. Na exclusão, o pedido perde a ligação com a família e com quem comprou: ficam só o valor, as datas, o estado e os códigos do Asaas.',
+    'Pedido pago: 5 anos depois do pagamento, por obrigação fiscal, mesmo que a família seja excluída antes. Na exclusão, o pedido perde a ligação com a família e com quem comprou: ficam o produto, o valor, as datas, o estado e os códigos do Asaas.',
   'policy.2026-12.retention.unpaidOrders': 'Pedido nunca pago (cancelado ou vencido): 180 dias.',
   'policy.2026-12.retention.plan': 'Plano da família: enquanto a família existir.',
   'policy.2026-12.retention.webhooks':

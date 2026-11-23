@@ -18,7 +18,15 @@ export function TermsPage() {
       date={text.updatedAt}
       intro={intl.formatMessage({ id: text.intro })}
     >
-      <Sections sections={text.sections} values={{ email: legalConfig.contactEmail }} />
+      <Sections
+        sections={text.sections}
+        values={{
+          controller: legalConfig.controllerName,
+          document: legalConfig.controllerDocument,
+          address: legalConfig.controllerAddress,
+          email: legalConfig.contactEmail,
+        }}
+      />
     </LegalLayout>
   )
 }

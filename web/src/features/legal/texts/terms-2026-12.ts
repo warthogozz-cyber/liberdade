@@ -17,10 +17,12 @@ export const terms202612Messages = {
 
   'terms.2026-12.founder.title': 'O que é a Família Fundadora?',
   'terms.2026-12.founder.p1':
-    'A Família Fundadora é a pré-venda do plano Família: você paga 1 ano adiantado, R$ 89, e apoia o projeto desde o começo.',
+    'A Família Fundadora é a pré-venda do plano Família: você paga 1 ano adiantado, R$ 89,00, e apoia o projeto desde o começo.',
   'terms.2026-12.founder.p2': 'Só o Dono da família compra, e o plano vale para a família toda.',
   'terms.2026-12.founder.p3':
     'O pagamento é feito uma vez só, por Pix ou cartão à vista, na página segura do Asaas, a empresa que processa o pagamento. A nota fiscal sai pelo Asaas.',
+  'terms.2026-12.founder.seller':
+    'Quem vende o plano é {controller}, {document}, com endereço em {address}. Para falar sobre a compra, escreva para {email}.',
   'terms.2026-12.founder.p4':
     'O plano vale por 1 ano a partir da confirmação do pagamento. A data de fim aparece em Mais, Plano.',
   'terms.2026-12.founder.p5':
@@ -28,13 +30,13 @@ export const terms202612Messages = {
 
   'terms.2026-12.includes.title': 'O que a Fundadora inclui hoje',
   'terms.2026-12.includes.p1':
-    'Hoje a Fundadora inclui duas coisas: o selo "Família Fundadora" e um tema de cor, à escolha entre quatro. O tema e o selo só aparecem na tela Plano e no Retrato do mês: o resto do app continua igual.',
+    'Hoje a Fundadora inclui duas coisas: o selo "Família Fundadora" e um tema de cor, que o Dono escolhe entre quatro. O tema e o selo só aparecem na tela Plano e no Retrato do mês: o resto do app continua igual.',
   'terms.2026-12.includes.p2':
     'Os recursos pagos que planejamos, como mesada, metas ilimitadas, importar extrato e a Feira, chegam ao plano Família conforme ficarem prontos, sem data prometida. Não garantimos que algum deles fique pronto dentro do seu ano pago. Compre pelo que a Fundadora inclui hoje.',
 
   'terms.2026-12.refund.title': 'Desistiu? Reembolso integral em 7 dias',
   'terms.2026-12.refund.p1':
-    'Nos 7 dias seguintes à confirmação do pagamento, você pode desistir e receber de volta os R$ 89 inteiros. É o direito de arrependimento do Código de Defesa do Consumidor (art. 49). A tela Plano mostra até quando dá para desistir.',
+    'Nos 7 dias seguintes à confirmação do pagamento, você pode desistir e receber de volta os R$ 89,00 inteiros. É o direito de arrependimento do Código de Defesa do Consumidor (art. 49). A tela Plano mostra até quando dá para desistir.',
   'terms.2026-12.refund.p2':
     'Para desistir, o Dono toca em "Receber meu dinheiro de volta", em Mais, Plano, e confirma. Não é preciso dizer o motivo.',
   'terms.2026-12.refund.p3':
@@ -48,7 +50,7 @@ export const terms202612Messages = {
   'terms.2026-12.renewal.p2':
     'Depois de 1 ano, o acesso pago termina e a família volta ao plano Grátis, sem perder nenhum dado. O tema e o selo voltam ao padrão.',
   'terms.2026-12.renewal.p3':
-    'Hoje não existe renovação. O preço fica travado: se a renovação for oferecida, quem é Família Fundadora renova pelos mesmos R$ 89 por ano.',
+    'Hoje não existe renovação. O preço fica travado: se a renovação for oferecida, a família que comprou a Fundadora e não pediu reembolso renova pelos mesmos R$ 89,00 por ano.',
 
   'terms.2026-12.education.title': 'O conteúdo é educativo, não é recomendação de investimento',
   'terms.2026-12.education.p1':
@@ -74,9 +76,9 @@ export const terms202612Messages = {
   'terms.2026-12.delete.p1':
     'Você pode excluir a sua conta quando quiser, em Mais, Privacidade. Há 30 dias de carência antes do apagamento definitivo.',
   'terms.2026-12.delete.p2':
-    'Dá para excluir a conta ou a família mesmo com o plano Família ativo. A exclusão não devolve o valor sozinha: nos 7 dias de arrependimento, você pode pedir o reembolso antes, se quiser.',
+    'Dá para excluir a conta ou a família mesmo com o plano Família ativo. A exclusão não devolve o valor sozinha: nos 7 dias de arrependimento, peça o reembolso antes de excluir. Se precisar de ajuda, escreva para {email}.',
   'terms.2026-12.delete.p3':
-    'Os pedidos pagos ficam guardados por 5 anos, por obrigação fiscal, sem ligação com a família, como explica a política de privacidade.',
+    'Os pedidos pagos ficam guardados por 5 anos depois do pagamento, por obrigação fiscal, sem ligação com a família, como explica a política de privacidade.',
 
   'terms.2026-12.law.title': 'Lei aplicável e contato',
   'terms.2026-12.law.p1': 'Valem as leis do Brasil, inclusive o Código de Defesa do Consumidor.',
@@ -98,6 +100,7 @@ export const terms202612: LegalText = {
         { p: 'terms.2026-12.founder.p1' },
         { p: 'terms.2026-12.founder.p2' },
         { p: 'terms.2026-12.founder.p3' },
+        { p: 'terms.2026-12.founder.seller' },
         { p: 'terms.2026-12.founder.p4' },
         { p: 'terms.2026-12.founder.p5' },
       ],

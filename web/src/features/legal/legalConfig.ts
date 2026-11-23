@@ -6,6 +6,9 @@ import { terms202612 } from './texts/terms-2026-12'
 
 const DEFAULT_CONTROLLER = 'o mantenedor do projeto Liberdade'
 const DEFAULT_CONTACT = 'privacidade@liberdadefamilia.com.br'
+// Neutral until the maintainer fills them in, a go-live must-do before billing goes on in production.
+const DEFAULT_DOCUMENT = 'CPF ou CNPJ a informar'
+const DEFAULT_ADDRESS = 'local a informar'
 
 /** An unset or blank build variable falls back to the default. */
 function orDefault(value: string | undefined, fallback: string): string {
@@ -17,12 +20,20 @@ function orDefault(value: string | undefined, fallback: string): string {
  * Who answers for the data and how to reach them, plus every version of the two documents the API
  * may put in force (`LegalDocuments.java`). Which one is in force comes from `GET /v1/legal/current`;
  * without an answer, the pages show `latest`. Only the legal routes import this file, so the texts
- * stay out of the initial load. The controller and the contact come from the build
- * (`VITE_PRIVACY_CONTROLLER`, `VITE_PRIVACY_CONTACT`), read when asked so a test can change them.
+ * stay out of the initial load. The controller, who also sells the plan, its CPF or CNPJ, its address
+ * and the contact come from the build (`VITE_PRIVACY_CONTROLLER`, `VITE_PRIVACY_CONTROLLER_DOCUMENT`,
+ * `VITE_PRIVACY_CONTROLLER_ADDRESS`, `VITE_PRIVACY_CONTACT`), read when asked so a test can change
+ * them. The terms name the seller with them (Decreto 7.962/2013, art. 2º).
  */
 export const legalConfig = {
   get controllerName(): string {
     return orDefault(import.meta.env.VITE_PRIVACY_CONTROLLER, DEFAULT_CONTROLLER)
+  },
+  get controllerDocument(): string {
+    return orDefault(import.meta.env.VITE_PRIVACY_CONTROLLER_DOCUMENT, DEFAULT_DOCUMENT)
+  },
+  get controllerAddress(): string {
+    return orDefault(import.meta.env.VITE_PRIVACY_CONTROLLER_ADDRESS, DEFAULT_ADDRESS)
   },
   get contactEmail(): string {
     return orDefault(import.meta.env.VITE_PRIVACY_CONTACT, DEFAULT_CONTACT)

@@ -89,7 +89,13 @@ describe('PrivacyPolicyPage', () => {
       screen.getByText(/Registro dos avisos de pagamento, sem o conteúdo: 180 dias/),
     ).toBeVisible()
     expect(screen.getByText(/^Legítimo interesse:/)).toBeVisible()
-    expect(screen.getAllByText(/nunca os recebe nem guarda/).length).toBeGreaterThan(0)
+    expect(screen.getByText(/o Liberdade não pede nem guarda esses dados/)).toBeVisible()
+    expect(
+      screen.getByText(
+        /menos os pedidos de compra e o registro dos avisos de pagamento\. Eles ficam sem ligação com a família/,
+      ),
+    ).toBeVisible()
+    expect(screen.getByText(/ficam o produto, o valor, as datas/)).toBeVisible()
   })
 
   it('showsTheVersionTheApiSays', async () => {

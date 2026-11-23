@@ -115,6 +115,36 @@ describe('DocumentsGate', () => {
     expect(sent).toEqual([{ terms: 'terms-2026-11', privacy: 'privacy-2026-11' }])
   })
 
+  it('missingVersionNeverPosts', async () => {
+    // A list without the policy: nothing is posted, rather than an empty version.
+    let posts = 0
+    server.use(
+      http.get(`${API_URL}/v1/me/documents`, () =>
+        HttpResponse.json([
+          {
+            purpose: 'TERMS',
+            currentVersion: 'terms-2026-12',
+            acceptedVersion: null,
+            acceptedAt: null,
+          },
+        ]),
+      ),
+      http.post(`${API_URL}/v1/me/documents/accept`, () => {
+        posts += 1
+      }),
+    )
+    await openGate()
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(continueButton())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não deu para registrar o aceite. Tente de novo.',
+    )
+    expect(posts).toBe(0)
+    expect(screen.getByRole('heading', { level: 1, name: 'Antes de começar' })).toBeVisible()
+  })
+
   it('offlineNeverBlocks', async () => {
     seedMockFamily()
     seedPendingDocuments()

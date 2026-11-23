@@ -13,6 +13,7 @@ import {
 } from './support.ts'
 
 const GATE = { level: 1, name: 'Antes de começar' } as const
+const DOCUMENTS_LIST = '**/v1/me/documents{,?*}'
 
 test('legalPagesArePublic: the policy and the terms open without a session, from the sign-in screen too', async ({
   page,
@@ -119,8 +120,9 @@ test('newVersionAsksAgain: whoever accepted the texts from before billing accept
     page.getByRole('heading', { level: 2, name: 'O que é a Família Fundadora?' }),
   ).toBeVisible()
 
-  // The API answers as if this person had accepted only the 2026-11 texts.
-  await page.route('**/v1/me/documents', async (route) => {
+  // The API answers as if this person had accepted only the 2026-11 texts. The glob matches the list
+  // with or without a query string, never `/accept`.
+  await page.route(DOCUMENTS_LIST, async (route) => {
     const response = await route.fetch()
     const documents = (await response.json()) as { purpose: string; acceptedVersion: string }[]
     const older = documents.map((document) =>
@@ -136,7 +138,7 @@ test('newVersionAsksAgain: whoever accepted the texts from before billing accept
   await expect(page.getByRole('heading', GATE)).toBeVisible()
 
   // The accept carries the versions the API listed, and then the real answer lifts the gate.
-  await page.unroute('**/v1/me/documents')
+  await page.unroute(DOCUMENTS_LIST)
   await page.getByRole('checkbox', { name: /Li e aceito os termos/ }).check()
   const accepted = page.waitForRequest(
     (request) => request.method() === 'POST' && request.url().endsWith('/v1/me/documents/accept'),
