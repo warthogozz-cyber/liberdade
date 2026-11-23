@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { Navigate, Outlet, useNavigate } from 'react-router'
 import { PendingGate } from '@/app/PendingGate'
+import { PolicyUpdatedNotice } from '@/features/legal/PolicyUpdatedNotice'
 import { useDocuments } from '@/features/legal/useDocuments'
 import { ApiError, postTransaction, queryKeys, useMe, type MeView } from '@/shared/api'
 import {
@@ -46,7 +47,12 @@ function DocumentsGuard() {
       </Suspense>
     )
   }
-  return <Outlet />
+  return (
+    <>
+      <PolicyUpdatedNotice />
+      <Outlet />
+    </>
+  )
 }
 
 /**

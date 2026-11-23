@@ -40,11 +40,14 @@ class DocumentService {
         List<DocumentStatus> statuses = new ArrayList<>();
         for (ConsentPurpose purpose : LegalDocuments.LISTED) {
             ConsentRepository.Row accepted = open.get(purpose);
+            String currentVersion = current.get(purpose);
+            String acceptedVersion = accepted == null ? null : accepted.documentVersion();
             statuses.add(new DocumentStatus(
                     purpose,
-                    current.get(purpose),
-                    accepted == null ? null : accepted.documentVersion(),
-                    accepted == null ? null : accepted.grantedAt()));
+                    currentVersion,
+                    acceptedVersion,
+                    accepted == null ? null : accepted.grantedAt(),
+                    acceptanceRequired(currentVersion, acceptedVersion)));
         }
         return statuses;
     }
@@ -77,6 +80,13 @@ class DocumentService {
         if (recorded) {
             trail.record(new AuditEntry(null, userId, "documents.accepted", "USER", userId, Map.of()));
         }
+    }
+
+    /** Whether the accepted version no longer covers the current one: it is neither the same nor the one it keeps. */
+    private static boolean acceptanceRequired(String currentVersion, String acceptedVersion) {
+        return acceptedVersion == null
+                || !(acceptedVersion.equals(currentVersion)
+                        || acceptedVersion.equals(LegalDocuments.KEEPS_ACCEPTANCE.get(currentVersion)));
     }
 
     private Map<ConsentPurpose, String> inForce() {

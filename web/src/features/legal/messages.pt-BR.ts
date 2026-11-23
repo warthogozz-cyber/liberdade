@@ -1,5 +1,7 @@
 import { privacy202611Messages } from './texts/privacy-2026-11'
+import { privacy2026111Messages } from './texts/privacy-2026-11.1'
 import { privacy202612Messages } from './texts/privacy-2026-12'
+import { privacy2026121Messages } from './texts/privacy-2026-12.1'
 import { terms202611Messages } from './texts/terms-2026-11'
 import { terms202612Messages } from './texts/terms-2026-12'
 
@@ -15,7 +17,9 @@ export const legalMessages = {
   'terms.title': 'Termos de uso',
 
   ...privacy202611Messages,
+  ...privacy2026111Messages,
   ...privacy202612Messages,
+  ...privacy2026121Messages,
   ...terms202611Messages,
   ...terms202612Messages,
 } as const

@@ -18,7 +18,7 @@ function renderPolicy() {
 function answerNovember() {
   server.use(
     http.get(`${API_URL}/v1/legal/current`, () =>
-      HttpResponse.json({ terms: 'terms-2026-11', privacy: 'privacy-2026-11' }),
+      HttpResponse.json({ terms: 'terms-2026-11', privacy: 'privacy-2026-11.1' }),
     ),
   )
 }
@@ -103,10 +103,34 @@ describe('PrivacyPolicyPage', () => {
     renderPolicy()
 
     expect(
-      await screen.findByText(/Versão privacy-2026-11 · atualizada em novembro de 2026/),
+      await screen.findByText(/Versão privacy-2026-11\.1 · atualizada em 23 de novembro de 2026/),
     ).toBeVisible()
     expect(screen.getByText(/Contamos com três operadores/)).toBeVisible()
     expect(screen.queryByText(/Asaas/)).not.toBeInTheDocument()
+  })
+
+  it('namesTheNewDataInTheUpdatedPolicy', async () => {
+    renderPolicy()
+
+    expect(
+      await screen.findByText(/tags, forma de pagamento, recorrências e lançamentos previstos/),
+    ).toBeVisible()
+  })
+
+  it('stillShowsTheAcceptedTextWhenTheApiAsksForIt', async () => {
+    server.use(
+      http.get(`${API_URL}/v1/legal/current`, () =>
+        HttpResponse.json({ terms: 'terms-2026-11', privacy: 'privacy-2026-11' }),
+      ),
+    )
+    renderPolicy()
+
+    expect(
+      await screen.findByText(/Versão privacy-2026-11 · atualizada em novembro de 2026/),
+    ).toBeVisible()
+    expect(
+      screen.queryByText(/tags, forma de pagamento, recorrências e lançamentos previstos/),
+    ).not.toBeInTheDocument()
   })
 
   it('showsTheLatestWithoutAnAnswer', async () => {
@@ -121,7 +145,7 @@ describe('PrivacyPolicyPage', () => {
 
     await waitFor(() => expect(asked).toBe(true))
     expect(
-      await screen.findByText(/Versão privacy-2026-12 · atualizada em dezembro de 2026/),
+      await screen.findByText(/Versão privacy-2026-12\.1 · atualizada em 23 de novembro de 2026/),
     ).toBeVisible()
   })
 })

@@ -16,4 +16,7 @@ export const legalLabelsMessages = {
     'Publicamos uma nova versão dos documentos. Recarregue a página para ler e aceitar.',
   'legal.gate.reload': 'Recarregar',
   'legal.gate.failed': 'Não deu para registrar o aceite. Tente de novo.',
+  'legal.policyUpdated.text': 'Atualizamos a política de privacidade.',
+  'legal.policyUpdated.read': 'Ler',
+  'legal.policyUpdated.dismiss': 'Fechar',
 } as const

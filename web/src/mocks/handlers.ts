@@ -8,7 +8,13 @@ import {
 } from '@/shared/api'
 import { centsToApi, MAX_CENTS, parseCents } from '@/shared/money'
 import type { components } from '@/shared/api/schema'
-import { createFamily, type MockAccount, type MockInvitation, mockState } from './data'
+import {
+  createFamily,
+  KEEPS_ACCEPTANCE,
+  type MockAccount,
+  type MockInvitation,
+  mockState,
+} from './data'
 
 type Schemas = components['schemas']
 
@@ -865,6 +871,9 @@ export const handlers = [
           currentVersion: mockState.currentDocuments[purpose],
           acceptedVersion: accepted?.version ?? null,
           acceptedAt: accepted?.at ?? null,
+          acceptanceRequired:
+            accepted?.version !== mockState.currentDocuments[purpose] &&
+            accepted?.version !== KEEPS_ACCEPTANCE[mockState.currentDocuments[purpose]],
         }
       }),
     )
@@ -1852,7 +1861,8 @@ export const handlers = [
     const accountId = search.get('accountId')
     const tagId = search.get('tagId')
     if (!MONTH.test(month)) return malformed()
-    if ([categoryId, accountId, tagId].some((id) => id !== null && !UUID.test(id))) return malformed()
+    if ([categoryId, accountId, tagId].some((id) => id !== null && !UUID.test(id)))
+      return malformed()
     const outOfRange = monthOutOfRange(workspace, month)
     if (outOfRange) return outOfRange
     // A category takes its subcategories along; an account, what leaves it and what enters it.

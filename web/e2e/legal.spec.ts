@@ -124,12 +124,16 @@ test('newVersionAsksAgain: whoever accepted the texts from before billing accept
   // with or without a query string, never `/accept`.
   await page.route(DOCUMENTS_LIST, async (route) => {
     const response = await route.fetch()
-    const documents = (await response.json()) as { purpose: string; acceptedVersion: string }[]
+    const documents = (await response.json()) as {
+      purpose: string
+      acceptedVersion: string
+      acceptanceRequired: boolean
+    }[]
     const older = documents.map((document) =>
       document.purpose === 'TERMS'
-        ? { ...document, acceptedVersion: 'terms-2026-11' }
+        ? { ...document, acceptedVersion: 'terms-2026-11', acceptanceRequired: true }
         : document.purpose === 'PRIVACY'
-          ? { ...document, acceptedVersion: 'privacy-2026-11' }
+          ? { ...document, acceptedVersion: 'privacy-2026-11', acceptanceRequired: true }
           : document,
     )
     await route.fulfill({ response, json: older })
@@ -162,7 +166,7 @@ test('newVersionAsksAgain: whoever accepted the texts from before billing accept
         (window as unknown as { acceptBodies: string[] }).acceptBodies.map((b) => JSON.parse(b)),
       ),
     )
-    .toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12' }])
+    .toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12.1' }])
   await expect(page.getByRole('heading', GATE)).toHaveCount(0)
   await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible()
 })

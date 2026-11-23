@@ -31,7 +31,7 @@ class LegalCurrentIT {
 
         assertThat(result).hasStatusOk();
         assertThat(result).bodyJson().extractingPath("$.terms").isEqualTo("terms-2026-12");
-        assertThat(result).bodyJson().extractingPath("$.privacy").isEqualTo("privacy-2026-12");
+        assertThat(result).bodyJson().extractingPath("$.privacy").isEqualTo("privacy-2026-12.1");
         assertThat(result).headers().hasValue(HttpHeaders.CACHE_CONTROL, "no-store");
     }
 
@@ -52,7 +52,7 @@ class LegalCurrentIT {
 
             assertThat(result).hasStatusOk();
             assertThat(result).bodyJson().extractingPath("$.terms").isEqualTo("terms-2026-11");
-            assertThat(result).bodyJson().extractingPath("$.privacy").isEqualTo("privacy-2026-11");
+            assertThat(result).bodyJson().extractingPath("$.privacy").isEqualTo("privacy-2026-11.1");
         }
 
         @Test
@@ -66,7 +66,7 @@ class LegalCurrentIT {
 
             assertThat(result).hasStatusOk();
             assertThat(result).bodyJson().extractingPath("$[0].currentVersion").isEqualTo("terms-2026-11");
-            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11");
+            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.1");
         }
     }
 }

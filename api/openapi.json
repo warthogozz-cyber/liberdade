@@ -2948,6 +2948,9 @@
       "DocumentStatus": {
         "type": "object",
         "properties": {
+          "acceptanceRequired": {
+            "type": "boolean"
+          },
           "acceptedAt": {
             "type": "string",
             "format": "date-time",

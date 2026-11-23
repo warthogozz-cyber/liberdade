@@ -92,12 +92,12 @@ describe('DocumentsGate', () => {
     expect(
       await screen.findByRole('navigation', { name: 'Navegação principal' }),
     ).toBeInTheDocument()
-    expect(sent).toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12' }])
+    expect(sent).toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12.1' }])
   })
 
   it('postsTheVersionsTheApiListsEvenWhenOlder', async () => {
     // With billing off the API still asks for the texts from before billing.
-    mockState.currentDocuments = { TERMS: 'terms-2026-11', PRIVACY: 'privacy-2026-11' }
+    mockState.currentDocuments = { TERMS: 'terms-2026-11', PRIVACY: 'privacy-2026-11.1' }
     const sent: unknown[] = []
     server.use(
       http.post(`${API_URL}/v1/me/documents/accept`, async ({ request }) => {
@@ -112,7 +112,7 @@ describe('DocumentsGate', () => {
     expect(
       await screen.findByRole('navigation', { name: 'Navegação principal' }),
     ).toBeInTheDocument()
-    expect(sent).toEqual([{ terms: 'terms-2026-11', privacy: 'privacy-2026-11' }])
+    expect(sent).toEqual([{ terms: 'terms-2026-11', privacy: 'privacy-2026-11.1' }])
   })
 
   it('missingVersionNeverPosts', async () => {
@@ -126,6 +126,7 @@ describe('DocumentsGate', () => {
             currentVersion: 'terms-2026-12',
             acceptedVersion: null,
             acceptedAt: null,
+            acceptanceRequired: true,
           },
         ]),
       ),
@@ -156,6 +157,21 @@ describe('DocumentsGate', () => {
       await screen.findByRole('navigation', { name: 'Navegação principal' }),
     ).toBeInTheDocument()
     expect(screen.queryByText('Antes de começar')).not.toBeInTheDocument()
+  })
+
+  it('keptAcceptanceOpensTheAppWithANotice', async () => {
+    seedMockFamily()
+    // The person accepted the policy before the .1 text: the API says it still counts.
+    mockState.acceptedDocuments.PRIVACY = { version: 'privacy-2026-12', at: '2026-11-20T10:00:00Z' }
+    renderWithProviders(<App />, { path: '/*', route: '/inicio' })
+
+    expect(
+      await screen.findByRole('navigation', { name: 'Navegação principal' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Antes de começar')).not.toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Atualizamos a política de privacidade.',
+    )
   })
 
   it('disabledOffline', async () => {

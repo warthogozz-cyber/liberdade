@@ -1032,6 +1032,7 @@ export interface components {
             deletionScheduledFor: string;
         };
         DocumentStatus: {
+            acceptanceRequired: boolean;
             /** Format: date-time */
             acceptedAt: string | null;
             acceptedVersion: string | null;

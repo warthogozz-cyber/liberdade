@@ -9,4 +9,5 @@ record DocumentStatus(
         ConsentPurpose purpose,
         String currentVersion,
         @Nullable @Schema(nullable = true) String acceptedVersion,
-        @Nullable @Schema(nullable = true) Instant acceptedAt) {}
+        @Nullable @Schema(nullable = true) Instant acceptedAt,
+        boolean acceptanceRequired) {}
