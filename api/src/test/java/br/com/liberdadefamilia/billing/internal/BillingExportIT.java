@@ -24,7 +24,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
-import tools.jackson.databind.json.JsonMapper;
 
 /** What billing hands over for the family's data export. */
 @SpringBootTest
@@ -65,9 +64,6 @@ class BillingExportIT {
     @Autowired
     TestClock clock;
 
-    @Autowired
-    JsonMapper json;
-
     @AfterEach
     void releaseClock() {
         clock.release();
@@ -93,7 +89,6 @@ class BillingExportIT {
         assertThat(order.status()).isEqualTo("PAID");
         assertThat(order.paidAt()).isEqualTo(BASE);
         assertThat(order.refundedAt()).isNull();
-        assertThat(json.writeValueAsString(exported)).doesNotContain("chk_").doesNotContain("pay_");
         Optional<ExportedPlan> plan = export.plan(ws);
         assertThat(plan).isPresent();
         assertThat(plan.get().key()).isEqualTo("FAMILY");
@@ -116,6 +111,39 @@ class BillingExportIT {
         List<ExportedOrder> exported = export.orders(ws);
 
         assertThat(exported).extracting(ExportedOrder::status).containsExactly("CANCELED", "CREATED");
+    }
+
+    @Test
+    void exportsOnlyTheOrdersAndThePlanOfTheFamilyAsked() {
+        clock.freeze(BASE);
+        UUID ownerA = users.create("Dono A", null);
+        UUID wsA = workspaces.createFor(ownerA);
+        UUID ownerB = users.create("Dono B", null);
+        UUID wsB = workspaces.createFor(ownerB);
+        UUID orderA = paid(wsA, ownerA);
+        UUID orderB = paid(wsB, ownerB);
+        orders.transition(
+                orderB,
+                br.com.liberdadefamilia.billing.domain.OrderStatus.PAID,
+                br.com.liberdadefamilia.billing.domain.OrderStatus.REFUND_PENDING);
+
+        assertThat(orderA).isNotEqualTo(orderB);
+        assertThat(export.orders(wsA)).extracting(ExportedOrder::status).containsExactly("PAID");
+        assertThat(export.orders(wsB)).extracting(ExportedOrder::status).containsExactly("REFUND_PENDING");
+        assertThat(export.plan(wsA)).isPresent();
+        assertThat(export.plan(wsB)).isPresent();
+        UUID ownerC = users.create("Dono C", null);
+        UUID wsC = workspaces.createFor(ownerC);
+        assertThat(export.orders(wsC)).isEmpty();
+        assertThat(export.plan(wsC)).isEmpty();
+    }
+
+    private UUID paid(UUID ws, UUID owner) {
+        UUID id = orders.insert(ws, owner, FounderOffer.PRODUCT, FounderOffer.PRICE_CENTS, FounderOffer.CURRENCY);
+        orders.setCheckoutId(id, "chk_fake_" + id);
+        gateway.markPaid("chk_fake_" + id, "pay_" + id, BASE);
+        payments.applyPaid(id, BASE, "pay_" + id);
+        return id;
     }
 
     @Test

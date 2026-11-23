@@ -231,29 +231,49 @@ class ExportIT {
     @Test
     void familyExportIncludesBilling() {
         Family f = family();
-        UUID order = jdbc.sql("""
-                        insert into billing_orders (workspace_id, requested_by, product, amount_cents, currency, status,
-                                                    asaas_checkout_id, asaas_payment_id, paid_at)
-                        values (:ws, :by, 'FOUNDER_2026', 8900, 'BRL', 'PAID', 'chk_secret', 'pay_secret',
-                                '2026-12-01T12:00:00Z')
-                        returning id""")
-                .param("ws", f.ws)
-                .param("by", f.ana)
-                .query(UUID.class)
-                .single();
-        jdbc.sql("""
-                        insert into workspace_plans (workspace_id, plan_key, founder, source_order_id, starts_at, ends_at)
-                        values (:ws, 'FAMILY', true, :order, '2026-12-01T12:00:00Z', '2027-12-31T23:59:59Z')""").param("ws", f.ws).param("order", order).update();
+        seedBilling(f.ws, f.ana, 8900, "PAID", true, "chk_secret", "pay_secret");
+        UUID otherOwner = users.create("Outra Dona", "outra@example.com");
+        UUID otherWs = workspaces.createFor(otherOwner);
+        seedBilling(otherWs, otherOwner, 4200, "REFUNDED", false, "chk_other", "pay_other");
 
         String json = text(unzip(exportFamily(f.ana, f.ws)).get("dados.json"));
 
         assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(2);
+        assertThat(JsonPath.<List<?>>read(json, "$.orders")).hasSize(1);
         assertThat(JsonPath.<String>read(json, "$.orders[0].status")).isEqualTo("PAID");
         assertThat(JsonPath.<String>read(json, "$.orders[0].amount")).isEqualTo("89.00");
         assertThat(JsonPath.<String>read(json, "$.orders[0].currency")).isEqualTo("BRL");
         assertThat(JsonPath.<Boolean>read(json, "$.plan.founder")).isTrue();
         assertThat(JsonPath.<String>read(json, "$.plan.key")).isEqualTo("FAMILY");
         assertThat(json).doesNotContain("chk_").doesNotContain("pay_");
+        assertThat(json).doesNotContain("42.00").doesNotContain("REFUNDED");
+    }
+
+    /** One order and the plan it bought, with gateway ids that must never reach the export. */
+    private void seedBilling(
+            UUID ws, UUID by, long cents, String status, boolean founder, String checkoutId, String paymentId) {
+        UUID order = jdbc.sql("""
+                        insert into billing_orders (workspace_id, requested_by, product, amount_cents, currency, status,
+                                                    asaas_checkout_id, asaas_payment_id, paid_at)
+                        values (:ws, :by, 'FOUNDER_2026', :cents, 'BRL', :status, :checkout, :payment,
+                                '2026-12-01T12:00:00Z')
+                        returning id""")
+                .param("ws", ws)
+                .param("by", by)
+                .param("cents", cents)
+                .param("status", status)
+                .param("checkout", checkoutId)
+                .param("payment", paymentId)
+                .query(UUID.class)
+                .single();
+        String insertPlan = """
+                insert into workspace_plans (workspace_id, plan_key, founder, source_order_id, starts_at, ends_at)
+                values (:ws, 'FAMILY', :founder, :order, '2026-12-01T12:00:00Z', '2027-12-31T23:59:59Z')""";
+        jdbc.sql(insertPlan)
+                .param("ws", ws)
+                .param("founder", founder)
+                .param("order", order)
+                .update();
     }
 
     @Test
