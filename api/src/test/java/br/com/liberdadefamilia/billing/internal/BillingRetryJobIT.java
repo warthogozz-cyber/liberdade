@@ -205,13 +205,39 @@ class BillingRetryJobIT {
         Order order = refusedRefund(RefundReason.CUSTOMER);
         doThrow(new PaymentGatewayException(503)).when(gateway).findPayment(eq(order.checkout));
 
+        int before = output.getAll().length();
+
         job.run();
 
-        assertThat(output.getAll())
-                .contains(PaymentGatewayException.class.getName())
+        String fromTheJob = output.getAll().substring(before);
+        assertThat(fromTheJob)
+                .contains("billing retry: refund step failed (" + PaymentGatewayException.class.getName() + ")")
                 .doesNotContain("asaas status")
                 .doesNotContain(order.checkout)
                 .doesNotContain(order.payment);
+    }
+
+    @Test
+    void completesMissingPaymentIdOfRefundPending() {
+        UUID owner = users.create("Dono Job", null);
+        UUID ws = workspaces.createFor(owner);
+        UUID id = orders.insert(ws, owner, FounderOffer.PRODUCT, FounderOffer.PRICE_CENTS, FounderOffer.CURRENCY);
+        String checkout = "chk_job_" + id;
+        orders.setCheckoutId(id, checkout);
+        gateway.markPaid(checkout, "pay_job_" + id, BASE);
+        payments.applyPaid(id, BASE, null);
+        // The lookup fails once while the refund is requested, so the order waits with no payment id.
+        doThrow(new PaymentGatewayException(503))
+                .doCallRealMethod()
+                .when(gateway)
+                .findPayment(eq(checkout));
+        payments.requestRefund(id, RefundReason.CUSTOMER);
+        assertThat(orders.findById(id).orElseThrow().paymentId()).isNull();
+
+        job.run();
+
+        assertThat(orders.findById(id).orElseThrow().paymentId()).isEqualTo("pay_job_" + id);
+        assertThat(gateway.findPayment(checkout).orElseThrow().status()).isEqualTo("REFUNDED");
     }
 
     @Test
