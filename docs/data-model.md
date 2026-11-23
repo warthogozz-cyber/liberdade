@@ -203,6 +203,30 @@ As tabelas de passkey (`user_entities` e `user_credentials`) seguem o schema JDB
 Spring Security, por isso fogem das convenções acima. O diagrama mostra só as colunas principais.
 `user_entities.name` guarda o `users.id`: é por ele que o Spring liga a passkey à pessoa.
 
+### Plano 7.1 (migrações V15 e V16)
+
+**V15: país, forma de pagamento e tags**
+
+| Tabela | Colunas e regras |
+|---|---|
+| `workspaces` | Ganha `country` (`char(2)`, padrão `BR`, só `BR` por ora) e `locale` (padrão `pt-BR`, só `pt-BR` por ora). As famílias que já existem são brasileiras |
+| `transactions` | Ganha `payment_method` (nulo; `PIX` `CREDIT_CARD` `DEBIT_CARD` `BOLETO` `BANK_TRANSFER` `CASH`). Transferência não tem forma de pagamento (`transactions_transfer_without_payment_method`). Ganha também `UNIQUE (workspace_id, id)`, a chave composta que os vínculos de tag usam |
+| `tags` | `id` (UUIDv7), `workspace_id`, `name` (1 a 30 caracteres), `created_by` (vira nulo se o vínculo sair), `created_at`, `archived_at`. Índice único parcial `tags_active_name` em `(workspace_id, lower(name))` onde `archived_at` é nulo: o nome volta a ficar livre depois que a tag é arquivada, e digitá-lo cria uma tag nova |
+| `transaction_tags` | `PRIMARY KEY (workspace_id, transaction_id, tag_id)`, com chaves compostas para `transactions` e `tags`, ambas `ON DELETE CASCADE`. Índice `transaction_tags_by_tag` em `(workspace_id, tag_id)` |
+
+**V16: recorrências e previstos**
+
+| Tabela | Colunas e regras |
+|---|---|
+| `recurring_rules` | `id` (UUIDv7), `workspace_id`, `kind` (`INCOME` `EXPENSE` `TRANSFER`), `amount` (maior que zero), `currency`, `account_id`, `to_account_id` (só `TRANSFER`), `category_id` (nulo em `TRANSFER`), `payment_method`, `description` (1 a 140 caracteres), `frequency` (`WEEKLY` `MONTHLY` `YEARLY`), `interval` (1 a 12), `start_on`, `end_on` (não antes de `start_on`), `next_due_on`, `created_by`, `created_at`, `updated_at`, `archived_at`, `version`. Conta, categoria e autor usam chaves compostas com `workspace_id`; conta de origem e de destino precisam ser diferentes. A regra nunca é apagada pelo app: é arquivada |
+| `transactions` | Ganha `status` (`CONFIRMED` por padrão, ou `PLANNED`), `recurring_rule_id` e `scheduled_on`. Quem tem regra precisa ter `scheduled_on`. Se a regra for apagada de vez, o vínculo vira nulo e o histórico confirmado fica |
+| Índice | `transactions_one_per_occurrence`, único em `(workspace_id, recurring_rule_id, scheduled_on)` quando há regra: cada ocorrência gera um só lançamento, mesmo o pulado (excluído), e o gerador nunca o refaz |
+| `workspace_modules` | A migração liga o módulo `planning` em todas as famílias que já existem; no app, ele já nasce ligado nas novas |
+| `audit_events` | `target_type` ganha `RECURRING_RULE` |
+
+Um lançamento `PLANNED` fica em `transactions`, mas nenhuma soma o conta (saldos e painel)
+até ele ser confirmado.
+
 ### Regras no banco
 
 | Tabela | Regra |
@@ -255,9 +279,9 @@ Spring Security, por isso fogem das convenções acima. O diagrama mostra só as
 | `budgets` | `workspace_id`, `category_id`, `month` (1º dia do mês), `limit_amount`, `currency`, `version`; `UNIQUE (workspace_id, category_id, month)` |
 | `goals` | `workspace_id`, `name`, `target_amount`, `currency`, `due_on`, `icon`, `linked_account_id` (opcional), `achieved_at`, `archived_at`, `version` |
 | `goal_contributions` | `workspace_id`, `goal_id`, `amount`, `occurred_on`, `member_id` (aportes manuais quando não há conta vinculada) |
-| `recurring_rules` | `workspace_id`, molde do lançamento (tipo, valor, conta, categoria, descrição), `frequency` (`WEEKLY` `MONTHLY` `YEARLY`), `interval`, `start_on`, `end_on`, `next_due_on` |
-| `tags`, `transaction_tags` | Tags livres por família e vínculo com lançamentos |
-| Alterações | `accounts.is_reserve`; `transactions.status` (`CONFIRMED` `PLANNED`) e `transactions.recurring_rule_id`; `workspaces.reserve_target_months` (padrão 6) e `workspaces.manual_monthly_cost` |
+| Alterações | `accounts.is_reserve`; `workspaces.reserve_target_months` (padrão 6) e `workspaces.manual_monthly_cost` |
+
+`recurring_rules`, `tags`, `transaction_tags`, `transactions.status` e `transactions.recurring_rule_id` já existem desde o Plano 7.1 (ver [Plano 7.1](#plano-71-migrações-v15-e-v16)).
 
 Lançamentos `PLANNED` não entram em saldos nem no painel até serem confirmados.
 

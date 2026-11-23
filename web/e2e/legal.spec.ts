@@ -22,7 +22,9 @@ test('legalPagesArePublic: the policy and the terms open without a session, from
   await expect(
     page.getByRole('heading', { level: 1, name: 'Política de privacidade' }),
   ).toBeVisible()
-  await expect(page.getByText(/Versão privacy-\d{4}-\d{2} · atualizada em /)).toBeVisible()
+  await expect(
+    page.getByText(/Versão privacy-\d{4}-\d{2}(?:\.\d+)? · atualizada em /),
+  ).toBeVisible()
   await expect(
     page.getByRole('heading', { level: 2, name: 'Quem cuida dos seus dados?' }),
   ).toBeVisible()

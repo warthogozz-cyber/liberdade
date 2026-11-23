@@ -2,10 +2,12 @@ import AxeBuilder from '@axe-core/playwright'
 import type { Locator, Page } from '@playwright/test'
 import {
   acceptDocuments,
+  addTagAndMethod,
   addVirtualAuthenticator,
   completeGoogleSignIn,
   createFamily,
   createInvitation,
+  createRule,
   expect,
   joinAsYouth,
   newUser,
@@ -15,6 +17,7 @@ import {
   signInWithGoogle,
   stubFirstReauthRequired,
   test,
+  typeAmount,
   waitForQueueToEmpty,
   withContext,
 } from './support.ts'
@@ -284,4 +287,47 @@ test('the Plan and Portrait screens meet WCAG 2.2 AA in both themes', async ({ p
 
   await page.goto('/painel/retrato')
   await expectNoViolations(page, 'Retrato do mês', page.getByRole('img', { name: /^Retrato de / }))
+})
+
+test('Recorrências, Previstos and the Tags tab meet WCAG 2.2 AA in both themes', async ({
+  page,
+}) => {
+  await signInWithGoogle(page, newUser())
+  await createFamily(page)
+
+  // A tagged expense gives the Tags tab a tag to list.
+  await page.goto('/lancar')
+  await typeAmount(page, '1234')
+  await page.getByText('🛒 Mercado', { exact: true }).click()
+  await addTagAndMethod(page, 'Pix', 'Escola')
+  await expectNoViolationsOpen(page, page.getByRole('combobox', { name: 'Tags' }))
+  await page.getByRole('button', { name: 'Salvar' }).click()
+  await expect(page).toHaveURL('/inicio')
+
+  await createRule(page, { description: 'Aluguel', amount: '1500,00', category: '🛒 Mercado' })
+  await expectNoViolations(
+    page,
+    'Recorrências',
+    page.getByRole('main').getByRole('listitem').filter({ hasText: 'Aluguel' }),
+  )
+  await page.getByRole('button', { name: 'Nova recorrência' }).click()
+  await expectNoViolationsOpen(page, page.getByRole('dialog', { name: 'Nova recorrência' }))
+  await page.keyboard.press('Escape')
+
+  await page.goto('/lancamentos')
+  await expectNoViolations(
+    page,
+    'Lançamentos',
+    page.getByRole('region', { name: 'Previstos' }).getByRole('listitem').first(),
+  )
+
+  await page.goto('/mais/categorias')
+  await page.getByRole('tab', { name: 'Tags' }).click()
+  await expectNoViolations(
+    page,
+    'Categorias',
+    page.getByRole('main').getByRole('listitem').filter({ hasText: 'Escola' }),
+  )
+  await page.getByRole('button', { name: 'Renomear Escola' }).click()
+  await expectNoViolationsOpen(page, page.getByRole('dialog', { name: 'Renomear Escola' }))
 })
