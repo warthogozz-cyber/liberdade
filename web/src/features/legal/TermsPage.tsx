@@ -1,33 +1,32 @@
 import { useIntl } from 'react-intl'
-import { legalConfig } from './legalConfig'
-import { LegalLayout, Sections, type Section } from './LegalLayout'
+import { useLegalVersions } from '@/shared/api/legal'
+import { legalConfig, legalText } from './legalConfig'
+import { LegalLayout, Sections } from './LegalLayout'
 
-const SECTIONS: Section[] = [
-  { title: 'terms.what.title', blocks: [{ p: 'terms.what.p1' }] },
-  { title: 'terms.free.title', blocks: [{ p: 'terms.free.p1' }] },
-  {
-    title: 'terms.education.title',
-    blocks: [{ p: 'terms.education.p1' }, { p: 'terms.education.p2' }, { p: 'terms.education.p3' }],
-  },
-  {
-    title: 'terms.responsibility.title',
-    blocks: [{ p: 'terms.responsibility.p1' }, { p: 'terms.responsibility.p2' }],
-  },
-  { title: 'terms.asIs.title', blocks: [{ p: 'terms.asIs.p1' }] },
-  { title: 'terms.delete.title', blocks: [{ p: 'terms.delete.p1' }] },
-  { title: 'terms.law.title', blocks: [{ p: 'terms.law.p1' }, { p: 'terms.law.p2' }] },
-]
-
-/** The terms of use, public. */
+/** The terms of use, public: the version the API says is in force, or the latest one offline. */
 export function TermsPage() {
   const intl = useIntl()
+  const { data } = useLegalVersions()
+  const { version, text } = legalText(
+    data?.terms ?? legalConfig.latest.terms,
+    legalConfig.latest.terms,
+  )
   return (
     <LegalLayout
       title={intl.formatMessage({ id: 'terms.title' })}
-      version={legalConfig.versions.terms}
-      intro={intl.formatMessage({ id: 'terms.intro' })}
+      version={version}
+      date={text.updatedAt}
+      intro={intl.formatMessage({ id: text.intro })}
     >
-      <Sections sections={SECTIONS} values={{ email: legalConfig.contactEmail }} />
+      <Sections
+        sections={text.sections}
+        values={{
+          controller: legalConfig.controllerName,
+          document: legalConfig.controllerDocument,
+          address: legalConfig.controllerAddress,
+          email: legalConfig.contactEmail,
+        }}
+      />
     </LegalLayout>
   )
 }

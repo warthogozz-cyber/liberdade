@@ -17,5 +17,6 @@ export const dashboardMessages = {
   'dashboard.table.day': 'Dia',
   'dashboard.table.balance': 'Saldo',
   'dashboard.noExpenses': 'Nenhum gasto neste mês ainda.',
+  'dashboard.portrait': 'Retrato do mês',
   'dashboard.pendingNote': 'Inclui lançamentos que ainda não foram enviados.',
 } as const

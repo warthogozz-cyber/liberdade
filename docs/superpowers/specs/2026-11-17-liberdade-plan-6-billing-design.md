@@ -313,8 +313,10 @@ sequenceDiagram
 - **Depois dos 7 dias:** não há botão de reembolso nem de cancelamento, porque nada renova. A tela
   diz "Seu plano vale até dd/mm/aaaa. Não existe cobrança automática." e traz o e-mail de contato
   para casos especiais.
-- O prazo usa `paid_at` + 7 × 24 h, no relógio da API **(decisão do design: mais generoso que contar
-  dias corridos no fuso de São Paulo em quase todos os casos)**.
+- O prazo conta dias no fuso de São Paulo: o dia de `paid_at` fica de fora e o sétimo dia seguinte
+  vale até o fim (00:00 do oitavo dia, exclusivo), como manda o art. 132 do Código Civil. Nunca dá
+  menos que 7 × 24 h **(decisão do design, revista na revisão final: substitui `paid_at` + 7 × 24 h,
+  que tirava horas do último dia)**.
 - Cartão: o estorno pode levar até 10 dias úteis para aparecer na fatura. A tela avisa.
 
 ### 6.6 Plano na API e no front

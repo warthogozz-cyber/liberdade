@@ -66,6 +66,20 @@ const MODULE_KEYS: Schemas['ModuleView']['key'][] = [
 ]
 
 /** The four modules in the API's order, off unless the family switched them on. */
+const SAO_PAULO_OFFSET_MS = 3 * 60 * 60 * 1000
+
+/**
+ * The refund deadline as RefundWindow.java computes it: 00:00 in São Paulo (UTC-3, no daylight saving)
+ * eight local days after the payment day, so the last allowed day is the seventh one.
+ */
+function refundDeadline(paidAt: number): string {
+  const local = new Date(paidAt - SAO_PAULO_OFFSET_MS)
+  return new Date(
+    Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + 8) +
+      SAO_PAULO_OFFSET_MS,
+  ).toISOString()
+}
+
 function moduleViews(workspaceId: string): Schemas['ModuleView'][] {
   const on = mockState.modules[workspaceId] ?? {}
   return MODULE_KEYS.map((key) => ({ key, enabled: on[key] === true }))
@@ -762,6 +776,14 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  // Public: no session needed, and never cached by the browser, like LegalController.java.
+  http.get(url('/v1/legal/current'), () =>
+    HttpResponse.json(
+      { terms: mockState.currentDocuments.TERMS, privacy: mockState.currentDocuments.PRIVACY },
+      { headers: { 'Cache-Control': 'no-store' } },
+    ),
+  ),
+
   http.get(url('/v1/me/documents'), () => {
     if (!mockState.signedIn) return authRequired()
     return HttpResponse.json(
@@ -1099,6 +1121,108 @@ export const handlers = [
     if (!invitation) return invitationNotFound()
     // A link already used or cancelled stays as it is.
     if (invitation.status === 'PENDING') invitation.status = 'REVOKED'
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post(url('/v1/workspaces/:ws/billing/checkout'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER') return roleDenied()
+    const { billing } = mockState
+    if (billing.plan.key === 'FAMILY') {
+      return problem(409, 'billing.plan-active', 'Sua família já tem um plano ativo.')
+    }
+    // One order waits for payment at a time: a new checkout cancels the earlier one.
+    for (const order of billing.orders) {
+      if (order.workspaceId === workspace.id && order.status === 'CREATED')
+        order.status = 'CANCELED'
+    }
+    const id = crypto.randomUUID()
+    const checkoutUrl = `https://checkout.e2e.test/c/chk_fake_${id}`
+    billing.orders.push({ id, workspaceId: workspace.id, status: 'CREATED', checkoutUrl })
+    const view: Schemas['CheckoutView'] = { orderId: id, checkoutUrl }
+    return HttpResponse.json(view, { status: 201 })
+  }),
+
+  http.post(url('/v1/workspaces/:ws/billing/orders/:id/refresh'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    const order = mockState.billing.orders.find(
+      (candidate) => candidate.id === params.id && candidate.workspaceId === workspace.id,
+    )
+    if (!order) return problem(404, 'billing.order-not-found', 'Não encontramos esse pedido.')
+    // The mock has no payment provider: the order is shown as it stands.
+    const view: Schemas['OrderView'] = {
+      id: order.id,
+      status: order.status,
+      refundReason: null,
+    }
+    return HttpResponse.json(view)
+  }),
+
+  http.post(url('/v1/workspaces/:ws/billing/orders/:id/refund'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER') return roleDenied()
+    const { billing } = mockState
+    const order = billing.orders.find(
+      (candidate) => candidate.id === params.id && candidate.workspaceId === workspace.id,
+    )
+    if (!order) return problem(404, 'billing.order-not-found', 'Não encontramos esse pedido.')
+    if (order.status !== 'PAID') {
+      return problem(409, 'billing.refund-not-allowed', 'Esse pedido não pode ser reembolsado.')
+    }
+    // The plan ends at once; the refund itself is the gateway's business.
+    order.status = 'REFUND_PENDING'
+    billing.plan = { key: 'FREE', endsAt: null }
+    const view: Schemas['OrderView'] = {
+      id: order.id,
+      status: order.status,
+      refundReason: 'CUSTOMER',
+    }
+    return HttpResponse.json(view, { status: 202 })
+  }),
+
+  http.get(url('/v1/workspaces/:ws/billing/plan'), ({ params }) => {
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    const { billing } = mockState
+    const running = billing.plan.key === 'FAMILY'
+    const owned = billing.orders.filter((order) => order.workspaceId === workspace.id)
+    const paid = running ? owned.find((order) => order.status === 'PAID') : undefined
+    const open = owned.find(
+      (order) => order.status === 'CREATED' || order.status === 'REFUND_PENDING',
+    )
+    const view: Schemas['PlanDetails'] = {
+      key: running ? 'FAMILY' : 'FREE',
+      founder: running,
+      endsAt: running ? billing.plan.endsAt : null,
+      theme: running ? (billing.plan.theme ?? 'TEAL') : 'TEAL',
+      presaleOpen: true,
+      canPurchase: workspace.role === 'OWNER' && !running,
+      canRefund: workspace.role === 'OWNER' && paid !== undefined,
+      refundDeadline:
+        workspace.role === 'OWNER' && paid !== undefined ? refundDeadline(Date.now()) : null,
+      paidOrderId: paid?.id ?? null,
+      openOrder: open ? { id: open.id, status: open.status, refundReason: null } : null,
+    }
+    return HttpResponse.json(view)
+  }),
+
+  http.put(url('/v1/workspaces/:ws/billing/plan/theme'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER') return roleDenied()
+    const { billing } = mockState
+    if (billing.plan.key !== 'FAMILY') {
+      return problem(403, 'plan.required', 'Este recurso é do plano Família.')
+    }
+    const body = (await request.json()) as Schemas['ThemeRequest']
+    billing.plan = { ...billing.plan, theme: body.theme }
     return new HttpResponse(null, { status: 204 })
   }),
 

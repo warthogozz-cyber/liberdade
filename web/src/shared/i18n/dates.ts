@@ -54,3 +54,14 @@ export function addMonths(month: string, months: number): string {
   const nextMonth = (index % 12) + 1
   return `${String(nextYear).padStart(4, '0')}-${String(nextMonth).padStart(2, '0')}`
 }
+
+/**
+ * The month a `?mes=AAAA-MM` parameter asks for, clamped to January 2000 up to `maxMonth`; anything
+ * else (missing, malformed, out of range) is the current month.
+ */
+export function monthFromParam(asked: string | null, now: Date, timeZone: string): string {
+  const last = maxMonth(now, timeZone)
+  return asked && /^\d{4}-(0[1-9]|1[0-2])$/.test(asked) && asked >= MIN_MONTH && asked <= last
+    ? asked
+    : currentMonth(now, timeZone)
+}

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useIntl } from 'react-intl'
 import { Link } from 'react-router'
-import { ApiError, ReauthCancelledError } from '@/shared/api'
+import { ApiError, ReauthCancelledError, useCurrentWorkspace } from '@/shared/api'
+import { usePlan } from '@/shared/api/billing'
 import { useAccountDeletion } from '@/shared/api/privacy'
 import { useReauth } from '@/shared/auth'
 import { useOnline } from '@/shared/offline'
@@ -15,6 +16,8 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
   const online = useOnline()
   const run = useReauth()
   const { request } = useAccountDeletion()
+  // Loads only while the sheet is open.
+  const plan = usePlan(useCurrentWorkspace()?.id)
   const [soleOwner, setSoleOwner] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -48,6 +51,9 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
     >
       <div className="flex flex-col gap-4">
         <p>{intl.formatMessage({ id: 'privacy.deleteAccount.body' })}</p>
+        {plan.data?.canRefund && (
+          <p>{intl.formatMessage({ id: 'privacy.deleteAccount.refundReminder' })}</p>
+        )}
         {soleOwner && (
           <div role="alert" className="flex flex-col gap-2 text-negative">
             <p>{intl.formatMessage({ id: 'privacy.soleOwner' })}</p>

@@ -2,6 +2,8 @@
 // eslint-disable-next-line no-restricted-imports
 import type { accountsMessages } from '@/features/accounts/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
+import type { billingMessages } from '@/features/billing/messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
 import type { categoriesMessages } from '@/features/categories/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { legalLabelsMessages } from '@/features/legal/labels.messages.pt-BR'
@@ -21,6 +23,8 @@ import type { signInMessages } from '@/features/auth/signIn.messages.pt-BR'
 import type { gettingStartedMessages } from '@/features/dashboard/gettingStarted.messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { transactionsMoreMessages } from '@/features/transactions/more.messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
+import type { portraitMessages } from '@/features/portrait/messages.pt-BR'
 import type { reauthMessages } from '@/shared/auth/messages.pt-BR'
 import type { messages } from './messages.pt-BR'
 
@@ -31,6 +35,7 @@ declare global {
       ids:
         | keyof typeof messages
         | keyof typeof accountsMessages
+        | keyof typeof billingMessages
         | keyof typeof categoriesMessages
         | keyof typeof dashboardMessages
         | keyof typeof gettingStartedMessages
@@ -38,6 +43,7 @@ declare global {
         | keyof typeof legalMessages
         | keyof typeof membersMessages
         | keyof typeof modulesMessages
+        | keyof typeof portraitMessages
         | keyof typeof privacyMessages
         | keyof typeof reauthMessages
         | keyof typeof signInMessages

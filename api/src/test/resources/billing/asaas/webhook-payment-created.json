@@ -1,0 +1,6 @@
+{
+  "id": "EVENT_ID",
+  "event": "PAYMENT_CREATED",
+  "dateCreated": "2026-11-17 10:00:00",
+  "payment": { "id": "PAYMENT_ID", "checkoutSession": "CHECKOUT_ID", "status": "PENDING" }
+}

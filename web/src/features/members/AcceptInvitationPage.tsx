@@ -4,13 +4,14 @@ import { flushSync } from 'react-dom'
 import { useIntl } from 'react-intl'
 import { Link, useNavigate } from 'react-router'
 import { SignOutButton } from '@/features/auth/SignOutButton'
-import { legalConfig } from '@/features/legal/legalConfig'
 import { AgreeNotice } from '@/features/legal/LegalLink'
 import '@/features/legal/labels.register'
+import { versionsToAccept } from '@/features/legal/useDocuments'
 import {
   acceptDocuments,
   ApiError,
   getMe,
+  listDocuments,
   queryKeys,
   resetCsrf,
   selectWorkspace,
@@ -207,13 +208,18 @@ export function AcceptInvitationPage() {
       return
     }
     setFinishFailed(false)
-    // Joining is the person's accept of the terms and the policy shown on this page. Best effort and
-    // safe to repeat: if it fails, the signed-in layout asks again before the family opens.
+    // Joining is the person's accept of the terms and the policy linked on this page, in the versions
+    // the API has in force. Best effort and safe to repeat: if it fails, the signed-in layout asks
+    // again before the family opens.
     try {
-      await acceptDocuments({
-        terms: legalConfig.versions.terms,
-        privacy: legalConfig.versions.privacy,
+      const documents = await queryClient.fetchQuery({
+        queryKey: queryKeys.documents,
+        queryFn: listDocuments,
+        staleTime: 0,
+        // Like useDocuments: never kept on the device.
+        meta: { persist: false },
       })
+      await acceptDocuments(versionsToAccept(documents))
       await queryClient.invalidateQueries({ queryKey: queryKeys.documents })
     } catch {
       // Left for the gate.

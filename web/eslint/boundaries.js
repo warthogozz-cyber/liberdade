@@ -8,6 +8,8 @@ export const CORE = [
   'members',
   'modules',
   'privacy',
+  'billing',
+  'portrait',
 ]
 export const OPTIONAL = ['planning', 'indicators', 'gamification', 'ventures']
 

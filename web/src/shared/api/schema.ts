@@ -52,6 +52,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/legal/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["currentLegalVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me": {
         parameters: {
             query?: never;
@@ -334,6 +350,86 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["unarchiveAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/billing/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["startCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/billing/orders/{id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/billing/orders/{id}/refund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["refund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/billing/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["plan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/billing/plan/theme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setTheme"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -674,6 +770,12 @@ export interface components {
             /** Format: uuid */
             parentId: string | null;
         };
+        CheckoutView: {
+            /** Format: uri */
+            checkoutUrl: string;
+            /** Format: uuid */
+            orderId: string;
+        };
         ConsentView: {
             canRevoke: boolean;
             documentVersion: string;
@@ -797,6 +899,10 @@ export interface components {
             role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
             token: string | null;
         };
+        LegalVersions: {
+            privacy: string;
+            terms: string;
+        };
         MeUser: {
             /** Format: date-time */
             deletionScheduledFor: string | null;
@@ -858,6 +964,14 @@ export interface components {
         NewUser: {
             displayName: string;
         } | null;
+        OrderView: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string|null} */
+            refundReason: "CUSTOMER" | "DUPLICATE" | null;
+            /** @enum {string} */
+            status: "CREATED" | "PAID" | "EXPIRED" | "CANCELED" | "REFUND_PENDING" | "REFUNDED" | "CHARGEBACK";
+        };
         PasskeyView: {
             /** Format: date-time */
             createdAt: string;
@@ -866,11 +980,32 @@ export interface components {
             /** Format: date-time */
             lastUsedAt: string | null;
         };
+        PlanDetails: {
+            canPurchase: boolean;
+            canRefund: boolean;
+            /** Format: date-time */
+            endsAt: string | null;
+            founder: boolean;
+            /** @enum {string} */
+            key: "FREE" | "FAMILY";
+            openOrder: components["schemas"]["OrderView"] | null;
+            /** Format: uuid */
+            paidOrderId: string | null;
+            presaleOpen: boolean;
+            /** Format: date-time */
+            refundDeadline: string | null;
+            /** @enum {string} */
+            theme: "TEAL" | "OCEAN" | "FOREST" | "PLUM";
+        };
         PreviewInvitationRequest: {
             token: string;
         };
         RenameWorkspaceRequest: {
             name: string;
+        };
+        ThemeRequest: {
+            /** @enum {string} */
+            theme: "TEAL" | "OCEAN" | "FOREST" | "PLUM";
         };
         TransactionView: {
             /** Format: uuid */
@@ -1018,6 +1153,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvitationPreview"];
+                };
+            };
+        };
+    };
+    currentLegalVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalVersions"];
                 };
             };
         };
@@ -1466,6 +1621,125 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AccountView"];
                 };
+            };
+        };
+    };
+    startCheckout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutView"];
+                };
+            };
+        };
+    };
+    refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderView"];
+                };
+            };
+        };
+    };
+    refund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderView"];
+                };
+            };
+        };
+    };
+    plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanDetails"];
+                };
+            };
+        };
+    };
+    setTheme: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ThemeRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

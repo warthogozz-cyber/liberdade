@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { acceptDocuments, listDocuments, queryKeys, type DocumentStatus } from '@/shared/api'
-import { legalConfig } from './legalConfig'
 
 export interface Documents {
   /**
@@ -8,8 +7,22 @@ export interface Documents {
    * on an error: only a real answer can put the gate up, so offline never locks the family out (D13).
    */
   pending: DocumentStatus[] | undefined
-  /** Accepts the versions this build shows. A 409 reloads the list before it throws. */
+  /** Accepts the versions the API listed as current. A 409 reloads the list before it throws. */
   accept(): Promise<void>
+}
+
+/**
+ * What to send to accept the terms and the policy: the `currentVersion` the API listed for each, so
+ * the person accepts what is in force where they are, never a version fixed in the build. A list
+ * without one of them throws before anything is posted, so the cause is plain.
+ */
+export function versionsToAccept(documents: DocumentStatus[]): { terms: string; privacy: string } {
+  const current = (purpose: DocumentStatus['purpose']) => {
+    const version = documents.find((document) => document.purpose === purpose)?.currentVersion
+    if (!version) throw new Error(`documents: no current version for ${purpose}`)
+    return version
+  }
+  return { terms: current('TERMS'), privacy: current('PRIVACY') }
 }
 
 /** The person's terms and privacy policy, and what is left to accept. */
@@ -22,11 +35,7 @@ export function useDocuments(): Documents {
     meta: { persist: false },
   })
   const mutation = useMutation({
-    mutationFn: () =>
-      acceptDocuments({
-        terms: legalConfig.versions.terms,
-        privacy: legalConfig.versions.privacy,
-      }),
+    mutationFn: (documents: DocumentStatus[]) => acceptDocuments(versionsToAccept(documents)),
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.documents }),
   })
   return {
@@ -34,7 +43,7 @@ export function useDocuments(): Documents {
       (document) =>
         document.purpose !== 'PARENTAL' && document.acceptedVersion !== document.currentVersion,
     ),
-    // `onSettled` reloads the list on success and on a 409 alike.
-    accept: () => mutation.mutateAsync(),
+    // `onSettled` reloads the list on success and on a 409 alike. The gate only shows with a list.
+    accept: () => mutation.mutateAsync(query.data ?? []),
   }
 }

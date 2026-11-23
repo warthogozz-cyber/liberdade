@@ -133,6 +133,16 @@ describe('DashboardPage', () => {
     expect(link).toHaveAttribute('href', `/lancamentos?mes=2026-11&categoria=${mercadoId()}`)
   })
 
+  it('linksToPortrait', async () => {
+    seedMockFamily()
+    serve()
+    renderPainel('/painel?mes=2026-11')
+
+    const link = await screen.findByRole('link', { name: 'Retrato do mês' })
+
+    expect(link).toHaveAttribute('href', '/painel/retrato?mes=2026-11')
+  })
+
   it('leaves Outras without a link', async () => {
     seedMockFamily()
     server.use(

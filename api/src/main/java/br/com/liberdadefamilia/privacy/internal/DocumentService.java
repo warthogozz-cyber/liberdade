@@ -2,6 +2,7 @@ package br.com.liberdadefamilia.privacy.internal;
 
 import br.com.liberdadefamilia.audit.AuditEntry;
 import br.com.liberdadefamilia.audit.AuditTrail;
+import br.com.liberdadefamilia.billing.Plans;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -18,21 +19,30 @@ class DocumentService {
 
     private final ConsentRepository consents;
     private final AuditTrail trail;
+    private final Plans plans;
 
-    DocumentService(ConsentRepository consents, AuditTrail trail) {
+    DocumentService(ConsentRepository consents, AuditTrail trail, Plans plans) {
         this.consents = consents;
         this.trail = trail;
+        this.plans = plans;
+    }
+
+    /** The versions in force: the texts with billing once billing is on (D17). */
+    LegalVersions current() {
+        Map<ConsentPurpose, String> current = inForce();
+        return new LegalVersions(current.get(ConsentPurpose.TERMS), current.get(ConsentPurpose.PRIVACY));
     }
 
     @Transactional(readOnly = true)
     List<DocumentStatus> list(UUID userId) {
+        Map<ConsentPurpose, String> current = inForce();
         Map<ConsentPurpose, ConsentRepository.Row> open = openAcceptances(userId);
         List<DocumentStatus> statuses = new ArrayList<>();
         for (ConsentPurpose purpose : LegalDocuments.LISTED) {
             ConsentRepository.Row accepted = open.get(purpose);
             statuses.add(new DocumentStatus(
                     purpose,
-                    LegalDocuments.CURRENT.get(purpose),
+                    current.get(purpose),
                     accepted == null ? null : accepted.documentVersion(),
                     accepted == null ? null : accepted.grantedAt()));
         }
@@ -44,8 +54,9 @@ class DocumentService {
     void accept(UUID userId, AcceptDocumentsRequest request) {
         Map<ConsentPurpose, String> sent =
                 Map.of(ConsentPurpose.TERMS, request.terms(), ConsentPurpose.PRIVACY, request.privacy());
+        Map<ConsentPurpose, String> inForce = inForce();
         for (ConsentPurpose purpose : LegalDocuments.LISTED) {
-            if (!LegalDocuments.CURRENT.get(purpose).equals(sent.get(purpose))) {
+            if (!inForce.get(purpose).equals(sent.get(purpose))) {
                 throw new PrivacyRejectedException(409, "documents.version-outdated", OUTDATED_DETAIL);
             }
         }
@@ -54,7 +65,7 @@ class DocumentService {
         Map<ConsentPurpose, ConsentRepository.Row> open = openAcceptances(userId);
         boolean recorded = false;
         for (ConsentPurpose purpose : LegalDocuments.LISTED) {
-            String current = LegalDocuments.CURRENT.get(purpose);
+            String current = inForce.get(purpose);
             ConsentRepository.Row accepted = open.get(purpose);
             if (accepted != null && accepted.documentVersion().equals(current)) {
                 continue;
@@ -66,6 +77,10 @@ class DocumentService {
         if (recorded) {
             trail.record(new AuditEntry(null, userId, "documents.accepted", "USER", userId, Map.of()));
         }
+    }
+
+    private Map<ConsentPurpose, String> inForce() {
+        return LegalDocuments.current(plans.legalSetEnabled());
     }
 
     private Map<ConsentPurpose, ConsentRepository.Row> openAcceptances(UUID userId) {

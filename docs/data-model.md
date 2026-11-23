@@ -180,6 +180,25 @@ erDiagram
 As tabelas de sessão do Spring Session JDBC (`spring_session`, `spring_session_attributes`) ficam
 fora do diagrama.
 
+### Cobrança (Plano 6, migração `V14__billing.sql`)
+
+Três tabelas do módulo `billing`. O valor do pedido e as datas ficam mesmo depois que a família ou
+a pessoa são excluídas (contabilidade).
+
+| Tabela | Colunas principais e regras |
+|---|---|
+| `billing_orders` | `workspace_id` e `requested_by` (nulos, `ON DELETE SET NULL`), `product` (`FOUNDER_2026`), `amount_cents` (`> 0`), `currency` (`BRL`), `status` (`CREATED` `PAID` `EXPIRED` `CANCELED` `REFUND_PENDING` `REFUNDED` `CHARGEBACK`), `asaas_checkout_id` e `asaas_payment_id` (únicos, nulos até o Asaas responder), `paid_at`, `refund_requested_at`, `refunded_at`, `refund_reason` (`CUSTOMER` ou `DUPLICATE`), `created_at`, `updated_at`. Índice único parcial: no máximo um pedido `CREATED` por família |
+| `workspace_plans` | Uma linha por família (`workspace_id` é a chave, `ON DELETE CASCADE`): `plan_key` (`FAMILY`), `founder`, `source_order_id` (`ON DELETE SET NULL`), `starts_at`, `ends_at`, `theme` (nulo), `updated_at` |
+| `billing_webhook_events` | `event_id` (chave: o `id` do evento do Asaas, que torna a reentrega inofensiva), `event_type`, `checkout_id`, `payment_id`, `received_at`, `processed_at`, `outcome` (`APPLIED` `IGNORED` `UNKNOWN_ORDER` `ERROR`). Guarda só o que a idempotência e o diagnóstico pedem, **nunca o corpo do evento** |
+
+Também na `V14`: o `CHECK` de `audit_events.target_type` ganhou `ORDER` e `PLAN`, e ficou
+`USER`, `MEMBERSHIP`, `INVITATION`, `WORKSPACE`, `MODULE`, `CONSENT`, `ORDER` e `PLAN`. As ações
+novas são `billing.checkout-started`, `billing.refund-requested`, `plan.activated` e `plan.ended`,
+sempre com rótulos fixos nos metadados.
+
+Retenção: eventos do webhook com mais de 180 dias, pedidos nunca pagos com mais de 180 dias e
+pedidos pagos com mais de 5 anos são apagados por rotina noturna (às 3h55).
+
 As tabelas de passkey (`user_entities` e `user_credentials`) seguem o schema JDBC do WebAuthn do
 Spring Security, por isso fogem das convenções acima. O diagrama mostra só as colunas principais.
 `user_entities.name` guarda o `users.id`: é por ele que o Spring liga a passkey à pessoa.
@@ -271,6 +290,8 @@ têm `workspace_id`.
 | Família excluída | 30 dias de carência e depois apagamento definitivo |
 | Lançamento excluído | Apagado de vez após 30 dias |
 | Convites usados ou vencidos | Apagados após 90 dias |
+| `billing_webhook_events` | 180 dias |
+| `billing_orders` | Nunca pagos: 180 dias. Pagos: 5 anos (contabilidade), mesmo sem a família |
 | `audit_events` | 12 meses |
 | Backups do RDS | 7 dias (o apagamento definitivo alcança os backups nesse prazo) |
 | Logs da aplicação | 30 dias, sem dados financeiros |

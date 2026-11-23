@@ -1,5 +1,7 @@
 package br.com.liberdadefamilia.identity.internal;
 
+import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
+
 import br.com.liberdadefamilia.shared.RateLimiter;
 import java.time.Clock;
 import java.time.Duration;
@@ -9,6 +11,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -91,6 +94,12 @@ class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/error")
                         .permitAll()
+                        // Asaas calls this with a token of its own, never with a session (D15).
+                        .requestMatchers(HttpMethod.POST, "/v1/billing/webhooks/asaas")
+                        .permitAll()
+                        // The public terms and policy pages ask which version to show, before any sign-in.
+                        .requestMatchers(HttpMethod.GET, "/v1/legal/current")
+                        .permitAll()
                         .anyRequest()
                         .authenticated())
                 .oauth2Login(login -> login.loginPage(origin + "/entrar")
@@ -131,7 +140,8 @@ class SecurityConfig {
                 .exceptionHandling(exceptions ->
                         exceptions.authenticationEntryPoint(problems).accessDeniedHandler(problems))
                 .csrf(csrf -> csrf.csrfTokenRepository(csrfTokens())
-                        .csrfTokenRequestHandler(new XorCsrfTokenRequestAttributeHandler()))
+                        .csrfTokenRequestHandler(new XorCsrfTokenRequestAttributeHandler())
+                        .ignoringRequestMatchers(pathPattern(HttpMethod.POST, "/v1/billing/webhooks/asaas")))
                 .cors(cors -> cors.configurationSource(cors(origin)))
                 .headers(headers -> headers.contentSecurityPolicy(
                                 csp -> csp.policyDirectives("default-src 'none'; frame-ancestors 'none'"))

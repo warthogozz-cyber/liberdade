@@ -48,6 +48,8 @@ export const privacyMessages = {
   'privacy.deleteAccount.title': 'Excluir minha conta',
   'privacy.deleteAccount.body':
     'Em 30 dias, sua conta, suas passkeys e o seu vínculo com as famílias somem. Os lançamentos que você fez continuam na família, sem o seu nome. Até lá, dá para cancelar.',
+  'privacy.deleteAccount.refundReminder':
+    'Sua família é Fundadora há menos de 7 dias. Se quiser o dinheiro de volta, peça o reembolso em Mais > Plano antes de excluir.',
   'privacy.deleteAccount.confirm': 'Excluir minha conta',
   'privacy.soleOwner':
     'Você é o único Dono de uma família. Passe a família para outra pessoa ou exclua a família antes.',

@@ -1,5 +1,14 @@
+import type { LegalText } from './legalText'
+import { privacy202611 } from './texts/privacy-2026-11'
+import { privacy202612 } from './texts/privacy-2026-12'
+import { terms202611 } from './texts/terms-2026-11'
+import { terms202612 } from './texts/terms-2026-12'
+
 const DEFAULT_CONTROLLER = 'o mantenedor do projeto Liberdade'
 const DEFAULT_CONTACT = 'privacidade@liberdadefamilia.com.br'
+// Neutral until the maintainer fills them in, a go-live must-do before billing goes on in production.
+const DEFAULT_DOCUMENT = 'CPF ou CNPJ a informar'
+const DEFAULT_ADDRESS = 'local a informar'
 
 /** An unset or blank build variable falls back to the default. */
 function orDefault(value: string | undefined, fallback: string): string {
@@ -8,18 +17,40 @@ function orDefault(value: string | undefined, fallback: string): string {
 }
 
 /**
- * Who answers for the data and how to reach them, plus the versions of the two documents the web
- * shows. The versions are the API's `LegalDocuments`: the person accepts what this build displays.
- * The controller and the contact come from the build (`VITE_PRIVACY_CONTROLLER`,
- * `VITE_PRIVACY_CONTACT`), read when asked so a test can change them.
+ * Who answers for the data and how to reach them, plus every version of the two documents the API
+ * may put in force (`LegalDocuments.java`). Which one is in force comes from `GET /v1/legal/current`;
+ * without an answer, the pages show `latest`. Only the legal routes import this file, so the texts
+ * stay out of the initial load. The controller, who also sells the plan, its CPF or CNPJ, its address
+ * and the contact come from the build (`VITE_PRIVACY_CONTROLLER`, `VITE_PRIVACY_CONTROLLER_DOCUMENT`,
+ * `VITE_PRIVACY_CONTROLLER_ADDRESS`, `VITE_PRIVACY_CONTACT`), read when asked so a test can change
+ * them. The terms name the seller with them (Decreto 7.962/2013, art. 2º).
  */
 export const legalConfig = {
   get controllerName(): string {
     return orDefault(import.meta.env.VITE_PRIVACY_CONTROLLER, DEFAULT_CONTROLLER)
   },
+  get controllerDocument(): string {
+    return orDefault(import.meta.env.VITE_PRIVACY_CONTROLLER_DOCUMENT, DEFAULT_DOCUMENT)
+  },
+  get controllerAddress(): string {
+    return orDefault(import.meta.env.VITE_PRIVACY_CONTROLLER_ADDRESS, DEFAULT_ADDRESS)
+  },
   get contactEmail(): string {
     return orDefault(import.meta.env.VITE_PRIVACY_CONTACT, DEFAULT_CONTACT)
   },
-  versions: { terms: 'terms-2026-11', privacy: 'privacy-2026-11' },
-  updatedAt: 'novembro de 2026',
+  texts: {
+    'terms-2026-11': terms202611,
+    'terms-2026-12': terms202612,
+    'privacy-2026-11': privacy202611,
+    'privacy-2026-12': privacy202612,
+  } as Record<string, LegalText>,
+  latest: { terms: 'terms-2026-12', privacy: 'privacy-2026-12' },
+}
+
+/** The text of `version`, or the latest one of its kind when this build does not know it. */
+export function legalText(version: string, fallback: string): { version: string; text: LegalText } {
+  if (Object.hasOwn(legalConfig.texts, version)) {
+    return { version, text: legalConfig.texts[version] }
+  }
+  return { version: fallback, text: legalConfig.texts[fallback] }
 }

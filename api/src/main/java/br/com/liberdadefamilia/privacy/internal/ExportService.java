@@ -3,6 +3,9 @@ package br.com.liberdadefamilia.privacy.internal;
 import br.com.liberdadefamilia.audit.ActivityItem;
 import br.com.liberdadefamilia.audit.AuditEntry;
 import br.com.liberdadefamilia.audit.AuditTrail;
+import br.com.liberdadefamilia.billing.BillingExport;
+import br.com.liberdadefamilia.billing.ExportedOrder;
+import br.com.liberdadefamilia.billing.ExportedPlan;
 import br.com.liberdadefamilia.identity.UserDirectory;
 import br.com.liberdadefamilia.identity.UserProfile;
 import br.com.liberdadefamilia.identity.UserSummary;
@@ -21,6 +24,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -53,7 +57,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 class ExportService {
 
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
     private static final ZoneId FORTALEZA = ZoneId.of("America/Fortaleza");
     private static final List<String> TRANSACTION_HEADER = List.of(
             "data", "tipo", "valor", "moeda", "conta", "conta_destino", "categoria", "descricao", "quem", "criado_em");
@@ -116,12 +120,36 @@ class ExportService {
             List<PersonalTransaction> transactions,
             Map<UUID, Map<UUID, String>> names) {}
 
+    /** An order as written in the export: the amount as decimal text, like the rest of it. */
+    private record OrderLine(
+            String product,
+            String amount,
+            String currency,
+            String status,
+            Instant createdAt,
+            @Nullable Instant paidAt,
+            @Nullable Instant refundedAt) {
+
+        static OrderLine of(ExportedOrder o) {
+            return new OrderLine(
+                    o.product(),
+                    BigDecimal.valueOf(o.amountCents(), 2).toPlainString(),
+                    o.currency(),
+                    o.status(),
+                    o.createdAt(),
+                    o.paidAt(),
+                    o.refundedAt());
+        }
+    }
+
     private record FamilyData(
             Family family,
             List<Member> members,
             List<ExportedAccount> accounts,
             List<ExportedCategory> categories,
             List<ExportedTransaction> transactions,
+            List<OrderLine> orders,
+            @Nullable ExportedPlan plan,
             Map<String, Boolean> modules,
             Map<UUID, String> names) {}
 
@@ -129,6 +157,7 @@ class ExportService {
     private final Memberships memberships;
     private final Modules modules;
     private final LedgerExport ledger;
+    private final BillingExport billing;
     private final AuditTrail audit;
     private final ConsentService consents;
     private final JsonMapper json;
@@ -141,6 +170,7 @@ class ExportService {
             Memberships memberships,
             Modules modules,
             LedgerExport ledger,
+            BillingExport billing,
             AuditTrail audit,
             ConsentService consents,
             JsonMapper json,
@@ -150,6 +180,7 @@ class ExportService {
         this.memberships = memberships;
         this.modules = modules;
         this.ledger = ledger;
+        this.billing = billing;
         this.audit = audit;
         this.consents = consents;
         this.json = json;
@@ -261,6 +292,8 @@ class ExportService {
                 ledger.accounts(workspaceId),
                 ledger.categories(workspaceId),
                 ledger.transactions(workspaceId),
+                billing.orders(workspaceId).stream().map(OrderLine::of).toList(),
+                billing.plan(workspaceId).orElse(null),
                 enabled,
                 names);
     }
@@ -357,6 +390,8 @@ class ExportService {
         root.put("categories", data.categories());
         root.put("transactions", data.transactions());
         root.put("modules", data.modules());
+        root.put("orders", data.orders());
+        root.put("plan", data.plan());
 
         List<List<String>> transactionRows = new ArrayList<>();
         for (ExportedTransaction t : data.transactions()) {

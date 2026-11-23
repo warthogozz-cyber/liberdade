@@ -13,6 +13,7 @@ import {
 } from './support.ts'
 
 const GATE = { level: 1, name: 'Antes de começar' } as const
+const DOCUMENTS_LIST = '**/v1/me/documents{,?*}'
 
 test('legalPagesArePublic: the policy and the terms open without a session, from the sign-in screen too', async ({
   page,
@@ -103,4 +104,65 @@ test('inviteAcceptsDocuments: a guest joins by invitation and lands on Início w
     await expect(bia.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible()
     await expect(bia.getByRole('heading', GATE)).toHaveCount(0)
   })
+})
+
+test('newVersionAsksAgain: whoever accepted the texts from before billing accepts the new ones', async ({
+  page,
+}) => {
+  test.setTimeout(180_000)
+  await signInWithGoogle(page, newUser('Ana'))
+  await createFamily(page, 'Ana')
+
+  // The e2e runs with billing on, so the texts in force are the ones with the Founder presale.
+  await page.goto('/termos')
+  await expect(page.getByText(/Versão terms-2026-12 · atualizada em /)).toBeVisible()
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'O que é a Família Fundadora?' }),
+  ).toBeVisible()
+
+  // The API answers as if this person had accepted only the 2026-11 texts. The glob matches the list
+  // with or without a query string, never `/accept`.
+  await page.route(DOCUMENTS_LIST, async (route) => {
+    const response = await route.fetch()
+    const documents = (await response.json()) as { purpose: string; acceptedVersion: string }[]
+    const older = documents.map((document) =>
+      document.purpose === 'TERMS'
+        ? { ...document, acceptedVersion: 'terms-2026-11' }
+        : document.purpose === 'PRIVACY'
+          ? { ...document, acceptedVersion: 'privacy-2026-11' }
+          : document,
+    )
+    await route.fulfill({ response, json: older })
+  })
+  await page.goto('/inicio')
+  await expect(page.getByRole('heading', GATE)).toBeVisible()
+
+  // The accept carries the versions the API listed, and then the real answer lifts the gate.
+  await page.unroute(DOCUMENTS_LIST)
+  await page.getByRole('checkbox', { name: /Li e aceito os termos/ }).check()
+  // Playwright does not see this request's body (the browser drops it from the network event), so the
+  // page's own fetch is wrapped to read it.
+  await page.evaluate(() => {
+    const original = window.fetch
+    const seen: string[] = []
+    ;(window as unknown as { acceptBodies: string[] }).acceptBodies = seen
+    window.fetch = async (input, init) => {
+      // The client may pass a Request or a URL with the body in init; both are read.
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.endsWith('/v1/me/documents/accept')) {
+        seen.push(input instanceof Request ? await input.clone().text() : String(init?.body ?? ''))
+      }
+      return original(input, init)
+    }
+  })
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as unknown as { acceptBodies: string[] }).acceptBodies.map((b) => JSON.parse(b)),
+      ),
+    )
+    .toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12' }])
+  await expect(page.getByRole('heading', GATE)).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible()
 })

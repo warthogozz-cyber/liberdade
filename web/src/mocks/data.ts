@@ -53,12 +53,30 @@ export interface MockState {
   currentDocuments: Record<'TERMS' | 'PRIVACY', string>
   /** The versions the signed-in person accepted; null while a document is still pending. */
   acceptedDocuments: Record<'TERMS' | 'PRIVACY', { version: string; at: string } | null>
+  /** The paid plan: `plan` is FREE until a payment, and `orders` are the checkouts started, newest last. */
+  billing: { plan: MockPlan; orders: MockOrder[] }
 }
 
-/** The versions in force, the same as LegalDocuments.java. */
+/** The family's plan as the mock keeps it; `endsAt` is when it stops. */
+export interface MockPlan {
+  key: 'FREE' | 'FAMILY'
+  endsAt: string | null
+  /** The Founder theme the owner picked; TEAL when none. */
+  theme?: Schemas['PlanDetails']['theme']
+}
+
+/** One checkout the mock opened. */
+export interface MockOrder {
+  id: string
+  workspaceId: string
+  status: 'CREATED' | 'CANCELED' | 'PAID' | 'REFUND_PENDING'
+  checkoutUrl: string
+}
+
+/** The versions in force, as LegalDocuments.java picks them with billing on (as in staging and the e2e). */
 const CURRENT_DOCUMENTS: MockState['currentDocuments'] = {
-  TERMS: 'terms-2026-11',
-  PRIVACY: 'privacy-2026-11',
+  TERMS: 'terms-2026-12',
+  PRIVACY: 'privacy-2026-12',
 }
 
 /** The person starts with both documents accepted, so previews open straight into the app. */
@@ -184,6 +202,7 @@ function initialState(): MockState {
     deletedTransactionIds: new Set(),
     members: {},
     invitations: [],
+    billing: { plan: { key: 'FREE', endsAt: null }, orders: [] },
     modules: {},
     activity: initialActivity(),
     passkeys: initialPasskeys(),

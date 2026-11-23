@@ -90,6 +90,26 @@
         ]
       }
     },
+    "/v1/legal/current": {
+      "get": {
+        "operationId": "currentLegalVersions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalVersions"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "legal-controller"
+        ]
+      }
+    },
     "/v1/me": {
       "get": {
         "operationId": "me",
@@ -685,6 +705,187 @@
         },
         "tags": [
           "account-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/billing/checkout": {
+      "post": {
+        "operationId": "startCheckout",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutView"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "billing-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/billing/orders/{id}/refresh": {
+      "post": {
+        "operationId": "refresh",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "billing-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/billing/orders/{id}/refund": {
+      "post": {
+        "operationId": "refund",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderView"
+                }
+              }
+            },
+            "description": "Accepted"
+          }
+        },
+        "tags": [
+          "billing-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/billing/plan": {
+      "get": {
+        "operationId": "plan",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDetails"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "billing-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/billing/plan/theme": {
+      "put": {
+        "operationId": "setTheme",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThemeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "billing-controller"
         ]
       }
     },
@@ -1871,6 +2072,19 @@
           }
         }
       },
+      "CheckoutView": {
+        "type": "object",
+        "properties": {
+          "checkoutUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "ConsentView": {
         "type": "object",
         "properties": {
@@ -2287,6 +2501,17 @@
           }
         }
       },
+      "LegalVersions": {
+        "type": "object",
+        "properties": {
+          "privacy": {
+            "type": "string"
+          },
+          "terms": {
+            "type": "string"
+          }
+        }
+      },
       "MeUser": {
         "type": "object",
         "properties": {
@@ -2472,6 +2697,35 @@
         },
         "nullable": true
       },
+      "OrderView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "refundReason": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "CUSTOMER",
+              "DUPLICATE"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "PAID",
+              "EXPIRED",
+              "CANCELED",
+              "REFUND_PENDING",
+              "REFUNDED",
+              "CHARGEBACK"
+            ]
+          }
+        }
+      },
       "PasskeyView": {
         "type": "object",
         "properties": {
@@ -2489,6 +2743,62 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          }
+        }
+      },
+      "PlanDetails": {
+        "type": "object",
+        "properties": {
+          "canPurchase": {
+            "type": "boolean"
+          },
+          "canRefund": {
+            "type": "boolean"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "founder": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string",
+            "enum": [
+              "FREE",
+              "FAMILY"
+            ]
+          },
+          "openOrder": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrderView"
+              }
+            ],
+            "nullable": true
+          },
+          "paidOrderId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "presaleOpen": {
+            "type": "boolean"
+          },
+          "refundDeadline": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "theme": {
+            "type": "string",
+            "enum": [
+              "TEAL",
+              "OCEAN",
+              "FOREST",
+              "PLUM"
+            ]
           }
         }
       },
@@ -2516,6 +2826,23 @@
             "minLength": 0,
             "pattern": "[^\\x00]*",
             "type": "string"
+          }
+        }
+      },
+      "ThemeRequest": {
+        "required": [
+          "theme"
+        ],
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": "string",
+            "enum": [
+              "TEAL",
+              "OCEAN",
+              "FOREST",
+              "PLUM"
+            ]
           }
         }
       },

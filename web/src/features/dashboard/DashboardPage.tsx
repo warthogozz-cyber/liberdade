@@ -8,7 +8,7 @@ import {
   useMe,
   type MeWorkspace,
 } from '@/shared/api'
-import { MIN_MONTH, addMonths, currentMonth, maxMonth } from '@/shared/i18n'
+import { addMonths, currentMonth, maxMonth, monthFromParam } from '@/shared/i18n'
 import { formatBRL, parseCents } from '@/shared/money'
 import { useOnline, usePendingTotals } from '@/shared/offline'
 import { DataAsOf, useDocumentTitle } from '@/shared/ui'
@@ -23,8 +23,6 @@ import {
   donutOption,
 } from './charts'
 import './register'
-
-const MONTH_FORMAT = /^\d{4}-(0[1-9]|1[0-2])$/
 
 /** The month dashboard (wireframe 5): the totals, spending by category, against last month, and the balance. */
 export function DashboardPage() {
@@ -75,11 +73,7 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
   const now = new Date()
   const thisMonth = currentMonth(now, workspace.timezone)
   const lastMonth = maxMonth(now, workspace.timezone)
-  const asked = params.get('mes')
-  const month =
-    asked && MONTH_FORMAT.test(asked) && asked >= MIN_MONTH && asked <= lastMonth
-      ? asked
-      : thisMonth
+  const month = monthFromParam(params.get('mes'), now, workspace.timezone)
   const dashboard = useDashboard(workspace.id, month)
   const categories = useCategories(workspace.id, 'EXPENSE').data
   const pending = usePendingTotals(userId, workspace.id, month)
@@ -351,6 +345,12 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
     <>
       <MonthSwitcher month={month} onChange={setMonth} max={lastMonth} />
       {content}
+      <Link
+        to={`/painel/retrato?mes=${month}`}
+        className="flex min-h-12 items-center justify-center rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <FormattedMessage id="dashboard.portrait" />
+      </Link>
     </>
   )
 }

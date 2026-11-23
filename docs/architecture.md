@@ -62,6 +62,7 @@ flowchart LR
     ledger[ledger<br/>contas, categorias,<br/>lançamentos, saldos, painel]
     audit[audit<br/>trilha de auditoria]
     privacy[privacy<br/>consentimentos,<br/>exportar e excluir]
+    billing[billing · Plano 6<br/>plano pago, pedidos,<br/>gateway e webhook]
   end
   subgraph opcionais[Módulos opcionais]
     planning[planning · v0.2<br/>orçamentos, metas,<br/>reserva, recorrências]
@@ -77,7 +78,9 @@ flowchart LR
   ventures --> ledger
   audit -. ouve eventos .-> identity & workspace
   audit --> identity & workspace
-  privacy --> ledger & audit & workspace & identity
+  privacy --> ledger & audit & workspace & identity & billing
+  billing --> workspace & identity
+  audit -. ouve eventos .-> billing
 ```
 
 Setas significam "depende de". Regras verificadas por teste:
@@ -98,6 +101,62 @@ Setas significam "depende de". Regras verificadas por teste:
 - Endpoints de um módulo desligado respondem `403` com o código `module.disabled`.
 - Sequências e conquistas são **derivadas do histórico** de lançamentos, não acumuladas por evento.
   Por isso, religar um módulo recalcula tudo e não deixa buraco.
+
+### Cobrança (módulo `billing`, Plano 6)
+
+O módulo `billing` guarda o plano pago da família e fica no pacote
+`br.com.liberdadefamilia.billing`. Ele depende só de `identity`, `workspace` e `shared`; quem o
+usa chama o pacote raiz (`Plans`, `@RequiresPlan`, `BillingExport`) ou ouve os eventos
+`PlanActivated`, `PlanEnded`, `RefundRequested` e `CheckoutStarted`. O preço e a oferta
+(Família Fundadora, produto `FOUNDER_2026`) ficam no código, não no banco.
+
+- **Gateway.** A interface `PaymentGateway` esconde o Asaas. `AsaasGateway`
+  (`liberdade.billing.gateway=asaas`) é o real; `FakePaymentGateway` serve ao dev, ao `e2e` e aos
+  testes e **não sobe** com o perfil
+  `prod` (o `BillingStartupCheck` recusa a partida). O pagamento acontece na página hospedada do
+  Asaas: o app nunca vê cartão, Pix nem CPF. O link do checkout só vale se o host estiver em
+  `liberdade.billing.checkout-hosts`.
+- **Configuração segura por padrão.** `liberdade.billing.enabled` e `presale-open` vêm `false`. A
+  venda só fica ligada com a chave (`ASAAS_API_KEY`) e o token do webhook
+  (`ASAAS_WEBHOOK_TOKEN`, de 32 a 255 caracteres). Faltando algo, a API sobe, a venda fica
+  desligada e há um aviso no log, sem valores. Com a cobrança ligada, os termos e a política em
+  vigor passam a ser os `2026-12`.
+- **Webhook.** `POST /v1/billing/webhooks/asaas` é público, limitado a 120 chamadas por minuto e a
+  um corpo pequeno, e só aceita o cabeçalho `asaas-access-token` igual ao token (comparação em
+  tempo constante). Cada evento entra uma vez em `billing_webhook_events` (o `id` do evento é a
+  chave, então reentrega não faz nada) e o efeito roda num savepoint: se uma regra falhar, o
+  evento fica com `outcome = ERROR`, a API responde `200` mesmo assim e emite o alerta
+  `WEBHOOK_ERROR`. Erro de banco não é capturado. Eventos tratados: `CHECKOUT_PAID`,
+  `CHECKOUT_EXPIRED`, `CHECKOUT_CANCELED`, `PAYMENT_REFUNDED`, `PAYMENT_CHARGEBACK_REQUESTED` e
+  `PAYMENT_CHARGEBACK_DISPUTE`; os outros são ignorados. Só o necessário vai ao banco, nunca o
+  corpo do evento.
+- **Dois caminhos para o mesmo pagamento.** O webhook e a volta da pessoa ao app
+  (`POST .../billing/orders/{id}/refresh`) chamam `OrderPayments.applyPaid`. A linha do pedido
+  decide quem age, então não há plano em dobro. Se a família já tinha plano ou deixou de existir,
+  o pagamento vira reembolso `DUPLICATE`.
+- **Reembolso.** Em até 7 dias (`RefundWindow`: o dia do pagamento não conta e o sétimo dia vale
+  inteiro, no fuso de São Paulo), `POST .../billing/orders/{id}/refund` põe o pedido
+  em `REFUND_PENDING`, encerra o plano e, depois do commit, pede o estorno ao Asaas. Se o Asaas
+  falhar, o pedido espera a rotina horária (a cada hora, até 72 h). O estorno confirmado
+  (`PAYMENT_REFUNDED`) leva a `REFUNDED`.
+- **Rotinas** (`America/Fortaleza`): `BillingRetryJob` a cada hora (reembolsos pendentes, o
+  `asaas_payment_id` que faltou e, por até 48 h, checkouts pagos cujo webhook não chegou) e
+  `BillingPurgeJob` às 3h55 (eventos com mais de 180 dias, pedidos nunca pagos com mais de 180
+  dias, pedidos pagos com mais de 5 anos, e o aviso de reembolso parado há mais de 72 h).
+- **Plano e rotas.** `GET .../billing/plan` e `PUT .../billing/plan/theme` (tema do Fundador).
+  `@RequiresPlan`, com o `PlanGuardInterceptor`, responde `403 plan.required`
+  (`PlanRequiredException`) quando a família não tem o plano.
+- **Alertas.** `BillingAlerts` escreve `BILLING_ALERT type=<TIPO>` no nível WARN, com `TIPO` em
+  `CHARGEBACK`, `REFUND_STUCK` e `WEBHOOK_ERROR`, sem valores nem ids. Em
+  `infra/live/billing_alerts.tf`, um filtro de métrica por ambiente (`/liberdade/staging` e
+  `/liberdade/production`) conta o
+  termo `"BILLING_ALERT"` e o alarme `liberdade-billing-alert-{ambiente}` (soma em 300 s, limite
+  1, dados ausentes não contam) avisa o tópico SNS de alertas em `ALARM` e em `OK`. **Um e-mail
+  por janela de alarme:** um segundo alerta enquanto o alarme já está em `ALARM` não manda e-mail
+  novo, então quem lê o e-mail confere os logs de todos os tipos daquela janela. Veja o
+  [runbook do sandbox](runbooks/billing-sandbox.md).
+- **Retrato do mês.** É só do front: o cartão é desenhado e compartilhado no aparelho, sem chamada
+  de rede e sem dado novo no servidor.
 
 ### Família, Jovem e exclusão
 
@@ -161,6 +220,7 @@ trafega como texto decimal: `{"amount": "1234.56", "currency": "BRL"}`.
 | Categorias | `GET`, `POST`, `PATCH .../categories/{id}`, `POST .../categories/{id}/archive`, `POST .../categories/{id}/unarchive` |
 | Lançamentos | `GET .../transactions?month=2026-11&accountId=&categoryId=`, `GET .../transactions/{id}`, `POST` (com `Idempotency-Key`), `PATCH .../transactions/{id}` (com `version`), `DELETE .../transactions/{id}`, `POST .../transactions/{id}/restore` |
 | Painel | `GET /v1/workspaces/{ws}/dashboard?month=2026-11` |
+| Cobrança (Plano 6) | `POST /v1/workspaces/{ws}/billing/checkout`, `POST .../billing/orders/{id}/refresh`, `POST .../billing/orders/{id}/refund`, `GET .../billing/plan`, `PUT .../billing/plan/theme`; o gateway chama `POST /v1/billing/webhooks/asaas` (público, com o cabeçalho `asaas-access-token`) |
 
 As páginas `/privacidade` e `/termos` são públicas e ficam só no front, com a versão e a data no
 topo (`privacy-2026-11` e `terms-2026-11` na v0.1). Quando falta aceitar a versão atual, o web
@@ -335,7 +395,9 @@ Referência: **OWASP ASVS 5.0, nível 2**, com checklist revisado a cada release
   formato ECS. O Caddy não grava log de acesso nem de erro HTTP, então nenhum IP vai para os logs.
 - **Alarmes** (e-mail por SNS, nível gratuito): falha de status da EC2 com recuperação automática,
   CPU da EC2 acima de 80% por 15 min, espaço livre do RDS abaixo de 2 GB e créditos de CPU do RDS
-  abaixo de 30.
+  abaixo de 30; no Plano 6, mais um alarme por ambiente para os alertas de cobrança
+  (`liberdade-billing-alert-staging` e `liberdade-billing-alert-production`). Ficam 6 dos 10
+  alarmes do nível gratuito do CloudWatch.
 - **Orçamento:** US$ 60 por mês (≈ R$ 344), com aviso em 80% do gasto real e em 100% do previsto.
 - **Disponibilidade:** workflow agendado no GitHub Actions chama o `/health` de produção a cada
   15 min e abre uma issue se falhar (grátis em repositório público). O GitHub pausa workflows

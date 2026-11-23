@@ -292,16 +292,22 @@ no host. Crie os parâmetros de cada ambiente (`staging` e `production`). Segred
 `SecureString` com `--key-id alias/liberdade`; o resto é `String`. Um valor não pode ter aspas
 simples nem quebra de linha (o deploy recusa).
 
-| Parâmetro                    | Tipo         | Valor em `staging`                                                                                         | Valor em `production`                 |
-| ---------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `SPRING_DATASOURCE_URL`      | String       | `jdbc:postgresql://<rds_endpoint>/liberdade_staging?sslmode=verify-full&sslrootcert=/certs/rds-bundle.pem` | o mesmo, com `/liberdade_production`  |
-| `SPRING_DATASOURCE_USERNAME` | String       | `liberdade_staging`                                                                                        | `liberdade_production`                |
-| `SPRING_DATASOURCE_PASSWORD` | SecureString | já criado no passo 7                                                                                       | já criado no passo 7                  |
-| `GOOGLE_CLIENT_ID`           | String       | do passo 8                                                                                                 | do passo 8                            |
-| `GOOGLE_CLIENT_SECRET`       | SecureString | do passo 8                                                                                                 | do passo 8                            |
-| `WEB_ORIGIN`                 | String       | `https://staging.liberdadefamilia.com.br`                                                                  | `https://app.liberdadefamilia.com.br` |
-| `WEBAUTHN_RP_ID`             | String       | `staging.liberdadefamilia.com.br`                                                                          | `app.liberdadefamilia.com.br`         |
-| `SPRING_PROFILES_ACTIVE`     | String       | `prod`                                                                                                     | `prod`                                |
+| Parâmetro                          | Tipo         | Valor em `staging`                                                                                         | Valor em `production`                 |
+| ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `SPRING_DATASOURCE_URL`            | String       | `jdbc:postgresql://<rds_endpoint>/liberdade_staging?sslmode=verify-full&sslrootcert=/certs/rds-bundle.pem` | o mesmo, com `/liberdade_production`  |
+| `SPRING_DATASOURCE_USERNAME`       | String       | `liberdade_staging`                                                                                        | `liberdade_production`                |
+| `SPRING_DATASOURCE_PASSWORD`       | SecureString | já criado no passo 7                                                                                       | já criado no passo 7                  |
+| `GOOGLE_CLIENT_ID`                 | String       | do passo 8                                                                                                 | do passo 8                            |
+| `GOOGLE_CLIENT_SECRET`             | SecureString | do passo 8                                                                                                 | do passo 8                            |
+| `WEB_ORIGIN`                       | String       | `https://staging.liberdadefamilia.com.br`                                                                  | `https://app.liberdadefamilia.com.br` |
+| `WEBAUTHN_RP_ID`                   | String       | `staging.liberdadefamilia.com.br`                                                                          | `app.liberdadefamilia.com.br`         |
+| `SPRING_PROFILES_ACTIVE`           | String       | `prod`                                                                                                     | `prod`                                |
+| `LIBERDADE_BILLING_ENABLED`        | String       | `true` (só no [runbook do sandbox](billing-sandbox.md))                                                    | não criar até a cobrança ligar        |
+| `LIBERDADE_BILLING_PRESALE_OPEN`   | String       | `true`                                                                                                     | não criar até a cobrança ligar        |
+| `LIBERDADE_BILLING_ASAAS_BASE_URL` | String       | `https://api-sandbox.asaas.com`                                                                            | não criar até a cobrança ligar        |
+| `LIBERDADE_BILLING_CHECKOUT_HOSTS` | String       | `sandbox.asaas.com`                                                                                        | não criar até a cobrança ligar        |
+| `ASAAS_API_KEY`                    | SecureString | chave do sandbox                                                                                           | não criar até a cobrança ligar        |
+| `ASAAS_WEBHOOK_TOKEN`              | SecureString | token de 32 a 255 caracteres                                                                               | não criar até a cobrança ligar        |
 
 O `<rds_endpoint>` é o output inteiro, com a porta (`host:5432`). O caminho
 `/certs/rds-bundle.pem` é onde o `compose.yaml` monta o pacote de certificados dentro do container.
@@ -330,8 +336,12 @@ for env in staging production; do
 done
 ```
 
-Cada ambiente lista os 8 parâmetros, com `SecureString` em `SPRING_DATASOURCE_PASSWORD` e
-`GOOGLE_CLIENT_SECRET`.
+Até a cobrança do Plano 6, cada ambiente lista os 8 primeiros parâmetros, com `SecureString` em
+`SPRING_DATASOURCE_PASSWORD` e `GOOGLE_CLIENT_SECRET`. Os 6 parâmetros de cobrança (linhas
+`LIBERDADE_BILLING_*` e `ASAAS_*`) são criados só no staging, pelo
+[runbook do sandbox](billing-sandbox.md): o staging passa a ter 14 e a produção continua com 8
+até a cobrança ligar. Os padrões do `application.properties` deixam a venda desligada, então a
+produção não precisa de nenhum deles antes disso.
 
 ### 10. Projetos do Pages e redirecionamento do topo
 
@@ -382,18 +392,27 @@ Quem faz isto é você, na hora (configuração do repositório). Em Settings do
    - `staging`: sem revisor, mas **com** Deployment branches "Selected branches" e só a regra `main`
      (obrigatório). O papel de deploy do staging chega ao mesmo host que guarda os segredos da
      produção, então qualquer branch que pudesse disparar o staging ganharia acesso de root lá.
-3. **Variáveis por Environment** (as mesmas 8 nos dois, com valores diferentes):
+3. **Variáveis por Environment** (as mesmas 10 nos dois, com valores diferentes):
 
-| Variável                | `staging`                                     | `production`                          |
-| ----------------------- | --------------------------------------------- | ------------------------------------- |
-| `AWS_DEPLOY_ROLE_ARN`   | output `deploy_role_arn`                      | o mesmo                               |
-| `EC2_INSTANCE_ID`       | output `instance_id`                          | o mesmo                               |
-| `API_URL`               | `https://api-staging.liberdadefamilia.com.br` | `https://api.liberdadefamilia.com.br` |
-| `WEB_URL`               | `https://staging.liberdadefamilia.com.br`     | `https://app.liberdadefamilia.com.br` |
-| `PAGES_PROJECT`         | `liberdade-staging`                           | `liberdade-production`                |
-| `CLOUDFLARE_ACCOUNT_ID` | `Account ID` do passo 2                       | o mesmo                               |
-| `PRIVACY_CONTROLLER`    | `<nome do controlador>`                       | o mesmo                               |
-| `PRIVACY_CONTACT`       | `privacidade@liberdadefamilia.com.br`         | o mesmo                               |
+| Variável                      | `staging`                                                     | `production`                          |
+| ----------------------------- | ------------------------------------------------------------- | ------------------------------------- |
+| `AWS_DEPLOY_ROLE_ARN`         | output `deploy_role_arn`                                      | o mesmo                               |
+| `EC2_INSTANCE_ID`             | output `instance_id`                                          | o mesmo                               |
+| `API_URL`                     | `https://api-staging.liberdadefamilia.com.br`                 | `https://api.liberdadefamilia.com.br` |
+| `WEB_URL`                     | `https://staging.liberdadefamilia.com.br`                     | `https://app.liberdadefamilia.com.br` |
+| `PAGES_PROJECT`               | `liberdade-staging`                                           | `liberdade-production`                |
+| `CLOUDFLARE_ACCOUNT_ID`       | `Account ID` do passo 2                                       | o mesmo                               |
+| `PRIVACY_CONTROLLER`          | `<nome do controlador>`                                       | o mesmo                               |
+| `PRIVACY_CONTROLLER_DOCUMENT` | `<CPF ou CNPJ, com o rótulo, ex.: "CNPJ 00.000.000/0001-00">` | o mesmo                               |
+| `PRIVACY_CONTROLLER_ADDRESS`  | `<endereço físico de quem vende>`                             | o mesmo                               |
+| `PRIVACY_CONTACT`             | `privacidade@liberdadefamilia.com.br`                         | o mesmo                               |
+
+Os termos 2026-12 mostram o nome, o documento e o endereço de quem vende (Decreto 7.962/2013,
+art. 2º) a partir de `PRIVACY_CONTROLLER`, `PRIVACY_CONTROLLER_DOCUMENT` e
+`PRIVACY_CONTROLLER_ADDRESS` (o deploy do front as lê como `vars.*`). Confirme que
+`PRIVACY_CONTROLLER` é o nome legal de quem vende. Sem os dois novos, os termos mostram "CPF ou
+CNPJ a informar" e "local a informar". Preencha antes de ligar a cobrança na produção (veja
+[Antes da produção](billing-sandbox.md#antes-da-produção)).
 
 `API_URL` e `WEB_URL` vão sem barra no fim: o `smoke.sh` procura o endereço da API dentro da CSP
 do front.

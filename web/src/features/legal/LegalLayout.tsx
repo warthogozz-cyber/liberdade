@@ -2,18 +2,21 @@ import type { ReactNode } from 'react'
 import { useIntl } from 'react-intl'
 import { Link } from 'react-router'
 import { useDocumentTitle } from '@/shared/ui'
-import { legalConfig } from './legalConfig'
+import type { Section } from './legalText'
 import './register'
 
 /** The frame of a public legal page: title, version and date, then its sections. */
 export function LegalLayout({
   title,
   version,
+  date,
   intro,
   children,
 }: {
   title: string
   version: string
+  /** The month the text came out, from its `LegalText`. */
+  date: string
   intro: string
   children: ReactNode
 }) {
@@ -29,22 +32,12 @@ export function LegalLayout({
       </Link>
       <h1 className="text-2xl font-semibold">{title}</h1>
       <p className="text-text-muted">
-        {intl.formatMessage({ id: 'legal.version' }, { version, date: legalConfig.updatedAt })}
+        {intl.formatMessage({ id: 'legal.version' }, { version, date })}
       </p>
       <p>{intro}</p>
       {children}
     </main>
   )
-}
-
-type MessageId = FormatjsIntl.Message['ids']
-
-/** One block inside a section: a paragraph, or a list. */
-export type Block = { p: MessageId } | { list: MessageId[] }
-
-export interface Section {
-  title: MessageId
-  blocks: Block[]
 }
 
 /** The sections of a legal page, each with a heading, in order. */

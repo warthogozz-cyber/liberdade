@@ -1,0 +1,17 @@
+{
+  "object": "list",
+  "hasMore": false,
+  "totalCount": 1,
+  "limit": 10,
+  "offset": 0,
+  "data": [
+    {
+      "object": "payment",
+      "id": "pay_123",
+      "status": "RECEIVED",
+      "value": 89.00,
+      "paymentDate": "2026-11-17",
+      "checkoutSession": "chk_1"
+    }
+  ]
+}
