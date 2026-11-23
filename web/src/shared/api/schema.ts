@@ -864,6 +864,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             initialBalance: components["schemas"]["Money"];
+            isReserve: boolean;
             name: string;
             /** Format: uuid */
             ownerMembershipId: string | null;
@@ -892,6 +893,7 @@ export interface components {
             icon: string | null;
             /** Format: uuid */
             id: string;
+            isFixed: boolean;
             /** @enum {string} */
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
             name: string;
@@ -1255,6 +1257,7 @@ export interface components {
         UpdateAccountRequest: {
             balance?: components["schemas"]["Money"];
             initialBalance?: components["schemas"]["Money"];
+            isReserve?: boolean | null;
             name?: string | null;
             /** @enum {string|null} */
             type?: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT" | null;
@@ -1263,6 +1266,7 @@ export interface components {
             /** @enum {string|null} */
             color?: "TEAL" | "BLUE" | "INDIGO" | "PURPLE" | "PINK" | "RED" | "ORANGE" | "GREEN" | null;
             icon?: string | null;
+            isFixed?: boolean | null;
             name?: string | null;
         };
         UpdateMemberRequest: {

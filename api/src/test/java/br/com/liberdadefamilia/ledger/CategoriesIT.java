@@ -94,6 +94,7 @@ class CategoriesIT {
         mercado.put("color", null);
         mercado.put("parentId", null);
         mercado.put("archivedAt", null);
+        mercado.put("isFixed", false);
 
         assertThat(result).hasStatusOk().hasContentType(MediaType.APPLICATION_JSON);
         assertThat(names(result)).containsExactlyElementsOf(DEFAULT_EXPENSES);

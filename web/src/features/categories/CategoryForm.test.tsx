@@ -15,6 +15,7 @@ const basket: CategoryView = {
   color: null,
   parentId: null,
   archivedAt: null,
+  isFixed: false,
 }
 
 function renderForm(category?: CategoryView) {

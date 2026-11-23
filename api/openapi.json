@@ -2388,6 +2388,9 @@
           "initialBalance": {
             "$ref": "#/components/schemas/Money"
           },
+          "isReserve": {
+            "type": "boolean"
+          },
           "name": {
             "type": "string"
           },
@@ -2472,6 +2475,9 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "isFixed": {
+            "type": "boolean"
           },
           "kind": {
             "type": "string",
@@ -3648,6 +3654,10 @@
           "initialBalance": {
             "$ref": "#/components/schemas/Money"
           },
+          "isReserve": {
+            "type": "boolean",
+            "nullable": true
+          },
           "name": {
             "maxLength": 60,
             "minLength": 1,
@@ -3691,6 +3701,10 @@
             "maxLength": 16,
             "minLength": 1,
             "type": "string",
+            "nullable": true
+          },
+          "isFixed": {
+            "type": "boolean",
             "nullable": true
           },
           "name": {

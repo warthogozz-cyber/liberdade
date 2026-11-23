@@ -58,6 +58,7 @@ function addAccount(
     initialBalance: { amount: '0.00', currency: 'BRL' },
     ownerMembershipId: workspace.membershipId,
     archivedAt,
+    isReserve: false,
   }
   mockState.accounts.push(account)
   return account

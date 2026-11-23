@@ -9,7 +9,10 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.Nullable;
 
-/** A partial change to a category: what is null stays as it is. The name is stripped before validation. */
+/**
+ * A partial change to a category: what is null stays as it is. {@code isFixed} marks an expense category as a fixed cost
+ * or takes the mark away. The name is stripped before validation.
+ */
 @PartialRequest
 record UpdateCategoryRequest(
         @Nullable
@@ -21,7 +24,8 @@ record UpdateCategoryRequest(
         @Nullable @Schema(nullable = true) @Size(min = 1, max = CreateCategoryRequest.MAX_ICON_LENGTH)
         String icon,
 
-        @Nullable @Schema(nullable = true) CategoryColor color) {
+        @Nullable @Schema(nullable = true) CategoryColor color,
+        @Nullable @Schema(nullable = true) Boolean isFixed) {
 
     UpdateCategoryRequest {
         if (name != null) {
@@ -33,6 +37,6 @@ record UpdateCategoryRequest(
     @Schema(hidden = true)
     @AssertTrue
     boolean isNotEmpty() {
-        return name != null || icon != null || color != null;
+        return name != null || icon != null || color != null || isFixed != null;
     }
 }

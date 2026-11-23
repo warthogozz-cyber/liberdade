@@ -321,6 +321,7 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
     initialBalance: { amount: '0.00', currency: workspace.currency },
     ownerMembershipId: workspace.membershipId,
     archivedAt: null,
+    isReserve: false,
   })
   mockState.categories.push(
     ...EXPENSE_CATEGORIES.map(([icon, categoryName]) => ({
@@ -330,6 +331,7 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
       color: null,
       parentId: null,
       archivedAt: null,
+      isFixed: false,
       name: categoryName,
     })),
     ...INCOME_CATEGORIES.map(([icon, categoryName]) => ({
@@ -339,6 +341,7 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
       color: null,
       parentId: null,
       archivedAt: null,
+      isFixed: false,
       name: categoryName,
     })),
   )

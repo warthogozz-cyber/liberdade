@@ -20,6 +20,7 @@ function addCategory(overrides: Partial<CategoryView> & { name: string }): Categ
     color: null,
     parentId: null,
     archivedAt: null,
+    isFixed: false,
     ...overrides,
   }
   mockState.categories.push(category)

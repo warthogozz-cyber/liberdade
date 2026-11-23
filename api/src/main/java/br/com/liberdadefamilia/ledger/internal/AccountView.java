@@ -7,7 +7,10 @@ import java.util.Currency;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
-/** An account as the API shows it; {@code balance} is computed from the transactions. */
+/**
+ * An account as the API shows it; {@code balance} is computed from the transactions. {@code isReserve} says whether it
+ * is part of the emergency reserve.
+ */
 record AccountView(
         UUID id,
         String name,
@@ -18,4 +21,5 @@ record AccountView(
 
         @Nullable @Schema(nullable = true) UUID ownerMembershipId,
 
-        @Nullable @Schema(nullable = true) Instant archivedAt) {}
+        @Nullable @Schema(nullable = true) Instant archivedAt,
+        boolean isReserve) {}

@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.ledger.PlannedTemplate;
+import br.com.liberdadefamilia.ledger.TransactionChanged;
 import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.ledger.domain.TransactionDateRange;
 import br.com.liberdadefamilia.ledger.internal.TransactionRepository.Planned;
@@ -15,6 +16,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Currency;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,13 +25,15 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Records, edits, deletes and restores transactions. Recording is idempotent: the device makes the id, and sending
  * the same transaction again returns the stored one instead of a copy. Editing is guarded by the transaction's {@code
- * version} (optimistic lock). Error messages and logs never carry the amount or the description.
+ * version} (optimistic lock). Error messages and logs never carry the amount or the description. Every change
+ * publishes {@link TransactionChanged} inside its transaction, with the accounts it touched.
  */
 @Service
 class TransactionService {
@@ -42,6 +46,7 @@ class TransactionService {
     private final Memberships memberships;
     private final Modules modules;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     TransactionService(
             AccountRepository accounts,
@@ -51,7 +56,8 @@ class TransactionService {
             TagService tags,
             Memberships memberships,
             Modules modules,
-            Clock clock) {
+            Clock clock,
+            ApplicationEventPublisher events) {
         this.accounts = accounts;
         this.categories = categories;
         this.transactions = transactions;
@@ -60,6 +66,7 @@ class TransactionService {
         this.memberships = memberships;
         this.modules = modules;
         this.clock = clock;
+        this.events = events;
     }
 
     /**
@@ -88,6 +95,7 @@ class TransactionService {
         Optional<TransactionView> created =
                 transactions.insertIfAbsent(workspaceId, member.membershipId(), memberId, request);
         if (created.isPresent()) {
+            changed(workspaceId, created.get());
             return new Recorded(saveTags(member, created.get(), request.tags()), true);
         }
         // The id was taken since the lookup: by the other tap of a double tap, by another family, or by a transaction
@@ -139,6 +147,18 @@ class TransactionService {
                     checkConfirmed(now);
                     return versionConflict(now.view());
                 });
+        changed(workspaceId, updated);
+        TransactionView before = stored.view();
+        Set<UUID> touched = new HashSet<>();
+        touched.add(updated.accountId());
+        if (updated.toAccountId() != null) {
+            touched.add(updated.toAccountId());
+        }
+        if (!touched.contains(before.accountId())
+                || (before.toAccountId() != null && !touched.contains(before.toAccountId()))) {
+            // The edit moved money off an account: it changed too.
+            changed(workspaceId, before);
+        }
         List<String> names = request.tags();
         return names == null ? updated.withTags(stored.view().tags()) : saveTags(member, updated, names);
     }
@@ -180,9 +200,11 @@ class TransactionService {
                         memberId,
                         planned.paymentMethod()),
                 planned);
-        return transactions
+        TransactionView confirmed = transactions
                 .confirm(workspaceId, id, scope, memberId, request.version(), amount, occurredOn, accountId)
                 .orElseThrow(() -> lostRace(workspaceId, id, scope, request.version()));
+        changed(workspaceId, confirmed);
+        return confirmed;
     }
 
     /**
@@ -204,6 +226,7 @@ class TransactionService {
         if (!transactions.skip(workspaceId, id, scope, request.version(), clock.instant())) {
             throw lostRace(workspaceId, id, scope, request.version());
         }
+        changed(workspaceId, stored.view());
     }
 
     /**
@@ -231,6 +254,12 @@ class TransactionService {
         StoredTransaction now = transactions.findHeld(workspaceId, id, scope).orElseThrow(TransactionService::notFound);
         checkPlanned(now, version);
         return versionConflict(now.view());
+    }
+
+    /** Tells the rest of the app that the transaction changed, with the accounts it touches. */
+    private void changed(UUID workspaceId, TransactionView transaction) {
+        events.publishEvent(new TransactionChanged(
+                workspaceId, transaction.id(), transaction.accountId(), transaction.toAccountId()));
     }
 
     /** Makes the transaction's tags the ones with these names, and returns it with them. */
@@ -268,11 +297,16 @@ class TransactionService {
      * @throws LedgerNotFoundException when the family has no such transaction, it was purged, or the member may not
      *     change it
      */
+    @Transactional
     void delete(WorkspaceMember member, UUID id) {
         AccountScope scope = accounts.scopeFor(member);
         UUID caller = member.membershipId();
-        if (!transactions.softDelete(member.workspaceId(), id, scope, caller, clock.instant())
-                && transactions.findOwn(member.workspaceId(), id, scope, caller).isEmpty()) {
+        if (transactions.softDelete(member.workspaceId(), id, scope, caller, clock.instant())) {
+            // Read in the same transaction, so it is the row this call just deleted.
+            transactions
+                    .findOwn(member.workspaceId(), id, scope, caller)
+                    .ifPresent(deleted -> changed(member.workspaceId(), deleted.view()));
+        } else if (transactions.findOwn(member.workspaceId(), id, scope, caller).isEmpty()) {
             throw notFound();
         }
     }
@@ -288,11 +322,16 @@ class TransactionService {
      * @throws LedgerNotFoundException when the family has no such transaction, it was purged, or the member may not
      *     change it
      */
+    @Transactional
     TransactionView restore(WorkspaceMember member, UUID id) {
         AccountScope scope = accounts.scopeFor(member);
         UUID caller = member.membershipId();
         return transactions
                 .restore(member.workspaceId(), id, scope, caller)
+                .map(restored -> {
+                    changed(member.workspaceId(), restored);
+                    return restored;
+                })
                 .or(() -> transactions
                         .findRestorable(member.workspaceId(), id, scope, caller)
                         .map(StoredTransaction::view))

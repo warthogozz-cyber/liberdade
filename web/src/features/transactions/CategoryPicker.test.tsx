@@ -15,6 +15,7 @@ function category(name: string, archivedAt: string | null = null): CategoryView 
     color: null,
     parentId: null,
     archivedAt,
+    isFixed: false,
   }
 }
 

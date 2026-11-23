@@ -46,7 +46,7 @@ class CategoryRepository {
      */
     List<CategoryView> allByUse(UUID workspaceId, TransactionKind kind, LocalDate usedSince, AccountScope scope) {
         return jdbc.sql("""
-                        select c.id, c.name, c.kind, c.icon, c.color, c.parent_id, c.archived_at
+                        select c.id, c.name, c.kind, c.icon, c.color, c.parent_id, c.archived_at, c.is_fixed
                         from categories c
                         left join transactions t
                                on t.workspace_id = c.workspace_id
@@ -72,7 +72,7 @@ class CategoryRepository {
 
     Optional<CategoryView> find(UUID workspaceId, UUID categoryId) {
         return jdbc.sql("""
-                        select id, name, kind, icon, color, parent_id, archived_at
+                        select id, name, kind, icon, color, parent_id, archived_at, is_fixed
                         from categories
                         where workspace_id = :workspaceId
                           and id = :categoryId""")
@@ -129,12 +129,14 @@ class CategoryRepository {
             UUID categoryId,
             @Nullable String name,
             @Nullable String icon,
-            @Nullable CategoryColor color) {
+            @Nullable CategoryColor color,
+            @Nullable Boolean isFixed) {
         return jdbc.sql("""
                         update categories
                         set name = coalesce(cast(:name as text), name),
                             icon = coalesce(cast(:icon as text), icon),
                             color = coalesce(cast(:color as text), color),
+                            is_fixed = coalesce(cast(:isFixed as boolean), is_fixed),
                             version = version + 1,
                             updated_at = now()
                         where workspace_id = :workspaceId
@@ -144,6 +146,7 @@ class CategoryRepository {
                         .param("name", name)
                         .param("icon", icon)
                         .param("color", color == null ? null : color.name())
+                        .param("isFixed", isFixed)
                         .update()
                 == 1;
     }
@@ -215,6 +218,7 @@ class CategoryRepository {
                 rs.getString("icon"),
                 color == null ? null : CategoryColor.valueOf(color),
                 rs.getObject("parent_id", UUID.class),
-                archivedAt == null ? null : archivedAt.toInstant());
+                archivedAt == null ? null : archivedAt.toInstant(),
+                rs.getBoolean("is_fixed"));
     }
 }

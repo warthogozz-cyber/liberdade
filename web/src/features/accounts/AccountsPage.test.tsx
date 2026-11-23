@@ -20,6 +20,7 @@ function addAccount(overrides: Partial<MockAccount> & { name: string }): MockAcc
     initialBalance: { amount: '0.00', currency: 'BRL' },
     ownerMembershipId: null,
     archivedAt: null,
+    isReserve: false,
     ...overrides,
   }
   mockState.accounts.push(account)

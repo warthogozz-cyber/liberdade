@@ -1602,6 +1602,7 @@ export const handlers = [
       initialBalance: money(initial.cents, workspace.currency),
       ownerMembershipId: typeof owner === 'string' ? owner : null,
       archivedAt: null,
+      isReserve: false,
     }
     mockState.accounts.push(account)
     return HttpResponse.json(accountView(account), { status: 201 })
@@ -1622,7 +1623,8 @@ export const handlers = [
         initial === undefined ||
         balance === undefined ||
         (body.type != null && !ACCOUNT_TYPES.includes(body.type)) ||
-        (body.name != null && typeof body.name !== 'string')
+        (body.name != null && typeof body.name !== 'string') ||
+        (body.isReserve != null && typeof body.isReserve !== 'boolean')
       ) {
         return malformed()
       }
@@ -1638,7 +1640,13 @@ export const handlers = [
       if (initial !== null && balance !== null) {
         errors.push({ field: 'oneBalanceAtMost', code: 'AssertTrue' })
       }
-      if (name === null && body.type == null && initial === null && balance === null) {
+      if (
+        name === null &&
+        body.type == null &&
+        initial === null &&
+        balance === null &&
+        body.isReserve == null
+      ) {
         errors.push({ field: 'notEmpty', code: 'AssertTrue' })
       }
       if (errors.length > 0) return invalid(errors)
@@ -1656,6 +1664,7 @@ export const handlers = [
       if (name !== null) account.name = name
       if (body.type != null) account.type = body.type as MockAccount['type']
       if (initial !== null) account.initialBalance = money(initial.cents, account.currency)
+      if (typeof body.isReserve === 'boolean') account.isReserve = body.isReserve
       if (balance !== null) {
         account.initialBalance = money(balance.cents - movementCents(account.id), account.currency)
       }
@@ -1794,6 +1803,7 @@ export const handlers = [
       color: typeof color === 'string' ? (color as CategoryColor) : null,
       parentId: parent,
       archivedAt: null,
+      isFixed: false,
     }
     mockState.categories.push(category)
     return HttpResponse.json(category, { status: 201 })
@@ -1812,7 +1822,8 @@ export const handlers = [
       if (
         (body.name != null && typeof body.name !== 'string') ||
         (icon != null && typeof icon !== 'string') ||
-        (color != null && !CATEGORY_COLORS.includes(color))
+        (color != null && !CATEGORY_COLORS.includes(color)) ||
+        (body.isFixed != null && typeof body.isFixed !== 'boolean')
       ) {
         return malformed()
       }
@@ -1824,12 +1835,15 @@ export const handlers = [
       if (typeof icon === 'string' && (icon === '' || icon.length > MAX_ICON_LENGTH)) {
         errors.push({ field: 'icon', code: 'Size' })
       }
-      if (name === null && icon == null && color == null) {
+      if (name === null && icon == null && color == null && body.isFixed == null) {
         errors.push({ field: 'notEmpty', code: 'AssertTrue' })
       }
       if (errors.length > 0) return invalid(errors)
       const category = mockState.categories.find((existing) => existing.id === params.id)
       if (!category) return categoryNotFound()
+      if (body.isFixed === true && category.kind !== 'EXPENSE') {
+        return rejected('category.fixed-not-expense', 'Só categorias de gasto podem ser fixas.')
+      }
       // Only active categories hold a name: renaming an archived one never clashes.
       if (
         name !== null &&
@@ -1841,6 +1855,7 @@ export const handlers = [
       if (name !== null) category.name = name
       if (typeof icon === 'string') category.icon = icon
       if (typeof color === 'string') category.color = color as CategoryColor
+      if (typeof body.isFixed === 'boolean') category.isFixed = body.isFixed
       return HttpResponse.json(category)
     },
   ),

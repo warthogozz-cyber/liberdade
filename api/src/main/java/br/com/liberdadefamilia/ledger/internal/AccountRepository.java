@@ -24,9 +24,9 @@ class AccountRepository {
     /**
      * What one transaction did to account {@code a}: income and transfers in count up, expenses and transfers out
      * count down. Callers leave deleted and planned transactions out. A balance is the initial balance plus the sum of
-     * this.
+     * this. The figures for planning reuse it, so a balance there is the one the accounts screen shows.
      */
-    private static final String MOVEMENT = """
+    static final String MOVEMENT = """
             case
                 when t.kind = 'INCOME' then t.amount
                 when t.kind = 'EXPENSE' then -t.amount
@@ -36,7 +36,7 @@ class AccountRepository {
 
     private static final String SELECT_WITH_BALANCE = """
             select a.id, a.name, a.type, a.currency, a.initial_balance, a.owner_membership_id, a.archived_at,
-                   a.initial_balance + coalesce(sum(%s), 0) as balance
+                   a.is_reserve, a.initial_balance + coalesce(sum(%s), 0) as balance
             from accounts a
             left join transactions t
                    on t.workspace_id = a.workspace_id
@@ -213,12 +213,14 @@ class AccountRepository {
             UUID accountId,
             @Nullable String name,
             @Nullable AccountType type,
-            @Nullable Money initialBalance) {
+            @Nullable Money initialBalance,
+            @Nullable Boolean isReserve) {
         return jdbc.sql("""
                         update accounts
                         set name = coalesce(cast(:name as text), name),
                             type = coalesce(cast(:type as text), type),
                             initial_balance = coalesce(cast(:initialBalance as numeric), initial_balance),
+                            is_reserve = coalesce(cast(:isReserve as boolean), is_reserve),
                             version = version + 1,
                             updated_at = now()
                         where workspace_id = :workspaceId
@@ -228,6 +230,7 @@ class AccountRepository {
                         .param("name", name)
                         .param("type", type == null ? null : type.name())
                         .param("initialBalance", initialBalance == null ? null : initialBalance.amount())
+                        .param("isReserve", isReserve)
                         .update()
                 == 1;
     }
@@ -330,6 +333,7 @@ class AccountRepository {
                 Money.of(rs.getBigDecimal("initial_balance"), currency),
                 Money.of(rs.getBigDecimal("balance"), currency),
                 rs.getObject("owner_membership_id", UUID.class),
-                archivedAt == null ? null : archivedAt.toInstant());
+                archivedAt == null ? null : archivedAt.toInstant(),
+                rs.getBoolean("is_reserve"));
     }
 }

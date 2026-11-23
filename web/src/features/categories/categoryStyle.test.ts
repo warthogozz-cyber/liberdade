@@ -11,6 +11,7 @@ function category(overrides: Partial<CategoryView> & { name: string }): Category
     color: null,
     parentId: null,
     archivedAt: null,
+    isFixed: false,
     ...overrides,
   }
 }
