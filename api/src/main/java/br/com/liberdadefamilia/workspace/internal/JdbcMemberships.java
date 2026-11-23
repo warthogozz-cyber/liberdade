@@ -6,6 +6,7 @@ import br.com.liberdadefamilia.workspace.MembershipStatus;
 import br.com.liberdadefamilia.workspace.Memberships;
 import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
+import br.com.liberdadefamilia.workspace.WorkspaceRegion;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.ZoneId;
@@ -127,6 +128,14 @@ class JdbcMemberships implements Memberships {
                 .list()
                 .forEach(entry -> names.put(entry.getKey(), entry.getValue()));
         return names;
+    }
+
+    @Override
+    public Optional<WorkspaceRegion> regionOf(UUID workspaceId) {
+        return jdbc.sql("select country, locale from workspaces where id = :id")
+                .param("id", workspaceId)
+                .query((rs, row) -> new WorkspaceRegion(rs.getString("country"), rs.getString("locale")))
+                .optional();
     }
 
     @Override

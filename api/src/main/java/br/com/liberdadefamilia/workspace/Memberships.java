@@ -30,6 +30,9 @@ public interface Memberships {
     /** The memberships of these people in these families, active or removed, in one query. */
     List<MemberSummary> membersOf(Collection<UUID> workspaceIds, Collection<UUID> userIds);
 
+    /** The family's country and language; empty when the family does not exist. */
+    Optional<WorkspaceRegion> regionOf(UUID workspaceId);
+
     /** The names of the families, in one query. A family that does not exist is left out. */
     Map<UUID, String> workspaceNames(Collection<UUID> workspaceIds);
 

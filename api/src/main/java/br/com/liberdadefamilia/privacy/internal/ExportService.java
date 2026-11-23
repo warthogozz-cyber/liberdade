@@ -11,15 +11,20 @@ import br.com.liberdadefamilia.identity.UserProfile;
 import br.com.liberdadefamilia.identity.UserSummary;
 import br.com.liberdadefamilia.ledger.ExportedAccount;
 import br.com.liberdadefamilia.ledger.ExportedCategory;
+import br.com.liberdadefamilia.ledger.ExportedTag;
 import br.com.liberdadefamilia.ledger.ExportedTransaction;
 import br.com.liberdadefamilia.ledger.LedgerExport;
+import br.com.liberdadefamilia.planning.ExportedRecurringRule;
+import br.com.liberdadefamilia.planning.PlanningExport;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.shared.PaymentMethod;
 import br.com.liberdadefamilia.workspace.MemberSummary;
 import br.com.liberdadefamilia.workspace.MembershipStatus;
 import br.com.liberdadefamilia.workspace.Memberships;
 import br.com.liberdadefamilia.workspace.ModuleKey;
 import br.com.liberdadefamilia.workspace.Modules;
 import br.com.liberdadefamilia.workspace.Role;
+import br.com.liberdadefamilia.workspace.WorkspaceRegion;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -57,10 +62,22 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 class ExportService {
 
-    private static final int FORMAT_VERSION = 2;
+    private static final int FORMAT_VERSION = 3;
     private static final ZoneId FORTALEZA = ZoneId.of("America/Fortaleza");
     private static final List<String> TRANSACTION_HEADER = List.of(
-            "data", "tipo", "valor", "moeda", "conta", "conta_destino", "categoria", "descricao", "quem", "criado_em");
+            "data",
+            "tipo",
+            "valor",
+            "moeda",
+            "conta",
+            "conta_destino",
+            "categoria",
+            "descricao",
+            "quem",
+            "criado_em",
+            "status",
+            "forma_pagamento",
+            "tags");
 
     /** The download: its file name and the writer of its bytes. */
     /**
@@ -71,7 +88,7 @@ class ExportService {
      */
     record Archive(String filename, byte[] content) {}
 
-    private record Family(UUID id, String name) {}
+    private record Family(UUID id, String name, String country, String locale) {}
 
     private record PersonalMembership(
             UUID membershipId,
@@ -108,7 +125,21 @@ class ExportService {
             @Nullable String description,
             UUID memberId,
             @Nullable String who,
-            Instant createdAt) {}
+            Instant createdAt,
+            String status,
+            @Nullable PaymentMethod paymentMethod,
+            List<String> tags,
+            @Nullable LocalDate scheduledOn,
+            @Nullable UUID recurringRuleId) {}
+
+    /** A tag the person created, with the family it belongs to. */
+    private record PersonalTag(
+            UUID workspaceId,
+            String familyName,
+            UUID id,
+            String name,
+            Instant createdAt,
+            @Nullable Instant archivedAt) {}
 
     private record Member(UUID id, @Nullable String name, Role role, MembershipStatus status) {}
 
@@ -118,6 +149,7 @@ class ExportService {
             List<PersonalConsent> consents,
             List<ActivityItem> activity,
             List<PersonalTransaction> transactions,
+            List<PersonalTag> tags,
             Map<UUID, Map<UUID, String>> names) {}
 
     /** An order as written in the export: the amount as decimal text, like the rest of it. */
@@ -148,6 +180,8 @@ class ExportService {
             List<ExportedAccount> accounts,
             List<ExportedCategory> categories,
             List<ExportedTransaction> transactions,
+            List<ExportedTag> tags,
+            List<ExportedRecurringRule> recurringRules,
             List<OrderLine> orders,
             @Nullable ExportedPlan plan,
             Map<String, Boolean> modules,
@@ -157,6 +191,7 @@ class ExportService {
     private final Memberships memberships;
     private final Modules modules;
     private final LedgerExport ledger;
+    private final PlanningExport planning;
     private final BillingExport billing;
     private final AuditTrail audit;
     private final ConsentService consents;
@@ -170,6 +205,7 @@ class ExportService {
             Memberships memberships,
             Modules modules,
             LedgerExport ledger,
+            PlanningExport planning,
             BillingExport billing,
             AuditTrail audit,
             ConsentService consents,
@@ -180,6 +216,7 @@ class ExportService {
         this.memberships = memberships;
         this.modules = modules;
         this.ledger = ledger;
+        this.planning = planning;
         this.billing = billing;
         this.audit = audit;
         this.consents = consents;
@@ -232,6 +269,7 @@ class ExportService {
 
         List<PersonalMembership> membershipRows = new ArrayList<>();
         List<PersonalTransaction> transactions = new ArrayList<>();
+        List<PersonalTag> tags = new ArrayList<>();
         Map<UUID, Map<UUID, String>> names = new HashMap<>();
         for (MemberSummary m : mine) {
             String family = familyNames.getOrDefault(m.workspaceId(), "");
@@ -252,13 +290,24 @@ class ExportService {
                         t.description(),
                         t.memberId(),
                         names.get(m.workspaceId()).get(t.memberId()),
-                        t.createdAt()));
+                        t.createdAt(),
+                        t.status(),
+                        t.paymentMethod(),
+                        t.tags(),
+                        t.scheduledOn(),
+                        t.recurringRuleId()));
+            }
+            for (ExportedTag t : ledger.tagsCreatedBy(m.workspaceId(), m.membershipId())) {
+                tags.add(new PersonalTag(m.workspaceId(), family, t.id(), t.name(), t.createdAt(), t.archivedAt()));
             }
         }
         transactions.sort(Comparator.comparing(PersonalTransaction::occurredOn)
                 .thenComparing(PersonalTransaction::createdAt)
                 .thenComparing(PersonalTransaction::id)
                 .reversed());
+        tags.sort(Comparator.comparing(PersonalTag::familyName)
+                .thenComparing(PersonalTag::name)
+                .thenComparing(PersonalTag::id));
 
         List<PersonalConsent> consentRows = consents.listForExport(userId).stream()
                 .map(c -> new PersonalConsent(
@@ -273,11 +322,13 @@ class ExportService {
                         c.revokedAt(),
                         c.supersededAt()))
                 .toList();
-        return new PersonalData(profile, membershipRows, consentRows, audit.allActivityOf(userId), transactions, names);
+        return new PersonalData(
+                profile, membershipRows, consentRows, audit.allActivityOf(userId), transactions, tags, names);
     }
 
     private FamilyData loadFamily(UUID workspaceId) {
         String name = memberships.workspaceNames(Set.of(workspaceId)).getOrDefault(workspaceId, "");
+        WorkspaceRegion region = memberships.regionOf(workspaceId).orElseThrow();
         Map<UUID, String> names = namesOf(workspaceId);
         List<Member> members = memberships.all(workspaceId).stream()
                 .map(m -> new Member(m.membershipId(), names.get(m.membershipId()), m.role(), m.status()))
@@ -287,11 +338,13 @@ class ExportService {
             enabled.put(key.wire(), modules.isEnabled(workspaceId, key));
         }
         return new FamilyData(
-                new Family(workspaceId, name),
+                new Family(workspaceId, name, region.country(), region.locale()),
                 members,
                 ledger.accounts(workspaceId),
                 ledger.categories(workspaceId),
                 ledger.transactions(workspaceId),
+                ledger.tags(workspaceId),
+                planning.rules(workspaceId),
                 billing.orders(workspaceId).stream().map(OrderLine::of).toList(),
                 billing.plan(workspaceId).orElse(null),
                 enabled,
@@ -342,6 +395,7 @@ class ExportService {
         root.put("passkeys", passkeys);
         root.put("activity", data.activity());
         root.put("transactions", data.transactions());
+        root.put("tags", data.tags());
 
         List<List<String>> rows = new ArrayList<>();
         for (PersonalTransaction t : data.transactions()) {
@@ -356,7 +410,10 @@ class ExportService {
                     t.categoryName(),
                     t.description(),
                     t.who(),
-                    t.createdAt()));
+                    t.createdAt(),
+                    t.status(),
+                    t.paymentMethod(),
+                    t.tags()));
             rows.add(row);
         }
         List<String> header = new ArrayList<>(List.of("familia"));
@@ -389,6 +446,8 @@ class ExportService {
         root.put("accounts", data.accounts());
         root.put("categories", data.categories());
         root.put("transactions", data.transactions());
+        root.put("recurringRules", data.recurringRules());
+        root.put("tags", data.tags());
         root.put("modules", data.modules());
         root.put("orders", data.orders());
         root.put("plan", data.plan());
@@ -404,7 +463,10 @@ class ExportService {
                     t.categoryName(),
                     t.description(),
                     data.names().get(t.memberId()),
-                    t.createdAt()));
+                    t.createdAt(),
+                    t.status(),
+                    t.paymentMethod(),
+                    t.tags()));
         }
         List<List<String>> accountRows = new ArrayList<>();
         for (ExportedAccount a : data.accounts()) {
@@ -421,6 +483,32 @@ class ExportService {
         }
         Map<UUID, String> categoryNames = new HashMap<>();
         data.categories().forEach(c -> categoryNames.put(c.id(), c.name()));
+        Map<UUID, String> accountNames = new HashMap<>();
+        data.accounts().forEach(a -> accountNames.put(a.id(), a.name()));
+        List<List<String>> ruleRows = new ArrayList<>();
+        for (ExportedRecurringRule r : data.recurringRules()) {
+            UUID category = r.categoryId();
+            LocalDate endOn = r.endOn();
+            Instant archivedAt = r.archivedAt();
+            ruleRows.add(List.of(
+                    Labels.transactionKind(r.kind()),
+                    CsvWriter.amount(r.amount().amount()),
+                    r.amount().currency().getCurrencyCode(),
+                    accountNames.getOrDefault(r.accountId(), ""),
+                    category == null ? "" : categoryNames.getOrDefault(category, ""),
+                    Labels.paymentMethod(r.paymentMethod()),
+                    orEmpty(r.description()),
+                    Labels.frequency(r.frequency()),
+                    Integer.toString(r.interval()),
+                    r.startOn().toString(),
+                    endOn == null ? "" : endOn.toString(),
+                    archivedAt == null ? "" : archivedAt.toString()));
+        }
+        List<List<String>> tagRows = new ArrayList<>();
+        for (ExportedTag t : data.tags()) {
+            Instant archivedAt = t.archivedAt();
+            tagRows.add(List.of(t.name(), archivedAt == null ? "" : archivedAt.toString()));
+        }
         List<List<String>> categoryRows = new ArrayList<>();
         for (ExportedCategory c : data.categories()) {
             UUID parent = c.parentId();
@@ -448,6 +536,25 @@ class ExportService {
         files.put(
                 "categorias.csv", csv.toBytes(List.of("nome", "tipo", "categoria_pai", "arquivada_em"), categoryRows));
         files.put("membros.csv", csv.toBytes(List.of("apelido", "papel", "situacao"), memberRows));
+        files.put(
+                "recorrencias.csv",
+                csv.toBytes(
+                        List.of(
+                                "tipo",
+                                "valor",
+                                "moeda",
+                                "conta",
+                                "categoria",
+                                "forma_pagamento",
+                                "descricao",
+                                "frequencia",
+                                "intervalo",
+                                "inicio",
+                                "fim",
+                                "arquivada_em"),
+                        ruleRows,
+                        Set.of(1)));
+        files.put("tags.csv", csv.toBytes(List.of("nome", "arquivada_em"), tagRows));
         zip(out, files);
     }
 
@@ -460,7 +567,10 @@ class ExportService {
             @Nullable String category,
             @Nullable String description,
             @Nullable String who,
-            Instant createdAt) {
+            Instant createdAt,
+            String status,
+            @Nullable PaymentMethod paymentMethod,
+            List<String> tags) {
         return List.of(
                 occurredOn.toString(),
                 Labels.transactionKind(kind),
@@ -471,7 +581,10 @@ class ExportService {
                 orEmpty(category),
                 orEmpty(description),
                 orEmpty(who),
-                createdAt.toString());
+                createdAt.toString(),
+                Labels.transactionStatus(status),
+                Labels.paymentMethod(paymentMethod),
+                String.join("; ", tags));
     }
 
     private static String orEmpty(@Nullable String value) {
@@ -513,6 +626,33 @@ class ExportService {
                 case "INCOME" -> "Receita";
                 case "TRANSFER" -> "Transferência";
                 default -> kind;
+            };
+        }
+
+        static String transactionStatus(String status) {
+            return "PLANNED".equals(status) ? "Previsto" : "Confirmado";
+        }
+
+        static String paymentMethod(@Nullable PaymentMethod method) {
+            if (method == null) {
+                return "";
+            }
+            return switch (method) {
+                case PIX -> "Pix";
+                case CREDIT_CARD -> "Crédito";
+                case DEBIT_CARD -> "Débito";
+                case BOLETO -> "Boleto";
+                case BANK_TRANSFER -> "TED";
+                case CASH -> "Dinheiro";
+            };
+        }
+
+        static String frequency(String frequency) {
+            return switch (frequency) {
+                case "WEEKLY" -> "Semanal";
+                case "MONTHLY" -> "Mensal";
+                case "YEARLY" -> "Anual";
+                default -> frequency;
             };
         }
 
