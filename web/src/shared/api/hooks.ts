@@ -17,7 +17,7 @@ import {
 } from './endpoints'
 import { ApiError } from './errors'
 import { queryKeys } from './queryKeys'
-import type { CategoryKind, MeWorkspace, TransactionFilters } from './types'
+import type { CategoryKind, MeWorkspace, PaymentMethod, TransactionFilters } from './types'
 import {
   readSelectedWorkspaceId,
   selectWorkspace,
@@ -43,10 +43,10 @@ const transactionsQuery = (ws: string, month: string, filters?: TransactionFilte
     queryFn: () => listTransactions(ws, month, filters),
   })
 
-const dashboardQuery = (ws: string, month: string) =>
+const dashboardQuery = (ws: string, month: string, paymentMethod?: PaymentMethod) =>
   queryOptions({
-    queryKey: queryKeys.dashboard(ws, month),
-    queryFn: () => getDashboard(ws, month),
+    queryKey: queryKeys.dashboard(ws, month, paymentMethod),
+    queryFn: () => getDashboard(ws, month, paymentMethod),
   })
 
 export function useMe() {
@@ -104,8 +104,8 @@ export function useTransactions(ws: string, month: string, filters?: Transaction
   return useQuery(transactionsQuery(ws, month, filters))
 }
 
-export function useDashboard(ws: string, month: string) {
-  return useQuery(dashboardQuery(ws, month))
+export function useDashboard(ws: string, month: string, paymentMethod?: PaymentMethod) {
+  return useQuery(dashboardQuery(ws, month, paymentMethod))
 }
 
 /**

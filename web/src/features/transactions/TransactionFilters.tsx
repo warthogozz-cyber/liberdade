@@ -1,5 +1,11 @@
 import { useIntl } from 'react-intl'
-import type { AccountView, CategoryView, TransactionFilters as Filters } from '@/shared/api'
+import type {
+  AccountView,
+  CategoryView,
+  PaymentMethod,
+  TagView,
+  TransactionFilters as Filters,
+} from '@/shared/api'
 import { Sheet } from '@/shared/ui/Sheet'
 import { categoryLabel } from './listItems'
 
@@ -12,6 +18,10 @@ interface TransactionFiltersProps {
   categories: CategoryView[]
   /** Every account, archived ones too. */
   accounts: AccountView[]
+  /** The family's active tags. */
+  tags: TagView[]
+  /** The family's payment methods, in the order they are shown. */
+  paymentMethods: PaymentMethod[]
 }
 
 const option =
@@ -27,7 +37,7 @@ function inTree(categories: CategoryView[]): CategoryView[] {
   ])
 }
 
-/** The sheet that narrows the list to a category and an account; a tap applies at once. */
+/** The sheet that narrows the list to a category, an account, a tag and a payment method; a tap applies at once. */
 export function TransactionFilters({
   open,
   onOpenChange,
@@ -35,6 +45,8 @@ export function TransactionFilters({
   onChange,
   categories,
   accounts,
+  tags,
+  paymentMethods,
 }: TransactionFiltersProps) {
   const intl = useIntl()
   const archived = intl.formatMessage({ id: 'transactions.filter.archived' })
@@ -80,6 +92,38 @@ export function TransactionFilters({
                 onChange={() => onChange({ ...filters, accountId: account.id })}
               />
               {account.archivedAt === null ? account.name : `${account.name} ${archived}`}
+            </label>
+          ))}
+        </fieldset>
+        <fieldset>
+          <legend className="mb-2 font-medium">
+            {intl.formatMessage({ id: 'transactions.filter.tag' })}
+          </legend>
+          {tags.map((tag) => (
+            <label key={tag.id} className={option}>
+              <input
+                type="radio"
+                name="filter-tag"
+                checked={filters.tagId === tag.id}
+                onChange={() => onChange({ ...filters, tagId: tag.id })}
+              />
+              {tag.name}
+            </label>
+          ))}
+        </fieldset>
+        <fieldset>
+          <legend className="mb-2 font-medium">
+            {intl.formatMessage({ id: 'payment.label' })}
+          </legend>
+          {paymentMethods.map((method) => (
+            <label key={method} className={option}>
+              <input
+                type="radio"
+                name="filter-payment-method"
+                checked={filters.paymentMethod === method}
+                onChange={() => onChange({ ...filters, paymentMethod: method })}
+              />
+              {intl.formatMessage({ id: `payment.${method}` })}
             </label>
           ))}
         </fieldset>

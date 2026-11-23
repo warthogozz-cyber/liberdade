@@ -33,6 +33,8 @@ interface TransactionRowProps {
   onDelete: (id: string) => void
 }
 
+const SHOWN_TAGS = 2
+
 /** A transaction of the list; a queued one says it waits for the signal or needs attention. */
 export function TransactionRow({
   item,
@@ -66,6 +68,19 @@ export function TransactionRow({
         .join(' · ')
   const outbox = item.outbox
   const saved = outbox === undefined
+  // The method and up to two tags; the detail has them all.
+  const extras = [
+    item.paymentMethod ? intl.formatMessage({ id: `payment.${item.paymentMethod}` }) : undefined,
+    ...item.tags.slice(0, SHOWN_TAGS),
+    item.tags.length > SHOWN_TAGS
+      ? intl.formatMessage(
+          { id: 'transactions.tagsMore' },
+          { count: item.tags.length - SHOWN_TAGS },
+        )
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   const summary = (
     <>
@@ -100,6 +115,7 @@ export function TransactionRow({
           </button>
         )}
       </div>
+      {extras && <div className="w-full text-sm text-text-muted">{extras}</div>}
     </>
   )
 

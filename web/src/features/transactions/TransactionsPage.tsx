@@ -8,10 +8,13 @@ import {
   useDeleteTransaction,
   useMe,
   useRestoreTransaction,
+  useTags,
   useTransactions,
   type AccountView,
   type CategoryView,
   type MeWorkspace,
+  type PaymentMethod,
+  type TagView,
   type TransactionFilters as Filters,
 } from '@/shared/api'
 import { useMembers } from '@/shared/api/family'
@@ -55,6 +58,7 @@ interface ScreenProps {
 }
 
 function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
+  const intl = useIntl()
   const online = useOnline()
   const [params, setParams] = useSearchParams()
   const now = new Date()
@@ -62,21 +66,36 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
   const month = monthFromParam(params.get('mes'), now, workspace.timezone)
   const categoryId = params.get('categoria') ?? undefined
   const accountId = params.get('conta') ?? undefined
+  const tagId = params.get('tag') ?? undefined
+  const methodParam = params.get('forma')
+  const paymentMethod = workspace.paymentMethods.find((method) => method === methodParam)
   const filters = useMemo<Filters>(
-    () => ({ ...(categoryId && { categoryId }), ...(accountId && { accountId }) }),
-    [categoryId, accountId],
+    () => ({
+      ...(categoryId && { categoryId }),
+      ...(accountId && { accountId }),
+      ...(tagId && { tagId }),
+      ...(paymentMethod && { paymentMethod }),
+    }),
+    [categoryId, accountId, tagId, paymentMethod],
   )
   const [filtering, setFiltering] = useState(false)
   const transactions = useTransactions(workspace.id, month, filters)
   const expenseCategories = useCategories(workspace.id, 'EXPENSE').data
   const incomeCategories = useCategories(workspace.id, 'INCOME').data
   const accountList = useAccounts(workspace.id).data
+  const tagList = useTags(workspace.id).data
   const categoryList = useMemo(
     () => [...(expenseCategories ?? []), ...(incomeCategories ?? [])],
     [expenseCategories, incomeCategories],
   )
 
-  function update(next: { month?: string; categoryId?: string | null; accountId?: string | null }) {
+  function update(next: {
+    month?: string
+    categoryId?: string | null
+    accountId?: string | null
+    tagId?: string | null
+    paymentMethod?: PaymentMethod | null
+  }) {
     const merged = new URLSearchParams(params)
     const set = (key: string, value: string | null | undefined) => {
       if (value === undefined) return
@@ -86,6 +105,8 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
     set('mes', next.month)
     set('categoria', next.categoryId)
     set('conta', next.accountId)
+    set('tag', next.tagId)
+    set('forma', next.paymentMethod)
     setParams(merged)
   }
 
@@ -123,17 +144,36 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
             onClear={() => update({ accountId: null })}
           />
         )}
+        {tagId && (
+          <FilterChip
+            label={tagList?.find(({ id }) => id === tagId)?.name ?? ''}
+            onClear={() => update({ tagId: null })}
+          />
+        )}
+        {paymentMethod && (
+          <FilterChip
+            label={intl.formatMessage({ id: `payment.${paymentMethod}` })}
+            onClear={() => update({ paymentMethod: null })}
+          />
+        )}
       </div>
       <TransactionFilters
         open={filtering}
         onOpenChange={setFiltering}
         filters={filters}
         onChange={(next) => {
-          update({ categoryId: next.categoryId ?? null, accountId: next.accountId ?? null })
+          update({
+            categoryId: next.categoryId ?? null,
+            accountId: next.accountId ?? null,
+            tagId: next.tagId ?? null,
+            paymentMethod: next.paymentMethod ?? null,
+          })
           setFiltering(false)
         }}
         categories={categoryList}
         accounts={accountList ?? []}
+        tags={tagList ?? []}
+        paymentMethods={workspace.paymentMethods}
       />
       <TransactionList
         userId={userId}
@@ -144,6 +184,7 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
         online={online}
         categoryList={categoryList}
         accountList={accountList}
+        tagList={tagList}
         transactions={transactions}
       />
     </>
@@ -181,6 +222,7 @@ interface TransactionListProps {
   online: boolean
   categoryList: CategoryView[]
   accountList: AccountView[] | undefined
+  tagList: TagView[] | undefined
   transactions: ReturnType<typeof useTransactions>
 }
 
@@ -192,8 +234,14 @@ function queuedBelongs(
   { payload }: OutboxItem,
   filters: Filters,
   categoryList: CategoryView[],
+  tagList: TagView[] | undefined,
 ): boolean {
-  const { accountId, categoryId } = filters
+  const { accountId, categoryId, tagId, paymentMethod } = filters
+  if (paymentMethod && (payload.paymentMethod ?? null) !== paymentMethod) return false
+  if (tagId) {
+    const name = tagList?.find(({ id }) => id === tagId)?.name.toLowerCase()
+    if (!name || !(payload.tags ?? []).some((each) => each?.toLowerCase() === name)) return false
+  }
   if (accountId && payload.accountId !== accountId && payload.toAccountId !== accountId)
     return false
   if (categoryId) {
@@ -215,6 +263,7 @@ function TransactionList({
   online,
   categoryList,
   accountList,
+  tagList,
   transactions,
 }: TransactionListProps) {
   const intl = useIntl()
@@ -237,7 +286,9 @@ function TransactionList({
     () => new Map((memberList ?? []).map((each) => [each.id, each])),
     [memberList],
   )
-  const queued = (outbox ?? []).filter((item) => queuedBelongs(item, filters, categoryList))
+  const queued = (outbox ?? []).filter((item) =>
+    queuedBelongs(item, filters, categoryList, tagList),
+  )
   const groups = groupByDay(mergeTransactions(transactions.data, queued))
 
   function failed(error: unknown) {

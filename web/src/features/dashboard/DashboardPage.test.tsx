@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
@@ -221,6 +221,29 @@ describe('DashboardPage', () => {
     expect(screen.queryByRole('heading', { name: 'Gastos por categoria' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Saldo no mês' })).toBeInTheDocument()
     expect(screen.getAllByRole('table', { hidden: true })).toHaveLength(1)
+  })
+
+  it('filters the month by the chosen payment method', async () => {
+    seedMockFamily()
+    const methods: (string | null)[] = []
+    server.use(
+      http.get(DASHBOARD, ({ request }) => {
+        const params = new URL(request.url).searchParams
+        methods.push(params.get('paymentMethod'))
+        return HttpResponse.json(prdDashboard(params.get('month')!))
+      }),
+    )
+    renderPainel()
+
+    const select = await screen.findByRole('combobox', { name: 'Forma de pagamento' })
+    expect(within(select).getByRole('option', { name: 'Todas as formas' })).toBeInTheDocument()
+    await within(await card('Receitas')).findByText('R$ 5.000,00')
+    expect(methods).toEqual([null])
+
+    fireEvent.change(select, { target: { value: 'CASH' } })
+
+    await waitFor(() => expect(methods.at(-1)).toBe('CASH'))
+    expect(select).toHaveValue('CASH')
   })
 
   it('offlineShowsCache', async () => {

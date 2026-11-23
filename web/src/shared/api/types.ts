@@ -28,10 +28,14 @@ export type TransactionKind = CreateTransactionRequest['kind']
 export type ApiMoney = Schemas['Money']
 /** The kinds a category list can be asked for. Transfers have no categories (D23). */
 export type CategoryKind = operations['listCategories']['parameters']['query']['kind']
-/** What narrows the month's list: a category (with its subcategories) and an account. */
+export type PaymentMethod = NonNullable<CreateTransactionRequest['paymentMethod']>
+export type TagView = Schemas['TagView']
+/** What narrows the month's list: a category (with its subcategories), an account, a tag, a payment method. */
 export interface TransactionFilters {
   categoryId?: string
   accountId?: string
+  tagId?: string
+  paymentMethod?: PaymentMethod
 }
 export type MemberView = Schemas['MemberView']
 export type MemberRole = MemberView['role']

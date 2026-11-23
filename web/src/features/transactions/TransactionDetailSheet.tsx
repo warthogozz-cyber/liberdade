@@ -98,6 +98,11 @@ export function TransactionDetailSheet({
     [text('transactions.detail.amount'), amount],
     [text('transactions.detail.date'), date],
     ...where,
+    [
+      text('transactions.detail.paymentMethod'),
+      item.paymentMethod ? intl.formatMessage({ id: `payment.${item.paymentMethod}` }) : undefined,
+    ],
+    [text('transactions.detail.tags'), item.tags.join(', ') || undefined],
     [text('transactions.detail.description'), item.description ?? undefined],
     [text('transactions.detail.by'), by],
   ]

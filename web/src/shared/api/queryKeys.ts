@@ -1,4 +1,4 @@
-import type { CategoryKind, TransactionFilters } from './types'
+import type { CategoryKind, PaymentMethod, TransactionFilters } from './types'
 
 /** Everything a family owns sits under this key, so one invalidation reaches all of it. */
 function workspace(ws: string) {
@@ -18,12 +18,22 @@ export const queryKeys = {
       ...workspace(ws),
       'transactions',
       month,
-      ...(filters?.categoryId || filters?.accountId
-        ? [{ categoryId: filters.categoryId ?? null, accountId: filters.accountId ?? null }]
+      ...(filters?.categoryId || filters?.accountId || filters?.tagId || filters?.paymentMethod
+        ? [
+            {
+              categoryId: filters.categoryId ?? null,
+              accountId: filters.accountId ?? null,
+              tagId: filters.tagId ?? null,
+              paymentMethod: filters.paymentMethod ?? null,
+            },
+          ]
         : []),
     ] as const,
   members: (ws: string) => [...workspace(ws), 'members'] as const,
   invitations: (ws: string) => [...workspace(ws), 'invitations'] as const,
   modules: (ws: string) => [...workspace(ws), 'modules'] as const,
-  dashboard: (ws: string, month: string) => [...workspace(ws), 'dashboard', month] as const,
+  /** The payment method takes part in the key only when one is set. */
+  dashboard: (ws: string, month: string, paymentMethod?: PaymentMethod) =>
+    [...workspace(ws), 'dashboard', month, ...(paymentMethod ? [{ paymentMethod }] : [])] as const,
+  tags: (ws: string) => [...workspace(ws), 'tags'] as const,
 }

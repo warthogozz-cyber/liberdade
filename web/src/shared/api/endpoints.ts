@@ -13,6 +13,8 @@ import type {
   DashboardView,
   MeView,
   ModuleView,
+  PaymentMethod,
+  TagView,
   TransactionFilters,
   TransactionView,
   UpdateTransactionRequest,
@@ -60,18 +62,43 @@ export function listCategories(ws: string, kind: CategoryKind): Promise<Category
 export function listTransactions(
   ws: string,
   month: string,
-  { categoryId, accountId }: TransactionFilters = {},
+  { categoryId, accountId, tagId, paymentMethod }: TransactionFilters = {},
 ): Promise<TransactionView[]> {
   return unwrap(
     client.GET('/v1/workspaces/{ws}/transactions', {
-      params: { path: { ws }, query: { month, categoryId, accountId } },
+      params: { path: { ws }, query: { month, categoryId, accountId, tagId, paymentMethod } },
     }),
   )
 }
 
-export function getDashboard(ws: string, month: string): Promise<DashboardView> {
+export function getDashboard(
+  ws: string,
+  month: string,
+  paymentMethod?: PaymentMethod,
+): Promise<DashboardView> {
   return unwrap(
-    client.GET('/v1/workspaces/{ws}/dashboard', { params: { path: { ws }, query: { month } } }),
+    client.GET('/v1/workspaces/{ws}/dashboard', {
+      params: { path: { ws }, query: { month, paymentMethod } },
+    }),
+  )
+}
+
+/** The family's active tags (a Youth gets the ones they may use). */
+export function listTags(ws: string): Promise<TagView[]> {
+  return unwrap(client.GET('/v1/workspaces/{ws}/tags', { params: { path: { ws } } }))
+}
+
+/** Renames a tag. A name an active tag already has is a 409 `tag.name-taken`. */
+export function renameTag(ws: string, id: string, name: string): Promise<TagView> {
+  return unwrap(
+    client.PATCH('/v1/workspaces/{ws}/tags/{id}', { params: { path: { ws, id } }, body: { name } }),
+  )
+}
+
+/** Archives a tag; archiving it again changes nothing. */
+export async function archiveTag(ws: string, id: string): Promise<void> {
+  await unwrap(
+    client.POST('/v1/workspaces/{ws}/tags/{id}/archive', { params: { path: { ws, id } } }),
   )
 }
 

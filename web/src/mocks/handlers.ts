@@ -479,12 +479,13 @@ function topCategoryId(categoryId: string): string {
 }
 
 /** The month's spending by top-level category, this month and last, ranked as the API ranks it. */
-function categoriesFor(month: string, currency: string) {
+function categoriesFor(month: string, currency: string, paymentMethod: string | null) {
   const [year, number] = month.split('-').map(Number)
   const previousMonth = new Date(Date.UTC(year, number - 2, 1)).toISOString().slice(0, 7)
   const totals = new Map<string, { current: bigint; previous: bigint }>()
   for (const transaction of activeTransactions()) {
     if (transaction.kind !== 'EXPENSE' || transaction.categoryId === null) continue
+    if (paymentMethod !== null && transaction.paymentMethod !== paymentMethod) continue
     const current = transaction.occurredOn.startsWith(`${month}-`)
     if (!current && !transaction.occurredOn.startsWith(`${previousMonth}-`)) continue
     const id = topCategoryId(transaction.categoryId)
@@ -520,7 +521,7 @@ function categoriesFor(month: string, currency: string) {
 }
 
 /** The month at a glance, computed as the API does: the balance of the active accounts at each day's end. */
-function dashboardFor(month: string, currency: string) {
+function dashboardFor(month: string, currency: string, paymentMethod: string | null = null) {
   const [year, number] = month.split('-').map(Number)
   const days = new Date(Date.UTC(year, number, 0)).getUTCDate()
   const transactions = activeTransactions().filter(
@@ -538,6 +539,8 @@ function dashboardFor(month: string, currency: string) {
       continue
     }
     moved[Number(transaction.occurredOn.slice(8, 10)) - 1] += effect
+    // The payment method narrows what was spent and earned; the balance stays the accounts' own.
+    if (paymentMethod !== null && transaction.paymentMethod !== paymentMethod) continue
     if (transaction.kind === 'INCOME') income += parseCents(transaction.amount.amount)
     if (transaction.kind === 'EXPENSE') expenses += parseCents(transaction.amount.amount)
   }
@@ -554,7 +557,7 @@ function dashboardFor(month: string, currency: string) {
     expenses: money(expenses, currency),
     result: money(income - expenses, currency),
     balance: money(balance, currency),
-    byCategory: categoriesFor(month, currency),
+    byCategory: categoriesFor(month, currency, paymentMethod),
     dailyBalance,
   }
 }
@@ -575,6 +578,7 @@ interface Proposed {
   toAccountId: string | null
   categoryId: string | null
   memberId: string
+  paymentMethod: string | null
 }
 
 /** Whether the person is an active member of the family. */
@@ -612,6 +616,12 @@ function familyRuleFailure(
     return rejected(
       'transaction.transfer-invalid',
       'Uma transferência precisa de duas contas diferentes e não leva categoria.',
+    )
+  }
+  if (transfer && proposed.paymentMethod !== null) {
+    return rejected(
+      'transaction.payment-method-transfer',
+      'Uma transferência não leva forma de pagamento.',
     )
   }
   if (!transfer && categoryId === null) {
@@ -1860,6 +1870,7 @@ export const handlers = [
     const categoryId = search.get('categoryId')
     const accountId = search.get('accountId')
     const tagId = search.get('tagId')
+    const paymentMethod = search.get('paymentMethod')
     if (!MONTH.test(month)) return malformed()
     if ([categoryId, accountId, tagId].some((id) => id !== null && !UUID.test(id)))
       return malformed()
@@ -1877,6 +1888,7 @@ export const handlers = [
         .filter(
           (transaction) =>
             transaction.occurredOn.startsWith(`${month}-`) &&
+            (paymentMethod === null || transaction.paymentMethod === paymentMethod) &&
             (tagId === null ||
               (tagName !== undefined && transaction.tags.some((name) => name === tagName))) &&
             (categoryId === null ||
@@ -2038,10 +2050,11 @@ export const handlers = [
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/dashboard'), ({ request, params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace
-    const month = new URL(request.url).searchParams.get('month') ?? ''
+    const search = new URL(request.url).searchParams
+    const month = search.get('month') ?? ''
     if (!MONTH.test(month)) return malformed()
     const outOfRange = monthOutOfRange(workspace, month)
     if (outOfRange) return outOfRange
-    return HttpResponse.json(dashboardFor(month, workspace.currency))
+    return HttpResponse.json(dashboardFor(month, workspace.currency, search.get('paymentMethod')))
   }),
 ]

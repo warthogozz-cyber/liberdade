@@ -8,6 +8,7 @@ import {
   useFormatMoney,
   useMe,
   type MeWorkspace,
+  type PaymentMethod,
 } from '@/shared/api'
 import { addMonths, currentMonth, maxMonth, monthFromParam } from '@/shared/i18n'
 import { parseCents } from '@/shared/money'
@@ -76,7 +77,9 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
   const thisMonth = currentMonth(now, workspace.timezone)
   const lastMonth = maxMonth(now, workspace.timezone)
   const month = monthFromParam(params.get('mes'), now, workspace.timezone)
-  const dashboard = useDashboard(workspace.id, month)
+  const methodParam = params.get('forma')
+  const paymentMethod = workspace.paymentMethods.find((method) => method === methodParam)
+  const dashboard = useDashboard(workspace.id, month, paymentMethod)
   const categories = useCategories(workspace.id, 'EXPENSE').data
   const pending = usePendingTotals(userId, workspace.id, month)
   const data = dashboard.data
@@ -122,10 +125,18 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
     setParams(merged)
   }
 
+  function setPaymentMethod(next: PaymentMethod | undefined) {
+    const merged = new URLSearchParams(params)
+    if (next) merged.set('forma', next)
+    else merged.delete('forma')
+    setParams(merged)
+  }
+
   let content: ReactNode
   if (data) {
-    // The queue only counts in the current month; the others are what the server says.
-    const queued = month === thisMonth ? pending : null
+    // The queue only counts in the current month, and not for a payment method: it says nothing of
+    // what the server would count under it.
+    const queued = month === thisMonth && !paymentMethod ? pending : null
     const queuedIncome = queued?.monthIncome ?? 0n
     const queuedExpenses = queued?.monthExpenses ?? 0n
     const queuedBalance = queued?.balanceDelta ?? 0n
@@ -346,6 +357,25 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
   return (
     <>
       <MonthSwitcher month={month} onChange={setMonth} max={lastMonth} />
+      <label className="flex flex-col gap-1 font-medium">
+        <FormattedMessage id="payment.label" />
+        <select
+          value={paymentMethod ?? ''}
+          onChange={(event) =>
+            setPaymentMethod(
+              workspace.paymentMethods.find((method) => method === event.target.value),
+            )
+          }
+          className="min-h-12 rounded-field border border-text-muted/30 bg-surface px-3 font-normal"
+        >
+          <option value="">{intl.formatMessage({ id: 'payment.all' })}</option>
+          {workspace.paymentMethods.map((method) => (
+            <option key={method} value={method}>
+              {intl.formatMessage({ id: `payment.${method}` })}
+            </option>
+          ))}
+        </select>
+      </label>
       {content}
       <Link
         to={`/painel/retrato?mes=${month}`}
