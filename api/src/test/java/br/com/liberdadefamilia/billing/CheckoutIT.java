@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.billing;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
+import br.com.liberdadefamilia.billing.domain.FounderOffer;
 import br.com.liberdadefamilia.billing.internal.CheckoutRequest;
 import br.com.liberdadefamilia.billing.internal.CheckoutSession;
 import br.com.liberdadefamilia.billing.internal.PaymentGateway;
@@ -23,9 +24,12 @@ import java.util.function.Function;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -38,6 +42,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 /** Starting the Founder checkout: who may, what is stored and what happens when the gateway misbehaves. */
 @SpringBootTest
 @AutoConfigureMockMvc
+@ExtendWith(OutputCaptureExtension.class)
 @Import({TestcontainersConfiguration.class, CheckoutIT.ScriptedGateway.class})
 class CheckoutIT {
 
@@ -117,6 +122,8 @@ class CheckoutIT {
         assertThat(audit.get("workspace_id")).isEqualTo(f.ws);
         assertThat(audit.get("actor_user_id")).isEqualTo(f.owner);
         assertThat(audit.get("product")).isEqualTo("FOUNDER_2026");
+        // AuditListeners spells the product out; a new product must change it too.
+        assertThat(audit.get("product")).isEqualTo(FounderOffer.PRODUCT);
     }
 
     @Test
@@ -207,6 +214,60 @@ class CheckoutIT {
     }
 
     @Test
+    void linkOnAnotherPortIsRejected() {
+        ScriptedGateway.script =
+                request -> new CheckoutSession("chk_port", URI.create("https://checkout.e2e.test:8443/c/x"));
+        Family f = family();
+
+        assertFailedAndCanceled(checkout(f.owner, f.ws), f.ws);
+    }
+
+    @Test
+    void linkOnTheDefaultPortIsAllowed() {
+        ScriptedGateway.script =
+                request -> new CheckoutSession("chk_443", URI.create("https://checkout.e2e.test:443/c/x"));
+        Family f = family();
+
+        assertThat(checkout(f.owner, f.ws)).hasStatus(201);
+    }
+
+    @Test
+    void unexpectedGatewayErrorCancels(CapturedOutput output) throws Exception {
+        ScriptedGateway.script = request -> {
+            throw new IllegalStateException("boom with secret detail");
+        };
+        Family f = family();
+        int before = output.getAll().length();
+
+        MvcTestResult result = checkout(f.owner, f.ws);
+
+        assertFailedAndCanceled(result, f.ws);
+        String logged = output.getAll().substring(before);
+        assertThat(logged)
+                .contains("checkout failed at the gateway (" + IllegalStateException.class.getName() + ")")
+                .doesNotContain("boom with secret detail");
+    }
+
+    @Test
+    void failuresDoNotLogTheOrderId(CapturedOutput output) throws Exception {
+        ScriptedGateway.script = request -> {
+            throw new PaymentGatewayException(500);
+        };
+        Family f = family();
+        int before = output.getAll().length();
+
+        checkout(f.owner, f.ws);
+        ScriptedGateway.script = request -> new CheckoutSession("chk_evil", URI.create("https://evil.example/c/x"));
+        checkout(f.owner, f.ws);
+
+        String logged = output.getAll().substring(before);
+        assertThat(logged).contains("checkout failed at the gateway").contains("outside the allowed hosts");
+        for (UUID id : orderIds(f.ws)) {
+            assertThat(logged).doesNotContain(id.toString());
+        }
+    }
+
+    @Test
     void gatewayFailureCancels() throws Exception {
         ScriptedGateway.script = request -> {
             throw new PaymentGatewayException(500);
@@ -248,6 +309,13 @@ class CheckoutIT {
         return jdbc.sql("select status from billing_orders where workspace_id = :ws order by created_at")
                 .param("ws", ws)
                 .query(String.class)
+                .list();
+    }
+
+    private List<UUID> orderIds(UUID ws) {
+        return jdbc.sql("select id from billing_orders where workspace_id = :ws")
+                .param("ws", ws)
+                .query(UUID.class)
                 .list();
     }
 

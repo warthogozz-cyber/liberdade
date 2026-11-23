@@ -5,8 +5,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.List;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -88,11 +86,7 @@ class BillingPurgeJob {
         }
         log.info("Billing purge: {} events, {} paid orders, {} unpaid orders removed", events, paid, unpaid);
 
-        try {
-            remindStuckRefunds(stuckCutoff);
-        } catch (RuntimeException failure) {
-            log.warn("billing purge: alert step failed ({})", failure.getClass().getName());
-        }
+        remindStuckRefunds(stuckCutoff);
     }
 
     /** Runs the delete (which takes {@code %d} for the batch size) until a batch comes back short. */
@@ -109,17 +103,28 @@ class BillingPurgeJob {
         return total;
     }
 
-    /** One alert per order stuck in REFUND_PENDING, with no id in the line. */
+    /** One alert per order stuck in REFUND_PENDING, with no id in the line; one failing alert does not stop the rest. */
     private void remindStuckRefunds(Instant cutoff) {
-        List<UUID> stuck = jdbc.sql("""
-                        select id from billing_orders
-                         where status = 'REFUND_PENDING' and refund_requested_at < :cutoff
-                         order by refund_requested_at, id""")
-                .param("cutoff", Timestamp.from(cutoff))
-                .query(UUID.class)
-                .list();
-        for (int i = 0; i < stuck.size(); i++) {
-            alerts.raise(AlertType.REFUND_STUCK);
+        long stuck;
+        try {
+            stuck = jdbc.sql("""
+                            select count(*) from billing_orders
+                             where status = 'REFUND_PENDING' and refund_requested_at < :cutoff""")
+                    .param("cutoff", Timestamp.from(cutoff))
+                    .query(Long.class)
+                    .single();
+        } catch (RuntimeException failure) {
+            log.warn("billing purge: alert step failed ({})", failure.getClass().getName());
+            return;
+        }
+        for (long i = 0; i < stuck; i++) {
+            try {
+                alerts.raise(AlertType.REFUND_STUCK);
+            } catch (RuntimeException failure) {
+                log.warn(
+                        "billing purge: alert step failed ({})",
+                        failure.getClass().getName());
+            }
         }
     }
 }

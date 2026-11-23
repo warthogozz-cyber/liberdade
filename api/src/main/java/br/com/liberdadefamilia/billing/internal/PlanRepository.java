@@ -65,11 +65,11 @@ class PlanRepository {
                 > 0;
     }
 
-    /** Ends the plan the order bought, if that is still the family's plan. */
+    /** Ends the plan the order bought, if that is still the family's plan and it has not ended yet. */
     void endNow(UUID ws, UUID orderId, Instant now) {
         jdbc.sql("""
                         update workspace_plans set ends_at = :now, updated_at = now()
-                        where workspace_id = :ws and source_order_id = :order""")
+                        where workspace_id = :ws and source_order_id = :order and ends_at > :now""")
                 .param("ws", ws)
                 .param("order", orderId)
                 .param("now", Timestamp.from(now))

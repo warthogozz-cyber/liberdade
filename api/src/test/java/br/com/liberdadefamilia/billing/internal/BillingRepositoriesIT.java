@@ -111,6 +111,9 @@ class BillingRepositoriesIT {
         var ended = plans.find(ws).orElseThrow();
         assertThat(ended.endsAt()).isEqualTo(PAID_AT.plusSeconds(120));
         assertThat(ended.theme()).isEqualTo("PLUM");
+        // A later refund or chargeback of the same order never pushes an ended plan's end forward.
+        plans.endNow(ws, first, PAID_AT.plusSeconds(150));
+        assertThat(plans.find(ws).orElseThrow().endsAt()).isEqualTo(PAID_AT.plusSeconds(120));
 
         UUID second = newOrder(ws);
         assertThat(plans.activateIfFree(ws, second, PAID_AT.plusSeconds(180), ends, PAID_AT.plusSeconds(180)))

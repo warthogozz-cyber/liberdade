@@ -52,6 +52,9 @@ class PlanGuardIT {
     OrderPayments payments;
 
     @Autowired
+    PlanRepository plans;
+
+    @Autowired
     FakePaymentGateway gateway;
 
     @Autowired
@@ -158,7 +161,7 @@ class PlanGuardIT {
     }
 
     @Test
-    void missingThemeIs400() {
+    void missingThemeIs422() {
         Family f = family();
         paidOrder(f);
 
@@ -185,5 +188,7 @@ class PlanGuardIT {
 
         assertThat(result).bodyJson().extractingPath("$.key").isEqualTo("FREE");
         assertThat(result).bodyJson().extractingPath("$.theme").isEqualTo("TEAL");
+        // Only the view falls back to TEAL; the stored choice stays for a later purchase.
+        assertThat(plans.find(f.ws).orElseThrow().theme()).isEqualTo("FOREST");
     }
 }

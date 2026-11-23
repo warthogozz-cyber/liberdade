@@ -133,22 +133,22 @@ class OrderRepository {
     /** Stores the payment id unless one is already there; false when it was. */
     boolean setPaymentIdIfMissing(UUID id, String paymentId) {
         return jdbc.sql("""
-                                update billing_orders set asaas_payment_id = :value, updated_at = now()
-                                where id = :id and asaas_payment_id is null""").param("id", id).param("value", paymentId).update() > 0;
+                        update billing_orders set asaas_payment_id = :value, updated_at = now()
+                        where id = :id and asaas_payment_id is null""").param("id", id).param("value", paymentId).update() > 0;
     }
 
     /** PAID or REFUND_PENDING to REFUNDED at the given moment; false when the order is in any other status. */
     boolean markRefunded(UUID id, Instant at) {
         return jdbc.sql("""
-                                update billing_orders set status = 'REFUNDED', refunded_at = :at, updated_at = now()
-                                where id = :id and status in ('PAID','REFUND_PENDING')""").param("id", id).param("at", Timestamp.from(at)).update() > 0;
+                        update billing_orders set status = 'REFUNDED', refunded_at = :at, updated_at = now()
+                        where id = :id and status in ('PAID','REFUND_PENDING')""").param("id", id).param("at", Timestamp.from(at)).update() > 0;
     }
 
     /** A paid, refund-pending or refunded order to CHARGEBACK; false when it is in any other status. */
     boolean markChargeback(UUID id) {
         return jdbc.sql("""
-                                update billing_orders set status = 'CHARGEBACK', updated_at = now()
-                                where id = :id and status in ('PAID','REFUND_PENDING','REFUNDED')""").param("id", id).update() > 0;
+                        update billing_orders set status = 'CHARGEBACK', updated_at = now()
+                        where id = :id and status in ('PAID','REFUND_PENDING','REFUNDED')""").param("id", id).update() > 0;
     }
 
     /** PAID to REFUND_PENDING with the reason and the moment; false when the order is not PAID. */
@@ -182,6 +182,21 @@ class OrderRepository {
                          from billing_orders
                         where status = 'REFUND_PENDING' and refund_requested_at > :cutoff
                         order by refund_requested_at, id""")
+                .param("cutoff", Timestamp.from(cutoff))
+                .query(OrderRepository::map)
+                .list();
+    }
+
+    /**
+     * Orders not paid on our side (waiting, canceled or expired) whose checkout was opened after the cutoff, oldest
+     * first: a payment the webhook never told us about is still found.
+     */
+    List<OrderRow> unconfirmedCheckoutsSince(Instant cutoff) {
+        return jdbc.sql("select " + COLUMNS + """
+                         from billing_orders
+                        where status in ('CREATED', 'CANCELED', 'EXPIRED') and asaas_checkout_id is not null
+                          and created_at > :cutoff
+                        order by created_at, id""")
                 .param("cutoff", Timestamp.from(cutoff))
                 .query(OrderRepository::map)
                 .list();

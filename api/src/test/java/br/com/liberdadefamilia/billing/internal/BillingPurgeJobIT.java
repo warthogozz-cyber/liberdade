@@ -3,6 +3,8 @@ package br.com.liberdadefamilia.billing.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.billing.domain.FounderOffer;
@@ -246,5 +248,47 @@ class BillingPurgeJobIT {
                 .doesNotContain("secret-detail")
                 .doesNotContain(stuck.toString());
         assertThat(eventExists("evt_old_failure")).isFalse();
+    }
+
+    @Test
+    void oneFailingAlertDoesNotSkipTheOthers() {
+        order("REFUND_PENDING", daysAgo(5), daysAgo(4), BASE.minus(Duration.ofHours(80)));
+        order("REFUND_PENDING", daysAgo(5), daysAgo(4), BASE.minus(Duration.ofHours(79)));
+        doThrow(new IllegalStateException("first"))
+                .doCallRealMethod()
+                .when(alerts)
+                .raise(eq(AlertType.REFUND_STUCK));
+
+        job.run();
+
+        verify(alerts, times(2)).raise(AlertType.REFUND_STUCK);
+    }
+
+    @Test
+    void aFailingPurgeStepStillAlerts(CapturedOutput output) {
+        order("REFUND_PENDING", daysAgo(5), daysAgo(4), BASE.minus(Duration.ofHours(80)));
+        UUID oldUnpaid = order("CANCELED", daysAgo(200), null, null);
+        event("evt_blocked", daysAgo(200));
+        // The database refuses to delete webhook events, so the first step fails.
+        jdbc.sql("""
+                        create or replace function test_block_event_delete() returns trigger
+                        language plpgsql as $$ begin raise exception 'blocked'; end $$""").update();
+        jdbc.sql("""
+                        create trigger test_block_event_delete before delete on billing_webhook_events
+                        for each row execute function test_block_event_delete()""").update();
+        int before = output.getAll().length();
+        try {
+            job.run();
+        } finally {
+            jdbc.sql("drop trigger test_block_event_delete on billing_webhook_events")
+                    .update();
+            jdbc.sql("drop function test_block_event_delete()").update();
+        }
+
+        String fromTheJob = output.getAll().substring(before);
+        assertThat(fromTheJob).contains("billing purge: events step failed");
+        assertThat(eventExists("evt_blocked")).isTrue();
+        assertThat(orderExists(oldUnpaid)).isFalse();
+        verify(alerts).raise(AlertType.REFUND_STUCK);
     }
 }

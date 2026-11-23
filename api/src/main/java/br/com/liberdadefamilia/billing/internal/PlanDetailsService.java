@@ -9,6 +9,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Works out what the plan page shows and what the caller may do about the plan (D6, D7). */
 @Service
@@ -29,6 +31,8 @@ class PlanDetailsService {
         this.clock = clock;
     }
 
+    /** One snapshot for every read, so a webhook landing midway cannot mix the plan, the refund and the open order. */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     PlanDetails details(WorkspaceMember member) {
         UUID ws = member.workspaceId();
         Instant now = clock.instant();

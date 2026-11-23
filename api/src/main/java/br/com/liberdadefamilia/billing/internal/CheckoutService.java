@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -59,23 +60,41 @@ class CheckoutService {
         if (plans.current(member.workspaceId()).key() != PlanKey.FREE) {
             throw BillingException.planActive();
         }
-        UUID orderId = tx.execute(status -> open(member));
+        UUID orderId = openOrder(member);
 
         CheckoutSession session;
         try {
             session = gateway.createCheckout(new CheckoutRequest(orderId, webOrigin + "/mais/plano?pedido=" + orderId));
-        } catch (PaymentGatewayException e) {
-            log.warn("checkout failed at the gateway for order {} (status {})", orderId, e.status());
+        } catch (RuntimeException e) {
+            log.warn("checkout failed at the gateway ({})", e.getClass().getName());
             giveUp(orderId);
             throw BillingException.checkoutFailed();
         }
         if (!allowed(session.link())) {
-            log.warn("checkout link for order {} is outside the allowed hosts", orderId);
+            log.warn("checkout link is outside the allowed hosts");
             giveUp(orderId);
             throw BillingException.checkoutFailed();
         }
         tx.executeWithoutResult(status -> orders.setCheckoutId(orderId, session.checkoutId()));
         return new CheckoutView(orderId, session.link());
+    }
+
+    /**
+     * Opens the order in its own transaction. Two tabs at once can both cancel the open order before either inserts,
+     * so one insert meets the unique index of open orders; that one tries once more, which cancels the other tab's
+     * order, and a second collision asks the person to try again.
+     */
+    private UUID openOrder(WorkspaceMember member) {
+        try {
+            return tx.execute(status -> open(member));
+        } catch (DuplicateKeyException first) {
+            try {
+                return tx.execute(status -> open(member));
+            } catch (DuplicateKeyException second) {
+                log.warn("checkout collided twice with another open order");
+                throw BillingException.checkoutFailed();
+            }
+        }
     }
 
     private UUID open(WorkspaceMember member) {
@@ -94,10 +113,11 @@ class CheckoutService {
         tx.executeWithoutResult(status -> orders.transition(orderId, OrderStatus.CREATED, OrderStatus.CANCELED));
     }
 
-    /** Exactly {@code https} and exactly one of the configured hosts: no wildcard, no suffix match. */
+    /** Exactly {@code https} on its default port and exactly one of the configured hosts: no wildcard, no suffix match. */
     private boolean allowed(URI link) {
         String host = link.getHost();
         return "https".equals(link.getScheme())
+                && (link.getPort() == -1 || link.getPort() == 443)
                 && host != null
                 && properties.checkoutHosts().stream()
                         .anyMatch(allowedHost -> allowedHost.strip().equalsIgnoreCase(host));
