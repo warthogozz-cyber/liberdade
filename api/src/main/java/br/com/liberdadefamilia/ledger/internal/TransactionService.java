@@ -294,7 +294,7 @@ class TransactionService {
         return transactions
                 .restore(member.workspaceId(), id, scope, caller)
                 .or(() -> transactions
-                        .findOwn(member.workspaceId(), id, scope, caller)
+                        .findRestorable(member.workspaceId(), id, scope, caller)
                         .map(StoredTransaction::view))
                 .orElseThrow(TransactionService::notFound);
     }

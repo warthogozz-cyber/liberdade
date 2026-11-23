@@ -64,6 +64,12 @@ class TransactionRepository {
              or (account_id = any(cast(:scopeIds as uuid[]))
                  and (to_account_id is null or to_account_id = any(cast(:scopeIds as uuid[])))))""";
 
+    /**
+     * Who may restore: the one who may change it ({@link #OWN}), or, for a row a recurring rule made, anyone who holds
+     * it ({@link #HELD}), so that the youth can undo skipping a planned transaction the rule's author made.
+     */
+    private static final String RESTORABLE = "(" + OWN + " or (recurring_rule_id is not null and " + HELD + "))";
+
     private final JdbcClient jdbc;
 
     TransactionRepository(JdbcClient jdbc) {
@@ -117,6 +123,22 @@ class TransactionRepository {
                 .param("workspaceId", workspaceId)
                 .param("id", id)
                 .param("scopeIds", scope.sqlArray())
+                .query(TransactionRepository::stored)
+                .optional();
+    }
+
+    /** Like {@link #findOwn}, for what the caller may restore (see {@link #RESTORABLE}). */
+    Optional<StoredTransaction> findRestorable(UUID workspaceId, UUID id, AccountScope scope, UUID caller) {
+        return jdbc.sql("select " + COLUMNS + """
+                        , created_by, deleted_at is not null as deleted
+                         from transactions
+                        where workspace_id = :workspaceId
+                          and id = :id
+                          and """ + RESTORABLE)
+                .param("workspaceId", workspaceId)
+                .param("id", id)
+                .param("scopeIds", scope.sqlArray())
+                .param("caller", caller)
                 .query(TransactionRepository::stored)
                 .optional();
     }
@@ -217,9 +239,9 @@ class TransactionRepository {
     }
 
     /**
-     * Brings back a deleted transaction that the caller may change under the scope. Empty when it is absent, not
-     * deleted or not the caller's. The OWN condition here is the restore's primary guard, not a repetition of a check
-     * made elsewhere.
+     * Brings back a deleted transaction that the caller may change under the scope (or, for a rule's, holds). Empty when
+     * it is absent, not deleted or not the caller's. The RESTORABLE condition here is the restore's primary guard, not
+     * a repetition of a check made elsewhere.
      */
     Optional<TransactionView> restore(UUID workspaceId, UUID id, AccountScope scope, UUID caller) {
         return jdbc.sql("""
@@ -230,7 +252,7 @@ class TransactionRepository {
                         where workspace_id = :workspaceId
                           and id = :id
                           and deleted_at is not null
-                          and """ + OWN + """
+                          and """ + RESTORABLE + """
                         returning\s""" + COLUMNS)
                 .param("workspaceId", workspaceId)
                 .param("id", id)

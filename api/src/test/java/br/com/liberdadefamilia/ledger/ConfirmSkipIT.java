@@ -253,6 +253,53 @@ class ConfirmSkipIT {
     }
 
     @Test
+    void youthSkipThenRestore() {
+        UUID leo = users.create("Leo Teste", "leo@example.com");
+        UUID leoMembership = workspaces.addMember(ws, leo, Role.YOUTH, "Leo");
+        UUID leoWallet = account("Carteira de Leo", "BRL", leoMembership);
+        UUID id = ledger.insertPlanned(ws, leoWallet, mercado, Money.brl("5.00"), DUE, rule(leoWallet), anaMembership);
+
+        assertThat(post(leo, "/transactions/" + id + "/skip", "{\"version\":0}"))
+                .hasStatus(204);
+        assertThat(ids(get(leo, "/transactions?month=2026-11"))).isEmpty();
+
+        var restored = post(leo, "/transactions/" + id + "/restore", null);
+
+        assertThat(restored).hasStatusOk();
+        assertThat(restored).bodyJson().extractingPath("$.status").isEqualTo("PLANNED");
+        assertThat(restored).bodyJson().extractingPath("$.scheduledOn").isEqualTo("2026-11-25");
+        assertThat(ids(get(leo, "/transactions?month=2026-11"))).containsExactly(id.toString());
+    }
+
+    /** The restore of a rule's row is the only one opened to the youth: a deleted hand-entered one stays out of reach. */
+    @Test
+    void youthCannotRestoreHandEnteredRowOfAnother() {
+        UUID leo = users.create("Leo Teste", "leo@example.com");
+        UUID leoMembership = workspaces.addMember(ws, leo, Role.YOUTH, "Leo");
+        UUID leoWallet = account("Carteira de Leo", "BRL", leoMembership);
+        UUID id = jdbc.sql("""
+                        insert into transactions
+                            (id, workspace_id, kind, amount, currency, occurred_on, account_id, category_id,
+                             member_id, created_by, deleted_at)
+                        values (uuidv7(), :ws, 'EXPENSE', 5.00, 'BRL', :on, :account, :category,
+                                :ana, :ana, now())
+                        returning id""")
+                .param("ws", ws)
+                .param("on", DUE)
+                .param("account", leoWallet)
+                .param("category", mercado)
+                .param("ana", anaMembership)
+                .query(UUID.class)
+                .single();
+
+        var result = post(leo, "/transactions/" + id + "/restore", null);
+
+        assertThat(result).hasStatus(404);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("transaction.not-found");
+        assertThat(deleted(id)).isTrue();
+    }
+
+    @Test
     void youthCannotConfirmAdultPlanned() {
         UUID leo = users.create("Leo Teste", "leo@example.com");
         UUID leoMembership = workspaces.addMember(ws, leo, Role.YOUTH, "Leo");
@@ -324,6 +371,20 @@ class ConfirmSkipIT {
 
     private UUID planned(UUID account, String amount) {
         return ledger.insertPlanned(ws, account, mercado, Money.brl(amount), DUE, null, anaMembership);
+    }
+
+    private UUID rule(UUID account) {
+        return jdbc.sql("""
+                        insert into recurring_rules
+                            (workspace_id, kind, amount, currency, account_id, category_id, frequency, interval,
+                             start_on)
+                        values (:ws, 'EXPENSE', 5, 'BRL', :account, :category, 'MONTHLY', 1, '2026-11-05')
+                        returning id""")
+                .param("ws", ws)
+                .param("account", account)
+                .param("category", mercado)
+                .query(UUID.class)
+                .single();
     }
 
     private UUID account(String name, String currency, UUID owner) {
