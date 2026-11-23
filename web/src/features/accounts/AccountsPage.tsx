@@ -6,11 +6,12 @@ import {
   useAccounts,
   useArchiveAccount,
   useCurrentWorkspace,
+  useFormatMoney,
   useUnarchiveAccount,
   type AccountView,
   type MeWorkspace,
 } from '@/shared/api'
-import { formatBRL, parseCents } from '@/shared/money'
+import { parseCents } from '@/shared/money'
 import { useOnline } from '@/shared/offline'
 import { useDocumentTitle, useToast } from '@/shared/ui'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
@@ -59,6 +60,7 @@ function failureText(failure: unknown, fallback: string): string {
 
 function AccountsScreen({ workspace }: { workspace: MeWorkspace }) {
   const intl = useIntl()
+  const format = useFormatMoney()
   const toast = useToast()
   const online = useOnline()
   const accounts = useAccounts(workspace.id)
@@ -170,7 +172,7 @@ function AccountsScreen({ workspace }: { workspace: MeWorkspace }) {
                     )}
                   </span>
                   <span className="font-medium tabular-nums">
-                    {formatBRL(parseCents(account.balance.amount))}
+                    {format(parseCents(account.balance.amount))}
                   </span>
                 </button>
               </li>
@@ -256,7 +258,7 @@ function AccountsScreen({ workspace }: { workspace: MeWorkspace }) {
           <ConfirmDialog
             open={view?.kind === 'archive'}
             title={intl.formatMessage({ id: 'accounts.archive.title' }, { name: selected.name })}
-            body={archiveBody(intl.formatMessage, selected)}
+            body={archiveBody(intl.formatMessage, format, selected)}
             confirmLabel={<FormattedMessage id="accounts.archive" />}
             cancelLabel={<FormattedMessage id="accounts.cancel" />}
             confirmDisabled={archive.isPending}
@@ -275,12 +277,13 @@ function AccountsScreen({ workspace }: { workspace: MeWorkspace }) {
 /** The archive question's body: the balance that leaves the family's total, when there is one. */
 function archiveBody(
   formatMessage: ReturnType<typeof useIntl>['formatMessage'],
+  format: (cents: bigint) => string,
   account: AccountView,
 ) {
   const balance = parseCents(account.balance.amount)
   return balance === 0n
     ? formatMessage({ id: 'accounts.archive.body' })
-    : formatMessage({ id: 'accounts.archive.bodyWithBalance' }, { amount: formatBRL(balance) })
+    : formatMessage({ id: 'accounts.archive.bodyWithBalance' }, { amount: format(balance) })
 }
 
 interface EditActionsProps {

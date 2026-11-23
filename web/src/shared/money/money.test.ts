@@ -5,7 +5,7 @@ import {
   appendDigit,
   appendDoubleZero,
   centsToApi,
-  formatBRL,
+  formatMoney,
   negateCents,
   parseCents,
   removeLastDigit,
@@ -14,15 +14,23 @@ import {
 const NBSP = '\u00A0'
 const MINUS = '\u2212'
 
-describe('formatBRL', () => {
-  it('formats PRD 7.1 total', () => expect(formatBRL(476544n)).toBe(`R$${NBSP}4.765,44`))
-  it('formats negative with U+2212', () => expect(formatBRL(-8790n)).toBe(`${MINUS}R$${NBSP}87,90`))
+describe('formatMoney', () => {
+  it('formats PRD 7.1 total', () =>
+    expect(formatMoney(476544n, 'BRL', 'pt-BR')).toBe(`R$${NBSP}4.765,44`))
+  it('formats negative with U+2212', () =>
+    expect(formatMoney(-8790n, 'BRL', 'pt-BR')).toBe(`${MINUS}R$${NBSP}87,90`))
   it('formats beyond 2^53 exactly', () =>
-    expect(formatBRL(123456789012345678n)).toBe(`R$${NBSP}1.234.567.890.123.456,78`))
+    expect(formatMoney(123456789012345678n, 'BRL', 'pt-BR')).toBe(
+      `R$${NBSP}1.234.567.890.123.456,78`,
+    ))
   it.each([
     [0n, `R$${NBSP}0,00`],
     [1234n, `R$${NBSP}12,34`],
-  ])('formats %s', (cents, expected) => expect(formatBRL(cents)).toBe(expected))
+  ])('formats %s', (cents, expected) => expect(formatMoney(cents, 'BRL', 'pt-BR')).toBe(expected))
+  it('follows the locale and the currency it is given', () => {
+    expect(formatMoney(123456n, 'USD', 'en-US')).toBe('$1,234.56')
+    expect(formatMoney(-500n, 'USD', 'en-US')).toBe(`${MINUS}$5.00`)
+  })
 })
 
 describe('negateCents', () => {
@@ -30,7 +38,7 @@ describe('negateCents', () => {
     expect(negateCents(100n)).toBe(-100n)
     expect(negateCents(-100n)).toBe(100n)
     expect(negateCents(0n)).toBe(0n)
-    expect(formatBRL(negateCents(100n))).toBe(`${MINUS}R$${NBSP}1,00`)
+    expect(formatMoney(negateCents(100n), 'BRL', 'pt-BR')).toBe(`${MINUS}R$${NBSP}1,00`)
   })
 
   it('keeps the range symmetric', () => expect(MIN_CENTS).toBe(negateCents(MAX_CENTS)))

@@ -1,5 +1,5 @@
 import type { CategoryView, DashboardView } from '@/shared/api'
-import { formatBRL, parseCents } from '@/shared/money'
+import { parseCents } from '@/shared/money'
 
 // Pure on purpose: no DOM and no runtime import of ECharts, so the options are plain data. Only
 // `EChart.tsx` talks to the library. The colors are HEX because the renderer parses it reliably, and
@@ -26,6 +26,8 @@ export interface ChartOpts {
   animate: boolean
   /** The theme's text color, for the axes. */
   textColor: string
+  /** Writes an amount in the family's currency, for the value axes. */
+  format: (cents: bigint) => string
 }
 
 export interface CategorySlice {
@@ -56,10 +58,13 @@ export function categorySlices(
   })
 }
 
-/** Cents as reais, for the chart's scale only: labels are written with `formatBRL`. */
+/** Cents as reais, for the chart's scale only: labels are written with `opts.format`. */
 const reais = (cents: bigint): number => Number(cents) / 100
 const centsOf = (value: number): bigint => BigInt(Math.round(value * 100))
-const money = (value: unknown): string => formatBRL(centsOf(Number(value)))
+const money =
+  (format: ChartOpts['format']) =>
+  (value: unknown): string =>
+    format(centsOf(Number(value)))
 
 function axisStyle(textColor: string) {
   return {
@@ -119,7 +124,7 @@ export function comparisonOption(
     yAxis: {
       type: 'value',
       ...axisStyle(opts.textColor),
-      axisLabel: { color: opts.textColor, formatter: money },
+      axisLabel: { color: opts.textColor, formatter: money(opts.format) },
     },
     series: [
       { type: 'bar', itemStyle: { color: OTHERS_COLOR } },
@@ -146,7 +151,7 @@ export function balanceLineOption(
       type: 'value',
       scale: true,
       ...axisStyle(opts.textColor),
-      axisLabel: { color: opts.textColor, formatter: money },
+      axisLabel: { color: opts.textColor, formatter: money(opts.format) },
     },
     series: [
       {

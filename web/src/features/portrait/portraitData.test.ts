@@ -42,7 +42,7 @@ describe('buildPortrait', () => {
       { id: 'c5', cents: 10000 },
       { id: null, cents: 10000 },
     ]
-    const { slices } = buildPortrait(view(lines), names(6))
+    const { slices } = buildPortrait(view(lines), names(6), 'pt-BR')
     expect(slices).toHaveLength(6)
     expect(slices.slice(0, 5).map((s) => s.label)).toEqual([
       'Cat 0',
@@ -62,7 +62,7 @@ describe('buildPortrait', () => {
       { id: 'c2', cents: 3333 },
       { id: null, cents: 1 },
     ]
-    const { slices } = buildPortrait(view(lines), names(3))
+    const { slices } = buildPortrait(view(lines), names(3), 'pt-BR')
     expect(slices.map((s) => s.percent)).toEqual([33, 33, 33, 1])
     expect(slices[3].other).toBe(true)
     expect(sum(slices)).toBe(100)
@@ -73,7 +73,7 @@ describe('buildPortrait', () => {
       { id: 'c0', cents: 1 },
       { id: null, cents: 999999 },
     ]
-    const { slices } = buildPortrait(view(lines), names(1))
+    const { slices } = buildPortrait(view(lines), names(1), 'pt-BR')
     expect(slices).toEqual([{ label: 'Outras', percent: 100, other: true }])
   })
 
@@ -83,7 +83,7 @@ describe('buildPortrait', () => {
       { id: 'gone', cents: 3000 },
       { id: null, cents: 2000 },
     ]
-    const { slices } = buildPortrait(view(lines), names(1))
+    const { slices } = buildPortrait(view(lines), names(1), 'pt-BR')
     expect(slices).toEqual([
       { label: 'Cat 0', percent: 50, other: false },
       { label: 'Outras', percent: 50, other: true },
@@ -91,21 +91,21 @@ describe('buildPortrait', () => {
   })
 
   it('zeroIncomeHidesIncomeBlock', () => {
-    expect(buildPortrait(view([{ id: 'c0', cents: 100 }], 0), names(1)).income).toBeNull()
+    expect(buildPortrait(view([{ id: 'c0', cents: 100 }], 0), names(1), 'pt-BR').income).toBeNull()
   })
 
   it('spentMoreThanIncome', () => {
-    const data = buildPortrait(view([{ id: 'c0', cents: 125000 }], 100000), names(1))
+    const data = buildPortrait(view([{ id: 'c0', cents: 125000 }], 100000), names(1), 'pt-BR')
     expect(data.income).toEqual({ kind: 'over', percent: 25 })
   })
 
   it('leftoverIncome', () => {
-    const data = buildPortrait(view([{ id: 'c0', cents: 70000 }], 100000), names(1))
+    const data = buildPortrait(view([{ id: 'c0', cents: 70000 }], 100000), names(1), 'pt-BR')
     expect(data.income).toEqual({ kind: 'left', percent: 30 })
   })
 
   it('emptyMonth', () => {
-    const data = buildPortrait(view([], 100000), names(1))
+    const data = buildPortrait(view([], 100000), names(1), 'pt-BR')
     expect(data.empty).toBe(true)
     expect(data.slices).toEqual([])
     expect(data.month).toBe('novembro de 2026')
@@ -126,7 +126,7 @@ describe('buildPortrait', () => {
         cents: 1 + Math.floor(random() * 10 ** 7),
       }))
       if (random() < 0.5) lines.push({ id: null, cents: 1 + Math.floor(random() * 10 ** 7) })
-      const { slices } = buildPortrait(view(lines), names(8))
+      const { slices } = buildPortrait(view(lines), names(8), 'pt-BR')
       expect(sum(slices)).toBe(100)
       expect(slices.every((s) => s.percent >= 0)).toBe(true)
       expect(slices.length).toBeLessThanOrEqual(6)

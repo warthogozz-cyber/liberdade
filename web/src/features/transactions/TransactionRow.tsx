@@ -1,9 +1,15 @@
 import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
-import type { AccountView, CategoryView, MeWorkspace, MemberView } from '@/shared/api'
+import {
+  useFormatMoney,
+  type AccountView,
+  type CategoryView,
+  type MeWorkspace,
+  type MemberView,
+} from '@/shared/api'
 import { firstName } from '@/shared/i18n'
-import { formatBRL, parseCents } from '@/shared/money'
+import { parseCents } from '@/shared/money'
 import { discardOutboxItem } from '@/shared/offline'
 import { useToast } from '@/shared/ui'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
@@ -40,6 +46,7 @@ export function TransactionRow({
   onDelete,
 }: TransactionRowProps) {
   const intl = useIntl()
+  const format = useFormatMoney()
   const toast = useToast()
   const [step, setStep] = useState<'closed' | 'sheet' | 'confirm' | 'detail'>('closed')
   const category = item.categoryId ? categories.get(item.categoryId) : undefined
@@ -73,7 +80,7 @@ export function TransactionRow({
           )}
         </span>
         <span className={`font-semibold tabular-nums ${income ? 'text-positive' : ''}`}>
-          {income ? `+${formatBRL(cents)}` : transfer ? formatBRL(cents) : formatBRL(-cents)}
+          {income ? `+${format(cents)}` : transfer ? format(cents) : format(-cents)}
         </span>
       </div>
       <div className="flex w-full items-center justify-between gap-4 text-sm text-text-muted">

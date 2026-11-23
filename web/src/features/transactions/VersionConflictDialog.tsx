@@ -1,14 +1,15 @@
 import { AlertDialog } from 'radix-ui'
 import { useIntl } from 'react-intl'
-import type {
-  AccountView,
-  CategoryView,
-  TransactionKind,
-  TransactionView,
-  UpdateTransactionRequest,
+import {
+  useFormatMoney,
+  type AccountView,
+  type CategoryView,
+  type TransactionKind,
+  type TransactionView,
+  type UpdateTransactionRequest,
 } from '@/shared/api'
 import type { messages } from '@/shared/i18n'
-import { formatBRL, parseCents } from '@/shared/money'
+import { parseCents } from '@/shared/money'
 import { categoryLabel } from './listItems'
 
 interface VersionConflictDialogProps {
@@ -46,6 +47,7 @@ export function VersionConflictDialog({
   onKeepMine,
 }: VersionConflictDialogProps) {
   const intl = useIntl()
+  const format = useFormatMoney()
   const text = (id: MessageId) => intl.formatMessage({ id })
   const date = (value: string) =>
     intl.formatDate(`${value}T00:00:00Z`, {
@@ -67,7 +69,7 @@ export function VersionConflictDialog({
   if (parseCents(saved.amount.amount) !== parseCents(current.amount.amount)) {
     differences.push([
       text('transactions.detail.amount'),
-      formatBRL(parseCents(current.amount.amount)),
+      format(parseCents(current.amount.amount)),
     ])
   }
   if (saved.occurredOn !== current.occurredOn) {

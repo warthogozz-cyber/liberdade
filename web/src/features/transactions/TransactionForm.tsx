@@ -8,6 +8,7 @@ import {
   queryKeys,
   useAccounts,
   useCategories,
+  useFormatMoney,
   type AccountView,
   type CreateTransactionRequest,
   type MeWorkspace,
@@ -16,7 +17,7 @@ import {
   type UpdateTransactionRequest,
 } from '@/shared/api'
 import { MIN_DATE, addDays, localDate, maxDate } from '@/shared/i18n'
-import { centsToApi, formatBRL, parseCents } from '@/shared/money'
+import { centsToApi, parseCents } from '@/shared/money'
 import {
   enqueueTransaction,
   replaceOutboxItem,
@@ -128,6 +129,7 @@ export function TransactionForm({
   children,
 }: TransactionFormProps) {
   const intl = useIntl()
+  const format = useFormatMoney()
   const navigate = useNavigate()
   const toast = useToast()
   const queryClient = useQueryClient()
@@ -352,7 +354,7 @@ export function TransactionForm({
               aria-live="polite"
               className="block py-4 text-center text-4xl font-semibold tabular-nums"
             >
-              {formatBRL(cents)}
+              {format(cents)}
             </output>
             {transfer ? (
               <div className="grid grid-cols-2 gap-4">

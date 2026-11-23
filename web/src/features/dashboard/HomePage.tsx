@@ -5,12 +5,13 @@ import {
   useAccounts,
   useCurrentWorkspace,
   useDashboard,
+  useFormatMoney,
   useMe,
   type MeView,
   type MeWorkspace,
 } from '@/shared/api'
 import { currentMonth } from '@/shared/i18n'
-import { formatBRL, parseCents } from '@/shared/money'
+import { parseCents } from '@/shared/money'
 import { useOnline, useOutbox, usePendingTotals } from '@/shared/offline'
 import { DataAsOf, useDocumentTitle } from '@/shared/ui'
 import { isRecoveryNoticeRecent } from '@/features/members/recoveryWindow'
@@ -69,6 +70,7 @@ function HomeContent({ me, workspace }: HomeContentProps) {
   // When Home opened: the notice's week does not tick over while the screen is up.
   const [openedAt] = useState(Date.now)
   const intl = useIntl()
+  const format = useFormatMoney()
   const online = useOnline()
   const month = currentMonth(new Date(), workspace.timezone)
   const dashboard = useDashboard(workspace.id, month)
@@ -104,13 +106,13 @@ function HomeContent({ me, workspace }: HomeContentProps) {
             <dt className="text-sm text-text-muted">
               <FormattedMessage id="home.expensesIn" values={{ month: monthName }} />
             </dt>
-            <dd className="text-3xl font-semibold tabular-nums">{formatBRL(expenses)}</dd>
+            <dd className="text-3xl font-semibold tabular-nums">{format(expenses)}</dd>
           </div>
           <div>
             <dt className="text-sm text-text-muted">
               <FormattedMessage id={youth ? 'dashboard.yourWallet' : 'home.totalBalance'} />
             </dt>
-            <dd className="text-xl font-semibold tabular-nums">{formatBRL(balance)}</dd>
+            <dd className="text-xl font-semibold tabular-nums">{format(balance)}</dd>
           </div>
         </dl>
         {youth && accounts && accounts.length > 0 && (
@@ -121,7 +123,7 @@ function HomeContent({ me, workspace }: HomeContentProps) {
                 <li key={account.id} className="flex items-baseline justify-between gap-4">
                   <span className="truncate">{account.name}</span>
                   <span className="font-medium tabular-nums">
-                    {formatBRL(parseCents(account.balance.amount))}
+                    {format(parseCents(account.balance.amount))}
                   </span>
                 </li>
               ))}

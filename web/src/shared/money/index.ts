@@ -1,10 +1,12 @@
 export {
+  DEFAULT_CURRENCY,
+  DEFAULT_LOCALE,
   MAX_CENTS,
   MIN_CENTS,
   appendDigit,
   appendDoubleZero,
   centsToApi,
-  formatBRL,
+  formatMoney,
   negateCents,
   parseCents,
   removeLastDigit,

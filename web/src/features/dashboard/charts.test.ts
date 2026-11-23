@@ -8,6 +8,13 @@ import {
   comparisonOption,
   donutOption,
 } from './charts'
+import { formatMoney } from '@/shared/money'
+
+const baseOpts = {
+  animate: false,
+  textColor: '#000000',
+  format: (cents: bigint) => formatMoney(cents, 'BRL', 'pt-BR'),
+}
 
 const money = (amount: string) => ({ amount, currency: 'BRL' })
 
@@ -44,7 +51,7 @@ describe('charts', () => {
       [{ categoryId: 'm', current: money('1234.56'), previous: money('0.00') }],
       [category('m', 'Mercado')],
     )
-    const option = donutOption(slices, { animate: true, textColor: '#000000' })
+    const option = donutOption(slices, { ...baseOpts, animate: true })
     const series = (option.series as { data: { name: string; value: number }[] }[])[0]
 
     expect(series.data[0]).toMatchObject({ name: 'Mercado', value: 1234.56 })
@@ -54,7 +61,7 @@ describe('charts', () => {
     const slices = categorySlices(rows(2, false), named)
     const days = [{ day: '2026-11-01', balance: 100n }]
     for (const animate of [false, true]) {
-      const opts = { animate, textColor: '#000000' }
+      const opts = { ...baseOpts, animate }
       expect(donutOption(slices, opts).animation).toBe(animate)
       expect(comparisonOption(slices, { current: 'nov.', previous: 'out.' }, opts).animation).toBe(
         animate,
@@ -67,7 +74,7 @@ describe('charts', () => {
     const option = comparisonOption(
       categorySlices(rows(2, false), named),
       { current: 'nov.', previous: 'out.' },
-      { animate: false, textColor: '#000000' },
+      baseOpts,
     )
     // Long category names are cut and tilted instead of overlapping on a phone; the table has them all.
     expect(option.xAxis).toMatchObject({
@@ -75,12 +82,19 @@ describe('charts', () => {
     })
   })
 
+  it('writes the value axis with the given format', () => {
+    const option = balanceLineOption([], { ...baseOpts, format: (cents) => `<${cents}>` })
+    const formatter = (option.yAxis as { axisLabel: { formatter: (value: unknown) => string } })
+      .axisLabel.formatter
+    expect(formatter(12.34)).toBe('<1234>')
+  })
+
   it('lineHasEveryDay', () => {
     const days = Array.from({ length: 30 }, (_, index) => ({
       day: `2026-11-${String(index + 1).padStart(2, '0')}`,
       balance: BigInt(index * 100),
     }))
-    const option = balanceLineOption(days, { animate: false, textColor: '#000000' })
+    const option = balanceLineOption(days, baseOpts)
     const axis = option.xAxis as { data: string[] }
     const series = (option.series as { data: number[] }[])[0]
 
