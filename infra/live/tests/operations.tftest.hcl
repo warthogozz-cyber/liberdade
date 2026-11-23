@@ -311,3 +311,34 @@ run "budget_ignores_credits" {
     error_message = "Budget notices go to alert_email."
   }
 }
+
+run "billing_alert_filters" {
+  command = plan
+
+  assert {
+    condition     = toset([for f in aws_cloudwatch_log_metric_filter.billing_alert : f.log_group_name]) == toset(["/liberdade/staging", "/liberdade/production"])
+    error_message = "Billing alert filters must watch the staging and production API log groups."
+  }
+
+  assert {
+    condition     = length(aws_cloudwatch_log_metric_filter.billing_alert) == 2 && alltrue([for f in aws_cloudwatch_log_metric_filter.billing_alert : f.pattern == "\"BILLING_ALERT\""])
+    error_message = "Each filter must match the quoted BILLING_ALERT term."
+  }
+}
+
+run "billing_alarms_notify_alerts" {
+  command = plan
+
+  assert {
+    condition     = length(aws_cloudwatch_metric_alarm.billing_alert) == 2
+    error_message = "There must be one billing alarm per environment."
+  }
+
+  assert {
+    condition = alltrue([
+      for a in aws_cloudwatch_metric_alarm.billing_alert :
+      toset(a.alarm_actions) == toset([aws_sns_topic.alerts.arn]) && a.threshold == 1 && a.treat_missing_data == "notBreaching"
+    ])
+    error_message = "Billing alarms must notify the alerts topic at a threshold of 1 and ignore missing data."
+  }
+}
