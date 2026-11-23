@@ -3,7 +3,7 @@
 buildscript {
     dependencies {
         constraints {
-            classpath("org.apache.commons:commons-lang3:3.20.0")
+            classpath("org.apache.commons:commons-lang3:3.22.0")
         }
     }
 }
@@ -44,7 +44,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     // Spring Boot does not manage webauthn4j; this pins the newest patch of the line Spring Security uses.
-    implementation("com.webauthn4j:webauthn4j-core:0.31.11.RELEASE")
+    implementation("com.webauthn4j:webauthn4j-core:0.32.0.RELEASE")
     implementation("org.flywaydb:flyway-database-postgresql")
     // The OpenAPI contract only, without the UI (D32).
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.2.0")
