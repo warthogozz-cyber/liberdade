@@ -109,6 +109,11 @@ export const routes: RouteObject[] = [
                   })),
               },
               {
+                path: '/mais/plano',
+                lazy: () =>
+                  import('@/features/billing/PlanPage').then((m) => ({ Component: m.PlanPage })),
+              },
+              {
                 path: '/mais/privacidade',
                 lazy: () =>
                   import('@/features/privacy/PrivacyRoutes').then((m) => ({

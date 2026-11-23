@@ -1,7 +1,13 @@
 import { REAUTH_USER_KEY, RETURN_PATH_KEY } from '@/shared/offline'
 
 /** The pages a re-authentication or an invitation may bring the person back to. */
-export const RETURN_PATHS = ['/convite', '/mais/familia', '/mais/privacidade', '/mais/modulos']
+export const RETURN_PATHS = [
+  '/convite',
+  '/mais/familia',
+  '/mais/privacidade',
+  '/mais/modulos',
+  '/mais/plano',
+]
 
 /** The path of `value` when it is a listed page, with its query and hash; otherwise `undefined`. */
 function accepted(value: string | null | undefined): string | undefined {

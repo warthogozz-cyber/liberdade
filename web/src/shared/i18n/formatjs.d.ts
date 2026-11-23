@@ -2,6 +2,8 @@
 // eslint-disable-next-line no-restricted-imports
 import type { accountsMessages } from '@/features/accounts/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
+import type { billingMessages } from '@/features/billing/messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
 import type { categoriesMessages } from '@/features/categories/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { legalLabelsMessages } from '@/features/legal/labels.messages.pt-BR'
@@ -31,6 +33,7 @@ declare global {
       ids:
         | keyof typeof messages
         | keyof typeof accountsMessages
+        | keyof typeof billingMessages
         | keyof typeof categoriesMessages
         | keyof typeof dashboardMessages
         | keyof typeof gettingStartedMessages

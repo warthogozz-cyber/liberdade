@@ -61,6 +61,14 @@ describe('MorePage', () => {
     },
   )
 
+  it('hasPlanEntry', async () => {
+    const workspace = seedMockFamily()
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByText(workspace.name)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Plano' })).toHaveAttribute('href', '/mais/plano')
+  })
+
   it('switcherWithTwoFamilies', async () => {
     seedMockFamily()
     const other = createFamily('Família Bia Teste', 'America/Fortaleza')
