@@ -1123,6 +1123,23 @@ export const handlers = [
     return HttpResponse.json(view, { status: 201 })
   }),
 
+  http.post(url('/v1/workspaces/:ws/billing/orders/:id/refresh'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    const order = mockState.billing.orders.find(
+      (candidate) => candidate.id === params.id && candidate.workspaceId === workspace.id,
+    )
+    if (!order) return problem(404, 'billing.order-not-found', 'Não encontramos esse pedido.')
+    // The mock has no payment provider: the order is shown as it stands.
+    const view: Schemas['OrderView'] = {
+      id: order.id,
+      status: order.status,
+      refundReason: null,
+    }
+    return HttpResponse.json(view)
+  }),
+
   http.get(url('/v1/workspaces/:ws/modules'), ({ params }) => {
     const workspace = guard(String(params.ws))
     if (workspace instanceof Response) return workspace

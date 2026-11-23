@@ -3,6 +3,9 @@ package br.com.liberdadefamilia.audit.internal;
 import br.com.liberdadefamilia.audit.AuditEntry;
 import br.com.liberdadefamilia.audit.AuditTrail;
 import br.com.liberdadefamilia.billing.CheckoutStarted;
+import br.com.liberdadefamilia.billing.PlanActivated;
+import br.com.liberdadefamilia.billing.PlanEnded;
+import br.com.liberdadefamilia.billing.RefundRequested;
 import br.com.liberdadefamilia.identity.PasskeyRemoved;
 import br.com.liberdadefamilia.identity.SignedIn;
 import br.com.liberdadefamilia.workspace.InvitationCreated;
@@ -190,6 +193,27 @@ class AuditListeners {
                 "ORDER",
                 event.orderId(),
                 Map.of("product", "FOUNDER_2026"));
+    }
+
+    @EventListener
+    void on(PlanActivated event) {
+        record(event.workspaceId(), null, "plan.activated", "PLAN", event.workspaceId(), Map.of());
+    }
+
+    @EventListener
+    void on(RefundRequested event) {
+        record(
+                event.workspaceId(),
+                event.actorUserId(),
+                "billing.refund-requested",
+                "ORDER",
+                event.orderId(),
+                Map.of("reason", event.reason().name()));
+    }
+
+    @EventListener
+    void on(PlanEnded event) {
+        record(event.workspaceId(), null, "plan.ended", "PLAN", event.workspaceId(), Map.of("reason", event.reason()));
     }
 
     private void record(

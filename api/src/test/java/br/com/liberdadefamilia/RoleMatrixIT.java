@@ -359,7 +359,17 @@ class RoleMatrixIT {
     }
 
     static Stream<Row> billingRows() {
-        return ownerOnly("POST " + W + "/billing/checkout", W + "/billing/checkout", null);
+        return Stream.of(
+                        ownerOnly("POST " + W + "/billing/checkout", W + "/billing/checkout", null),
+                        each(
+                                "POST " + W + "/billing/orders/{id}/refresh",
+                                W + "/billing/orders/{order}/refresh",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK))
+                .flatMap(group -> group);
     }
 
     static Stream<Row> exportRows() {
@@ -512,6 +522,10 @@ class RoleMatrixIT {
         ids.put("ws", ws);
         ids.put("newId", TestIds.v7());
         ids.put("target", tiaMembership);
+        ids.put("order", jdbc.sql("""
+                        insert into billing_orders (workspace_id, product, amount_cents, currency, status)
+                        values (:ws, 'FOUNDER_2026', 8900, 'BRL', 'CREATED')
+                        returning id""").param("ws", ws).query(UUID.class).single());
         ids.put("wallet", account(ws, "Carteira de Leo", "CASH", leoMembership, false));
         ids.put("corrente", account(ws, "Corrente", "CHECKING", null, false));
         ids.put("archivedAccount", account(ws, "Antiga", "CHECKING", null, true));

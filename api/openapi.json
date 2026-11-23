@@ -720,6 +720,47 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/billing/orders/{id}/refresh": {
+      "post": {
+        "operationId": "refresh",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "billing-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/categories": {
       "get": {
         "operationId": "listCategories",
@@ -2516,6 +2557,35 @@
           }
         },
         "nullable": true
+      },
+      "OrderView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "refundReason": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "CUSTOMER",
+              "DUPLICATE"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "PAID",
+              "EXPIRED",
+              "CANCELED",
+              "REFUND_PENDING",
+              "REFUNDED",
+              "CHARGEBACK"
+            ]
+          }
+        }
       },
       "PasskeyView": {
         "type": "object",

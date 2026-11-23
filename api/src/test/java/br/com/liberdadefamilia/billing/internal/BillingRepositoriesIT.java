@@ -3,10 +3,10 @@ package br.com.liberdadefamilia.billing.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
+import br.com.liberdadefamilia.billing.RefundReason;
 import br.com.liberdadefamilia.billing.domain.FounderOffer;
 import br.com.liberdadefamilia.billing.domain.FounderTheme;
 import br.com.liberdadefamilia.billing.domain.OrderStatus;
-import br.com.liberdadefamilia.billing.domain.RefundReason;
 import br.com.liberdadefamilia.support.TestUsers;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -102,9 +102,9 @@ class BillingRepositoriesIT {
         orders.markPaid(first, PAID_AT);
         Instant ends = FounderOffer.endsAt(PAID_AT);
 
-        assertThat(plans.activateIfFree(ws, first, PAID_AT, ends)).isTrue();
+        assertThat(plans.activateIfFree(ws, first, PAID_AT, ends, PAID_AT)).isTrue();
         plans.setTheme(ws, FounderTheme.PLUM);
-        assertThat(plans.activateIfFree(ws, first, PAID_AT.plusSeconds(60), ends))
+        assertThat(plans.activateIfFree(ws, first, PAID_AT.plusSeconds(60), ends, PAID_AT.plusSeconds(60)))
                 .isFalse();
 
         plans.endNow(ws, first, PAID_AT.plusSeconds(120));
@@ -113,7 +113,7 @@ class BillingRepositoriesIT {
         assertThat(ended.theme()).isEqualTo("PLUM");
 
         UUID second = newOrder(ws);
-        assertThat(plans.activateIfFree(ws, second, PAID_AT.plusSeconds(180), ends))
+        assertThat(plans.activateIfFree(ws, second, PAID_AT.plusSeconds(180), ends, PAID_AT.plusSeconds(180)))
                 .isTrue();
         var renewed = plans.find(ws).orElseThrow();
         assertThat(renewed.sourceOrderId()).isEqualTo(second);

@@ -1,7 +1,7 @@
 package br.com.liberdadefamilia.billing.internal;
 
+import br.com.liberdadefamilia.billing.RefundReason;
 import br.com.liberdadefamilia.billing.domain.OrderStatus;
-import br.com.liberdadefamilia.billing.domain.RefundReason;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -56,6 +56,13 @@ class OrderRepository {
                 .param("currency", currency)
                 .query(UUID.class)
                 .single();
+    }
+
+    Optional<OrderRow> findById(UUID id) {
+        return jdbc.sql("select " + COLUMNS + " from billing_orders where id = :id")
+                .param("id", id)
+                .query(OrderRepository::map)
+                .optional();
     }
 
     Optional<OrderRow> findForWorkspace(UUID id, UUID ws) {

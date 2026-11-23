@@ -17,6 +17,10 @@ final class BillingException extends DomainException {
         return new BillingException(409, "billing.plan-active", "Sua família já tem um plano ativo.");
     }
 
+    static BillingException orderNotFound() {
+        return new BillingException(404, "billing.order-not-found", "Não encontramos esse pedido.");
+    }
+
     static BillingException checkoutFailed() {
         return new BillingException(
                 502, "billing.checkout-failed", "Não conseguimos abrir o pagamento agora. Tente de novo em instantes.");

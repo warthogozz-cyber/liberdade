@@ -44,21 +44,23 @@ class PlanRepository {
     }
 
     /**
-     * Gives the family the founder plan unless it already has one running at {@code startsAt}. Returns whether it
-     * wrote; an ended plan is replaced, and the family keeps the theme it had picked.
+     * Gives the family the founder plan unless it already has one running at {@code now}. Returns whether it wrote;
+     * an ended plan is replaced, and the family keeps the theme it had picked. {@code now} is the application clock,
+     * never the database's.
      */
-    boolean activateIfFree(UUID ws, UUID orderId, Instant startsAt, Instant endsAt) {
+    boolean activateIfFree(UUID ws, UUID orderId, Instant startsAt, Instant endsAt, Instant now) {
         return jdbc.sql("""
                                 insert into workspace_plans (workspace_id, plan_key, founder, source_order_id, starts_at, ends_at)
                                 values (:ws, 'FAMILY', true, :order, :startsAt, :endsAt)
                                 on conflict (workspace_id) do update
                                 set founder = true, source_order_id = excluded.source_order_id,
                                     starts_at = excluded.starts_at, ends_at = excluded.ends_at, updated_at = now()
-                                where workspace_plans.ends_at <= excluded.starts_at""")
+                                where workspace_plans.ends_at <= :now""")
                         .param("ws", ws)
                         .param("order", orderId)
                         .param("startsAt", Timestamp.from(startsAt))
                         .param("endsAt", Timestamp.from(endsAt))
+                        .param("now", Timestamp.from(now))
                         .update()
                 > 0;
     }

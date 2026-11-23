@@ -15,4 +15,10 @@ class BillingRateLimits {
     RateLimiter checkoutRateLimiter(Clock clock) {
         return new RateLimiter(clock, 5, Duration.ofMinutes(10));
     }
+
+    /** The payer's return page asking about an order: 30 a minute for the family. */
+    @Bean
+    RateLimiter refreshRateLimiter(Clock clock) {
+        return new RateLimiter(clock, 30, Duration.ofMinutes(1));
+    }
 }
