@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.net.URI;
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -39,23 +38,21 @@ class FakePaymentGatewayTest {
 
     @Test
     void paidCheckoutsAreFoundAndRefundsMarkThemRefunded() {
-        Instant paidAt = Instant.parse("2026-11-17T12:00:00Z");
         assertThat(gateway.findPayment("chk_x")).isEmpty();
 
-        gateway.markPaid("chk_x", "pay_x", paidAt);
-        assertThat(gateway.findPayment("chk_x")).contains(new PaymentInfo("pay_x", "RECEIVED", paidAt));
+        gateway.markPaid("chk_x", "pay_x");
+        assertThat(gateway.findPayment("chk_x")).contains(new PaymentInfo("pay_x", "RECEIVED"));
 
         gateway.refund("pay_x");
-        assertThat(gateway.findPayment("chk_x")).contains(new PaymentInfo("pay_x", "REFUNDED", paidAt));
+        assertThat(gateway.findPayment("chk_x")).contains(new PaymentInfo("pay_x", "REFUNDED"));
     }
 
     @Test
     void markRefundedFlipsTheStatus() {
-        Instant paidAt = Instant.parse("2026-11-17T12:00:00Z");
-        gateway.markPaid("chk_y", "pay_y", paidAt);
+        gateway.markPaid("chk_y", "pay_y");
 
         gateway.markRefunded("pay_y");
 
-        assertThat(gateway.findPayment("chk_y")).contains(new PaymentInfo("pay_y", "REFUNDED", paidAt));
+        assertThat(gateway.findPayment("chk_y")).contains(new PaymentInfo("pay_y", "REFUNDED"));
     }
 }

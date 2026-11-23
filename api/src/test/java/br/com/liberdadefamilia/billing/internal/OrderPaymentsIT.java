@@ -24,6 +24,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /** A confirmed payment activates the plan once; a late or double one is refunded. */
 @SpringBootTest
@@ -61,6 +64,9 @@ class OrderPaymentsIT {
 
     @Autowired
     JdbcClient jdbc;
+
+    @Autowired
+    PlatformTransactionManager transactions;
 
     @Autowired
     TestUsers users;
@@ -184,7 +190,7 @@ class OrderPaymentsIT {
         UUID second = order(ws, OrderStatus.CANCELED);
         String checkout = "chk_second_" + second;
         orders.setCheckoutId(second, checkout);
-        gateway.markPaid(checkout, pay2, T);
+        gateway.markPaid(checkout, pay2);
 
         assertThat(payments.applyPaid(second, T, pay2)).isEqualTo(OrderPayments.ApplyResult.DUPLICATE_REFUND);
 
@@ -212,7 +218,7 @@ class OrderPaymentsIT {
         UUID second = order(ws, OrderStatus.CANCELED);
         String checkout = "chk_second_" + second;
         orders.setCheckoutId(second, checkout);
-        gateway.markPaid(checkout, pay2, T);
+        gateway.markPaid(checkout, pay2);
         gateway.failNextRefund();
 
         assertThat(payments.applyPaid(second, T, pay2)).isEqualTo(OrderPayments.ApplyResult.DUPLICATE_REFUND);
@@ -229,7 +235,7 @@ class OrderPaymentsIT {
         UUID second = order(ws, OrderStatus.CANCELED);
         String checkout = "chk_lookup_" + second;
         orders.setCheckoutId(second, checkout);
-        gateway.markPaid(checkout, pay2, T);
+        gateway.markPaid(checkout, pay2);
 
         assertThat(payments.applyPaid(second, T, null)).isEqualTo(OrderPayments.ApplyResult.DUPLICATE_REFUND);
 
@@ -245,9 +251,18 @@ class OrderPaymentsIT {
         UUID order = order(ws, OrderStatus.CREATED);
         payments.applyPaid(order, T, pay1);
 
-        payments.requestRefund(order, RefundReason.CUSTOMER);
+        UUID owner = users.create("Dono Reembolso", null);
+
+        payments.requestRefund(order, RefundReason.CUSTOMER, owner);
 
         assertThat(orders.findForWorkspace(order, ws).orElseThrow().status()).isEqualTo(OrderStatus.REFUND_PENDING);
+        Map<String, Object> refundAudit =
+                jdbc.sql("""
+                        select workspace_id, actor_user_id, metadata->>'reason' as reason
+                        from audit_events where action = 'billing.refund-requested' and target_id = :t""").param("t", order).query().singleRow();
+        assertThat(refundAudit.get("workspace_id")).isEqualTo(ws);
+        assertThat(refundAudit.get("actor_user_id")).isEqualTo(owner);
+        assertThat(refundAudit.get("reason")).isEqualTo("CUSTOMER");
         assertThat(plans.current(ws).key()).isEqualTo(PlanKey.FREE);
         assertThat(endsAt(ws)).isEqualTo(now);
         assertThat(audit("plan.ended", ws)).isEqualTo(1);
@@ -273,6 +288,56 @@ class OrderPaymentsIT {
                         .query(String.class)
                         .single())
                 .isEqualTo("REFUND_PENDING");
+        Map<String, Object> refundAudit =
+                jdbc.sql("""
+                        select workspace_id, actor_user_id, metadata->>'reason' as reason
+                        from audit_events where action = 'billing.refund-requested' and target_id = :t""").param("t", order).query().singleRow();
+        assertThat(refundAudit.get("workspace_id")).isNull();
+        assertThat(refundAudit.get("actor_user_id")).isNull();
+        assertThat(refundAudit.get("reason")).isEqualTo("DUPLICATE");
+    }
+
+    @Test
+    void aRefundRegisteredInASavepointThatRollsBackIsNeverSent() {
+        clock.freeze(T.plusSeconds(3600));
+        UUID ws = family();
+        payments.applyPaid(order(ws, OrderStatus.CREATED), T, pay1);
+        UUID second = order(ws, OrderStatus.CANCELED);
+        String checkout = "chk_rollback_" + second;
+        orders.setCheckoutId(second, checkout);
+        gateway.markPaid(checkout, pay2);
+        TransactionTemplate outer = new TransactionTemplate(transactions);
+        TransactionTemplate savepoint = new TransactionTemplate(transactions);
+        savepoint.setPropagationBehavior(TransactionDefinition.PROPAGATION_NESTED);
+        TransactionTemplate joined = new TransactionTemplate(transactions);
+
+        // As the webhook does: the effect runs in a savepoint, and a rule fails inside a joined transaction after the
+        // duplicate refund was registered. The outer transaction still commits its own work.
+        outer.executeWithoutResult(status -> {
+            jdbc.sql("update workspaces set name = 'Familia Depois' where id = :ws")
+                    .param("ws", ws)
+                    .update();
+            try {
+                savepoint.executeWithoutResult(inner -> {
+                    assertThat(payments.applyPaid(second, T, pay2))
+                            .isEqualTo(OrderPayments.ApplyResult.DUPLICATE_REFUND);
+                    joined.executeWithoutResult(rule -> {
+                        throw new IllegalStateException("rule");
+                    });
+                });
+            } catch (IllegalStateException expected) {
+                // the savepoint rolled back
+            }
+        });
+
+        assertThat(orders.findById(second).orElseThrow().status()).isEqualTo(OrderStatus.CANCELED);
+        assertThat(gateway.findPayment(checkout).orElseThrow().status()).isEqualTo("RECEIVED");
+        assertThat(audit("billing.refund-requested", second)).isZero();
+        assertThat(jdbc.sql("select name from workspaces where id = :ws")
+                        .param("ws", ws)
+                        .query(String.class)
+                        .single())
+                .isEqualTo("Familia Depois");
     }
 
     @Test

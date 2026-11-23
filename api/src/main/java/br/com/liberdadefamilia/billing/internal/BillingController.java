@@ -33,6 +33,7 @@ class BillingController {
     private final PlanDetailsService planDetails;
     private final RateLimiter checkoutLimiter;
     private final RateLimiter refreshLimiter;
+    private final RateLimiter refundLimiter;
 
     BillingController(
             CheckoutService checkout,
@@ -40,13 +41,15 @@ class BillingController {
             RefundService refunds,
             PlanDetailsService planDetails,
             @Qualifier("checkoutRateLimiter") RateLimiter checkoutLimiter,
-            @Qualifier("refreshRateLimiter") RateLimiter refreshLimiter) {
+            @Qualifier("refreshRateLimiter") RateLimiter refreshLimiter,
+            @Qualifier("refundRateLimiter") RateLimiter refundLimiter) {
         this.checkout = checkout;
         this.payments = payments;
         this.refunds = refunds;
         this.planDetails = planDetails;
         this.checkoutLimiter = checkoutLimiter;
         this.refreshLimiter = refreshLimiter;
+        this.refundLimiter = refundLimiter;
     }
 
     /** Opens the Founder checkout; the payer is sent to the returned page. */
@@ -77,7 +80,11 @@ class BillingController {
     @WorkspaceScoped(allow = {OWNER})
     @ResponseStatus(HttpStatus.ACCEPTED)
     OrderView refund(WorkspaceMember member, @PathVariable UUID id) {
-        return refunds.refund(id, member.workspaceId());
+        String key = member.workspaceId().toString();
+        if (!refundLimiter.tryAcquire(key)) {
+            throw new RateLimitedException(refundLimiter.retryAfterSeconds(key));
+        }
+        return refunds.refund(id, member.workspaceId(), member.userId());
     }
 
     /** The family's plan and what the caller may do about it. */

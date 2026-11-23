@@ -68,9 +68,9 @@ class OrderPayments {
      * the payment is refunded as a duplicate. The payment moment never counts as later than our own clock.
      */
     ApplyResult applyPaid(UUID orderId, Instant givenPaidAt, @Nullable String paymentId) {
-        Instant now = clock.instant();
-        Instant paidAt = givenPaidAt.isAfter(now) ? now : givenPaidAt;
         return tx.execute(status -> {
+            Instant now = clock.instant();
+            Instant paidAt = givenPaidAt.isAfter(now) ? now : givenPaidAt;
             if (!orders.markPaid(orderId, paidAt)) {
                 return ApplyResult.ALREADY_APPLIED;
             }
@@ -87,7 +87,7 @@ class OrderPayments {
                     return ApplyResult.ACTIVATED;
                 }
             }
-            requestRefund(orderId, RefundReason.DUPLICATE);
+            requestRefund(orderId, RefundReason.DUPLICATE, null);
             return ApplyResult.DUPLICATE_REFUND;
         });
     }
@@ -95,33 +95,47 @@ class OrderPayments {
     /**
      * Marks a paid order as waiting for its refund and, once that is committed, asks the gateway. If the gateway
      * fails the order stays REFUND_PENDING for the retry job.
+     *
+     * @param actorUserId who asked for it, for the audit trail; null when the system refunds on its own (DUPLICATE)
      */
-    void requestRefund(UUID orderId, RefundReason reason) {
+    void requestRefund(UUID orderId, RefundReason reason, @Nullable UUID actorUserId) {
         tx.executeWithoutResult(status -> {
+            Instant now = clock.instant();
             Optional<OrderRepository.OrderRow> found = orders.findById(orderId);
-            if (found.isEmpty() || !orders.markRefundPending(orderId, reason, clock.instant())) {
+            if (found.isEmpty() || !orders.markRefundPending(orderId, reason, now)) {
                 return;
             }
             OrderRepository.OrderRow order = found.get();
             if (reason == RefundReason.CUSTOMER && order.workspaceId() != null) {
-                plans.endNow(order.workspaceId(), orderId, clock.instant());
+                plans.endNow(order.workspaceId(), orderId, now);
                 events.publishEvent(new PlanEnded(order.workspaceId(), orderId, "CUSTOMER_REFUND"));
             }
-            events.publishEvent(new RefundRequested(order.workspaceId(), orderId, reason, null));
+            events.publishEvent(new RefundRequested(order.workspaceId(), orderId, reason, actorUserId));
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    callGatewayRefund(orderId, order.checkoutId(), order.paymentId());
+                    callGatewayRefund(orderId);
                 }
             });
         });
     }
 
-    private void callGatewayRefund(UUID orderId, @Nullable String checkoutId, @Nullable String knownPaymentId) {
+    /**
+     * Asks the gateway for the refund, after the commit. The order is read again first: the synchronization may have
+     * been registered inside a savepoint that rolled back while the outer transaction still committed, and then the
+     * order is not REFUND_PENDING and nothing is sent.
+     */
+    private void callGatewayRefund(UUID orderId) {
         try {
-            String paymentId = knownPaymentId;
-            if (paymentId == null && checkoutId != null) {
-                paymentId = resolvePaymentId(orderId, checkoutId);
+            OrderRepository.OrderRow order = own.execute(status -> orders.findById(orderId)
+                    .filter(row -> row.status() == OrderStatus.REFUND_PENDING)
+                    .orElse(null));
+            if (order == null) {
+                return;
+            }
+            String paymentId = order.paymentId();
+            if (paymentId == null && order.checkoutId() != null) {
+                paymentId = resolvePaymentId(orderId, order.checkoutId());
             }
             if (paymentId == null) {
                 log.warn("refund waits for the retry job: no payment known yet");
@@ -157,26 +171,31 @@ class OrderPayments {
 
     /**
      * The payer's return: while the order waits for payment, asks the gateway and applies a confirmed payment. The
-     * gateway is called outside any transaction; a gateway failure just leaves the order as it is.
+     * payment counts from now, the moment we saw it confirmed: the gateway only reports the day, never the time. The
+     * gateway is called outside any transaction; a failure there just leaves the order as it is.
      */
     OrderView refresh(UUID orderId, UUID workspaceId) {
         OrderRepository.OrderRow order =
                 orders.findForWorkspace(orderId, workspaceId).orElseThrow(BillingException::orderNotFound);
         if (order.status() == OrderStatus.CREATED && order.checkoutId() != null) {
+            Optional<PaymentInfo> payment;
             try {
-                gateway.findPayment(order.checkoutId())
-                        .filter(payment -> "RECEIVED".equals(payment.status()) || "CONFIRMED".equals(payment.status()))
-                        .ifPresent(payment -> applyPaid(
-                                orderId,
-                                payment.paidAt() != null ? payment.paidAt() : clock.instant(),
-                                payment.paymentId()));
-            } catch (PaymentGatewayException failure) {
+                payment = gateway.findPayment(order.checkoutId());
+            } catch (RuntimeException failure) {
                 log.warn(
                         "refresh could not reach the gateway: {}",
                         failure.getClass().getName());
+                payment = Optional.empty();
             }
+            payment.filter(OrderPayments::confirmed)
+                    .ifPresent(found -> applyPaid(orderId, clock.instant(), found.paymentId()));
             order = orders.findForWorkspace(orderId, workspaceId).orElseThrow(BillingException::orderNotFound);
         }
         return new OrderView(order.id(), order.status(), order.refundReason());
+    }
+
+    /** Whether the gateway reports the payment as made: RECEIVED (Pix) or CONFIRMED (card). */
+    static boolean confirmed(PaymentInfo payment) {
+        return "RECEIVED".equals(payment.status()) || "CONFIRMED".equals(payment.status());
     }
 }

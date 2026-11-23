@@ -1,16 +1,23 @@
 package br.com.liberdadefamilia.billing.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.billing.PlanKey;
 import br.com.liberdadefamilia.billing.Plans;
 import br.com.liberdadefamilia.billing.domain.FounderOffer;
+import br.com.liberdadefamilia.billing.domain.OrderStatus;
+import br.com.liberdadefamilia.billing.domain.RefundWindow;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestClock;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
 import br.com.liberdadefamilia.workspace.Role;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +28,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
@@ -46,8 +54,11 @@ class RefreshIT {
     @Autowired
     OrderRepository orders;
 
-    @Autowired
+    @MockitoSpyBean
     FakePaymentGateway gateway;
+
+    @Autowired
+    OrderPayments payments;
 
     @Autowired
     Plans plans;
@@ -93,7 +104,7 @@ class RefreshIT {
     void refreshActivatesWhenAsaasConfirms() {
         Family f = family();
         UUID order = openOrder(f);
-        gateway.markPaid("chk_fake_" + order, "pay_" + order, clock.instant().minusSeconds(60));
+        gateway.markPaid("chk_fake_" + order, "pay_" + order);
 
         MvcTestResult result = refresh(f.owner, f.ws, order);
 
@@ -101,6 +112,52 @@ class RefreshIT {
         assertThat(result).bodyJson().extractingPath("$.id").isEqualTo(order.toString());
         assertThat(result).bodyJson().extractingPath("$.status").isEqualTo("PAID");
         assertThat(plans.current(f.ws).key()).isEqualTo(PlanKey.FAMILY);
+    }
+
+    @Test
+    void refreshCountsThePaymentFromTheMomentItSawItAndALateWebhookKeepsThat() {
+        // 22:00 on 24/11 in São Paulo; Asaas would report only the day, 24/11.
+        Instant seen = Instant.parse("2026-11-25T01:00:00Z");
+        clock.freeze(seen);
+        Family f = family();
+        UUID order = openOrder(f);
+        gateway.markPaid("chk_fake_" + order, "pay_" + order);
+
+        assertThat(refresh(f.owner, f.ws, order)).hasStatus(200);
+        clock.freeze(seen.plusSeconds(600));
+        assertThat(payments.applyPaid(order, clock.instant(), null))
+                .isEqualTo(OrderPayments.ApplyResult.ALREADY_APPLIED);
+
+        var row = orders.findById(order).orElseThrow();
+        assertThat(row.status()).isEqualTo(OrderStatus.PAID);
+        assertThat(row.paidAt()).isEqualTo(seen);
+        assertThat(RefundWindow.deadline(row.paidAt())).isEqualTo(Instant.parse("2026-12-02T03:00:00Z"));
+        assertThat(plans.current(f.ws).endsAt()).isEqualTo(FounderOffer.endsAt(seen));
+    }
+
+    @Test
+    void anOrderWithoutACheckoutIsNotLookedUp() {
+        Family f = family();
+        UUID order =
+                orders.insert(f.ws, f.owner, FounderOffer.PRODUCT, FounderOffer.PRICE_CENTS, FounderOffer.CURRENCY);
+
+        MvcTestResult result = refresh(f.owner, f.ws, order);
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo("CREATED");
+        verify(gateway, never()).findPayment(anyString());
+    }
+
+    @Test
+    void anyGatewayFailureLeavesTheOrderAsItIs() {
+        Family f = family();
+        UUID order = openOrder(f);
+        doThrow(new IllegalStateException("boom")).when(gateway).findPayment("chk_fake_" + order);
+
+        MvcTestResult result = refresh(f.owner, f.ws, order);
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo("CREATED");
     }
 
     @Test

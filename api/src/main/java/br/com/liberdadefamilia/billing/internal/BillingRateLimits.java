@@ -22,9 +22,24 @@ class BillingRateLimits {
         return new RateLimiter(clock, 30, Duration.ofMinutes(1));
     }
 
-    /** The gateway's calls to the webhook: 120 a minute, all under one key. */
+    /** Refunds the owner asks for: 5 in ten minutes for the family. */
+    @Bean
+    RateLimiter refundRateLimiter(Clock clock) {
+        return new RateLimiter(clock, 5, Duration.ofMinutes(10));
+    }
+
+    /** The gateway's authenticated calls to the webhook: 120 a minute, all under one key. */
     @Bean
     RateLimiter webhookRateLimiter(Clock clock) {
         return new RateLimiter(clock, 120, Duration.ofMinutes(1));
+    }
+
+    /**
+     * Webhook calls without a valid token: 20 a minute for each client address. A flood costs little and never
+     * touches the gateway's own budget.
+     */
+    @Bean
+    RateLimiter webhookUnauthenticatedRateLimiter(Clock clock) {
+        return new RateLimiter(clock, 20, Duration.ofMinutes(1));
     }
 }

@@ -27,9 +27,9 @@ class RefundService {
 
     /**
      * Refunds the order the family's running plan came from, while the 7 days are open. The plan ends at once; if the
-     * gateway refuses, the order stays REFUND_PENDING for the retry job.
+     * gateway refuses, the order stays REFUND_PENDING for the retry job. The owner who asked is kept in the audit trail.
      */
-    OrderView refund(UUID orderId, UUID workspaceId) {
+    OrderView refund(UUID orderId, UUID workspaceId, UUID actorUserId) {
         OrderRepository.OrderRow order =
                 orders.findForWorkspace(orderId, workspaceId).orElseThrow(BillingException::orderNotFound);
         Instant now = clock.instant();
@@ -39,7 +39,7 @@ class RefundService {
         if (!RefundWindow.isOpen(order.paidAt(), now)) {
             throw BillingException.refundWindowClosed();
         }
-        payments.requestRefund(orderId, RefundReason.CUSTOMER);
+        payments.requestRefund(orderId, RefundReason.CUSTOMER, actorUserId);
         OrderRepository.OrderRow after =
                 orders.findForWorkspace(orderId, workspaceId).orElseThrow(BillingException::orderNotFound);
         return new OrderView(after.id(), after.status(), after.refundReason());
@@ -57,7 +57,11 @@ class RefundService {
                 .isPresent();
     }
 
-    /** A paid order, not a duplicate, that the family's running plan came from. */
+    /**
+     * A paid order, not a duplicate, that the family's running plan came from. The DUPLICATE check cannot fail today:
+     * the reason is only set as the order becomes REFUND_PENDING, so no PAID order carries it. It stays so that a
+     * future path leaving a duplicate PAID still cannot refund it as the customer's.
+     */
     private static boolean isOrigin(
             OrderRepository.OrderRow order, PlanRepository.@Nullable PlanRow plan, Instant now) {
         return order.status() == OrderStatus.PAID

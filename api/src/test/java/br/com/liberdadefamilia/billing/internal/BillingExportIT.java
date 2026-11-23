@@ -76,7 +76,7 @@ class BillingExportIT {
         UUID ws = workspaces.createFor(owner);
         UUID id = orders.insert(ws, owner, FounderOffer.PRODUCT, FounderOffer.PRICE_CENTS, FounderOffer.CURRENCY);
         orders.setCheckoutId(id, "chk_fake_" + id);
-        gateway.markPaid("chk_fake_" + id, "pay_" + id, BASE);
+        gateway.markPaid("chk_fake_" + id, "pay_" + id);
         payments.applyPaid(id, BASE, "pay_" + id);
 
         List<ExportedOrder> exported = export.orders(ws);
@@ -141,7 +141,7 @@ class BillingExportIT {
     private UUID paid(UUID ws, UUID owner) {
         UUID id = orders.insert(ws, owner, FounderOffer.PRODUCT, FounderOffer.PRICE_CENTS, FounderOffer.CURRENCY);
         orders.setCheckoutId(id, "chk_fake_" + id);
-        gateway.markPaid("chk_fake_" + id, "pay_" + id, BASE);
+        gateway.markPaid("chk_fake_" + id, "pay_" + id);
         payments.applyPaid(id, BASE, "pay_" + id);
         return id;
     }

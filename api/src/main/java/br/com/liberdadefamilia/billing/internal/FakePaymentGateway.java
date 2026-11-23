@@ -1,7 +1,6 @@
 package br.com.liberdadefamilia.billing.internal;
 
 import java.net.URI;
-import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,8 +45,8 @@ class FakePaymentGateway implements PaymentGateway {
     }
 
     /** Test only: the payer paid this checkout. */
-    void markPaid(String checkoutId, String paymentId, Instant paidAt) {
-        paymentsByCheckout.put(checkoutId, new PaymentInfo(paymentId, "RECEIVED", paidAt));
+    void markPaid(String checkoutId, String paymentId) {
+        paymentsByCheckout.put(checkoutId, new PaymentInfo(paymentId, "RECEIVED"));
     }
 
     /** Test only: the next {@link #refund} fails once with a 400. */
@@ -58,6 +57,6 @@ class FakePaymentGateway implements PaymentGateway {
     /** Test only: the payment was refunded, by the refund call or on the gateway's side. */
     void markRefunded(String paymentId) {
         paymentsByCheckout.replaceAll((checkoutId, info) ->
-                info.paymentId().equals(paymentId) ? new PaymentInfo(paymentId, "REFUNDED", info.paidAt()) : info);
+                info.paymentId().equals(paymentId) ? new PaymentInfo(paymentId, "REFUNDED") : info);
     }
 }

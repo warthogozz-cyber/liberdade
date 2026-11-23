@@ -14,7 +14,6 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -91,7 +90,7 @@ class AsaasGatewayTest {
 
         Optional<PaymentInfo> info = gateway.findPayment("chk_1");
 
-        assertThat(info).contains(new PaymentInfo("pay_123", "RECEIVED", Instant.parse("2026-11-17T03:00:00Z")));
+        assertThat(info).contains(new PaymentInfo("pay_123", "RECEIVED"));
         server.verify();
     }
 
@@ -176,14 +175,38 @@ class AsaasGatewayTest {
     }
 
     @Test
-    void badPaymentDateIsAGatewayError() {
+    void aPaidEntryWinsOverAnEarlierFailedAttempt() {
         server.expect(requestTo(BASE + "/v3/payments?checkoutSession=chk_1"))
-                .andRespond(withSuccess(
-                        "{\"data\":[{\"id\":\"p\",\"status\":\"RECEIVED\",\"paymentDate\":\"17/11/2026\"}]}",
-                        MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("""
+                        {"data":[{"id":"card","status":"OVERDUE"},{"id":"pix","status":"RECEIVED"}]}""", MediaType.APPLICATION_JSON));
 
-        assertThatThrownBy(() -> gateway.findPayment("chk_1"))
-                .isInstanceOf(PaymentGatewayException.class)
-                .hasMessage("asaas status 0");
+        assertThat(gateway.findPayment("chk_1")).contains(new PaymentInfo("pix", "RECEIVED"));
+    }
+
+    @Test
+    void aRefundedEntryWinsOverAPendingOne() {
+        server.expect(requestTo(BASE + "/v3/payments?checkoutSession=chk_1"))
+                .andRespond(withSuccess("""
+                        {"data":[{"id":"a","status":"PENDING"},{"id":"b","status":"REFUNDED"},                        {"id":"c","status":"CONFIRMED"}]}""", MediaType.APPLICATION_JSON));
+
+        assertThat(gateway.findPayment("chk_1")).contains(new PaymentInfo("c", "CONFIRMED"));
+    }
+
+    @Test
+    void refundedIsPreferredWhenNothingIsPaid() {
+        server.expect(requestTo(BASE + "/v3/payments?checkoutSession=chk_1"))
+                .andRespond(withSuccess("""
+                        {"data":[{"id":"a","status":"PENDING"},{"id":"b","status":"REFUND_IN_PROGRESS"}]}""", MediaType.APPLICATION_JSON));
+
+        assertThat(gateway.findPayment("chk_1")).contains(new PaymentInfo("b", "REFUND_IN_PROGRESS"));
+    }
+
+    @Test
+    void withoutAPaidOrRefundedEntryTheFirstCounts() {
+        server.expect(requestTo(BASE + "/v3/payments?checkoutSession=chk_1"))
+                .andRespond(withSuccess("""
+                        {"data":[{"id":"a","status":"PENDING"},{"id":"b","status":"OVERDUE"}]}""", MediaType.APPLICATION_JSON));
+
+        assertThat(gateway.findPayment("chk_1")).contains(new PaymentInfo("a", "PENDING"));
     }
 }

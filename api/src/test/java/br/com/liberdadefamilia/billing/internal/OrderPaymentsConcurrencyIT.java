@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.billing.domain.FounderOffer;
 import br.com.liberdadefamilia.support.TestUsers;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +39,9 @@ class OrderPaymentsConcurrencyIT {
     @Autowired
     TestUsers users;
 
+    @Autowired
+    Clock clock;
+
     @Test
     void webhookAndRefreshTogether() throws Exception {
         UUID ws = jdbc.sql("insert into workspaces (name) values ('Familia Corrida') returning id")
@@ -49,7 +53,7 @@ class OrderPaymentsConcurrencyIT {
                 FounderOffer.PRODUCT,
                 FounderOffer.PRICE_CENTS,
                 FounderOffer.CURRENCY);
-        Instant paidAt = Instant.now().minusSeconds(60);
+        Instant paidAt = clock.instant().minusSeconds(60);
         String payment = "pay_1_" + UUID.randomUUID();
         int threads = 2;
         CountDownLatch ready = new CountDownLatch(threads);

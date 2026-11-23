@@ -100,7 +100,7 @@ class BillingRetryJobIT {
         String checkout = "chk_job_" + id;
         String payment = "pay_job_" + id;
         orders.setCheckoutId(id, checkout);
-        gateway.markPaid(checkout, payment, BASE);
+        gateway.markPaid(checkout, payment);
         payments.applyPaid(id, BASE, knownPaymentId ? payment : null);
         return new Order(id, ws, checkout, payment);
     }
@@ -109,7 +109,7 @@ class BillingRetryJobIT {
     private Order refusedRefund(RefundReason reason) {
         Order order = paidOrder(true);
         gateway.failNextRefund();
-        payments.requestRefund(order.id, reason);
+        payments.requestRefund(order.id, reason, null);
         assertThat(status(order)).isEqualTo(OrderStatus.REFUND_PENDING);
         assertThat(gatewayStatus(order)).isEqualTo("RECEIVED");
         return order;
@@ -159,7 +159,7 @@ class BillingRetryJobIT {
     void waitsWhileAsaasIsRefunding() {
         Order order = refusedRefund(RefundReason.CUSTOMER);
         Mockito.clearInvocations(gateway);
-        doReturn(Optional.of(new PaymentInfo(order.payment, "REFUND_IN_PROGRESS", BASE)))
+        doReturn(Optional.of(new PaymentInfo(order.payment, "REFUND_IN_PROGRESS")))
                 .when(gateway)
                 .findPayment(order.checkout);
 
@@ -224,14 +224,14 @@ class BillingRetryJobIT {
         UUID id = orders.insert(ws, owner, FounderOffer.PRODUCT, FounderOffer.PRICE_CENTS, FounderOffer.CURRENCY);
         String checkout = "chk_job_" + id;
         orders.setCheckoutId(id, checkout);
-        gateway.markPaid(checkout, "pay_job_" + id, BASE);
+        gateway.markPaid(checkout, "pay_job_" + id);
         payments.applyPaid(id, BASE, null);
         // The lookup fails once while the refund is requested, so the order waits with no payment id.
         doThrow(new PaymentGatewayException(503))
                 .doCallRealMethod()
                 .when(gateway)
                 .findPayment(eq(checkout));
-        payments.requestRefund(id, RefundReason.CUSTOMER);
+        payments.requestRefund(id, RefundReason.CUSTOMER, null);
         assertThat(orders.findById(id).orElseThrow().paymentId()).isNull();
 
         job.run();

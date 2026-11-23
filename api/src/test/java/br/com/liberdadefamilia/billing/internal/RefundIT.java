@@ -92,7 +92,7 @@ class RefundIT {
         clock.freeze(BASE);
         UUID id = newOrder(f);
         orders.setCheckoutId(id, "chk_fake_" + id);
-        gateway.markPaid("chk_fake_" + id, "pay_" + id, BASE);
+        gateway.markPaid("chk_fake_" + id, "pay_" + id);
         payments.applyPaid(id, BASE, "pay_" + id);
         return id;
     }

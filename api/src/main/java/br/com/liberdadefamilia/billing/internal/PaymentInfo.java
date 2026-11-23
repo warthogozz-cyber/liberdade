@@ -1,12 +1,7 @@
 package br.com.liberdadefamilia.billing.internal;
 
-import java.time.Instant;
-import org.jspecify.annotations.Nullable;
-
 /**
- * A payment as the gateway reports it.
- *
- * @param paidAt the start of the payment day (the gateway only gives a date); null while unpaid
+ * A payment as the gateway reports it. There is no payment time on purpose: Asaas gives only the day, so a confirmed
+ * payment counts from the moment we see it.
  */
-public record PaymentInfo(
-        String paymentId, String status, @Nullable Instant paidAt) {}
+public record PaymentInfo(String paymentId, String status) {}

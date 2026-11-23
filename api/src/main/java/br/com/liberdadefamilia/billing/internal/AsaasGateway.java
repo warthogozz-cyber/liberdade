@@ -3,18 +3,18 @@ package br.com.liberdadefamilia.billing.internal;
 import br.com.liberdadefamilia.billing.domain.FounderOffer;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.ClassPathResource;
@@ -35,8 +35,8 @@ class AsaasGateway implements PaymentGateway {
     static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     static final Duration READ_TIMEOUT = Duration.ofSeconds(10);
 
-    private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
-    private static final BigDecimal PRICE = BigDecimal.valueOf(FounderOffer.PRICE_CENTS, 2);
+    private static final Set<String> REFUNDED = Set.of("REFUNDED", "REFUND_REQUESTED", "REFUND_IN_PROGRESS");
+    private static final Logger log = LoggerFactory.getLogger(AsaasGateway.class);
     private static final String LOGO_BASE64 = loadLogo();
 
     private final RestClient client;
@@ -84,7 +84,7 @@ class AsaasGateway implements PaymentGateway {
                 "quantity",
                 1,
                 "value",
-                PRICE,
+                FounderOffer.PRICE.amount(),
                 "imageBase64",
                 LOGO_BASE64);
         Map<String, Object> body = Map.of(
@@ -108,27 +108,30 @@ class AsaasGateway implements PaymentGateway {
         }
     }
 
+    /**
+     * The payment that counts for the checkout. A checkout can hold several attempts (a refused card, then a Pix), so a
+     * paid entry wins, then a refunded one, and only then the first. The payment date is not read: Asaas gives only the
+     * day, and a day is not a moment.
+     */
     @Override
     public Optional<PaymentInfo> findPayment(String checkoutId) {
         JsonNode response = exchange(() -> client.get()
                 .uri("/v3/payments?checkoutSession={id}", checkoutId)
                 .retrieve()
                 .body(JsonNode.class));
-        JsonNode first = response.path("data").path(0);
-        if (first.isMissingNode() || first.isNull()) {
-            return Optional.empty();
+        List<PaymentInfo> payments = new ArrayList<>();
+        for (JsonNode entry : response.path("data")) {
+            if (entry.isObject()) {
+                payments.add(new PaymentInfo(text(entry, "id"), text(entry, "status")));
+            }
         }
-        String date = text(first, "paymentDate");
-        try {
-            return Optional.of(new PaymentInfo(
-                    text(first, "id"),
-                    text(first, "status"),
-                    date.isEmpty()
-                            ? null
-                            : LocalDate.parse(date).atStartOfDay(SAO_PAULO).toInstant()));
-        } catch (DateTimeParseException e) {
-            throw new PaymentGatewayException(0);
-        }
+        return payments.stream()
+                .filter(OrderPayments::confirmed)
+                .findFirst()
+                .or(() -> payments.stream()
+                        .filter(payment -> REFUNDED.contains(payment.status()))
+                        .findFirst())
+                .or(() -> payments.stream().findFirst());
     }
 
     @Override
@@ -144,7 +147,10 @@ class AsaasGateway implements PaymentGateway {
         return node.path(field).asString("");
     }
 
-    /** Timeouts and IO errors have no status: they become {@code PaymentGatewayException(0)}, without their text. */
+    /**
+     * Timeouts and IO errors have no status: they become {@code PaymentGatewayException(0)}, without their text. Only
+     * the class of the cause is logged, so an operator can tell a timeout from a refused connection.
+     */
     private static <T> T exchange(Supplier<T> call) {
         try {
             T result = call.get();
@@ -153,6 +159,8 @@ class AsaasGateway implements PaymentGateway {
             }
             return result;
         } catch (RestClientException e) {
+            Throwable cause = e.getMostSpecificCause();
+            log.warn("asaas call failed: {}", cause.getClass().getName());
             throw new PaymentGatewayException(0);
         }
     }
