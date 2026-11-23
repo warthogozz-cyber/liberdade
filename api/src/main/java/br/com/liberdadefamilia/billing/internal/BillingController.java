@@ -29,7 +29,7 @@ class BillingController {
     @WorkspaceScoped(allow = {OWNER})
     @ResponseStatus(HttpStatus.CREATED)
     CheckoutView startCheckout(WorkspaceMember member) {
-        String key = member.userId().toString();
+        String key = member.workspaceId().toString();
         if (!checkoutLimiter.tryAcquire(key)) {
             throw new RateLimitedException(checkoutLimiter.retryAfterSeconds(key));
         }
