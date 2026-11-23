@@ -185,7 +185,7 @@ function PortraitScreen({ workspaceId, timezone }: { workspaceId: string; timezo
         type="button"
         disabled={data.empty || sharing}
         onClick={() => void share()}
-        className="min-h-12 rounded-field bg-primary px-4 font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
+        className="min-h-12 rounded-field bg-primary px-4 font-medium text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
       >
         <FormattedMessage id="portrait.share" />
       </button>
