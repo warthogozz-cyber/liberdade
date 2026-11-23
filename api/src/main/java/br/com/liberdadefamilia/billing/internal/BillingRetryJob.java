@@ -94,14 +94,17 @@ class BillingRetryJob {
                 reconciled);
     }
 
-    /** Applies a payment the gateway confirms but we never heard of, dated now as the webhook would be. */
+    /**
+     * Applies a payment the gateway confirms but we never heard of, dated now as the webhook would be. {@code true}
+     * only when this pass activated the plan.
+     */
     private boolean reconcile(OrderRepository.OrderRow order) {
         Optional<PaymentInfo> found = gateway.findPayment(order.checkoutId());
         if (found.isEmpty() || !OrderPayments.confirmed(found.get())) {
             return false;
         }
-        payments.applyPaid(order.id(), clock.instant(), found.get().paymentId());
-        return true;
+        return payments.applyPaid(order.id(), clock.instant(), found.get().paymentId())
+                == OrderPayments.ApplyResult.ACTIVATED;
     }
 
     /** Looks at the payment and finishes, waits for or repeats the refund. Only the order changes, never the plan. */

@@ -2,6 +2,7 @@ package br.com.liberdadefamilia.billing.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import org.junit.jupiter.api.Test;
@@ -45,5 +46,14 @@ class RefundWindowTest {
 
         assertThat(RefundWindow.deadline(paidAt)).isEqualTo(sp("2026-12-02T00:00:00"));
         assertThat(RefundWindow.deadline(paidAt)).isAfter(paidAt.plusSeconds(7L * 24 * 3600));
+    }
+
+    @Test
+    void daylightSavingNeverMakesTheWindowShorterThanSevenFullDays() {
+        // São Paulo moved its clocks forward at 00:00 on 4 November 2018: the local count alone would give 7 days
+        // minus 30 minutes to a payment at 23:30 on 28 October.
+        Instant paidAt = OffsetDateTime.parse("2018-10-28T23:30:00-03:00").toInstant();
+
+        assertThat(RefundWindow.deadline(paidAt)).isEqualTo(paidAt.plus(Duration.ofDays(7)));
     }
 }

@@ -7,7 +7,8 @@ import { RefundSheet } from './RefundSheet'
 import { ThemePicker } from './ThemePicker'
 import './register'
 
-const DATE_ZONE = 'America/Fortaleza'
+// The same zone the API counts the refund window in (RefundWindow.java).
+const DATE_ZONE = 'America/Sao_Paulo'
 
 interface PlanStatusCardProps {
   ws: string

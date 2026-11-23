@@ -5,8 +5,11 @@ import br.com.liberdadefamilia.shared.RateLimiter;
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.HexFormat;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -62,7 +65,7 @@ class WebhookController {
         }
         if (!authentic(token)) {
             // The servlet container resolves the address from the trusted proxy (forward-headers-strategy=native).
-            String client = request.getRemoteAddr();
+            String client = clientKey(request.getRemoteAddr());
             if (!unauthenticatedLimiter.tryAcquire(client)) {
                 throw new RateLimitedException(unauthenticatedLimiter.retryAfterSeconds(client));
             }
@@ -98,5 +101,25 @@ class WebhookController {
 
     private static boolean isBlank(@Nullable String value) {
         return value == null || value.isBlank();
+    }
+
+    /**
+     * The key a caller with a bad token is counted under. An IPv6 caller usually holds a whole /64, so it is counted by
+     * that prefix: otherwise one host could rotate addresses and grow the limiter without bound.
+     */
+    static String clientKey(String address) {
+        if (address.indexOf(':') < 0) {
+            return address;
+        }
+        try {
+            // The servlet container gives a numeric address, so this parses it and never looks up a name.
+            byte[] bytes = InetAddress.getByName(address).getAddress();
+            if (bytes.length == 16) {
+                return HexFormat.of().formatHex(bytes, 0, 8) + "/64";
+            }
+        } catch (UnknownHostException ignored) {
+            // Not a numeric address: counted as given.
+        }
+        return address;
     }
 }
