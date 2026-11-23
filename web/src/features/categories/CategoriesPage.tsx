@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { lazy, Suspense, useId, useRef, useState } from 'react'
 import { Navigate } from 'react-router'
 import { FormattedMessage, useIntl } from 'react-intl'
 import {
@@ -17,9 +17,12 @@ import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Sheet } from '@/shared/ui/Sheet'
 import { CategoryForm } from './CategoryForm'
 import { CategoryTabs } from './CategoryTabs'
-import { categoryTabId, categoryTree } from './categoryStyle'
+import { categoryTabId, categoryTree, type CategoryTab } from './categoryStyle'
 import { COLOR_DOT } from './colorDot'
 import './register'
+
+/** The tags are managed rarely, so their tab is a chunk of its own. */
+const TagsTab = lazy(() => import('./TagsTab'))
 
 type View = { kind: 'new' } | { kind: 'edit' | 'archive'; id: string }
 
@@ -80,7 +83,10 @@ function CategoriesScreen({ workspace }: { workspace: MeWorkspace }) {
   const intl = useIntl()
   const toast = useToast()
   const online = useOnline()
-  const [kind, setKind] = useState<CategoryKind>('EXPENSE')
+  const [tab, setTab] = useState<CategoryTab>('EXPENSE')
+  // The tree belongs to a kind; on the Tags tab the screen keeps the last one it showed.
+  const [lastKind, setLastKind] = useState<CategoryKind>('EXPENSE')
+  const kind = tab === 'TAGS' ? lastKind : tab
   const panelId = useId()
   const categories = useCategories(workspace.id, kind)
   const archive = useArchiveCategory(workspace.id)
@@ -131,113 +137,131 @@ function CategoriesScreen({ workspace }: { workspace: MeWorkspace }) {
     toast.show({ message: intl.formatMessage({ id: 'categories.unarchivedToast' }) })
   }
 
-  function changeKind(next: CategoryKind) {
-    setKind(next)
+  function changeTab(next: CategoryTab) {
+    setTab(next)
+    if (next !== 'TAGS') setLastKind(next)
     setUnarchiveError(undefined)
   }
 
   return (
     <>
-      <CategoryTabs value={kind} onChange={changeKind} panelId={panelId} />
+      <CategoryTabs value={tab} onChange={changeTab} panelId={panelId} />
       <div
         role="tabpanel"
         id={panelId}
-        aria-labelledby={categoryTabId(panelId, kind)}
+        aria-labelledby={categoryTabId(panelId, tab)}
         className="flex flex-col gap-4"
       >
-        <button
-          type="button"
-          disabled={!online}
-          onClick={() => setView({ kind: 'new' })}
-          className={primary}
-        >
-          <FormattedMessage id="categories.new" />
-        </button>
-        {!online && (
-          <p role="status" className="text-text-muted">
-            <FormattedMessage id="categories.offline" />
-          </p>
-        )}
-        {categories.isPending ? (
-          <p>
-            <FormattedMessage id="common.loading" />
-          </p>
-        ) : categories.isError && all.length === 0 ? (
-          <div className="flex flex-col items-start gap-2">
-            <p>
-              <FormattedMessage id="common.error" />
-            </p>
-            <button type="button" onClick={() => void categories.refetch()} className={outline}>
-              <FormattedMessage id="common.retry" />
-            </button>
-          </div>
+        {tab === 'TAGS' ? (
+          <Suspense
+            fallback={
+              <p>
+                <FormattedMessage id="common.loading" />
+              </p>
+            }
+          >
+            <TagsTab workspace={workspace} />
+          </Suspense>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {categoryTree(active, kind).map(({ category, children }) => (
-              <li key={category.id} className="flex flex-col gap-1">
-                <button
-                  type="button"
-                  onClick={() => open(category.id)}
-                  className="flex min-h-14 w-full items-center gap-3 rounded-card bg-surface p-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                >
-                  <CategoryLabel category={category} />
-                </button>
-                {children.length > 0 && (
-                  <ul className="flex flex-col gap-1 pl-6">
-                    {children.map((child) => (
-                      <li key={child.id}>
-                        <button
-                          type="button"
-                          onClick={() => open(child.id)}
-                          className="flex min-h-12 w-full items-center gap-3 rounded-card bg-surface p-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                        >
-                          <CategoryLabel category={child} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        {archived.length > 0 && (
-          <details className="rounded-card bg-surface p-3">
-            <summary className="flex min-h-12 cursor-pointer items-center font-medium">
-              {intl.formatMessage({ id: 'categories.archived' }, { count: archivedTree.length })}
-            </summary>
-            <ul className="mt-2 flex flex-col gap-2">
-              {archivedTree.map(({ category, children }) => (
-                <li key={category.id} className="flex flex-col gap-1">
-                  <div className="flex items-center gap-3">
-                    <CategoryLabel category={category} />
-                    <button
-                      type="button"
-                      disabled={!online || unarchive.isPending}
-                      onClick={() => void reactivate(category)}
-                      className={outline}
-                    >
-                      <FormattedMessage id="categories.unarchive" />
-                    </button>
-                  </div>
-                  {children.length > 0 && (
-                    <ul className="flex flex-col gap-1 pl-6">
-                      {children.map((child) => (
-                        <li key={child.id} className="flex items-center gap-3">
-                          <CategoryLabel category={child} />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {unarchiveError && (
-              <p role="alert" className="mt-2 text-negative">
-                {unarchiveError}
+          <>
+            <button
+              type="button"
+              disabled={!online}
+              onClick={() => setView({ kind: 'new' })}
+              className={primary}
+            >
+              <FormattedMessage id="categories.new" />
+            </button>
+            {!online && (
+              <p role="status" className="text-text-muted">
+                <FormattedMessage id="categories.offline" />
               </p>
             )}
-          </details>
+            {categories.isPending ? (
+              <p>
+                <FormattedMessage id="common.loading" />
+              </p>
+            ) : categories.isError && all.length === 0 ? (
+              <div className="flex flex-col items-start gap-2">
+                <p>
+                  <FormattedMessage id="common.error" />
+                </p>
+                <button type="button" onClick={() => void categories.refetch()} className={outline}>
+                  <FormattedMessage id="common.retry" />
+                </button>
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {categoryTree(active, kind).map(({ category, children }) => (
+                  <li key={category.id} className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => open(category.id)}
+                      className="flex min-h-14 w-full items-center gap-3 rounded-card bg-surface p-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    >
+                      <CategoryLabel category={category} />
+                    </button>
+                    {children.length > 0 && (
+                      <ul className="flex flex-col gap-1 pl-6">
+                        {children.map((child) => (
+                          <li key={child.id}>
+                            <button
+                              type="button"
+                              onClick={() => open(child.id)}
+                              className="flex min-h-12 w-full items-center gap-3 rounded-card bg-surface p-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                            >
+                              <CategoryLabel category={child} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {archived.length > 0 && (
+              <details className="rounded-card bg-surface p-3">
+                <summary className="flex min-h-12 cursor-pointer items-center font-medium">
+                  {intl.formatMessage(
+                    { id: 'categories.archived' },
+                    { count: archivedTree.length },
+                  )}
+                </summary>
+                <ul className="mt-2 flex flex-col gap-2">
+                  {archivedTree.map(({ category, children }) => (
+                    <li key={category.id} className="flex flex-col gap-1">
+                      <div className="flex items-center gap-3">
+                        <CategoryLabel category={category} />
+                        <button
+                          type="button"
+                          disabled={!online || unarchive.isPending}
+                          onClick={() => void reactivate(category)}
+                          className={outline}
+                        >
+                          <FormattedMessage id="categories.unarchive" />
+                        </button>
+                      </div>
+                      {children.length > 0 && (
+                        <ul className="flex flex-col gap-1 pl-6">
+                          {children.map((child) => (
+                            <li key={child.id} className="flex items-center gap-3">
+                              <CategoryLabel category={child} />
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {unarchiveError && (
+                  <p role="alert" className="mt-2 text-negative">
+                    {unarchiveError}
+                  </p>
+                )}
+              </details>
+            )}
+          </>
         )}
       </div>
 
