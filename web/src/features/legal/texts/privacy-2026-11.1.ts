@@ -87,7 +87,7 @@ export const privacy2026111Messages = {
   'policy.2026-11.1.changes.title': 'E se esta política mudar?',
   'policy.2026-11.1.changes.p1': 'A versão e a data ficam no topo desta página.',
   'policy.2026-11.1.changes.p2':
-    'Quando sair uma versão nova, o app pede o seu aceite de novo antes de você continuar.',
+    'Quando a mudança for importante, o app pede o seu aceite de novo antes de você continuar. Ajustes menores aparecem como um aviso no app.',
 } as const
 
 export const privacy2026111: LegalText = {
