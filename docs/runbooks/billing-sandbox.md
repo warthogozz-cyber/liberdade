@@ -40,7 +40,8 @@ openssl rand -hex 32
 ```
 
 Resultado esperado: 64 caracteres hexadecimais, dentro do limite de 32 a 255 que a API exige.
-Não cole o token em nenhum lugar além do SSM (passo 3) e do painel do Asaas (passo 4).
+Guarde o token no gerenciador de senhas, junto com a chave, até o passo 4. Não cole o token em
+nenhum outro lugar além do SSM (passo 3) e do painel do Asaas (passo 4).
 
 ### 3. Parâmetros no SSM
 
@@ -158,16 +159,17 @@ Resultado esperado: o pedido vai a `PAID` e a família vira Fundadora, como no P
 
 Na família do passo 7 (dentro dos 7 dias), peça o reembolso.
 
-Resultado esperado: o app mostra "Reembolso em processamento", o pedido fica `REFUND_PENDING` e,
-quando o Asaas confirma e manda `PAYMENT_REFUNDED` (ou a rotina horária descobre), o pedido vira
-`REFUNDED` e a família volta ao plano Grátis. Se passar de 72 h em `REFUND_PENDING`, a API emite o
-alerta `REFUND_STUCK` (veja o passo 11).
+Resultado esperado: ao pedir, o plano da família acaba na hora e ela volta ao Grátis; o app mostra
+"Reembolso em processamento" e o pedido fica `REFUND_PENDING`. Quando o Asaas confirma e manda
+`PAYMENT_REFUNDED` (ou a rotina horária descobre), o pedido vira `REFUNDED`. Se passar de 72 h em
+`REFUND_PENDING`, a API emite o alerta `REFUND_STUCK` (veja o passo 11).
 
 Para contraste: no perfil `e2e`, com o gateway falso, o reembolso para em `REFUND_PENDING` sem
 chamar ninguém. Isso é só de teste e não acontece no sandbox.
 
 ### 10. Expiração
 
+Use a família do passo 7, que voltou ao Grátis no passo 9.
 Comece uma compra e **não pague**. Espere o checkout expirar (60 min).
 
 Resultado esperado: o Asaas manda `CHECKOUT_EXPIRED` e o pedido vira `EXPIRED`.
@@ -195,13 +197,28 @@ aws logs filter-log-events --log-group-name /liberdade/staging \
 Para disparar um alerta de teste no staging, o jeito seguro é o `CHARGEBACK`. O `WEBHOOK_ERROR`
 só sai quando uma regra falha dentro de um evento de verdade, e um tipo de evento inventado é
 só ignorado, então não há como forçá-lo de fora. Faça assim, com o pedido pago do passo 8 (a
-família do cartão):
+família do cartão).
 
-1. Pegue o `asaas_payment_id` desse pedido no banco.
-2. Envie ao staging um evento de estorno à mão, lendo o token sem mostrá-lo:
+Isto só vale no **sandbox**, com uma família de teste. O pedido fica em `CHARGEBACK` para sempre
+e a família perde o plano (ela pode comprar de novo). **Nunca faça isso na produção**: acabaria
+com o plano de uma cliente de verdade.
+
+1. Leia o `asaas_payment_id` do pedido do passo 8 (só leitura):
+
+   ```sql
+   select asaas_payment_id from billing_orders
+   where status = 'PAID' order by created_at desc limit 1;
+   ```
+
+   Se vier nulo, o evento não acharia o pedido: o webhook responderia `200` com o resultado
+   `UNKNOWN_ORDER` e **nenhum alerta** sairia. Espere a rotina horária e leia de novo; se
+   continuar nulo depois de 1 h, abra uma issue, como no passo 7.
+2. Envie ao staging um evento de estorno à mão. O token vem do SSM para uma variável do shell,
+   sem aparecer na tela nem no histórico:
 
 ```bash
-read -rs -p "Token do webhook: " ASAAS_TOKEN; echo
+export MSYS_NO_PATHCONV=1
+ASAAS_TOKEN="$(aws ssm get-parameter --name /liberdade/staging/ASAAS_WEBHOOK_TOKEN   --with-decryption --query Parameter.Value --output text)"
 curl -sS -o /dev/null -w '%{http_code}\n' -X POST \
   https://api-staging.liberdadefamilia.com.br/v1/billing/webhooks/asaas \
   -H 'Content-Type: application/json' \
@@ -213,7 +230,9 @@ unset ASAAS_TOKEN
 Resultado esperado: o `curl` imprime `200`; o pedido vira `CHARGEBACK` e a família perde o plano;
 em até uns 5 a 10 minutos chega o e-mail do alarme `liberdade-billing-alert-staging` em `ALARM`,
 e depois o do `OK`. Use um `id` de evento novo a cada tentativa: o mesmo `id` repetido não faz
-nada. Se o token ou o cabeçalho estiver errado, a resposta é `401`.
+nada. Se o token ou o cabeçalho estiver errado, a resposta é `401`. Se o `curl` der `200` mas o
+pedido continuar `PAID` e não chegar e-mail, o `asaas_payment_id` estava errado (o evento foi
+guardado como `UNKNOWN_ORDER`).
 
 ### 12. Retrato
 

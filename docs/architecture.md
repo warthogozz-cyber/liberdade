@@ -78,7 +78,7 @@ flowchart LR
   ventures --> ledger
   audit -. ouve eventos .-> identity & workspace
   audit --> identity & workspace
-  privacy --> ledger & audit & workspace & identity
+  privacy --> ledger & audit & workspace & identity & billing
   billing --> workspace & identity
   audit -. ouve eventos .-> billing
 ```
@@ -111,7 +111,8 @@ usa chama o pacote raiz (`Plans`, `@RequiresPlan`, `BillingExport`) ou ouve os e
 (Família Fundadora, produto `FOUNDER_2026`) ficam no código, não no banco.
 
 - **Gateway.** A interface `PaymentGateway` esconde o Asaas. `AsaasGateway`
-  (`liberdade.billing.gateway=asaas`) é o real; `FakePaymentGateway` serve ao dev, ao `e2e` e aos testes e **não sobe** com o perfil
+  (`liberdade.billing.gateway=asaas`) é o real; `FakePaymentGateway` serve ao dev, ao `e2e` e aos
+  testes e **não sobe** com o perfil
   `prod` (o `BillingStartupCheck` recusa a partida). O pagamento acontece na página hospedada do
   Asaas: o app nunca vê cartão, Pix nem CPF. O link do checkout só vale se o host estiver em
   `liberdade.billing.checkout-hosts`.
@@ -146,7 +147,8 @@ usa chama o pacote raiz (`Plans`, `@RequiresPlan`, `BillingExport`) ou ouve os e
   (`PlanRequiredException`) quando a família não tem o plano.
 - **Alertas.** `BillingAlerts` escreve `BILLING_ALERT type=<TIPO>` no nível WARN, com `TIPO` em
   `CHARGEBACK`, `REFUND_STUCK` e `WEBHOOK_ERROR`, sem valores nem ids. Em
-  `infra/live/billing_alerts.tf`, um filtro de métrica por ambiente (`/liberdade/staging` e `/liberdade/production`) conta o
+  `infra/live/billing_alerts.tf`, um filtro de métrica por ambiente (`/liberdade/staging` e
+  `/liberdade/production`) conta o
   termo `"BILLING_ALERT"` e o alarme `liberdade-billing-alert-{ambiente}` (soma em 300 s, limite
   1, dados ausentes não contam) avisa o tópico SNS de alertas em `ALARM` e em `OK`. **Um e-mail
   por janela de alarme:** um segundo alerta enquanto o alarme já está em `ALARM` não manda e-mail
