@@ -12,6 +12,7 @@
 import {
   expect,
   test as base,
+  type APIRequestContext,
   type Browser,
   type BrowserContext,
   type CDPSession,
@@ -354,4 +355,30 @@ export async function stubFirstReauthRequired(
       }),
     })
   })
+}
+
+// A test value: it must match `liberdade.billing.webhook-token` in `application-e2e.properties`.
+const ASAAS_WEBHOOK_TOKEN = 'test-webhook-token-0123456789abcdef0123'
+
+/** Posts an Asaas event to the API the way Asaas would, and expects a 2xx answer. */
+export async function postAsaasWebhook(
+  request: APIRequestContext,
+  body: Record<string, unknown>,
+): Promise<void> {
+  const response = await request.post('http://localhost:8080/v1/billing/webhooks/asaas', {
+    headers: { 'asaas-access-token': ASAAS_WEBHOOK_TOKEN },
+    data: { id: `evt_e2e_${crypto.randomUUID()}`, ...body },
+  })
+  expect(response.ok(), `webhook answered ${response.status()}`).toBe(true)
+}
+
+/** Answers the fake checkout host (`checkout.e2e.test`) with a plain page, so no real network is used. */
+export async function stubCheckoutHost(page: Page): Promise<void> {
+  await page.route('https://checkout.e2e.test/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html; charset=utf-8',
+      body: '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Pagamento de teste</title></head><body><h1>Pagamento de teste</h1></body></html>',
+    }),
+  )
 }

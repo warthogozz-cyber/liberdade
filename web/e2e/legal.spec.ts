@@ -140,14 +140,27 @@ test('newVersionAsksAgain: whoever accepted the texts from before billing accept
   // The accept carries the versions the API listed, and then the real answer lifts the gate.
   await page.unroute(DOCUMENTS_LIST)
   await page.getByRole('checkbox', { name: /Li e aceito os termos/ }).check()
-  const accepted = page.waitForRequest(
-    (request) => request.method() === 'POST' && request.url().endsWith('/v1/me/documents/accept'),
-  )
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  expect((await accepted).postDataJSON()).toEqual({
-    terms: 'terms-2026-12',
-    privacy: 'privacy-2026-12',
+  // Playwright does not see this request's body (the browser drops it from the network event), so the
+  // page's own fetch is wrapped to read it.
+  await page.evaluate(() => {
+    const original = window.fetch
+    const seen: string[] = []
+    ;(window as unknown as { acceptBodies: string[] }).acceptBodies = seen
+    window.fetch = async (input, init) => {
+      if (input instanceof Request && input.url.endsWith('/v1/me/documents/accept')) {
+        seen.push(await input.clone().text())
+      }
+      return original(input, init)
+    }
   })
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as unknown as { acceptBodies: string[] }).acceptBodies.map((b) => JSON.parse(b)),
+      ),
+    )
+    .toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12' }])
   await expect(page.getByRole('heading', GATE)).toHaveCount(0)
   await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible()
 })

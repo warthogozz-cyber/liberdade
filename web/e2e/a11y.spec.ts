@@ -268,3 +268,20 @@ test('the family, privacy and module screens meet WCAG 2.2 AA in both themes', a
     )
   })
 })
+
+test('the Plan and Portrait screens meet WCAG 2.2 AA in both themes', async ({ page }) => {
+  await signInWithGoogle(page, newUser())
+  await createFamily(page)
+  await recordExpense(page, '1234', '🛒 Mercado')
+  await waitForQueueToEmpty(page)
+
+  await page.goto('/mais/plano')
+  await expectNoViolations(
+    page,
+    'Plano',
+    page.getByRole('button', { name: 'Ser Família Fundadora' }),
+  )
+
+  await page.goto('/painel/retrato')
+  await expectNoViolations(page, 'Retrato do mês', page.getByRole('img', { name: /^Retrato de / }))
+})
