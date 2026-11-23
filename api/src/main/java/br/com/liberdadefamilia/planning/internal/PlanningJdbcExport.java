@@ -18,6 +18,13 @@ import org.springframework.stereotype.Component;
 @Component
 class PlanningJdbcExport implements PlanningExport {
 
+    private static final String SELECT = """
+            select id, kind, amount, currency, account_id, to_account_id, category_id, payment_method,
+                   description, frequency, "interval", start_on, end_on, next_due_on, created_by, version,
+                   created_at, archived_at
+            from recurring_rules
+            """;
+
     private final JdbcClient jdbc;
 
     PlanningJdbcExport(JdbcClient jdbc) {
@@ -26,14 +33,21 @@ class PlanningJdbcExport implements PlanningExport {
 
     @Override
     public List<ExportedRecurringRule> rules(UUID workspaceId) {
-        return jdbc.sql("""
-                        select id, kind, amount, currency, account_id, to_account_id, category_id, payment_method,
-                               description, frequency, "interval", start_on, end_on, next_due_on, created_by, version,
-                               created_at, archived_at
-                        from recurring_rules
+        return jdbc.sql(SELECT + """
                         where workspace_id = :workspaceId
                         order by start_on, id""")
                 .param("workspaceId", workspaceId)
+                .query(PlanningJdbcExport::rule)
+                .list();
+    }
+
+    @Override
+    public List<ExportedRecurringRule> rulesCreatedBy(UUID workspaceId, UUID membershipId) {
+        return jdbc.sql(SELECT + """
+                        where workspace_id = :workspaceId and created_by = :membershipId
+                        order by start_on, id""")
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
                 .query(PlanningJdbcExport::rule)
                 .list();
     }

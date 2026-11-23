@@ -9,6 +9,8 @@ import br.com.liberdadefamilia.billing.RefundRequested;
 import br.com.liberdadefamilia.identity.PasskeyRemoved;
 import br.com.liberdadefamilia.identity.SignedIn;
 import br.com.liberdadefamilia.planning.RecurringRuleArchived;
+import br.com.liberdadefamilia.planning.RecurringRuleCreated;
+import br.com.liberdadefamilia.planning.RecurringRuleEdited;
 import br.com.liberdadefamilia.workspace.InvitationCreated;
 import br.com.liberdadefamilia.workspace.InvitationKind;
 import br.com.liberdadefamilia.workspace.InvitationRevoked;
@@ -91,6 +93,28 @@ class AuditListeners {
                 "MEMBERSHIP",
                 event.membershipId(),
                 Map.of("reason", event.reason().name()));
+    }
+
+    @EventListener
+    void on(RecurringRuleCreated event) {
+        record(
+                event.workspaceId(),
+                event.actorUserId(),
+                "recurring_rule.created",
+                "RECURRING_RULE",
+                event.ruleId(),
+                Map.of());
+    }
+
+    @EventListener
+    void on(RecurringRuleEdited event) {
+        record(
+                event.workspaceId(),
+                event.actorUserId(),
+                "recurring_rule.edited",
+                "RECURRING_RULE",
+                event.ruleId(),
+                Map.of());
     }
 
     @EventListener

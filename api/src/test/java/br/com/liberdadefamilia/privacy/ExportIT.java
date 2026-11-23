@@ -473,8 +473,8 @@ class ExportIT {
                 .containsPattern(";Mensalidade;Aninha;[^;]*;Confirmado;Pix;\"?Escola; Filhos\"?\r\n");
         assertThat(text(files.get("recorrencias.csv")))
                 .contains(
-                        "tipo;valor;moeda;conta;categoria;forma_pagamento;descricao;frequencia;intervalo;inicio;fim;arquivada_em")
-                .contains("Gasto;30,00;BRL;Corrente;Mercado;;Aluguel;Mensal;1;2026-12-01;;");
+                        "tipo;valor;moeda;conta;conta_destino;categoria;forma_pagamento;descricao;frequencia;intervalo;inicio;fim;arquivada_em")
+                .contains("Gasto;30,00;BRL;Corrente;;Mercado;;Aluguel;Mensal;1;2026-12-01;;");
         assertThat(text(files.get("tags.csv")))
                 .contains("nome;arquivada_em")
                 .contains("Escola;")
@@ -514,6 +514,48 @@ class ExportIT {
         String json = text(unzip(exportMine(f.bia)).get("dados.json"));
 
         assertThat(JsonPath.<List<String>>read(json, "$.tags[*].name")).containsExactly("DaAdulta");
+    }
+
+    @Test
+    void transferRuleHasDestinationColumn() {
+        Family f = family();
+        UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
+        UUID checking = idOf("accounts", f.ws, "Corrente");
+        UUID savings = jdbc.sql("""
+                        insert into accounts (workspace_id, name, type, currency)
+                        values (:ws, 'Reserva', 'SAVINGS', 'BRL') returning id""").param("ws", f.ws).query(UUID.class).single();
+        jdbc.sql("""
+                        insert into recurring_rules (workspace_id, kind, amount, currency, account_id, to_account_id,
+                                                     description, frequency, "interval", start_on, created_by)
+                        values (:ws, 'TRANSFER', 100.00, 'BRL', :account, :to, 'Mesada', 'MONTHLY', 1,
+                                '2026-12-01', :by)""")
+                .param("ws", f.ws)
+                .param("account", checking)
+                .param("to", savings)
+                .param("by", anaMember)
+                .update();
+
+        String csv = text(unzip(exportFamily(f.ana, f.ws)).get("recorrencias.csv"));
+
+        assertThat(csv).contains("Transferência;100,00;BRL;Corrente;Reserva;;;Mesada;");
+    }
+
+    @Test
+    void rulesCreatedByThePerson() {
+        Family f = family();
+        UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
+        UUID biaMember = workspaces.membershipOf(f.ws, f.bia);
+        UUID checking = idOf("accounts", f.ws, "Corrente");
+        UUID market = idOf("categories", f.ws, "Mercado");
+        UUID biasRule = rule(f.ws, checking, market, biaMember);
+        rule(f.ws, checking, market, anaMember);
+
+        String json = text(unzip(exportMine(f.bia)).get("dados.json"));
+
+        assertThat(JsonPath.<List<String>>read(json, "$.recurringRules[*].id")).containsExactly(biasRule.toString());
+        assertThat(JsonPath.<String>read(json, "$.recurringRules[0].frequency")).isEqualTo("MONTHLY");
+        assertThat(JsonPath.<String>read(json, "$.recurringRules[0].familyName"))
+                .isNotEmpty();
     }
 
     private static Money reais(String amount) {

@@ -73,6 +73,13 @@ public class RecurrenceGenerator {
                         .orElse(null));
     }
 
+    /** Today where the rule is planned: in the zone of its author, the same the generator uses. */
+    LocalDate today(UUID workspaceId, RecurringRuleView rule) {
+        return author(workspaceId, rule)
+                .map(author -> LocalDate.now(clock.withZone(author.timezone())))
+                .orElseGet(() -> LocalDate.now(clock));
+    }
+
     private Optional<WorkspaceMember> author(UUID workspaceId, RecurringRuleView rule) {
         Optional<WorkspaceMember> creator =
                 rule.createdBy() == null ? Optional.empty() : memberships.activeMember(workspaceId, rule.createdBy());

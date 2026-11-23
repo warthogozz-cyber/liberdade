@@ -65,10 +65,11 @@ class TransactionRepository {
                  and (to_account_id is null or to_account_id = any(cast(:scopeIds as uuid[])))))""";
 
     /**
-     * Who may restore: the one who may change it ({@link #OWN}), or, for a row a recurring rule made, anyone who holds
-     * it ({@link #HELD}), so that the youth can undo skipping a planned transaction the rule's author made.
+     * Who may restore: the one who may change it ({@link #OWN}), or, for a planned row a recurring rule made, anyone
+     * who holds it ({@link #HELD}), so that the youth can undo skipping it. A confirmed row stays with {@link #OWN}.
      */
-    private static final String RESTORABLE = "(" + OWN + " or (recurring_rule_id is not null and " + HELD + "))";
+    private static final String RESTORABLE =
+            "(" + OWN + " or (recurring_rule_id is not null and status = 'PLANNED' and " + HELD + "))";
 
     private final JdbcClient jdbc;
 
@@ -532,15 +533,18 @@ class TransactionRepository {
      * Removes for good the transactions deleted before the cutoff, in every family, and returns how many. The one method
      * here without a {@code workspaceId}: the nightly purge sweeps all families at once and serves no request, so there
      * is no family to scope it to, and it only removes rows that their own families already deleted. A transaction of a
-     * recurring rule stays, skipped or not: purging it would free its occurrence, and the generator would make it again.
+     * recurring rule waits longer: until its date is before {@code ruleRowsBefore} (the first day of the previous
+     * month). The generator never plans before the first of the current month, so by then purging it frees an occurrence
+     * that will not be made again, while a skipped or deleted one is not recreated before.
      */
-    int purgeDeletedBefore(Instant cutoff) {
+    int purgeDeletedBefore(Instant cutoff, LocalDate ruleRowsBefore) {
         return jdbc.sql("""
                         delete from transactions
                         where deleted_at is not null
-                          and recurring_rule_id is null
-                          and deleted_at < :cutoff""")
+                          and deleted_at < :cutoff
+                          and (recurring_rule_id is null or scheduled_on < :ruleRowsBefore)""")
                 .param("cutoff", OffsetDateTime.ofInstant(cutoff, ZoneOffset.UTC))
+                .param("ruleRowsBefore", ruleRowsBefore)
                 .update();
     }
 

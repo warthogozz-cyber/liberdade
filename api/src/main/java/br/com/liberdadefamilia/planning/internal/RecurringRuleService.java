@@ -6,6 +6,9 @@ import br.com.liberdadefamilia.ledger.PlannedTemplate;
 import br.com.liberdadefamilia.ledger.PlannedTransactions;
 import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.planning.RecurringRuleArchived;
+import br.com.liberdadefamilia.planning.RecurringRuleCreated;
+import br.com.liberdadefamilia.planning.RecurringRuleEdited;
+import br.com.liberdadefamilia.planning.domain.RecurrenceSchedule;
 import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.shared.PaymentMethod;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
@@ -76,12 +79,14 @@ class RecurringRuleService {
         UUID workspaceId = member.workspaceId();
         UUID id = rules.insert(workspaceId, request, member.membershipId());
         generator.generate(workspaceId, id);
+        events.publishEvent(new RecurringRuleCreated(workspaceId, id, member.userId()));
         return rules.findActive(workspaceId, id).orElseThrow(RecurringRuleNotFoundException::new);
     }
 
     /**
      * Replaces the rule and its open planned transactions from today on; what was confirmed, skipped or is overdue
-     * stays as it is.
+     * stays as it is. The next date to plan is the first one of the edited schedule on or after today (in the zone the
+     * generator plans in), so moving the start earlier in the current month makes no second occurrence.
      *
      * @throws RecurringRuleNotFoundException when the family has no such active rule
      * @throws RecurringRuleConflictException when the version is not the rule's
@@ -100,13 +105,22 @@ class RecurringRuleService {
                         request.categoryId(),
                         request.paymentMethod(),
                         request.description()));
-        if (!rules.update(workspaceId, id, request)) {
+        RecurringRuleView current = rules.findActive(workspaceId, id).orElseThrow(RecurringRuleNotFoundException::new);
+        LocalDate nextDueOn = RecurrenceSchedule.firstAfter(
+                        request.frequency(),
+                        request.interval(),
+                        request.startOn(),
+                        request.endOn(),
+                        generator.today(workspaceId, current).minusDays(1))
+                .orElse(null);
+        if (!rules.update(workspaceId, id, request, nextDueOn)) {
             throw rules.findActive(workspaceId, id).isEmpty()
                     ? new RecurringRuleNotFoundException()
                     : new RecurringRuleConflictException();
         }
         planned.dropOpenFrom(workspaceId, id, today(member));
         generator.generate(workspaceId, id);
+        events.publishEvent(new RecurringRuleEdited(workspaceId, id, member.userId()));
         return rules.findActive(workspaceId, id).orElseThrow(RecurringRuleNotFoundException::new);
     }
 

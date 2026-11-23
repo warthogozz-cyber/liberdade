@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.workspace;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
+import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestClock;
 import br.com.liberdadefamilia.support.TestLedger;
@@ -79,6 +80,35 @@ class FamilyPurgeJobIT {
         UUID ws = workspaces.createFor(ana);
         UUID membership = workspaces.addMember(ws, bia, Role.ADULT, "Bibi");
         ledger.expense(ws, membership, ledger.categoryOf(ws, "EXPENSE", "Mercado"), "9.90", LocalDate.now());
+        UUID rule = jdbc.sql("""
+                        insert into recurring_rules
+                            (workspace_id, kind, amount, currency, account_id, category_id, frequency, interval,
+                             start_on, created_by)
+                        values (:ws, 'EXPENSE', 10, 'BRL', :account, :category, 'MONTHLY', 1, '2026-11-28', :by)
+                        returning id""")
+                .param("ws", ws)
+                .param("account", ledger.walletOf(ws))
+                .param("category", ledger.categoryOf(ws, "EXPENSE", "Mercado"))
+                .param("by", membership)
+                .query(UUID.class)
+                .single();
+        ledger.insertPlanned(
+                ws,
+                ledger.walletOf(ws),
+                ledger.categoryOf(ws, "EXPENSE", "Mercado"),
+                Money.brl("10.00"),
+                LocalDate.of(2026, 11, 28),
+                rule,
+                membership);
+        UUID tag = jdbc.sql(
+                        "insert into tags (workspace_id, name, created_by) values (:ws, 'Escola', :by) returning id")
+                .param("ws", ws)
+                .param("by", membership)
+                .query(UUID.class)
+                .single();
+        jdbc.sql("""
+                        insert into transaction_tags (workspace_id, transaction_id, tag_id)
+                        select :ws, id, :tag from transactions where workspace_id = :ws limit 1""").param("ws", ws).param("tag", tag).update();
         jdbc.sql("insert into workspace_modules (workspace_id, module_key, enabled) values (:ws, 'indicators', true)")
                 .param("ws", ws)
                 .update();
@@ -104,7 +134,16 @@ class FamilyPurgeJobIT {
         job.purge();
 
         for (String table : new String[] {
-            "memberships", "accounts", "categories", "transactions", "invitations", "workspace_modules", "consents"
+            "memberships",
+            "accounts",
+            "categories",
+            "transactions",
+            "invitations",
+            "workspace_modules",
+            "consents",
+            "recurring_rules",
+            "tags",
+            "transaction_tags"
         }) {
             assertThat(jdbc.sql("select count(*) from " + table + " where workspace_id = :ws")
                             .param("ws", ws)

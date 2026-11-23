@@ -138,6 +138,8 @@ class ModuleOffIT {
         List<MvcTestResult> results = List.of(
                 send(HttpMethod.GET, "/recurring-rules", null),
                 send(HttpMethod.POST, "/recurring-rules", "{}"),
+                send(HttpMethod.PATCH, "/recurring-rules/" + rule, "{}"),
+                send(HttpMethod.POST, "/recurring-rules/" + rule + "/archive", null),
                 send(HttpMethod.POST, "/transactions/" + planned + "/confirm", "{\"version\":0}"),
                 send(HttpMethod.POST, "/transactions/" + planned + "/skip", "{\"version\":0}"));
 

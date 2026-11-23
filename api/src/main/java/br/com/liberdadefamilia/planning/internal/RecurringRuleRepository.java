@@ -139,14 +139,14 @@ class RecurringRuleRepository {
                 .single();
     }
 
-    /** Replaces the rule if the version is still the caller's; the next date goes back to the start. */
-    boolean update(UUID workspaceId, UUID id, UpdateRecurringRuleRequest request) {
+    /** Replaces the rule if the version is still the caller's; the next date to plan is the one given (none: ended). */
+    boolean update(UUID workspaceId, UUID id, UpdateRecurringRuleRequest request, @Nullable LocalDate nextDueOn) {
         return jdbc.sql("""
                         update recurring_rules
                         set kind = :kind, amount = :amount, currency = :currency, account_id = :accountId,
                             to_account_id = :toAccountId, category_id = :categoryId,
                             payment_method = :paymentMethod, description = :description, frequency = :frequency,
-                            "interval" = :interval, start_on = :startOn, end_on = :endOn, next_due_on = :startOn,
+                            "interval" = :interval, start_on = :startOn, end_on = :endOn, next_due_on = :nextDueOn,
                             updated_at = now(), version = version + 1
                         where workspace_id = :workspaceId and id = :id and archived_at is null
                           and version = :version""")
@@ -165,6 +165,7 @@ class RecurringRuleRepository {
                         .param("interval", request.interval())
                         .param("startOn", request.startOn())
                         .param("endOn", request.endOn())
+                        .param("nextDueOn", nextDueOn)
                         .update()
                 > 0;
     }

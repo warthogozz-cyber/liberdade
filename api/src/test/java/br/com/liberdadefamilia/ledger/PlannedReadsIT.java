@@ -113,6 +113,28 @@ class PlannedReadsIT {
     }
 
     @Test
+    void plannedTransferDoesNotMoveBalances() {
+        UUID savings = jdbc.sql("""
+                        insert into accounts (workspace_id, name, type, currency)
+                        values (:ws, 'Poupanca', 'SAVINGS', 'BRL') returning id""").param("ws", ws).query(UUID.class).single();
+        String accounts = body(get(ana, "/accounts"));
+
+        jdbc.sql("""
+                        insert into transactions
+                            (id, workspace_id, kind, amount, currency, occurred_on, account_id, to_account_id,
+                             member_id, created_by, status, scheduled_on)
+                        values (uuidv7(), :ws, 'TRANSFER', 300.00, 'BRL', date '2026-11-25', :from, :to,
+                                :m, :m, 'PLANNED', date '2026-11-25')""")
+                .param("ws", ws)
+                .param("from", wallet)
+                .param("to", savings)
+                .param("m", membership)
+                .update();
+
+        assertThat(body(get(ana, "/accounts"))).isEqualTo(accounts);
+    }
+
+    @Test
     void plannedAloneIsNotFamilyActivity() {
         planned(wallet, lazer, "10.00", LocalDate.of(2026, 11, 20), null, membership);
 

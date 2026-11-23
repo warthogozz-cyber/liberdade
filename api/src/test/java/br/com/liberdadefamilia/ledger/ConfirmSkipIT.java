@@ -299,6 +299,26 @@ class ConfirmSkipIT {
         assertThat(deleted(id)).isTrue();
     }
 
+    /** Undoing a skip is all the youth may restore of a rule's row: a confirmed one an adult deleted stays deleted. */
+    @Test
+    void youthCannotRestoreConfirmedRuleRowAnAdultDeleted() {
+        UUID leo = users.create("Leo Teste", "leo@example.com");
+        UUID leoMembership = workspaces.addMember(ws, leo, Role.YOUTH, "Leo");
+        UUID leoWallet = account("Carteira de Leo", "BRL", leoMembership);
+        UUID id = ledger.insertPlanned(ws, leoWallet, mercado, Money.brl("5.00"), DUE, rule(leoWallet), anaMembership);
+        assertThat(post(ana, "/transactions/" + id + "/confirm", "{\"version\":0}"))
+                .hasStatusOk();
+        jdbc.sql("update transactions set deleted_at = now() where id = :id")
+                .param("id", id)
+                .update();
+
+        var result = post(leo, "/transactions/" + id + "/restore", null);
+
+        assertThat(result).hasStatus(404);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("transaction.not-found");
+        assertThat(deleted(id)).isTrue();
+    }
+
     @Test
     void youthCannotConfirmAdultPlanned() {
         UUID leo = users.create("Leo Teste", "leo@example.com");

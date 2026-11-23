@@ -246,6 +246,42 @@ class RecurringRulesIT {
         assertThat(scheduled(id)).containsExactly("2026-11-22 PLANNED 100.0000", "2026-12-22 PLANNED 120.0000");
     }
 
+    /** Moving the day earlier than today within the month must not plan the month a second time. */
+    @Test
+    void editMovingStartEarlierInTheMonthMakesNoSecondOccurrence() {
+        UUID id = create(rule("100.00", "MONTHLY", "2026-11-25", null));
+        UUID november = plannedOn(id, "2026-11-25");
+        assertThat(send(ana, HttpMethod.POST, "/transactions/" + november + "/confirm", "{\"version\":0}"))
+                .hasStatusOk();
+
+        var result =
+                send(ana, HttpMethod.PATCH, "/recurring-rules/" + id, update("100.00", 0, "MONTHLY", "2026-11-20"));
+
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().extractingPath("$.nextDueOn").isEqualTo("2027-01-20");
+        assertThat(scheduled(id)).containsExactly("2026-11-25 CONFIRMED 100.0000", "2026-12-20 PLANNED 100.0000");
+    }
+
+    @Test
+    void createAndEditAreAudited() {
+        UUID id = create(rule("100.00", "MONTHLY", "2026-11-25", null));
+        assertThat(send(ana, HttpMethod.PATCH, "/recurring-rules/" + id, update("120.00", 0, "MONTHLY", "2026-11-25")))
+                .hasStatusOk();
+
+        for (String action : List.of("recurring_rule.created", "recurring_rule.edited")) {
+            assertThat(jdbc.sql("""
+                                    select count(*) from audit_events
+                                    where action = :action and target_type = 'RECURRING_RULE'
+                                      and target_id = :rule and workspace_id = :ws""")
+                            .param("action", action)
+                            .param("rule", id)
+                            .param("ws", ws)
+                            .query(Integer.class)
+                            .single())
+                    .isEqualTo(1);
+        }
+    }
+
     @Test
     void staleVersionConflicts() {
         UUID id = create(rule("100.00", "MONTHLY", "2026-11-25", null));

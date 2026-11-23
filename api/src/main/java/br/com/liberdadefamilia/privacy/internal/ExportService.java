@@ -25,6 +25,7 @@ import br.com.liberdadefamilia.workspace.ModuleKey;
 import br.com.liberdadefamilia.workspace.Modules;
 import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceRegion;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -143,6 +144,12 @@ class ExportService {
 
     private record Member(UUID id, @Nullable String name, Role role, MembershipStatus status) {}
 
+    /** A recurring rule the person created, with the family it belongs to. */
+    private record PersonalRule(
+            UUID workspaceId,
+            String familyName,
+            @JsonUnwrapped ExportedRecurringRule rule) {}
+
     private record PersonalData(
             UserProfile profile,
             List<PersonalMembership> memberships,
@@ -150,6 +157,7 @@ class ExportService {
             List<ActivityItem> activity,
             List<PersonalTransaction> transactions,
             List<PersonalTag> tags,
+            List<PersonalRule> recurringRules,
             Map<UUID, Map<UUID, String>> names) {}
 
     /** An order as written in the export: the amount as decimal text, like the rest of it. */
@@ -270,6 +278,7 @@ class ExportService {
         List<PersonalMembership> membershipRows = new ArrayList<>();
         List<PersonalTransaction> transactions = new ArrayList<>();
         List<PersonalTag> tags = new ArrayList<>();
+        List<PersonalRule> rules = new ArrayList<>();
         Map<UUID, Map<UUID, String>> names = new HashMap<>();
         for (MemberSummary m : mine) {
             String family = familyNames.getOrDefault(m.workspaceId(), "");
@@ -300,6 +309,9 @@ class ExportService {
             for (ExportedTag t : ledger.tagsCreatedBy(m.workspaceId(), m.membershipId())) {
                 tags.add(new PersonalTag(m.workspaceId(), family, t.id(), t.name(), t.createdAt(), t.archivedAt()));
             }
+            for (ExportedRecurringRule r : planning.rulesCreatedBy(m.workspaceId(), m.membershipId())) {
+                rules.add(new PersonalRule(m.workspaceId(), family, r));
+            }
         }
         transactions.sort(Comparator.comparing(PersonalTransaction::occurredOn)
                 .thenComparing(PersonalTransaction::createdAt)
@@ -308,6 +320,9 @@ class ExportService {
         tags.sort(Comparator.comparing(PersonalTag::familyName)
                 .thenComparing(PersonalTag::name)
                 .thenComparing(PersonalTag::id));
+        rules.sort(Comparator.comparing(PersonalRule::familyName)
+                .thenComparing(r -> r.rule().startOn())
+                .thenComparing(r -> r.rule().id()));
 
         List<PersonalConsent> consentRows = consents.listForExport(userId).stream()
                 .map(c -> new PersonalConsent(
@@ -323,7 +338,7 @@ class ExportService {
                         c.supersededAt()))
                 .toList();
         return new PersonalData(
-                profile, membershipRows, consentRows, audit.allActivityOf(userId), transactions, tags, names);
+                profile, membershipRows, consentRows, audit.allActivityOf(userId), transactions, tags, rules, names);
     }
 
     private FamilyData loadFamily(UUID workspaceId) {
@@ -396,6 +411,7 @@ class ExportService {
         root.put("activity", data.activity());
         root.put("transactions", data.transactions());
         root.put("tags", data.tags());
+        root.put("recurringRules", data.recurringRules());
 
         List<List<String>> rows = new ArrayList<>();
         for (PersonalTransaction t : data.transactions()) {
@@ -488,6 +504,7 @@ class ExportService {
         List<List<String>> ruleRows = new ArrayList<>();
         for (ExportedRecurringRule r : data.recurringRules()) {
             UUID category = r.categoryId();
+            UUID toAccount = r.toAccountId();
             LocalDate endOn = r.endOn();
             Instant archivedAt = r.archivedAt();
             ruleRows.add(List.of(
@@ -495,6 +512,7 @@ class ExportService {
                     CsvWriter.amount(r.amount().amount()),
                     r.amount().currency().getCurrencyCode(),
                     accountNames.getOrDefault(r.accountId(), ""),
+                    toAccount == null ? "" : accountNames.getOrDefault(toAccount, ""),
                     category == null ? "" : categoryNames.getOrDefault(category, ""),
                     Labels.paymentMethod(r.paymentMethod()),
                     orEmpty(r.description()),
@@ -544,6 +562,7 @@ class ExportService {
                                 "valor",
                                 "moeda",
                                 "conta",
+                                "conta_destino",
                                 "categoria",
                                 "forma_pagamento",
                                 "descricao",
