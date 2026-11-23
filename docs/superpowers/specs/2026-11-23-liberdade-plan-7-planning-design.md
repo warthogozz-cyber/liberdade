@@ -221,6 +221,7 @@ nenhum). Nada é apagado; religar traz tudo de volta e o job completa o horizont
 
 - **Quem:** Dono e Adulto criam, editam e arquivam regras. O Jovem vê os previstos das contas em que
   é titular (pela regra única) e confirma esses. Leitor vê.
+  Jovem: previsto de transferência que envolve conta de outro membro é só leitura.
 - **Tela:** Recorrências (lista de regras, criar e editar), em Mais na 7.1 e em Planejar a partir da
   7.2 (seção 6.1). Na lista de lançamentos, os
   previstos aparecem numa seção "Previstos" no topo do mês, com data, valor e o botão "Confirmar".
@@ -231,7 +232,8 @@ nenhum). Nada é apagado; religar traz tudo de volta e o job completa o horizont
   dia dos meses mais curtos; anual em 29/02 cai em 28/02 nos anos comuns.
 - **Regra que começa no passado:** a primeira geração parte do maior entre `start_on` e o dia 1º do
   mês atual. Uma regra criada em 23/11 com início em janeiro gera novembro e dezembro, não onze
-  previstos vencidos. Editar a regra segue a mesma conta **(decisão do design)**.
+  previstos vencidos. Editar a regra parte do primeiro dia da nova agenda a partir de hoje, para não
+  criar um segundo previsto no mês **(decisão do design)**.
 - **Autor do previsto:** o job grava `created_by` e `member_id` de quem criou a regra. Se essa pessoa
   saiu da família, usa o Dono. Ao confirmar, `member_id` passa a ser de quem confirmou, porque é
   essa pessoa que diz "esse dinheiro saiu"; `created_by` não muda **(decisão do design)**.

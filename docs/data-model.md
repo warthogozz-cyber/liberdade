@@ -255,7 +255,9 @@ até ele ser confirmado.
   família (milhares de linhas por ano) e os índices acima, a consulta fica bem abaixo de 300 ms. Se
   um dia não ficar, entra um saldo mensal materializado (registrar em ADR).
 - **Excluir lançamento é exclusão lógica** (`deleted_at`), para permitir "Desfazer". Um job apaga de
-  vez as linhas excluídas há mais de 30 dias.
+  vez as linhas excluídas há mais de 30 dias. As linhas que uma recorrência fez esperam mais um pouco:
+  só saem quando a data prevista é anterior ao primeiro dia do mês passado, para que o gerador não
+  as recrie (o gerador nunca planeja antes do dia 1 do mês atual).
 - **Membro removido** vira `status = REMOVED`; os lançamentos dele continuam na família, com o
   apelido.
 - **Jovem** pode não ter e-mail (`users.email` nulo) e entra só por passkey. O consentimento
@@ -312,7 +314,7 @@ têm `workspace_id`.
 |---|---|
 | Conta excluída | 30 dias de carência e depois apagamento definitivo |
 | Família excluída | 30 dias de carência e depois apagamento definitivo |
-| Lançamento excluído | Apagado de vez após 30 dias |
+| Lançamento excluído | Apagado de vez após 30 dias; o de uma recorrência (excluído ou pulado) espera também até o segundo mês depois da data prevista |
 | Convites usados ou vencidos | Apagados após 90 dias |
 | `billing_webhook_events` | 180 dias |
 | `billing_orders` | Nunca pagos: 180 dias. Pagos: 5 anos (contabilidade), mesmo sem a família |
