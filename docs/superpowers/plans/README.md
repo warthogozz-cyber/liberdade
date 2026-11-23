@@ -20,7 +20,7 @@ anterior entra na `main`.
 | # | Plano | Escopo | Status |
 |---|---|---|---|
 | 6 | [Cobrança e Retrato do mês](2026-11-17-liberdade-plan-6-billing.md) | Pré-venda Família Fundadora no Asaas (pagamento único, reembolso em 7 dias) e Retrato do mês grátis ([spec](../specs/2026-11-17-liberdade-plan-6-billing-design.md), [ADR-0015](../../adr/0015-revenue-model-and-billing.md)) | Concluído (cobrança desligada até o go-live) |
-| 7 | v0.2 Planejamento | Orçamento, metas, reserva, recorrências, projeção do saldo, gastos fixos e variáveis, sincronização ao vivo, forma de pagamento, país e moeda no modelo, movimento e som, em três entregas (7.1, 7.2 e 7.3) ([spec](../specs/2026-11-23-liberdade-plan-7-planning-design.md); [plano 7.1](2026-11-23-liberdade-plan-7-1-foundations.md)) | 7.1 concluída e conferida no staging em 2026-11-23; 7.2 em planejamento; 7.3 a escrever |
+| 7 | v0.2 Planejamento | Orçamento, metas, reserva, recorrências, projeção do saldo, gastos fixos e variáveis, sincronização ao vivo, forma de pagamento, país e moeda no modelo, movimento e som, em três entregas (7.1, 7.2 e 7.3) ([spec](../specs/2026-11-23-liberdade-plan-7-planning-design.md); [plano 7.1](2026-11-23-liberdade-plan-7-1-foundations.md); [plano 7.2](2026-11-23-liberdade-plan-7-2-planning.md)) | 7.1 concluída e conferida no staging em 2026-11-23; plano da 7.2 escrito, em revisão; 7.3 a escrever |
 | 8 | v0.3 Indicadores e gamificação | Indicadores com fonte, sequência e conquistas, dicas e tours, importação OFX/CSV, planos mensal e anual | A escrever |
 | 9 | v0.4 Trilhas de renda extra | Projetos de renda extra em trilhas com modelos prontos | A escrever |
 | 10 | Feira | Mercados do OpenStreetMap, mapa ao tocar, cartões dos mercados, preços pela NFC-e | A escrever |
