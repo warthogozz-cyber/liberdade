@@ -36,4 +36,5 @@ export const queryKeys = {
   dashboard: (ws: string, month: string, paymentMethod?: PaymentMethod) =>
     [...workspace(ws), 'dashboard', month, ...(paymentMethod ? [{ paymentMethod }] : [])] as const,
   tags: (ws: string) => [...workspace(ws), 'tags'] as const,
+  rules: (ws: string) => [...workspace(ws), 'recurring-rules'] as const,
 }

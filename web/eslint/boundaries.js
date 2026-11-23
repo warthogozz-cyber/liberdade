@@ -11,9 +11,13 @@ export const CORE = [
   'billing',
   'portrait',
 ]
-export const OPTIONAL = ['planning', 'indicators', 'gamification', 'ventures']
+export const OPTIONAL = ['planning', 'recurrences', 'indicators', 'gamification', 'ventures']
 
 const ALL = [...CORE, ...OPTIONAL]
+
+// An optional feature is cut off from the other features, with these exceptions: the recurring
+// rules form is the transaction entry form's sibling, so it reuses that feature's fields.
+const BUILDS_ON = { recurrences: ['transactions'] }
 
 // Blocks relative imports that climb out of the current area into one of the
 // given top-level folders. Known false positive: a sub-folder inside a feature
@@ -83,7 +87,13 @@ export function boundaryConfigs() {
         [`src/features/${name}/**/*.{ts,tsx}`],
         [
           {
-            group: [...FEATURES, `!@/features/${name}`, `!@/features/${name}/**`, ...APP],
+            group: [
+              // Spelled out per feature: a `!` re-include does not reach a sibling feature.
+              ...ALL.filter(
+                (other) => other !== name && !(BUILDS_ON[name] ?? []).includes(other),
+              ).flatMap((other) => [`@/features/${other}`, `@/features/${other}/**`]),
+              ...APP,
+            ],
             message: `Optional feature "${name}" may only use @/shared and itself.`,
           },
           relativeEscape([...AREAS, ...ALL.filter((other) => other !== name)]),

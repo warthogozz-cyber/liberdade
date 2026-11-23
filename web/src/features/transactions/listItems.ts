@@ -48,7 +48,8 @@ export function mergeTransactions(
   server: TransactionView[] | undefined,
   outbox: OutboxItem[],
 ): ListItem[] {
-  const sent = server ?? []
+  // A planned one has not happened: it has its own section, outside the days and the totals.
+  const sent = (server ?? []).filter(({ status }) => status !== 'PLANNED')
   const ids = new Set(sent.map((transaction) => transaction.id))
   return [
     ...sent.map((transaction) => ({
@@ -57,6 +58,17 @@ export function mergeTransactions(
     })),
     ...outbox.filter((item) => !ids.has(item.id)).map(fromOutbox),
   ].sort(newestFirst)
+}
+
+/** The planned ones of the month, the soonest first. */
+export function plannedOf(server: TransactionView[] | undefined): TransactionView[] {
+  return (server ?? [])
+    .filter(({ status }) => status === 'PLANNED')
+    .sort(
+      (a, b) =>
+        (a.scheduledOn ?? a.occurredOn).localeCompare(b.scheduledOn ?? b.occurredOn) ||
+        a.id.localeCompare(b.id),
+    )
 }
 
 /** Groups items already sorted newest first by their date, keeping that order. */
@@ -81,7 +93,7 @@ export function categoryLabel({ icon, name }: CategoryView): string {
  */
 export function transferRoute(
   { accountId, toAccountId }: Pick<TransactionView, 'accountId' | 'toAccountId'>,
-  accounts: Map<string, AccountView>,
+  accounts: Map<string, Pick<AccountView, 'name'>>,
   unseen = '',
 ): string {
   const from = accounts.get(accountId)?.name ?? unseen

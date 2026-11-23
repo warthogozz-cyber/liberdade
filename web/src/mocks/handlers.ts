@@ -13,6 +13,7 @@ import {
   KEEPS_ACCEPTANCE,
   type MockAccount,
   type MockInvitation,
+  type MockRule,
   mockState,
 } from './data'
 
@@ -197,11 +198,16 @@ function money(cents: bigint, currency: string): ApiMoney {
   return { amount: centsToApi(cents), currency }
 }
 
-/** The transactions not deleted: the only ones lists and sums see. */
-function activeTransactions(): TransactionView[] {
+/** The transactions not deleted, planned ones included: what the list shows. */
+function listedTransactions(): TransactionView[] {
   return mockState.transactions.filter(
     (transaction) => !mockState.deletedTransactionIds.has(transaction.id),
   )
+}
+
+/** The transactions not deleted and confirmed: the only ones sums see, so a planned one counts nowhere. */
+function activeTransactions(): TransactionView[] {
+  return listedTransactions().filter((transaction) => transaction.status === 'CONFIRMED')
 }
 
 /** What the transaction moved in the account: income in, expenses out, a transfer out of one and into the other. */
@@ -668,6 +674,106 @@ function familyRuleFailure(
 function storedTransaction(id: string) {
   const transaction = mockState.transactions.find((existing) => existing.id === id)
   return transaction && { transaction, deleted: mockState.deletedTransactionIds.has(id) }
+}
+
+type RuleBody = Partial<Schemas['CreateRecurringRuleRequest']>
+
+const FREQUENCIES: unknown[] = ['WEEKLY', 'MONTHLY', 'YEARLY']
+const ruleNotFound = () => problem(404, 'recurring-rule.not-found', 'Recorrência não encontrada.')
+const planningOff = () =>
+  problem(403, 'module.disabled', 'O módulo de planejamento está desligado.')
+const planningOn = (workspace: MeWorkspace) => mockState.modules[workspace.id]?.planning === true
+/** Only an Owner or an Adult makes, edits and archives rules. */
+const canManageRules = (workspace: MeWorkspace) =>
+  workspace.role === 'OWNER' || workspace.role === 'ADULT'
+
+/** A Youth sees only the rules on the accounts that are theirs. */
+function ruleVisible(workspace: MeWorkspace, rule: MockRule): boolean {
+  if (workspace.role !== 'YOUTH') return true
+  return (
+    mockState.accounts.find((account) => account.id === rule.accountId)?.ownerMembershipId ===
+    workspace.membershipId
+  )
+}
+
+function ruleView(rule: MockRule): Schemas['RecurringRuleView'] {
+  const view: Partial<MockRule> = { ...rule }
+  delete view.archived
+  return view as Schemas['RecurringRuleView']
+}
+
+/** The fields a create or an edit sets, as stored. */
+function ruleFields(body: RuleBody) {
+  const transfer = body.kind === 'TRANSFER'
+  return {
+    kind: body.kind!,
+    amount: money(validCents(String(body.amount!.amount))!, body.amount!.currency),
+    accountId: body.accountId!,
+    toAccountId: transfer ? (body.toAccountId ?? null) : null,
+    categoryId: transfer ? null : (body.categoryId ?? null),
+    description: body.description?.trim() || null,
+    paymentMethod: transfer ? null : (body.paymentMethod ?? null),
+    frequency: body.frequency!,
+    interval: body.interval ?? 1,
+    startOn: body.startOn!,
+    endOn: body.endOn ?? null,
+  }
+}
+
+function ruleFailure(body: RuleBody | undefined): Response | undefined {
+  if (typeof body !== 'object' || body === null) return malformed()
+  const errors: FieldError[] = (['kind', 'amount', 'accountId', 'frequency', 'startOn'] as const)
+    .filter((field) => body[field] == null)
+    .map((field) => ({ field, code: 'NotNull' }))
+  if (errors.length > 0) return invalid(errors)
+  if (!KINDS.includes(body.kind) || !FREQUENCIES.includes(body.frequency)) return malformed()
+  if (!DATE.test(body.startOn!) || (body.endOn != null && !DATE.test(body.endOn))) {
+    return malformed()
+  }
+  if (validCents(String(body.amount!.amount)) === undefined) {
+    return invalid([{ field: 'amount', code: 'TransactionAmount' }])
+  }
+  const interval = body.interval ?? 1
+  if (!Number.isInteger(interval) || interval < 1 || interval > 12) {
+    return invalid([{ field: 'interval', code: 'Range' }])
+  }
+  if (body.endOn != null && body.endOn < body.startOn!) {
+    return invalid([{ field: 'endOn', code: 'RecurringRuleEnd' }])
+  }
+  const account = mockState.accounts.find((each) => each.id === body.accountId)
+  if (!account || account.archivedAt !== null) {
+    return rejected('recurring-rule.account-not-found', 'Essa conta não está disponível.')
+  }
+  if (body.kind === 'TRANSFER') {
+    const to = mockState.accounts.find((each) => each.id === body.toAccountId)
+    if (!to || to.archivedAt !== null || to.id === account.id) {
+      return rejected('recurring-rule.account-not-found', 'Essa conta não está disponível.')
+    }
+  }
+  return undefined
+}
+
+/** The first date of the rule on or after `today`, stepping by its interval from `startOn`. */
+function nextDue(rule: MockRule, today: string): string | null {
+  const [year, month, day] = rule.startOn.split('-').map(Number)
+  for (let step = 0; step < 5000; step += 1) {
+    const offset = step * rule.interval
+    let date: Date
+    if (rule.frequency === 'WEEKLY') {
+      date = new Date(Date.UTC(year, month - 1, day + offset * 7))
+    } else {
+      const months = rule.frequency === 'MONTHLY' ? offset : offset * 12
+      const first = new Date(Date.UTC(year, month - 1 + months, 1))
+      const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0))
+      date = new Date(
+        Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), Math.min(day, last.getUTCDate())),
+      )
+    }
+    const iso = date.toISOString().slice(0, 10)
+    if (rule.endOn !== null && iso > rule.endOn) return null
+    if (iso >= today) return iso
+  }
+  return null
 }
 
 /** Newest first: by date, then by creation, then by id, as the API lists them. */
@@ -1883,11 +1989,18 @@ export const handlers = [
         .map((category) => category.id),
     )
     const tagName = mockState.tags.find((tag) => tag.id === tagId)?.name
+    const planning = mockState.modules[workspace.id]?.planning === true
+    const thisMonth = familyToday(workspace).startsWith(`${month}-`)
     return HttpResponse.json(
-      activeTransactions()
+      listedTransactions()
         .filter(
           (transaction) =>
-            transaction.occurredOn.startsWith(`${month}-`) &&
+            // A planned one shows only with the module on: the month's, and in this month the overdue.
+            (transaction.status === 'CONFIRMED'
+              ? transaction.occurredOn.startsWith(`${month}-`)
+              : planning &&
+                (transaction.occurredOn.startsWith(`${month}-`) ||
+                  (thisMonth && transaction.occurredOn < `${month}-01`))) &&
             (paymentMethod === null || transaction.paymentMethod === paymentMethod) &&
             (tagId === null ||
               (tagName !== undefined && transaction.tags.some((name) => name === tagName))) &&
@@ -2044,6 +2157,192 @@ export const handlers = [
         stored.transaction.version += 1
       }
       return HttpResponse.json(stored.transaction)
+    },
+  ),
+
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/recurring-rules'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    return HttpResponse.json(
+      mockState.rules
+        .filter((rule) => !rule.archived && ruleVisible(workspace, rule))
+        .sort(
+          (a, b) =>
+            (a.nextDueOn ?? '9999-12-31').localeCompare(b.nextDueOn ?? '9999-12-31') ||
+            a.id.localeCompare(b.id),
+        )
+        .map(ruleView),
+    )
+  }),
+
+  http.post<{ ws: string }>(
+    url('/v1/workspaces/:ws/recurring-rules'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      const body = (await readJson(request)) as RuleBody | undefined
+      const failure = ruleFailure(body)
+      if (failure || !body) return failure
+      const rule: MockRule = {
+        id: crypto.randomUUID(),
+        ...ruleFields(body),
+        createdBy: mockState.user.id,
+        nextDueOn: null,
+        version: 0,
+        archived: false,
+      }
+      rule.nextDueOn = nextDue(rule, familyToday(workspace))
+      mockState.rules.push(rule)
+      // The API plans the first occurrence at once.
+      if (rule.nextDueOn) {
+        mockState.transactions.push({
+          id: crypto.randomUUID(),
+          kind: rule.kind,
+          amount: rule.amount,
+          occurredOn: rule.nextDueOn,
+          accountId: rule.accountId,
+          toAccountId: rule.toAccountId,
+          categoryId: rule.categoryId,
+          description: rule.description,
+          paymentMethod: rule.paymentMethod,
+          tags: [],
+          status: 'PLANNED',
+          scheduledOn: rule.nextDueOn,
+          recurringRuleId: rule.id,
+          createdAt: new Date().toISOString(),
+          memberId: workspace.membershipId,
+          version: 0,
+        })
+      }
+      return HttpResponse.json(ruleView(rule), { status: 201 })
+    },
+  ),
+
+  http.patch<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/recurring-rules/:id'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as (RuleBody & { version?: number }) | undefined
+      const rule = mockState.rules.find((each) => each.id === params.id && !each.archived)
+      if (!rule) return ruleNotFound()
+      const failure = ruleFailure(body)
+      if (failure || !body) return failure
+      if (typeof body.version !== 'number') return malformed()
+      if (body.version !== rule.version) {
+        return problem(
+          409,
+          'recurring-rule.version-conflict',
+          'Essa recorrência mudou. Confira a lista.',
+        )
+      }
+      Object.assign(rule, ruleFields(body))
+      rule.nextDueOn = nextDue(rule, familyToday(workspace))
+      rule.version += 1
+      return HttpResponse.json(ruleView(rule))
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/recurring-rules/:id/archive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      if (!UUID.test(params.id)) return malformed()
+      const rule = mockState.rules.find((each) => each.id === params.id)
+      if (!rule) return ruleNotFound()
+      // Archiving again changes nothing; what it planned and is still open goes away.
+      if (!rule.archived) {
+        rule.archived = true
+        for (const transaction of mockState.transactions) {
+          if (transaction.recurringRuleId === rule.id && transaction.status === 'PLANNED') {
+            mockState.deletedTransactionIds.add(transaction.id)
+          }
+        }
+      }
+      return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/transactions/:id/confirm'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (workspace.role === 'VIEWER') return roleDenied()
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as
+        | {
+            version?: number
+            amount?: ApiMoney
+            occurredOn?: string | null
+            accountId?: string | null
+          }
+        | undefined
+      if (typeof body !== 'object' || body === null || typeof body.version !== 'number') {
+        return malformed()
+      }
+      const stored = storedTransaction(params.id)
+      if (!stored || stored.deleted) return transactionNotFound()
+      const { transaction } = stored
+      if (transaction.status !== 'PLANNED') {
+        return problem(409, 'transaction.not-planned', 'Esse lançamento não é um previsto.')
+      }
+      if (body.version !== transaction.version) {
+        return problem(409, 'transaction.version-conflict', 'Esse previsto mudou. Confira a lista.')
+      }
+      const cents = body.amount === undefined ? undefined : validCents(String(body.amount.amount))
+      if (body.amount !== undefined && cents === undefined) {
+        return invalid([{ field: 'amount', code: 'TransactionAmount' }])
+      }
+      if (body.occurredOn != null && !DATE.test(body.occurredOn)) return malformed()
+      if (body.amount !== undefined && cents !== undefined) {
+        transaction.amount = money(cents, body.amount.currency)
+      }
+      if (body.occurredOn) transaction.occurredOn = body.occurredOn
+      if (body.accountId) transaction.accountId = body.accountId
+      transaction.status = 'CONFIRMED'
+      transaction.memberId = workspace.membershipId
+      transaction.version += 1
+      return HttpResponse.json(transaction)
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/transactions/:id/skip'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (workspace.role === 'VIEWER') return roleDenied()
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as { version?: number } | undefined
+      if (typeof body !== 'object' || body === null || typeof body.version !== 'number') {
+        return malformed()
+      }
+      const stored = storedTransaction(params.id)
+      if (!stored || stored.deleted) return transactionNotFound()
+      if (stored.transaction.status !== 'PLANNED') {
+        return problem(409, 'transaction.not-planned', 'Esse lançamento não é um previsto.')
+      }
+      if (body.version !== stored.transaction.version) {
+        return problem(409, 'transaction.version-conflict', 'Esse previsto mudou. Confira a lista.')
+      }
+      mockState.deletedTransactionIds.add(params.id)
+      stored.transaction.version += 1
+      return new HttpResponse(null, { status: 204 })
     },
   ),
 

@@ -9,5 +9,7 @@ export {
   formatMoney,
   negateCents,
   parseCents,
+  parseTypedAmount,
+  typedAmount,
   removeLastDigit,
 } from './money'

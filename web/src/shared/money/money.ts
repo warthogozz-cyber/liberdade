@@ -82,3 +82,20 @@ export const MIN_CENTS = -MAX_CENTS
 export function negateCents(cents: bigint): bigint {
   return -cents
 }
+
+/**
+ * Reads an amount typed with the family's separators ("1.620,50", "150,5", "150"): the comma starts
+ * the cents and the dots only group. Undefined when it is not a positive amount of up to two decimals.
+ */
+export function parseTypedAmount(text: string): bigint | undefined {
+  const clean = text.trim().replace(/\s/g, '')
+  if (!/^\d{1,3}(\.\d{3})*(,\d{1,2})?$|^\d+(,\d{1,2})?$/.test(clean)) return undefined
+  const [whole = '0', fraction = ''] = clean.replace(/\./g, '').split(',')
+  const cents = BigInt(whole + fraction.padEnd(2, '0'))
+  return cents > 0n && cents <= MAX_CENTS ? cents : undefined
+}
+
+/** The amount as it is typed, with a comma and without grouping ("1500,00"). */
+export function typedAmount(cents: bigint): string {
+  return centsToApi(cents).replace('.', ',')
+}

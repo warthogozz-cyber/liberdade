@@ -37,6 +37,12 @@ describe('module boundaries', () => {
     expect(await lint('src/shared/ui/a.ts', '@/features/transactions/b')).toBe(1)
   })
 
+  it('lets the recurrences feature reuse the transaction fields, and nothing else', async () => {
+    expect(await lint('src/features/recurrences/a.ts', '@/features/transactions/KindTabs')).toBe(0)
+    expect(await lint('src/features/recurrences/a.ts', '@/features/accounts/b')).toBe(1)
+    expect(await lint('src/features/transactions/a.ts', '@/features/recurrences/b')).toBe(1)
+  })
+
   it('lets the app layer import any feature', async () => {
     expect(await lint('src/app/routes.tsx', '@/features/planning')).toBe(0)
   })

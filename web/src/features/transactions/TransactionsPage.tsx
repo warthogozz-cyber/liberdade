@@ -22,7 +22,8 @@ import { addDays, localDate, maxMonth, monthFromParam } from '@/shared/i18n'
 import { useOnline, useOutbox, type OutboxItem } from '@/shared/offline'
 import { DataAsOf, useDocumentTitle, useToast } from '@/shared/ui'
 import { MonthSwitcher } from '@/shared/ui/MonthSwitcher'
-import { groupByDay, mergeTransactions } from './listItems'
+import { groupByDay, mergeTransactions, plannedOf } from './listItems'
+import { PlannedSection } from './PlannedSection'
 import { TransactionFilters } from './TransactionFilters'
 import { TransactionRow } from './TransactionRow'
 
@@ -290,6 +291,7 @@ function TransactionList({
     queuedBelongs(item, filters, categoryList, tagList),
   )
   const groups = groupByDay(mergeTransactions(transactions.data, queued))
+  const planned = plannedOf(transactions.data)
 
   function failed(error: unknown) {
     console.error(error)
@@ -360,6 +362,13 @@ function TransactionList({
             <FormattedMessage id="common.loading" />
           </p>
         )}
+      <PlannedSection
+        workspace={workspace}
+        planned={planned}
+        month={month}
+        categories={categories}
+        accounts={accounts}
+      />
       {groups.map((group) => (
         <section key={group.date}>
           <h2 id={`day-${group.date}`} className="text-sm font-semibold text-text-muted">

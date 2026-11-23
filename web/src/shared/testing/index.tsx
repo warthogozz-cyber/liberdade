@@ -9,7 +9,7 @@ import { ReauthProvider } from '@/shared/auth/ReauthProvider'
 import { locale, useAppMessages } from '@/shared/i18n'
 import { ToastProvider } from '@/shared/ui'
 
-export { outboxItem, outboxPayload, transactionView } from './outbox'
+export { outboxItem, outboxPayload, plannedView, transactionView } from './outbox'
 
 /** The app's QueryClient without retries, so a failed call fails the test at once. */
 export function createTestQueryClient(): QueryClient {

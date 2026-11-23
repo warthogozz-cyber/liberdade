@@ -18,6 +18,9 @@ export interface MockInvitation {
   targetMembershipId?: string
 }
 
+/** A recurring rule as stored: an archived one stays, out of the lists. */
+export type MockRule = Schemas['RecurringRuleView'] & { archived: boolean }
+
 /** A consent as the API lists it, plus whether the signed-in person is the one who gave it. */
 export type MockConsent = Schemas['ConsentView'] & { grantedByMe: boolean }
 
@@ -43,6 +46,8 @@ export interface MockState {
   invitations: MockInvitation[]
   /** The modules each family switched on, by workspace id. A module with no entry is off. */
   modules: Record<string, Partial<Record<Schemas['ModuleView']['key'], boolean>>>
+  /** The family's recurring rules, in creation order, archived ones included. */
+  rules: MockRule[]
   /** The signed-in person's own history, newest first (LGPD audit trail). */
   activity: Schemas['ActivityItem'][]
   /** The signed-in person's own passkeys, newest first. */
@@ -213,6 +218,7 @@ function initialState(): MockState {
     invitations: [],
     billing: { plan: { key: 'FREE', endsAt: null }, orders: [] },
     modules: {},
+    rules: [],
     activity: initialActivity(),
     passkeys: initialPasskeys(),
     hasGoogle: true,
