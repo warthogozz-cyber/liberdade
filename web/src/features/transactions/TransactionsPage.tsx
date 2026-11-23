@@ -15,15 +15,13 @@ import {
   type TransactionFilters as Filters,
 } from '@/shared/api'
 import { useMembers } from '@/shared/api/family'
-import { MIN_MONTH, addDays, currentMonth, localDate, maxMonth } from '@/shared/i18n'
+import { addDays, localDate, maxMonth, monthFromParam } from '@/shared/i18n'
 import { useOnline, useOutbox, type OutboxItem } from '@/shared/offline'
 import { DataAsOf, useDocumentTitle, useToast } from '@/shared/ui'
 import { MonthSwitcher } from '@/shared/ui/MonthSwitcher'
 import { groupByDay, mergeTransactions } from './listItems'
 import { TransactionFilters } from './TransactionFilters'
 import { TransactionRow } from './TransactionRow'
-
-const MONTH_FORMAT = /^\d{4}-(0[1-9]|1[0-2])$/
 
 const outlineButton =
   'min-h-12 rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
@@ -60,13 +58,8 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
   const online = useOnline()
   const [params, setParams] = useSearchParams()
   const now = new Date()
-  const thisMonth = currentMonth(now, workspace.timezone)
   const lastMonth = maxMonth(now, workspace.timezone)
-  const asked = params.get('mes')
-  const month =
-    asked && MONTH_FORMAT.test(asked) && asked >= MIN_MONTH && asked <= lastMonth
-      ? asked
-      : thisMonth
+  const month = monthFromParam(params.get('mes'), now, workspace.timezone)
   const categoryId = params.get('categoria') ?? undefined
   const accountId = params.get('conta') ?? undefined
   const filters = useMemo<Filters>(

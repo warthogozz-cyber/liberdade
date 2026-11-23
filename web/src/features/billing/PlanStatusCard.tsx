@@ -22,6 +22,8 @@ export function PlanStatusCard({ ws, plan, isOwner, online }: PlanStatusCardProp
   const setTheme = useSetTheme(ws)
   const [refunding, setRefunding] = useState(false)
   const [error, setError] = useState<string>()
+  // The theme just picked shows at once and stays until the plan is read again (or the save fails).
+  const [picked, setPicked] = useState<FounderTheme | null>(null)
 
   const full = (value: string) =>
     intl.formatDate(value, {
@@ -36,15 +38,19 @@ export function PlanStatusCard({ ws, plan, isOwner, online }: PlanStatusCardProp
   const lastDay = (deadline: string) => short(new Date(Date.parse(deadline) - 1).toISOString())
 
   async function pick(theme: FounderTheme) {
-    if (theme === plan.theme) return
+    if (theme === (picked ?? plan.theme)) return
     setError(undefined)
+    setPicked(theme)
     try {
+      // Resolves after the plan is read again, so the picked theme hands over without a flicker.
       await setTheme.mutateAsync(theme)
     } catch (failure) {
       setError(
         (failure instanceof ApiError && failure.detail) ||
           intl.formatMessage({ id: 'billing.actionFailed' }),
       )
+    } finally {
+      setPicked(null)
     }
   }
 
@@ -65,7 +71,11 @@ export function PlanStatusCard({ ws, plan, isOwner, online }: PlanStatusCardProp
       )}
       <p>{intl.formatMessage({ id: 'billing.noAutoCharge' })}</p>
       {isOwner && (
-        <ThemePicker value={plan.theme} disabled={!online} onPick={(theme) => void pick(theme)} />
+        <ThemePicker
+          value={picked ?? plan.theme}
+          disabled={!online}
+          onPick={(theme) => void pick(theme)}
+        />
       )}
       {error && (
         <p role="alert" className="text-negative">

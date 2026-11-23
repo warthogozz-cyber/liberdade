@@ -1,11 +1,12 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import { onlineManager } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { API_URL, type DashboardView } from '@/shared/api'
 import type { PlanDetails } from '@/shared/api/billing'
-import { renderWithProviders } from '@/shared/testing'
+import { createTestQueryClient, renderWithProviders } from '@/shared/testing'
 
 const drawn = vi.hoisted(() => ({ draw: vi.fn() }))
 vi.mock('./drawPortrait', async (importOriginal) => ({
@@ -144,6 +145,36 @@ describe('PortraitPage', () => {
     expect(lastOptions().theme).toBe('OCEAN')
   })
 
+  it('saysOfflineWhenTheCategoriesWaitForTheSignal', async () => {
+    seedMockFamily()
+    serve()
+    // The categories request fails as the signal drops, so the retry pauses instead of failing.
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/categories`, () => {
+        onlineManager.setOnline(false)
+        return HttpResponse.error()
+      }),
+    )
+    const queryClient = createTestQueryClient()
+    queryClient.setDefaultOptions({
+      queries: { ...queryClient.getDefaultOptions().queries, retry: 1, retryDelay: 0 },
+    })
+    try {
+      renderWithProviders(<PortraitPage />, {
+        path: '/painel/retrato',
+        route: '/painel/retrato?mes=2026-11',
+        queryClient,
+      })
+
+      expect(
+        await screen.findByText('Sem conexão. O Retrato aparece quando o sinal voltar.'),
+      ).toBeInTheDocument()
+      expect(screen.queryByText('Carregando…')).not.toBeInTheDocument()
+    } finally {
+      onlineManager.setOnline(true)
+    }
+  })
+
   it('drawsAsFreeWhenThePlanFails', async () => {
     seedMockFamily()
     serve()
@@ -154,11 +185,19 @@ describe('PortraitPage', () => {
         return HttpResponse.json({ type: 'about:blank', status: 500 }, { status: 500 })
       }),
     )
-    renderPortrait()
+    const { queryClient } = renderPortrait()
 
     await screen.findByRole('img', { name: /Mercado 100%/ })
     await waitFor(() => expect(planCalls).toBeGreaterThan(0))
-    await new Promise((resolve) => setTimeout(resolve, 20))
+    // The plan query has given up, so the card below is drawn knowing the plan failed.
+    await waitFor(() =>
+      expect(
+        queryClient
+          .getQueryCache()
+          .getAll()
+          .some((query) => query.queryKey.includes('plan') && query.state.status === 'error'),
+      ).toBe(true),
+    )
     await waitFor(() => expect(drawn.draw).toHaveBeenCalled())
     expect(lastOptions().founder).toBe(false)
     expect(lastOptions().theme).toBeNull()

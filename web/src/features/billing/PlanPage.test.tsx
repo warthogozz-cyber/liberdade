@@ -90,7 +90,7 @@ describe('PlanPage', () => {
     plan(workspace.id, { ...FREE, canPurchase: false })
     renderPlan()
 
-    expect(await screen.findByText('Quem cuida do plano é o Dono da família')).toBeInTheDocument()
+    expect(await screen.findByText('Quem cuida do plano é o Dono da família.')).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
@@ -169,6 +169,27 @@ describe('PlanPage', () => {
     expect(refreshCalls).toBe(24)
   })
 
+  it('leavingTheReturnStopsPolling', async () => {
+    const workspace = seedMockFamily()
+    let refreshCalls = 0
+    plan(workspace.id, { ...FREE, openOrder: { id: 'o1', status: 'CREATED', refundReason: null } })
+    server.use(
+      http.post(`${API_URL}/v1/workspaces/${workspace.id}/billing/orders/o1/refresh`, () => {
+        refreshCalls += 1
+        return HttpResponse.json({ id: 'o1', status: 'CREATED', refundReason: null })
+      }),
+    )
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const { router } = renderPlan('/mais/plano?pedido=o1')
+    await waitFor(() => expect(refreshCalls).toBe(1))
+
+    await act(() => router.navigate('/mais/plano'))
+    await act(() => vi.advanceTimersByTimeAsync(30_000))
+
+    expect(refreshCalls).toBe(1)
+    expect(screen.getByRole('button', { name: 'Ser Família Fundadora' })).toBeInTheDocument()
+  })
+
   it('waitingOrderHidesTheBuyButton', async () => {
     const workspace = seedMockFamily()
     plan(workspace.id, {
@@ -203,10 +224,12 @@ describe('PlanPage', () => {
         return HttpResponse.json({ id: 'o1', status: 'CREATED', refundReason: null })
       }),
     )
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     renderPlan('/mais/plano?pedido=o1')
 
     expect(await screen.findByRole('button', { name: 'Ser Família Fundadora' })).toBeInTheDocument()
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    // Longer than several polling intervals: a stray poll would have run by now.
+    await act(() => vi.advanceTimersByTimeAsync(30_000))
     expect(refreshCalls).toBe(0)
   })
 
@@ -255,6 +278,33 @@ describe('PlanPage', () => {
     expect(puts).toBe(1)
   })
 
+  it('pickedThemeStaysCheckedWhileSaving', async () => {
+    const workspace = seedMockFamily()
+    let theme: PlanDetails['theme'] = 'TEAL'
+    plan(workspace.id, () => ({ ...FOUNDER, theme }))
+    let answer: (() => void) | undefined
+    server.use(
+      http.put(`${API_URL}/v1/workspaces/${workspace.id}/billing/plan/theme`, async () => {
+        await new Promise<void>((resolve) => {
+          answer = resolve
+        })
+        theme = 'OCEAN'
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    renderPlan()
+
+    await screen.findByText('★ Família Fundadora')
+    fireEvent.click(screen.getByRole('radio', { name: /Oceano/ }))
+
+    expect(screen.getByRole('radio', { name: /Oceano/ })).toBeChecked()
+    await waitFor(() => expect(answer).toBeDefined())
+    expect(screen.getByRole('radio', { name: /Oceano/ })).toBeChecked()
+    act(() => answer?.())
+    await waitFor(() => expect(theme).toBe('OCEAN'))
+    expect(screen.getByRole('radio', { name: /Oceano/ })).toBeChecked()
+  })
+
   it('themeErrorShowsDetail', async () => {
     const workspace = seedMockFamily()
     plan(workspace.id, FOUNDER)
@@ -296,7 +346,7 @@ describe('PlanPage', () => {
     expect(await screen.findByText('★ Família Fundadora')).toBeInTheDocument()
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
-    expect(screen.getByText('Quem cuida do plano é o Dono da família')).toBeInTheDocument()
+    expect(screen.getByText('Quem cuida do plano é o Dono da família.')).toBeInTheDocument()
   })
 
   it('offlineDisablesRefundAndThemes', async () => {

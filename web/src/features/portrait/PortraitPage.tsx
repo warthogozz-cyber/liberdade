@@ -118,10 +118,13 @@ function PortraitScreen({ workspaceId, timezone }: { workspaceId: string; timezo
   }
 
   if (!data) {
+    const failed = dashboard.isError || categoriesQuery.isError
+    // Offline without a saved copy: the requests wait for the signal instead of failing.
+    const waiting = dashboard.fetchStatus === 'paused' || categoriesQuery.fetchStatus === 'paused'
     return (
       <p>
         <FormattedMessage
-          id={dashboard.isError || categoriesQuery.isError ? 'common.error' : 'common.loading'}
+          id={failed ? 'common.error' : waiting ? 'portrait.offline' : 'common.loading'}
         />
       </p>
     )

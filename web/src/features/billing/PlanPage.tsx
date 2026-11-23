@@ -46,9 +46,11 @@ function PlanBody({
   // Only the order the person came back to, and only while it still waits for payment.
   const waitingId =
     returned !== null && open?.id === returned && open.status === 'CREATED' ? returned : null
-  // The order stays watched once the plan stops listing it, so how it ended can still be told.
+  // The order stays watched once the plan stops listing it, so how it ended can still be told,
+  // but only while the address still names it.
   const [watched, setWatched] = useState<string | null>(null)
   if (waitingId !== null && watched !== waitingId) setWatched(waitingId)
+  if (returned === null && watched !== null) setWatched(null)
   const refresh = useRefreshOrder(ws, watched)
 
   const data = plan.data

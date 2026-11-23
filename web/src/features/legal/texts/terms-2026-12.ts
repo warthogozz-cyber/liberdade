@@ -78,7 +78,7 @@ export const terms202612Messages = {
   'terms.2026-12.delete.p2':
     'Dá para excluir a conta ou a família mesmo com o plano Família ativo. A exclusão não devolve o valor sozinha: nos 7 dias de arrependimento, peça o reembolso antes de excluir. Se precisar de ajuda, escreva para {email}.',
   'terms.2026-12.delete.p3':
-    'Os pedidos pagos ficam guardados por 5 anos depois do pagamento, por obrigação fiscal, sem ligação com a família, como explica a política de privacidade.',
+    'Os pedidos pagos ficam guardados por 5 anos depois do pagamento, por obrigação fiscal. Se a família for excluída, eles perdem a ligação com ela, como explica a política de privacidade.',
 
   'terms.2026-12.law.title': 'Lei aplicável e contato',
   'terms.2026-12.law.p1': 'Valem as leis do Brasil, inclusive o Código de Defesa do Consumidor.',

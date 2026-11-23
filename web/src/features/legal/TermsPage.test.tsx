@@ -59,6 +59,16 @@ describe('TermsPage', () => {
     expect(screen.getAllByText(/privacidade@liberdadefamilia\.com\.br/).length).toBeGreaterThan(0)
   })
 
+  it('unlinksPaidOrdersOnlyWhenTheFamilyIsDeleted', () => {
+    renderTerms()
+
+    expect(
+      screen.getByText(
+        'Os pedidos pagos ficam guardados por 5 anos depois do pagamento, por obrigação fiscal. Se a família for excluída, eles perdem a ligação com ela, como explica a política de privacidade.',
+      ),
+    ).toBeVisible()
+  })
+
   it('namesTheSellerWithNeutralDefaults', () => {
     vi.stubEnv('VITE_PRIVACY_CONTROLLER', '')
     vi.stubEnv('VITE_PRIVACY_CONTROLLER_DOCUMENT', '')

@@ -3,7 +3,7 @@ export const billingMessages = {
   'billing.title': 'Plano',
   'billing.loadFailed': 'Não deu para carregar o plano. Tente de novo.',
   'billing.offline': 'Você está sem internet.',
-  'billing.notOwner': 'Quem cuida do plano é o Dono da família',
+  'billing.notOwner': 'Quem cuida do plano é o Dono da família.',
   'billing.free': 'Seu plano: Grátis',
   'billing.freeForever': 'Tudo o que o app faz hoje é grátis e continua grátis.',
   'billing.offer':

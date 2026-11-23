@@ -120,6 +120,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
+    // Only the light theme's source is read as text (drawPortrait.test.ts); other CSS stays empty.
+    css: { include: [/src[\\/]index\.css/] },
     include: [
       'src/**/*.test.{ts,tsx}',
       'eslint/**/*.test.js',

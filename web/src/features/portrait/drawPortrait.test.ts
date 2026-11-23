@@ -7,6 +7,7 @@ import {
   type PortraitBlock,
 } from './drawPortrait'
 import type { PortraitData } from './portraitData'
+import indexCss from '../../index.css?raw'
 
 const DATA: PortraitData = {
   month: 'novembro de 2026',
@@ -102,5 +103,23 @@ describe('drawPortrait', () => {
   it('lightTokensAreReadableOnTheirBackground', () => {
     expect(contrast(LIGHT_TOKENS.text, LIGHT_TOKENS.bg)).toBeGreaterThanOrEqual(4.5)
     expect(contrast(LIGHT_TOKENS.primary, LIGHT_TOKENS.bg)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('lightTokensMatchTheLightTheme', () => {
+    // The first @theme block is the light one; the card copies it instead of reading the page.
+    const start = indexCss.indexOf('{', indexCss.indexOf('@theme')) + 1
+    const light = indexCss.slice(start, indexCss.indexOf('}', start))
+    const token = (name: string) =>
+      light
+        .split(';')
+        .map((line) => line.trim())
+        .find((line) => line.startsWith(`--${name}:`))
+        ?.slice(name.length + 3)
+        .trim()
+
+    expect(token('color-primary')).toBe(LIGHT_TOKENS.primary)
+    expect(token('color-text')).toBe(LIGHT_TOKENS.text)
+    expect(token('color-bg')).toBe(LIGHT_TOKENS.bg)
+    expect(token('font-sans')).toBe(LIGHT_TOKENS.font)
   })
 })

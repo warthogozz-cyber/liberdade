@@ -70,7 +70,7 @@ test('adult sees the plan but no buttons', async ({ page, browser }) => {
     await expect(bia).toHaveURL('/inicio')
 
     await bia.goto('/mais/plano')
-    await expect(bia.getByText('Quem cuida do plano é o Dono da família')).toBeVisible()
+    await expect(bia.getByText('Quem cuida do plano é o Dono da família.')).toBeVisible()
     await expect(bia.getByRole('button', { name: 'Ser Família Fundadora' })).toHaveCount(0)
   })
 })

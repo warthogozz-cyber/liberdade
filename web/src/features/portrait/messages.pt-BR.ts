@@ -14,5 +14,6 @@ export const portraitMessages = {
   'portrait.shared': 'Retrato compartilhado.',
   'portrait.downloaded': 'Retrato salvo no aparelho.',
   'portrait.shareFailed': 'Não deu para compartilhar. Tente de novo.',
+  'portrait.offline': 'Sem conexão. O Retrato aparece quando o sinal voltar.',
   'portrait.privacy': 'O retrato é feito neste aparelho e só mostra percentuais.',
 } as const

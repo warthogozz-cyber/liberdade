@@ -147,8 +147,10 @@ test('newVersionAsksAgain: whoever accepted the texts from before billing accept
     const seen: string[] = []
     ;(window as unknown as { acceptBodies: string[] }).acceptBodies = seen
     window.fetch = async (input, init) => {
-      if (input instanceof Request && input.url.endsWith('/v1/me/documents/accept')) {
-        seen.push(await input.clone().text())
+      // The client may pass a Request or a URL with the body in init; both are read.
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.endsWith('/v1/me/documents/accept')) {
+        seen.push(input instanceof Request ? await input.clone().text() : String(init?.body ?? ''))
       }
       return original(input, init)
     }
