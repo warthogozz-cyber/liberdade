@@ -38,7 +38,7 @@ public class RecurrenceGenerator {
     /** Does nothing for a rule that is archived, unknown to the family, or without a member to plan as. */
     @Transactional
     public void generate(UUID workspaceId, UUID ruleId) {
-        Optional<RecurringRuleView> found = rules.findActive(workspaceId, ruleId);
+        Optional<RecurringRuleView> found = rules.lockActive(workspaceId, ruleId);
         if (found.isEmpty()) {
             return;
         }

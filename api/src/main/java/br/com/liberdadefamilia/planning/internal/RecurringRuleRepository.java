@@ -69,6 +69,38 @@ class RecurringRuleRepository {
                 .optional();
     }
 
+    /**
+     * The active rule, locked until the transaction ends, so a rule archived at the same time cannot get planned rows
+     * after its archiving.
+     */
+    Optional<RecurringRuleView> lockActive(UUID workspaceId, UUID id) {
+        return jdbc.sql("select " + COLUMNS + """
+
+                        from recurring_rules
+                        where workspace_id = :workspaceId and id = :id and archived_at is null
+                        for update""")
+                .param("workspaceId", workspaceId)
+                .param("id", id)
+                .query(RecurringRuleRepository::view)
+                .optional();
+    }
+
+    /** The families that have an active rule with occurrences still to plan. */
+    List<UUID> familiesWithRulesToPlan() {
+        return jdbc.sql("""
+                        select distinct workspace_id from recurring_rules
+                        where archived_at is null and next_due_on is not null
+                        order by workspace_id""").query(UUID.class).list();
+    }
+
+    /** The ids of the family's active rules. */
+    List<UUID> activeIds(UUID workspaceId) {
+        return jdbc.sql("""
+                        select id from recurring_rules
+                        where workspace_id = :workspaceId and archived_at is null
+                        order by start_on, id""").param("workspaceId", workspaceId).query(UUID.class).list();
+    }
+
     /** Whether the family has the rule, archived or not. */
     boolean exists(UUID workspaceId, UUID id) {
         return jdbc.sql("select count(*) from recurring_rules where workspace_id = :workspaceId and id = :id")
