@@ -201,7 +201,7 @@ class WebhookIT {
     @Test
     void checkoutPaidActivates() throws IOException {
         Order order = order(OrderStatus.CREATED);
-        gateway.markPaid(order.checkout, order.payment, clock.instant());
+        gateway.markPaid(order.checkout, order.payment);
         String eventId = newEventId();
 
         MvcTestResult result = send("webhook-checkout-paid.json", eventId, order);
@@ -383,16 +383,67 @@ class WebhookIT {
     }
 
     @Test
-    void rateLimitedAfter120() {
+    void oversizedWithABadTokenIs413() {
+        byte[] big = new byte[65_537];
+        Arrays.fill(big, (byte) ' ');
+
+        MvcTestResult result = mvc.post()
+                .uri(URI)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("asaas-access-token", "wrong")
+                .content(big)
+                .exchange();
+
+        assertThat(result).hasStatus(413);
+    }
+
+    @Test
+    void authenticatedCallsAreLimitedAt120() {
         for (int i = 0; i < 120; i++) {
-            assertThat(post("{}", null)).hasStatus(401);
+            assertThat(post("{}", TOKEN)).hasStatus(400);
         }
 
-        MvcTestResult last = post("{}", null);
+        MvcTestResult last = post("{}", TOKEN);
 
         assertThat(last).hasStatus(429);
         assertThat(last).bodyJson().extractingPath("$.code").isEqualTo("rate.limited");
         assertThat(last.getResponse().getHeader("Retry-After")).isNotNull();
+    }
+
+    @Test
+    void badTokenFloodNeverBlocksAsaas() throws IOException {
+        Order order = order(OrderStatus.CREATED);
+        for (int i = 0; i < 200; i++) {
+            assertThat(post("{}", i % 2 == 0 ? null : "wrong").getResponse().getStatus())
+                    .isEqualTo(i < 20 ? 401 : 429);
+        }
+
+        MvcTestResult valid = send("webhook-checkout-paid.json", newEventId(), order);
+
+        assertThat(valid).hasStatus(200);
+        assertThat(status(order)).isEqualTo(OrderStatus.PAID);
+    }
+
+    @Test
+    void theBadTokenBudgetIsPerClientAddress() {
+        for (int i = 0; i < 20; i++) {
+            assertThat(post("{}", "wrong")).hasStatus(401);
+        }
+        MvcTestResult limited = post("{}", "wrong");
+        MvcTestResult otherClient = mvc.post()
+                .uri(URI)
+                .with(request -> {
+                    request.setRemoteAddr("203.0.113.9");
+                    return request;
+                })
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")
+                .header("asaas-access-token", "wrong")
+                .exchange();
+
+        assertThat(limited).hasStatus(429);
+        assertThat(limited).bodyJson().extractingPath("$.code").isEqualTo("rate.limited");
+        assertThat(otherClient).hasStatus(401);
     }
 
     @Test
