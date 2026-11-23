@@ -688,6 +688,38 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/billing/checkout": {
+      "post": {
+        "operationId": "startCheckout",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutView"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "billing-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/categories": {
       "get": {
         "operationId": "listCategories",
@@ -1868,6 +1900,19 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          }
+        }
+      },
+      "CheckoutView": {
+        "type": "object",
+        "properties": {
+          "checkoutUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },

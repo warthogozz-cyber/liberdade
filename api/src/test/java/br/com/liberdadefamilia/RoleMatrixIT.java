@@ -120,7 +120,8 @@ class RoleMatrixIT {
                         workspaceRows(),
                         moduleRows(),
                         exportRows(),
-                        deletionRows())
+                        deletionRows(),
+                        billingRows())
                 .flatMap(group -> group);
     }
 
@@ -355,6 +356,10 @@ class RoleMatrixIT {
                                 Outcome.OK),
                         ownerAndAdult("PUT " + W + "/modules/{key}", W + "/modules/planning", "{\"enabled\":true}"))
                 .flatMap(group -> group);
+    }
+
+    static Stream<Row> billingRows() {
+        return ownerOnly("POST " + W + "/billing/checkout", W + "/billing/checkout", null);
     }
 
     static Stream<Row> exportRows() {

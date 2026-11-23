@@ -1102,6 +1102,27 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  http.post(url('/v1/workspaces/:ws/billing/checkout'), ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(String(params.ws))
+    if (workspace instanceof Response) return workspace
+    if (workspace.role !== 'OWNER') return roleDenied()
+    const { billing } = mockState
+    if (billing.plan.key === 'FAMILY') {
+      return problem(409, 'billing.plan-active', 'Sua família já tem um plano ativo.')
+    }
+    // One order waits for payment at a time: a new checkout cancels the earlier one.
+    for (const order of billing.orders) {
+      if (order.workspaceId === workspace.id && order.status === 'CREATED')
+        order.status = 'CANCELED'
+    }
+    const id = crypto.randomUUID()
+    const checkoutUrl = `https://checkout.e2e.test/c/chk_fake_${id}`
+    billing.orders.push({ id, workspaceId: workspace.id, status: 'CREATED', checkoutUrl })
+    const view: Schemas['CheckoutView'] = { orderId: id, checkoutUrl }
+    return HttpResponse.json(view, { status: 201 })
+  }),
+
   http.get(url('/v1/workspaces/:ws/modules'), ({ params }) => {
     const workspace = guard(String(params.ws))
     if (workspace instanceof Response) return workspace

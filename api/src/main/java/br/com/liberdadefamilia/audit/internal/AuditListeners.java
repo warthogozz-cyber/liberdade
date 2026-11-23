@@ -2,6 +2,7 @@ package br.com.liberdadefamilia.audit.internal;
 
 import br.com.liberdadefamilia.audit.AuditEntry;
 import br.com.liberdadefamilia.audit.AuditTrail;
+import br.com.liberdadefamilia.billing.CheckoutStarted;
 import br.com.liberdadefamilia.identity.PasskeyRemoved;
 import br.com.liberdadefamilia.identity.SignedIn;
 import br.com.liberdadefamilia.workspace.InvitationCreated;
@@ -177,6 +178,18 @@ class AuditListeners {
                 "MODULE",
                 null,
                 Map.of("key", event.key().wire(), "enabled", String.valueOf(event.enabled())));
+    }
+
+    /** Only the Founder offer is on sale, so the product is a fixed label; billing's internals stay its own. */
+    @EventListener
+    void on(CheckoutStarted event) {
+        record(
+                event.workspaceId(),
+                event.actorUserId(),
+                "billing.checkout-started",
+                "ORDER",
+                event.orderId(),
+                Map.of("product", "FOUNDER_2026"));
     }
 
     private void record(

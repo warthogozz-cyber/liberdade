@@ -53,6 +53,22 @@ export interface MockState {
   currentDocuments: Record<'TERMS' | 'PRIVACY', string>
   /** The versions the signed-in person accepted; null while a document is still pending. */
   acceptedDocuments: Record<'TERMS' | 'PRIVACY', { version: string; at: string } | null>
+  /** The paid plan: `plan` is FREE until a payment, and `orders` are the checkouts started, newest last. */
+  billing: { plan: MockPlan; orders: MockOrder[] }
+}
+
+/** The family's plan as the mock keeps it; `endsAt` is when it stops. */
+export interface MockPlan {
+  key: 'FREE' | 'FAMILY'
+  endsAt: string | null
+}
+
+/** One checkout the mock opened. */
+export interface MockOrder {
+  id: string
+  workspaceId: string
+  status: 'CREATED' | 'CANCELED' | 'PAID'
+  checkoutUrl: string
 }
 
 /** The versions in force, the same as LegalDocuments.java. */
@@ -184,6 +200,7 @@ function initialState(): MockState {
     deletedTransactionIds: new Set(),
     members: {},
     invitations: [],
+    billing: { plan: { key: 'FREE', endsAt: null }, orders: [] },
     modules: {},
     activity: initialActivity(),
     passkeys: initialPasskeys(),
