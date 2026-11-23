@@ -140,6 +140,10 @@ export function TagInput({ value, onChange }: TagInputProps) {
         value={text}
         onChange={(event) => change(event.target.value)}
         onKeyDown={keyDown}
+        // Leaving the field (a tap on Salvar does) confirms what was typed, so it is never lost.
+        onBlur={() => {
+          if (text.trim() !== '') take(text)
+        }}
         className="min-h-12 rounded-field border border-text-muted/30 bg-surface px-3"
       />
       <ul

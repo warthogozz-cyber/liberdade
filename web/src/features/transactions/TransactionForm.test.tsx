@@ -43,6 +43,23 @@ describe('TransactionForm payment method and tags', () => {
     expect(items[0].payload).toMatchObject({ paymentMethod: 'PIX', tags: ['Escola'] })
   })
 
+  it('keeps a tag that was typed but not confirmed when Salvar is pressed', async () => {
+    seedMockFamily()
+    const { router } = await openForm()
+
+    press('5')
+    fireEvent.click(screen.getByRole('radio', { name: '🛒 Mercado' }))
+    const field = screen.getByRole('combobox', { name: 'Tags' })
+    fireEvent.change(field, { target: { value: 'Escola' } })
+    // Tapping the button takes focus from the field first.
+    fireEvent.blur(field)
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
+    const [item] = await db.outbox.toArray()
+    expect(item.payload).toMatchObject({ tags: ['Escola'] })
+  })
+
   it('always sends the fields, empty when nothing was chosen', async () => {
     seedMockFamily()
     const { router } = await openForm()

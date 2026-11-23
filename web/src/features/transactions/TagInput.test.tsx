@@ -88,4 +88,36 @@ describe('TagInput', () => {
 
     await waitFor(() => expect(names()).toEqual([]))
   })
+
+  it('adds the pending text when the field loses focus', async () => {
+    renderField(undefined, ['Escola'])
+
+    type('escola')
+    await screen.findByRole('option', { name: 'Escola' })
+    fireEvent.blur(field())
+
+    expect(names()).toEqual(['Escola'])
+    expect(field()).toHaveValue('')
+  })
+
+  it('says why when the pending text is refused on blur', () => {
+    renderField(['a', 'b', 'c', 'd', 'e'], [])
+
+    type('f')
+    fireEvent.blur(field())
+
+    expect(names()).toEqual(['a', 'b', 'c', 'd', 'e'])
+    expect(screen.getByRole('status')).toHaveTextContent('Até 5 tags')
+    expect(field()).toHaveValue('f')
+  })
+
+  it('says why when a too long pending text is refused on blur', () => {
+    renderField()
+
+    type('a'.repeat(31))
+    fireEvent.blur(field())
+
+    expect(names()).toEqual([])
+    expect(screen.getByRole('status')).toHaveTextContent('A tag pode ter até 30 caracteres')
+  })
 })
