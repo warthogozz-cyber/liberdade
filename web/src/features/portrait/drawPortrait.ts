@@ -11,16 +11,24 @@ export type PortraitBlock = 'categories' | 'income' | 'month'
 
 const MARGIN = 80
 
-/** The design system's colors and font, as the page uses them now (light or dark). */
-export function readTokens(): DesignTokens {
-  const style = getComputedStyle(document.documentElement)
-  const read = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback
-  return {
-    primary: read('--color-primary', '#0e5a66'),
-    text: read('--color-text', '#0b3b45'),
-    bg: read('--color-bg', '#f4f8f8'),
-    font: read('--font-sans', "'Inter Variable', system-ui, sans-serif"),
-  }
+/**
+ * The card is always drawn on the light surface, whatever the device scheme, so the PNG that is
+ * shared looks the same for everyone and the Founder accents (checked against white) stay legible.
+ * These mirror the light values in `web/src/index.css`: keep them in sync with that file.
+ */
+export const LIGHT_TOKENS: DesignTokens = {
+  primary: '#0e5a66',
+  text: '#0b3b45',
+  bg: '#f4f8f8',
+  font: "'Inter Variable', system-ui, sans-serif",
+}
+
+/** `text` cut with an ellipsis so it fits in `width`; `maxWidth` stays as a guard only. */
+function fit(ctx: CanvasRenderingContext2D, text: string, width: number): string {
+  if (ctx.measureText(text).width <= width) return text
+  let end = text.length
+  while (end > 1 && ctx.measureText(`${text.slice(0, end).trimEnd()}…`).width > width) end -= 1
+  return `${text.slice(0, end).trimEnd()}…`
 }
 
 /**
@@ -77,7 +85,7 @@ export function drawPortrait(
       ctx.fillStyle = tokens.text
       ctx.font = font(500, 38)
       ctx.textAlign = 'left'
-      ctx.fillText(slice.label, MARGIN, y, barWidth - 160)
+      ctx.fillText(fit(ctx, slice.label, barWidth - 160), MARGIN, y, barWidth - 160)
       ctx.font = font(700, 38)
       ctx.textAlign = 'right'
       ctx.fillText(`${slice.percent}%`, PORTRAIT_WIDTH - MARGIN, y)
@@ -99,14 +107,12 @@ export function drawPortrait(
     y += 70
     ctx.fillStyle = tokens.text
     ctx.font = font(700, 48)
-    ctx.fillText(
+    const sentence =
       data.income.kind === 'left'
         ? `Sobrou ${data.income.percent}% da renda`
-        : `Gastou ${data.income.percent}% a mais que a renda`,
-      MARGIN,
-      y,
-      PORTRAIT_WIDTH - MARGIN * 2,
-    )
+        : `Gastou ${data.income.percent}% a mais que a renda`
+    const room = PORTRAIT_WIDTH - MARGIN * 2
+    ctx.fillText(fit(ctx, sentence, room), MARGIN, y, room)
   }
 
   ctx.fillStyle = tokens.text

@@ -1,7 +1,6 @@
 /** The Portrait screen's text. It loads with the route (see `registerMessages`). */
 export const portraitMessages = {
   'portrait.title': 'Retrato do mês',
-  'portrait.open': 'Retrato do mês',
   'portrait.preview': 'Retrato de {month}: {summary}',
   'portrait.summary.empty': 'ainda não há gastos neste mês.',
   'portrait.summary.left': 'sobrou {percent}% da renda.',

@@ -41,12 +41,13 @@ export function buildPortrait(view: DashboardView, names: Map<string, string>): 
   if (total <= 0n) return { month, slices: [], income, empty: true }
 
   const named = lines
-    .filter((line) => line.id !== null && line.cents > 0n)
+    // A category without a name (deleted, or not loaded) has no slice of its own: it is in "Outras".
+    .filter((line) => line.id !== null && names.has(line.id) && line.cents > 0n)
     .sort((a, b) => (a.cents === b.cents ? 0 : a.cents > b.cents ? -1 : 1))
     .slice(0, NAMED)
   const slices: PortraitSlice[] = named
     .map((line) => ({
-      label: names.get(line.id!) ?? OTHERS,
+      label: names.get(line.id!)!,
       percent: percentOf(line.cents, total),
       other: false,
     }))

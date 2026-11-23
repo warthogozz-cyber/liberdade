@@ -11,5 +11,6 @@ export {
   localDate,
   maxDate,
   maxMonth,
+  monthFromParam,
 } from './dates'
 export { firstName } from './names'

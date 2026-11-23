@@ -77,6 +77,19 @@ describe('buildPortrait', () => {
     expect(slices).toEqual([{ label: 'Outras', percent: 100, other: true }])
   })
 
+  it('unknownCategoryJoinsOther', () => {
+    const lines: Line[] = [
+      { id: 'c0', cents: 5000 },
+      { id: 'gone', cents: 3000 },
+      { id: null, cents: 2000 },
+    ]
+    const { slices } = buildPortrait(view(lines), names(1))
+    expect(slices).toEqual([
+      { label: 'Cat 0', percent: 50, other: false },
+      { label: 'Outras', percent: 50, other: true },
+    ])
+  })
+
   it('zeroIncomeHidesIncomeBlock', () => {
     expect(buildPortrait(view([{ id: 'c0', cents: 100 }], 0), names(1)).income).toBeNull()
   })

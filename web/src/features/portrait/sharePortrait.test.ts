@@ -34,3 +34,22 @@ describe('sharePortrait', () => {
     expect(await sharePortrait(canvas(), '2026-11', { nav, download: vi.fn() })).toBe('cancelled')
   })
 })
+
+describe('sharePortrait fallbacks', () => {
+  it('fallsBackToDownloadWhenShareFails', async () => {
+    const share = vi.fn().mockRejectedValue(new DOMException('x', 'NotAllowedError'))
+    const download = vi.fn()
+    const nav = { canShare: () => true, share } as unknown as Navigator
+    expect(await sharePortrait(canvas(), '2026-11', { nav, download })).toBe('downloaded')
+    expect(download).toHaveBeenCalledTimes(1)
+  })
+
+  it('throwsWhenThereIsNoImage', async () => {
+    const empty = {
+      toBlob: (callback: (blob: Blob | null) => void) => callback(null),
+    } as unknown as HTMLCanvasElement
+    await expect(
+      sharePortrait(empty, '2026-11', { nav: {} as Navigator, download: vi.fn() }),
+    ).rejects.toThrow('no image')
+  })
+})

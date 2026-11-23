@@ -136,26 +136,29 @@ describe('PortraitPage', () => {
   })
 
   it('founderBadge', async () => {
-    const workspace = seedMockFamily()
+    seedMockFamily()
     serve(true, { key: 'FAMILY', founder: true, theme: 'OCEAN' })
     renderPortrait()
 
     await waitFor(() => expect(lastOptions().founder).toBe(true))
     expect(lastOptions().theme).toBe('OCEAN')
-    expect(workspace.id).toBeTruthy()
   })
 
   it('drawsAsFreeWhenThePlanFails', async () => {
     seedMockFamily()
     serve()
+    let planCalls = 0
     server.use(
-      http.get(`${API_URL}/v1/workspaces/:ws/billing/plan`, () =>
-        HttpResponse.json({ type: 'about:blank', status: 500 }, { status: 500 }),
-      ),
+      http.get(`${API_URL}/v1/workspaces/:ws/billing/plan`, () => {
+        planCalls += 1
+        return HttpResponse.json({ type: 'about:blank', status: 500 }, { status: 500 })
+      }),
     )
     renderPortrait()
 
     await screen.findByRole('img', { name: /Mercado 100%/ })
+    await waitFor(() => expect(planCalls).toBeGreaterThan(0))
+    await new Promise((resolve) => setTimeout(resolve, 20))
     await waitFor(() => expect(drawn.draw).toHaveBeenCalled())
     expect(lastOptions().founder).toBe(false)
     expect(lastOptions().theme).toBeNull()

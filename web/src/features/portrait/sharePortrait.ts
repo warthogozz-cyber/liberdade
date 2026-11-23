@@ -4,13 +4,17 @@ export type ShareResult = 'shared' | 'downloaded' | 'cancelled'
 
 function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('no image'))), 'image/png'),
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('The canvas gave no image'))),
+      'image/png',
+    ),
   )
 }
 
 /**
- * Makes the PNG from the canvas and shares it as a file when the device can; otherwise it saves
- * `retrato-AAAA-MM.png`. Nothing is sent anywhere by the app.
+ * Makes the PNG from the canvas and shares it as a file when the device can; otherwise, or when
+ * the share fails for any reason but the person closing it, it saves `retrato-AAAA-MM.png`.
+ * Nothing is sent anywhere by the app. It throws only when the canvas gives no image.
  */
 export async function sharePortrait(
   canvas: HTMLCanvasElement,
@@ -29,7 +33,7 @@ export async function sharePortrait(
       return 'shared'
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled'
-      throw error
+      // A lapsed gesture or a failing target app: the person still gets the file.
     }
   }
   deps.download(blob, name)

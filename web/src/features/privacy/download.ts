@@ -1,4 +1,5 @@
 import { postExport } from '@/shared/api/privacy'
+import { download } from '@/shared/download'
 
 /** The file name the API sent, without folders or control characters; `undefined` when there is none. */
 function fileNameFrom(disposition: string | null): string | undefined {
@@ -26,14 +27,5 @@ function fileNameFrom(disposition: string | null): string | undefined {
  */
 export async function downloadZip(path: string, fallbackName: string): Promise<void> {
   const { blob, disposition } = await postExport(path)
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileNameFrom(disposition) ?? fallbackName
-  link.hidden = true
-  document.body.append(link)
-  link.click()
-  link.remove()
-  // After the click, so the browser has taken the file before the address goes.
-  setTimeout(() => URL.revokeObjectURL(url), 0)
+  download(blob, fileNameFrom(disposition) ?? fallbackName)
 }

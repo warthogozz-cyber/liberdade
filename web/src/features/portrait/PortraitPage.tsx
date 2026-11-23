@@ -3,20 +3,18 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { useSearchParams } from 'react-router'
 import { useCategories, useCurrentWorkspace, useDashboard, useMe } from '@/shared/api'
 import { usePlan } from '@/shared/api/billing'
-import { MIN_MONTH, currentMonth, maxMonth } from '@/shared/i18n'
+import { monthFromParam } from '@/shared/i18n'
 import { useDocumentTitle } from '@/shared/ui'
 import {
   PORTRAIT_HEIGHT,
   PORTRAIT_WIDTH,
   drawPortrait,
-  readTokens,
+  LIGHT_TOKENS,
   type PortraitBlock,
 } from './drawPortrait'
 import { buildPortrait } from './portraitData'
 import { sharePortrait } from './sharePortrait'
 import './register'
-
-const MONTH_FORMAT = /^\d{4}-(0[1-9]|1[0-2])$/
 
 const BLOCKS: { block: PortraitBlock; id: FormatjsIntl.Message['ids'] }[] = [
   { block: 'categories', id: 'portrait.show.categories' },
@@ -50,13 +48,10 @@ function PortraitScreen({ workspaceId, timezone }: { workspaceId: string; timezo
   const intl = useIntl()
   const [params] = useSearchParams()
   const now = new Date()
-  const asked = params.get('mes')
-  const month =
-    asked && MONTH_FORMAT.test(asked) && asked >= MIN_MONTH && asked <= maxMonth(now, timezone)
-      ? asked
-      : currentMonth(now, timezone)
+  const month = monthFromParam(params.get('mes'), now, timezone)
   const dashboard = useDashboard(workspaceId, month)
-  const categories = useCategories(workspaceId, 'EXPENSE').data
+  const categoriesQuery = useCategories(workspaceId, 'EXPENSE')
+  const categories = categoriesQuery.data
   // The plan only decorates the card: while it loads, fails or is offline, the card is not Founder's.
   const plan = usePlan(workspaceId).data
   const founder = plan?.key === 'FAMILY' && plan.founder
@@ -65,26 +60,36 @@ function PortraitScreen({ workspaceId, timezone }: { workspaceId: string; timezo
   const [hidden, setHidden] = useState<Set<PortraitBlock>>(new Set())
   const [status, setStatus] = useState<FormatjsIntl.Message['ids'] | null>(null)
   const [fontsReady, setFontsReady] = useState(0)
+  const [sharing, setSharing] = useState(false)
   const canvas = useRef<HTMLCanvasElement>(null)
 
   const data = useMemo(() => {
-    if (!dashboard.data) return null
-    const names = new Map((categories ?? []).map((category) => [category.id, category.name]))
+    // The names come with the categories: without them a card would call every category "Outras".
+    if (!dashboard.data || !categories) return null
+    const names = new Map(categories.map((category) => [category.id, category.name]))
     return buildPortrait(dashboard.data, names)
   }, [dashboard.data, categories])
 
   useEffect(() => {
     // The card draws again once Inter is there, so the PNG never carries the fallback font.
-    void document.fonts?.load?.('600 40px "Inter Variable"').then(() => setFontsReady((n) => n + 1))
+    let live = true
+    void document.fonts
+      ?.load?.('600 40px "Inter Variable"')
+      .then(() => live && setFontsReady((n) => n + 1))
+      .catch(() => {}) // the card keeps the fallback font
+    return () => {
+      live = false
+    }
   }, [])
 
   useEffect(() => {
     const ctx = canvas.current?.getContext('2d')
     if (!ctx || !data) return
-    drawPortrait(ctx, data, { hidden, theme, founder, tokens: readTokens() })
+    drawPortrait(ctx, data, { hidden, theme, founder, tokens: LIGHT_TOKENS })
   }, [data, hidden, theme, founder, fontsReady])
 
   function toggle(block: PortraitBlock) {
+    setStatus(null)
     setHidden((current) => {
       const next = new Set(current)
       if (next.has(block)) next.delete(block)
@@ -94,7 +99,8 @@ function PortraitScreen({ workspaceId, timezone }: { workspaceId: string; timezo
   }
 
   async function share() {
-    if (!canvas.current) return
+    if (!canvas.current || sharing) return
+    setSharing(true)
     try {
       const result = await sharePortrait(canvas.current, month)
       setStatus(
@@ -106,22 +112,28 @@ function PortraitScreen({ workspaceId, timezone }: { workspaceId: string; timezo
       )
     } catch {
       setStatus('portrait.shareFailed')
+    } finally {
+      setSharing(false)
     }
   }
 
   if (!data) {
     return (
       <p>
-        <FormattedMessage id={dashboard.isError ? 'common.error' : 'common.loading'} />
+        <FormattedMessage
+          id={dashboard.isError || categoriesQuery.isError ? 'common.error' : 'common.loading'}
+        />
       </p>
     )
   }
 
-  const summary = data.empty
-    ? intl.formatMessage({ id: 'portrait.summary.empty' })
+  const parts = data.empty
+    ? [intl.formatMessage({ id: 'portrait.summary.empty' })]
     : [
-        data.slices.map((slice) => `${slice.label} ${slice.percent}%`).join(', ') + '.',
-        data.income
+        hidden.has('categories')
+          ? ''
+          : data.slices.map((slice) => `${slice.label} ${slice.percent}%`).join(', ') + '.',
+        data.income && !hidden.has('income')
           ? intl.formatMessage(
               {
                 id: data.income.kind === 'left' ? 'portrait.summary.left' : 'portrait.summary.over',
@@ -130,8 +142,10 @@ function PortraitScreen({ workspaceId, timezone }: { workspaceId: string; timezo
             )
           : '',
       ]
-        .filter(Boolean)
-        .join(' ')
+  const summary = parts.filter(Boolean).join(' ')
+  const label = hidden.has('month')
+    ? summary || intl.formatMessage({ id: 'portrait.title' })
+    : intl.formatMessage({ id: 'portrait.preview' }, { month: data.month, summary })
 
   return (
     <>
@@ -140,7 +154,7 @@ function PortraitScreen({ workspaceId, timezone }: { workspaceId: string; timezo
         width={PORTRAIT_WIDTH}
         height={PORTRAIT_HEIGHT}
         role="img"
-        aria-label={intl.formatMessage({ id: 'portrait.preview' }, { month: data.month, summary })}
+        aria-label={label}
         className="h-auto w-full rounded-card border border-text-muted/30"
       />
       {data.empty && (
@@ -169,7 +183,7 @@ function PortraitScreen({ workspaceId, timezone }: { workspaceId: string; timezo
       </p>
       <button
         type="button"
-        disabled={data.empty}
+        disabled={data.empty || sharing}
         onClick={() => void share()}
         className="min-h-12 rounded-field bg-primary px-4 font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
       >
