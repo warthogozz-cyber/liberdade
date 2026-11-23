@@ -1,9 +1,10 @@
 // @vitest-environment node
+import { readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { ESLint } from 'eslint'
 import tseslint from 'typescript-eslint'
 import { describe, expect, it } from 'vitest'
-import { boundaryConfigs } from './boundaries.js'
+import { boundaryConfigs, CORE, OPTIONAL } from './boundaries.js'
 
 const web = fileURLToPath(new URL('..', import.meta.url))
 
@@ -35,6 +36,20 @@ describe('module boundaries', () => {
 
   it('blocks shared code importing a feature', async () => {
     expect(await lint('src/shared/ui/a.ts', '@/features/transactions/b')).toBe(1)
+  })
+
+  it('blocks an optional feature importing a feature that is in neither list, and the barrel', async () => {
+    expect(await lint('src/features/planning/a.ts', '@/features/legal/x')).toBe(1)
+    expect(await lint('src/features/planning/a.ts', '@/features')).toBe(1)
+    expect(await lint('src/features/recurrences/a.ts', '@/features/accounts/b')).toBe(1)
+  })
+
+  it('has every src/features directory in CORE or OPTIONAL, except legal', () => {
+    const known = new Set([...CORE, ...OPTIONAL, 'legal'])
+    const dirs = readdirSync(`${web}src/features`, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+    expect(dirs.filter((dir) => !known.has(dir))).toEqual([])
   })
 
   it('lets the recurrences feature reuse the transaction fields, and nothing else', async () => {

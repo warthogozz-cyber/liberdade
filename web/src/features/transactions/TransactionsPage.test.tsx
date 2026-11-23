@@ -588,4 +588,25 @@ describe('TransactionsPage, account filter and undo offline', () => {
     // The R$ 1.500,00 is counted nowhere else on the screen.
     expect(screen.getAllByText('−R$ 1.500,00')).toHaveLength(1)
   })
+  it('shows Previstos, not the empty note, for a month with only a planned one', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: true }
+    mockState.transactions.push({
+      ...plannedView(
+        request(PLANNED_ID, 'Mercado', {
+          amount: { amount: '1500.00', currency: 'BRL' },
+          description: 'Aluguel',
+        }),
+        '2026-11-15',
+      ),
+      memberId: workspace.membershipId,
+    })
+    renderTransactions()
+
+    const planned = within(await screen.findByRole('region', { name: 'Previstos' }))
+    expect(planned.getByText('Aluguel')).toBeInTheDocument()
+    // The queue is read after the list; give it the time it takes.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(screen.queryByText('Nenhum lançamento neste mês.')).not.toBeInTheDocument()
+  })
 })

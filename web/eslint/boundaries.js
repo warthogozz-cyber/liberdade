@@ -1,3 +1,6 @@
+import { readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 export const CORE = [
   'auth',
   'onboarding',
@@ -18,6 +21,19 @@ const ALL = [...CORE, ...OPTIONAL]
 // An optional feature is cut off from the other features, with these exceptions: the recurring
 // rules form is the transaction entry form's sibling, so it reuses that feature's fields.
 const BUILDS_ON = { recurrences: ['transactions'] }
+
+// Fails closed: every directory under src/features counts, listed or not, so a feature nobody added
+// to CORE or OPTIONAL (or one that does not exist yet) is blocked for an optional feature too.
+const ON_DISK = readdirSync(fileURLToPath(new URL('../src/features', import.meta.url)), {
+  withFileTypes: true,
+})
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name)
+
+function otherFeatures(name) {
+  const allowed = [name, ...(BUILDS_ON[name] ?? [])]
+  return [...new Set([...ALL, ...ON_DISK])].filter((other) => !allowed.includes(other))
+}
 
 // Blocks relative imports that climb out of the current area into one of the
 // given top-level folders. Known false positive: a sub-folder inside a feature
@@ -88,12 +104,16 @@ export function boundaryConfigs() {
         [
           {
             group: [
-              // Spelled out per feature: a `!` re-include does not reach a sibling feature.
-              ...ALL.filter(
-                (other) => other !== name && !(BUILDS_ON[name] ?? []).includes(other),
-              ).flatMap((other) => [`@/features/${other}`, `@/features/${other}/**`]),
+              ...otherFeatures(name).flatMap((other) => [
+                `@/features/${other}`,
+                `@/features/${other}/**`,
+              ]),
               ...APP,
             ],
+            message: `Optional feature "${name}" may only use @/shared and itself.`,
+          },
+          {
+            regex: String.raw`^@/features/?$`,
             message: `Optional feature "${name}" may only use @/shared and itself.`,
           },
           relativeEscape([...AREAS, ...ALL.filter((other) => other !== name)]),

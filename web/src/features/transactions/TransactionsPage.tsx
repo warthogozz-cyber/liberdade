@@ -334,6 +334,13 @@ function TransactionList({
 
   return (
     <>
+      <PlannedSection
+        workspace={workspace}
+        planned={planned}
+        month={month}
+        categories={categories}
+        accounts={accounts}
+      />
       {!transactions.data && transactions.isError && (
         <div className="flex flex-col items-start gap-2">
           <p>
@@ -348,7 +355,7 @@ function TransactionList({
           </button>
         </div>
       )}
-      {groups.length === 0 && transactions.data && outbox && (
+      {groups.length === 0 && planned.length === 0 && transactions.data && outbox && (
         <p className="text-text-muted">
           <FormattedMessage id="transactions.empty" />
         </p>
@@ -362,13 +369,6 @@ function TransactionList({
             <FormattedMessage id="common.loading" />
           </p>
         )}
-      <PlannedSection
-        workspace={workspace}
-        planned={planned}
-        month={month}
-        categories={categories}
-        accounts={accounts}
-      />
       {groups.map((group) => (
         <section key={group.date}>
           <h2 id={`day-${group.date}`} className="text-sm font-semibold text-text-muted">
