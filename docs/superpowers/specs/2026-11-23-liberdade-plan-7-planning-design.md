@@ -1,6 +1,6 @@
 # Plano 7 — Planejamento (v0.2): design
 
-> **Status:** rascunho para aprovação do mantenedor · **Data:** 2026-11-23
+> **Status:** aprovado pelo mantenedor em 2026-11-23 · **Data:** 2026-11-23
 >
 > Base: `main` em 7ee56ec, já com o Plano 6 ([PR #44](https://github.com/warthogozz-cyber/liberdade/pull/44)),
 > [PRD US-20 a US-29](../../prd.md#v02--planejamento),
