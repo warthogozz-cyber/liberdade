@@ -25,4 +25,16 @@ final class BillingException extends DomainException {
         return new BillingException(
                 502, "billing.checkout-failed", "Não conseguimos abrir o pagamento agora. Tente de novo em instantes.");
     }
+
+    static BillingException webhookUnauthorized() {
+        return new BillingException(401, "billing.webhook-unauthorized", "Requisição não autorizada.");
+    }
+
+    static BillingException requestTooLarge() {
+        return new BillingException(413, "request.too-large", "A requisição é grande demais.");
+    }
+
+    static BillingException webhookInvalid() {
+        return new BillingException(400, "request.invalid", "Requisição inválida.");
+    }
 }

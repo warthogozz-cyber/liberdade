@@ -129,6 +129,27 @@ class OrderRepository {
                 .update();
     }
 
+    /** Stores the payment id unless one is already there; false when it was. */
+    boolean setPaymentIdIfMissing(UUID id, String paymentId) {
+        return jdbc.sql("""
+                                update billing_orders set asaas_payment_id = :value, updated_at = now()
+                                where id = :id and asaas_payment_id is null""").param("id", id).param("value", paymentId).update() > 0;
+    }
+
+    /** PAID or REFUND_PENDING to REFUNDED at the given moment; false when the order is in any other status. */
+    boolean markRefunded(UUID id, Instant at) {
+        return jdbc.sql("""
+                                update billing_orders set status = 'REFUNDED', refunded_at = :at, updated_at = now()
+                                where id = :id and status in ('PAID','REFUND_PENDING')""").param("id", id).param("at", Timestamp.from(at)).update() > 0;
+    }
+
+    /** A paid, refund-pending or refunded order to CHARGEBACK; false when it is in any other status. */
+    boolean markChargeback(UUID id) {
+        return jdbc.sql("""
+                                update billing_orders set status = 'CHARGEBACK', updated_at = now()
+                                where id = :id and status in ('PAID','REFUND_PENDING','REFUNDED')""").param("id", id).update() > 0;
+    }
+
     /** PAID to REFUND_PENDING with the reason and the moment; false when the order is not PAID. */
     boolean markRefundPending(UUID id, RefundReason reason, Instant at) {
         return jdbc.sql("""

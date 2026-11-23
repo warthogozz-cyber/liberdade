@@ -222,6 +222,22 @@ class OrderPaymentsIT {
     }
 
     @Test
+    void refundLooksUpAndKeepsTheUnknownPaymentId() {
+        clock.freeze(T.plusSeconds(3600));
+        UUID ws = family();
+        payments.applyPaid(order(ws, OrderStatus.CREATED), T, pay1);
+        UUID second = order(ws, OrderStatus.CANCELED);
+        String checkout = "chk_lookup_" + second;
+        orders.setCheckoutId(second, checkout);
+        gateway.markPaid(checkout, pay2, T);
+
+        assertThat(payments.applyPaid(second, T, null)).isEqualTo(OrderPayments.ApplyResult.DUPLICATE_REFUND);
+
+        assertThat(orders.findById(second).orElseThrow().paymentId()).isEqualTo(pay2);
+        assertThat(gateway.findPayment(checkout).orElseThrow().status()).isEqualTo("REFUNDED");
+    }
+
+    @Test
     void customerRefundEndsThePlanNow() {
         Instant now = T.plusSeconds(3600);
         clock.freeze(now);

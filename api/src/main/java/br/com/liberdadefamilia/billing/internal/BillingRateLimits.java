@@ -21,4 +21,10 @@ class BillingRateLimits {
     RateLimiter refreshRateLimiter(Clock clock) {
         return new RateLimiter(clock, 30, Duration.ofMinutes(1));
     }
+
+    /** The gateway's calls to the webhook: 120 a minute, all under one key. */
+    @Bean
+    RateLimiter webhookRateLimiter(Clock clock) {
+        return new RateLimiter(clock, 120, Duration.ofMinutes(1));
+    }
 }

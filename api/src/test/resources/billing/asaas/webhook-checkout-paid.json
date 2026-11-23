@@ -1,0 +1,11 @@
+{
+  "id": "EVENT_ID",
+  "event": "CHECKOUT_PAID",
+  "dateCreated": "2026-11-17 10:00:00",
+  "checkout": {
+    "id": "CHECKOUT_ID",
+    "status": "PAID",
+    "value": 89.00,
+    "customerData": { "name": "Customer Name" }
+  }
+}

@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -40,6 +41,9 @@ class OrderPayments {
     private final PaymentGateway gateway;
     private final ApplicationEventPublisher events;
     private final TransactionTemplate tx;
+    /** For work that runs after a commit, where the finished transaction is still bound to the thread. */
+    private final TransactionTemplate own;
+
     private final Clock clock;
 
     OrderPayments(
@@ -54,6 +58,8 @@ class OrderPayments {
         this.gateway = gateway;
         this.events = events;
         this.tx = tx;
+        this.own = new TransactionTemplate(tx.getTransactionManager());
+        this.own.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.clock = clock;
     }
 
@@ -105,19 +111,17 @@ class OrderPayments {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    callGatewayRefund(order.checkoutId(), order.paymentId());
+                    callGatewayRefund(orderId, order.checkoutId(), order.paymentId());
                 }
             });
         });
     }
 
-    private void callGatewayRefund(@Nullable String checkoutId, @Nullable String knownPaymentId) {
+    private void callGatewayRefund(UUID orderId, @Nullable String checkoutId, @Nullable String knownPaymentId) {
         try {
             String paymentId = knownPaymentId;
             if (paymentId == null && checkoutId != null) {
-                paymentId = gateway.findPayment(checkoutId)
-                        .map(PaymentInfo::paymentId)
-                        .orElse(null);
+                paymentId = resolvePaymentId(orderId, checkoutId);
             }
             if (paymentId == null) {
                 log.warn("refund waits for the retry job: no payment known yet");
@@ -126,6 +130,28 @@ class OrderPayments {
             gateway.refund(paymentId);
         } catch (RuntimeException failure) {
             log.warn("refund waits for the retry job: {}", failure.getClass().getName());
+        }
+    }
+
+    /**
+     * Asks the gateway which payment the checkout got and keeps it on the order, unless the order already has one.
+     * Meant for after a commit: it runs in a transaction of its own. A failure is logged and swallowed, because the
+     * hourly job asks again. Returns the payment id, or null when it is not known.
+     */
+    @Nullable
+    String resolvePaymentId(UUID orderId, String checkoutId) {
+        try {
+            Optional<PaymentInfo> payment = gateway.findPayment(checkoutId);
+            if (payment.isEmpty()) {
+                return null;
+            }
+            String paymentId = payment.get().paymentId();
+            own.executeWithoutResult(status -> orders.setPaymentIdIfMissing(orderId, paymentId));
+            return paymentId;
+        } catch (RuntimeException failure) {
+            log.warn(
+                    "payment id waits for the retry job: {}", failure.getClass().getName());
+            return null;
         }
     }
 
