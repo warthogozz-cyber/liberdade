@@ -20,6 +20,11 @@ Regras para todos os passos:
   recusa o deploy. Gere e cole os valores sem esses caracteres.
 - Sem a chave de API, ou com o token fora de 32 a 255 caracteres, a API sobe normalmente, mas a
   venda fica desligada (`configured` falso) e o webhook responde `401`.
+- Com `LIBERDADE_BILLING_ENABLED=false` o webhook também responde `401`, mesmo com pagamentos em
+  andamento. Para só parar de vender, prefira `LIBERDADE_BILLING_PRESALE_OPEN=false`. Se desligar a
+  cobrança, um pagamento feito nesse meio-tempo só ativa o plano quando o Asaas reenviar o evento
+  com a cobrança ligada de novo, ou quando a rotina de repetição (a cada hora) achar o pagamento,
+  o que ela faz por até 48 h depois do checkout.
 
 ## Passos
 
@@ -145,7 +150,8 @@ from billing_orders order by created_at desc limit 1;
 ```
 
 `tem_pagamento` deve ser `true`. A API pergunta ao Asaas qual cobrança nasceu do checkout depois
-de confirmar o pagamento, e a rotina de repetição (a cada hora) tenta de novo. Se continuar
+de confirmar o pagamento, e a rotina de repetição (a cada hora) tenta de novo. A mesma rotina
+confirma, por até 48 h depois do checkout, um pagamento cujo webhook não chegou. Se continuar
 nulo depois de 1 h, abra uma issue com o tipo de evento que chegou (sem ids nem valores).
 
 ### 8. Compra por cartão

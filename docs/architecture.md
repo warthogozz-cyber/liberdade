@@ -139,10 +139,10 @@ usa chama o pacote raiz (`Plans`, `@RequiresPlan`, `BillingExport`) ou ouve os e
   em `REFUND_PENDING`, encerra o plano e, depois do commit, pede o estorno ao Asaas. Se o Asaas
   falhar, o pedido espera a rotina horária (a cada hora, até 72 h). O estorno confirmado
   (`PAYMENT_REFUNDED`) leva a `REFUNDED`.
-- **Rotinas** (`America/Fortaleza`): `BillingRetryJob` a cada hora (reembolsos pendentes e o
-  `asaas_payment_id` que faltou) e `BillingPurgeJob` às 3h55 (eventos com mais de 180 dias,
-  pedidos nunca pagos com mais de 180 dias, pedidos pagos com mais de 5 anos, e o aviso de
-  reembolso parado há mais de 72 h).
+- **Rotinas** (`America/Fortaleza`): `BillingRetryJob` a cada hora (reembolsos pendentes, o
+  `asaas_payment_id` que faltou e, por até 48 h, checkouts pagos cujo webhook não chegou) e
+  `BillingPurgeJob` às 3h55 (eventos com mais de 180 dias, pedidos nunca pagos com mais de 180
+  dias, pedidos pagos com mais de 5 anos, e o aviso de reembolso parado há mais de 72 h).
 - **Plano e rotas.** `GET .../billing/plan` e `PUT .../billing/plan/theme` (tema do Fundador).
   `@RequiresPlan`, com o `PlanGuardInterceptor`, responde `403 plan.required`
   (`PlanRequiredException`) quando a família não tem o plano.

@@ -341,4 +341,18 @@ run "billing_alarms_notify_alerts" {
     ])
     error_message = "Billing alarms must notify the alerts topic at a threshold of 1 and ignore missing data."
   }
+
+  assert {
+    condition     = alltrue([for a in aws_cloudwatch_metric_alarm.billing_alert : toset(a.ok_actions) == toset([aws_sns_topic.alerts.arn])])
+    error_message = "Billing alarms must also tell the alerts topic when they return to OK."
+  }
+
+  assert {
+    condition = alltrue([
+      for env, a in aws_cloudwatch_metric_alarm.billing_alert :
+      a.metric_name == one(aws_cloudwatch_log_metric_filter.billing_alert[env].metric_transformation).name &&
+      a.namespace == one(aws_cloudwatch_log_metric_filter.billing_alert[env].metric_transformation).namespace
+    ])
+    error_message = "Each billing alarm must watch the metric its environment's filter writes."
+  }
 }
