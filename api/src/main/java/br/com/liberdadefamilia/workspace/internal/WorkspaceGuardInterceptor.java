@@ -34,7 +34,8 @@ import org.springframework.web.servlet.HandlerMapping;
  *       comes after the role check, so a role that may not use the route never learns whether the module is on.
  * </ol>
  *
- * <p>Otherwise the {@link WorkspaceMember} goes goes into the request ({@link WorkspaceRequests#member}), where {@link WorkspaceMemberArgumentResolver} reads it.
+ * <p>Otherwise the {@link WorkspaceMember} goes into the request ({@link WorkspaceRequests#member}), where
+ * {@link WorkspaceMemberArgumentResolver} reads it.
  */
 class WorkspaceGuardInterceptor implements HandlerInterceptor {
 

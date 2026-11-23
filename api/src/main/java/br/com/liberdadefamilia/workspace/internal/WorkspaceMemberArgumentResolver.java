@@ -3,7 +3,6 @@ package br.com.liberdadefamilia.workspace.internal;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceRequests;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -26,10 +25,14 @@ class WorkspaceMemberArgumentResolver implements HandlerMethodArgumentResolver {
             NativeWebRequest webRequest,
             @Nullable WebDataBinderFactory binderFactory) {
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
-        return Optional.ofNullable(request)
-                .flatMap(WorkspaceRequests::member)
-                .orElseThrow(
-                        () -> new IllegalStateException(
-                                "No WorkspaceMember: the handler must be @WorkspaceScoped and mapped under /v1/workspaces/{ws}"));
+        if (request == null) {
+            throw missingMember();
+        }
+        return WorkspaceRequests.member(request).orElseThrow(WorkspaceMemberArgumentResolver::missingMember);
+    }
+
+    private static IllegalStateException missingMember() {
+        return new IllegalStateException(
+                "No WorkspaceMember: the handler must be @WorkspaceScoped and mapped under /v1/workspaces/{ws}");
     }
 }

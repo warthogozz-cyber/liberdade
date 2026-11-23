@@ -7,6 +7,7 @@ import br.com.liberdadefamilia.billing.BillingExport;
 import br.com.liberdadefamilia.billing.ExportedOrder;
 import br.com.liberdadefamilia.billing.ExportedPlan;
 import br.com.liberdadefamilia.billing.domain.FounderOffer;
+import br.com.liberdadefamilia.billing.domain.OrderStatus;
 import br.com.liberdadefamilia.support.TestClock;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
@@ -102,10 +103,7 @@ class BillingExportIT {
         UUID owner = users.create("Dono", null);
         UUID ws = workspaces.createFor(owner);
         UUID first = orders.insert(ws, owner, FounderOffer.PRODUCT, FounderOffer.PRICE_CENTS, FounderOffer.CURRENCY);
-        orders.transition(
-                first,
-                br.com.liberdadefamilia.billing.domain.OrderStatus.CREATED,
-                br.com.liberdadefamilia.billing.domain.OrderStatus.CANCELED);
+        orders.transition(first, OrderStatus.CREATED, OrderStatus.CANCELED);
         orders.insert(ws, owner, FounderOffer.PRODUCT, FounderOffer.PRICE_CENTS, FounderOffer.CURRENCY);
 
         List<ExportedOrder> exported = export.orders(ws);
@@ -122,10 +120,7 @@ class BillingExportIT {
         UUID wsB = workspaces.createFor(ownerB);
         UUID orderA = paid(wsA, ownerA);
         UUID orderB = paid(wsB, ownerB);
-        orders.transition(
-                orderB,
-                br.com.liberdadefamilia.billing.domain.OrderStatus.PAID,
-                br.com.liberdadefamilia.billing.domain.OrderStatus.REFUND_PENDING);
+        orders.transition(orderB, OrderStatus.PAID, OrderStatus.REFUND_PENDING);
 
         assertThat(orderA).isNotEqualTo(orderB);
         assertThat(export.orders(wsA)).extracting(ExportedOrder::status).containsExactly("PAID");

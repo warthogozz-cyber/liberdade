@@ -8,6 +8,7 @@ import br.com.liberdadefamilia.support.TestUsers;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +26,11 @@ class MigrationV14IT {
 
     @Autowired
     TestUsers users;
+
+    @AfterEach
+    void dropTestAuditRows() {
+        jdbc.sql("delete from audit_events where action = 'TEST'").update();
+    }
 
     private UUID family() {
         return jdbc.sql("insert into workspaces (name) values ('Familia Cobranca') returning id")

@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -21,7 +20,6 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 
 /** The family guard has a fixed order, so another module's guard can run right after it and read the member. */
 @SpringBootTest
-@AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, WorkspaceGuardOrderIT.Neighbours.class})
 class WorkspaceGuardOrderIT {
 
@@ -46,7 +44,7 @@ class WorkspaceGuardOrderIT {
     RequestMappingHandlerMapping mappings;
 
     @Test
-    void guardIsRegisteredWithOrder100() throws Exception {
+    void guardOrderIs100AndNeighboursRunAroundIt() throws Exception {
         var request = new MockHttpServletRequest("GET", "/v1/workspaces/" + UUID.randomUUID() + "/modules");
 
         var chain = mappings.getHandler(request);
