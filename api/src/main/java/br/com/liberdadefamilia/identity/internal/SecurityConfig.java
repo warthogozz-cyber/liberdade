@@ -97,6 +97,9 @@ class SecurityConfig {
                         // Asaas calls this with a token of its own, never with a session (D15).
                         .requestMatchers(HttpMethod.POST, "/v1/billing/webhooks/asaas")
                         .permitAll()
+                        // The public terms and policy pages ask which version to show, before any sign-in.
+                        .requestMatchers(HttpMethod.GET, "/v1/legal/current")
+                        .permitAll()
                         .anyRequest()
                         .authenticated())
                 .oauth2Login(login -> login.loginPage(origin + "/entrar")

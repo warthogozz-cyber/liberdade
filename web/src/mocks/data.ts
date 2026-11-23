@@ -73,10 +73,10 @@ export interface MockOrder {
   checkoutUrl: string
 }
 
-/** The versions in force, the same as LegalDocuments.java. */
+/** The versions in force, as LegalDocuments.java picks them with billing on (as in staging and the e2e). */
 const CURRENT_DOCUMENTS: MockState['currentDocuments'] = {
-  TERMS: 'terms-2026-11',
-  PRIVACY: 'privacy-2026-11',
+  TERMS: 'terms-2026-12',
+  PRIVACY: 'privacy-2026-12',
 }
 
 /** The person starts with both documents accepted, so previews open straight into the app. */

@@ -104,3 +104,48 @@ test('inviteAcceptsDocuments: a guest joins by invitation and lands on Início w
     await expect(bia.getByRole('heading', GATE)).toHaveCount(0)
   })
 })
+
+test('newVersionAsksAgain: whoever accepted the texts from before billing accepts the new ones', async ({
+  page,
+}) => {
+  test.setTimeout(180_000)
+  await signInWithGoogle(page, newUser('Ana'))
+  await createFamily(page, 'Ana')
+
+  // The e2e runs with billing on, so the texts in force are the ones with the Founder presale.
+  await page.goto('/termos')
+  await expect(page.getByText(/Versão terms-2026-12 · atualizada em /)).toBeVisible()
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'O que é a Família Fundadora?' }),
+  ).toBeVisible()
+
+  // The API answers as if this person had accepted only the 2026-11 texts.
+  await page.route('**/v1/me/documents', async (route) => {
+    const response = await route.fetch()
+    const documents = (await response.json()) as { purpose: string; acceptedVersion: string }[]
+    const older = documents.map((document) =>
+      document.purpose === 'TERMS'
+        ? { ...document, acceptedVersion: 'terms-2026-11' }
+        : document.purpose === 'PRIVACY'
+          ? { ...document, acceptedVersion: 'privacy-2026-11' }
+          : document,
+    )
+    await route.fulfill({ response, json: older })
+  })
+  await page.goto('/inicio')
+  await expect(page.getByRole('heading', GATE)).toBeVisible()
+
+  // The accept carries the versions the API listed, and then the real answer lifts the gate.
+  await page.unroute('**/v1/me/documents')
+  await page.getByRole('checkbox', { name: /Li e aceito os termos/ }).check()
+  const accepted = page.waitForRequest(
+    (request) => request.method() === 'POST' && request.url().endsWith('/v1/me/documents/accept'),
+  )
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  expect((await accepted).postDataJSON()).toEqual({
+    terms: 'terms-2026-12',
+    privacy: 'privacy-2026-12',
+  })
+  await expect(page.getByRole('heading', GATE)).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible()
+})

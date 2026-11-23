@@ -90,6 +90,26 @@
         ]
       }
     },
+    "/v1/legal/current": {
+      "get": {
+        "operationId": "currentLegalVersions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalVersions"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "legal-controller"
+        ]
+      }
+    },
     "/v1/me": {
       "get": {
         "operationId": "me",
@@ -2478,6 +2498,17 @@
           "token": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "LegalVersions": {
+        "type": "object",
+        "properties": {
+          "privacy": {
+            "type": "string"
+          },
+          "terms": {
+            "type": "string"
           }
         }
       },

@@ -52,6 +52,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/legal/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["currentLegalVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me": {
         parameters: {
             query?: never;
@@ -883,6 +899,10 @@ export interface components {
             role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
             token: string | null;
         };
+        LegalVersions: {
+            privacy: string;
+            terms: string;
+        };
         MeUser: {
             /** Format: date-time */
             deletionScheduledFor: string | null;
@@ -1133,6 +1153,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvitationPreview"];
+                };
+            };
+        };
+    };
+    currentLegalVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalVersions"];
                 };
             };
         };

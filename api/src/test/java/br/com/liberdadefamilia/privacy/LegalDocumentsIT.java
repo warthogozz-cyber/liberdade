@@ -37,8 +37,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 @Import(TestcontainersConfiguration.class)
 class LegalDocumentsIT {
 
-    private static final String TERMS = "terms-2026-11";
-    private static final String PRIVACY = "privacy-2026-11";
+    private static final String TERMS = "terms-2026-12";
+    private static final String PRIVACY = "privacy-2026-12";
 
     @Autowired
     MockMvcTester mvc;

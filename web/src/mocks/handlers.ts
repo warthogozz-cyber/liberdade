@@ -762,6 +762,14 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  // Public: no session needed, and never cached by the browser, like LegalController.java.
+  http.get(url('/v1/legal/current'), () =>
+    HttpResponse.json(
+      { terms: mockState.currentDocuments.TERMS, privacy: mockState.currentDocuments.PRIVACY },
+      { headers: { 'Cache-Control': 'no-store' } },
+    ),
+  ),
+
   http.get(url('/v1/me/documents'), () => {
     if (!mockState.signedIn) return authRequired()
     return HttpResponse.json(
