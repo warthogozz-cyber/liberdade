@@ -3,7 +3,21 @@ export const MAX_CENTS = 99_999_999_999n
 
 const API_AMOUNT = /^-?\d+(\.\d{1,2})?$/
 
-const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+/** What the app writes in when there is no family yet. */
+export const DEFAULT_CURRENCY = 'BRL'
+export const DEFAULT_LOCALE = 'pt-BR'
+
+const formatters = new Map<string, Intl.NumberFormat>()
+
+function formatterFor(locale: string, currency: string): Intl.NumberFormat {
+  const key = `${locale}|${currency}`
+  let formatter = formatters.get(key)
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, { style: 'currency', currency })
+    formatters.set(key, formatter)
+  }
+  return formatter
+}
 
 /** Parses the API decimal text (e.g. "1234.56") into bigint cents. */
 export function parseCents(amount: string): bigint {
@@ -26,10 +40,10 @@ export function centsToApi(cents: bigint): string {
   return `${cents < 0n ? '-' : ''}${decimalText(cents < 0n ? -cents : cents)}`
 }
 
-/** Formats cents as BRL; negatives use U+2212 before the currency symbol. */
-export function formatBRL(cents: bigint): string {
+/** Formats cents in the family's currency and locale; negatives use U+2212 before the amount. */
+export function formatMoney(cents: bigint, currency: string, locale: string): string {
   const negative = cents < 0n
-  const formatted = BRL.format(decimalText(negative ? -cents : cents))
+  const formatted = formatterFor(locale, currency).format(decimalText(negative ? -cents : cents))
   return negative ? `\u2212${formatted}` : formatted
 }
 
@@ -67,4 +81,21 @@ export const MIN_CENTS = -MAX_CENTS
 /** Flips the sign: the keypad only types positive amounts, so a balance's sign comes apart from it. */
 export function negateCents(cents: bigint): bigint {
   return -cents
+}
+
+/**
+ * Reads an amount typed with the family's separators ("1.620,50", "150,5", "150"): the comma starts
+ * the cents and the dots only group. Undefined when it is not a positive amount of up to two decimals.
+ */
+export function parseTypedAmount(text: string): bigint | undefined {
+  const clean = text.trim().replace(/\s/g, '')
+  if (!/^\d{1,3}(\.\d{3})*(,\d{1,2})?$|^\d+(,\d{1,2})?$/.test(clean)) return undefined
+  const [whole = '0', fraction = ''] = clean.replace(/\./g, '').split(',')
+  const cents = BigInt(whole + fraction.padEnd(2, '0'))
+  return cents > 0n && cents <= MAX_CENTS ? cents : undefined
+}
+
+/** The amount as it is typed, with a comma and without grouping ("1500,00"). */
+export function typedAmount(cents: bigint): string {
+  return centsToApi(cents).replace('.', ',')
 }

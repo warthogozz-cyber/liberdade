@@ -5,6 +5,8 @@ import { RootRedirect } from '@/app/RootRedirect'
 import { SessionLayout } from '@/app/SessionLayout'
 import { WorkspaceLayout } from '@/app/WorkspaceLayout'
 import { WelcomePage } from '@/features/onboarding/WelcomePage'
+// Registers the planning module and its messages; the screens load on demand.
+import '@/features/recurrences/register'
 
 // Secondary screens load on demand, so the first load stays small (chunk budget in CI). Copy this
 // shape for a new one: the page exports its component by name. The layouts and the welcome page (a
@@ -139,6 +141,13 @@ export const routes: RouteObject[] = [
                 lazy: () =>
                   import('@/features/categories/CategoriesPage').then((m) => ({
                     Component: m.CategoriesPage,
+                  })),
+              },
+              {
+                path: '/mais/recorrencias',
+                lazy: () =>
+                  import('@/features/recurrences/RecurrencesPage').then((m) => ({
+                    Component: m.RecurrencesPage,
                   })),
               },
             ],

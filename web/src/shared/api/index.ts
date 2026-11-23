@@ -67,6 +67,12 @@ export type {
   MemberView,
   ModuleKey,
   ModuleView,
+  PaymentMethod,
+  RecurringRuleView,
+  CreateRecurringRuleRequest,
+  UpdateRecurringRuleRequest,
+  ConfirmTransactionRequest,
+  TagView,
   TransactionFilters,
   TransactionKind,
   TransactionView,
@@ -76,3 +82,5 @@ export type {
   UpdateTransactionRequest,
   WorkspaceView,
 } from './types'
+export { useArchiveTag, useRenameTag, useTags } from './tags'
+export { useCachedLocale, useFormatMoney, useLocale } from './useFormatMoney'

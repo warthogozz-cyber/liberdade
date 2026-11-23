@@ -12,12 +12,14 @@ import {
   createTestQueryClient,
   outboxItem,
   outboxPayload,
+  plannedView,
   renderWithProviders,
   transactionView,
 } from '@/shared/testing'
 
 const MERCADO_ID = '0192f3a4-0000-7000-8000-0000000000b1'
 const PENDING_ID = '0192f3a4-0000-7000-8000-0000000000b2'
+const PLANNED_ID = '0192f3a4-0000-7000-8000-0000000000b3'
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -553,5 +555,58 @@ describe('TransactionsPage, account filter and undo offline', () => {
       await toasts.findByText('Sem internet agora. Tente desfazer quando a conexão voltar.'),
     ).toBeInTheDocument()
     expect(restores).toBe(0)
+  })
+
+  it('keeps a planned one out of the day groups, and shows it under Previstos', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: true }
+    storeOnServer(
+      workspace,
+      request(MERCADO_ID, 'Mercado', {
+        amount: { amount: '87.90', currency: 'BRL' },
+        occurredOn: '2026-11-15',
+      }),
+    )
+    mockState.transactions.push({
+      ...plannedView(
+        request(PLANNED_ID, 'Mercado', {
+          amount: { amount: '1500.00', currency: 'BRL' },
+          description: 'Aluguel',
+        }),
+        '2026-11-15',
+      ),
+      memberId: workspace.membershipId,
+    })
+    renderTransactions()
+
+    const planned = within(await screen.findByRole('region', { name: 'Previstos' }))
+    expect(planned.getByText('Aluguel')).toBeInTheDocument()
+    const today = within(await day('Hoje'))
+    expect(today.getByText('🛒 Mercado')).toBeInTheDocument()
+    expect(today.queryByText('Aluguel')).not.toBeInTheDocument()
+    expect(today.getAllByRole('listitem')).toHaveLength(1)
+    // The R$ 1.500,00 is counted nowhere else on the screen.
+    expect(screen.getAllByText('−R$ 1.500,00')).toHaveLength(1)
+  })
+  it('shows Previstos, not the empty note, for a month with only a planned one', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: true }
+    mockState.transactions.push({
+      ...plannedView(
+        request(PLANNED_ID, 'Mercado', {
+          amount: { amount: '1500.00', currency: 'BRL' },
+          description: 'Aluguel',
+        }),
+        '2026-11-15',
+      ),
+      memberId: workspace.membershipId,
+    })
+    renderTransactions()
+
+    const planned = within(await screen.findByRole('region', { name: 'Previstos' }))
+    expect(planned.getByText('Aluguel')).toBeInTheDocument()
+    // The queue is read after the list; give it the time it takes.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(screen.queryByText('Nenhum lançamento neste mês.')).not.toBeInTheDocument()
   })
 })

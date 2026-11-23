@@ -19,7 +19,9 @@ describe('legal texts', () => {
   it('embedsEveryApiVersion', () => {
     expect(Object.keys(legalConfig.texts).sort()).toEqual([
       'privacy-2026-11',
+      'privacy-2026-11.1',
       'privacy-2026-12',
+      'privacy-2026-12.1',
       'terms-2026-11',
       'terms-2026-12',
     ])
@@ -29,15 +31,15 @@ describe('legal texts', () => {
     }
 
     // Each version the API can ask a person to accept has its text in this build.
-    const apiVersions = [...legalDocumentsJava.matchAll(/"((?:terms|privacy)-\d{4}-\d{2})"/g)].map(
-      (match) => match[1],
-    )
+    const apiVersions = [
+      ...legalDocumentsJava.matchAll(/"((?:terms|privacy)-\d{4}-\d{2}(?:\.\d+)?)"/g),
+    ].map((match) => match[1])
     expect(apiVersions.length).toBeGreaterThan(0)
     for (const version of apiVersions) expect(legalConfig.texts).toHaveProperty([version])
   })
 
   it('latestIsEmbedded', () => {
-    expect(legalConfig.latest).toEqual({ terms: 'terms-2026-12', privacy: 'privacy-2026-12' })
+    expect(legalConfig.latest).toEqual({ terms: 'terms-2026-12', privacy: 'privacy-2026-12.1' })
     expect(legalConfig.texts).toHaveProperty([legalConfig.latest.terms])
     expect(legalConfig.texts).toHaveProperty([legalConfig.latest.privacy])
   })

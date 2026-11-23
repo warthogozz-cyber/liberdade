@@ -3,6 +3,9 @@ import { COLOR_DOT } from './colorDot'
 
 type MessageId = FormatjsIntl.Message['ids']
 
+/** A tab of the categories screen: one of the two kinds, or the family's tags. */
+export type CategoryTab = CategoryKind | 'TAGS'
+
 interface ColorInfo {
   color: CategoryColor
   labelId: MessageId
@@ -81,6 +84,6 @@ export function categoryTree(categories: CategoryView[], kind: CategoryKind): Ca
 }
 
 /** The id of a kind's tab, so the panel can be named after the chosen one. */
-export function categoryTabId(panelId: string, kind: CategoryKind): string {
+export function categoryTabId(panelId: string, kind: CategoryTab): string {
   return `${panelId}-tab-${kind.toLowerCase()}`
 }

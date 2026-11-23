@@ -1132,6 +1132,23 @@
               "type": "string",
               "example": "2026-11"
             }
+          },
+          {
+            "in": "query",
+            "name": "paymentMethod",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "enum": [
+                "PIX",
+                "CREDIT_CARD",
+                "DEBIT_CARD",
+                "BOLETO",
+                "BANK_TRANSFER",
+                "CASH"
+              ]
+            }
           }
         ],
         "responses": {
@@ -1607,6 +1624,286 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/recurring-rules": {
+      "get": {
+        "operationId": "listRecurringRules",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecurringRuleView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "recurring-rule-controller"
+        ]
+      },
+      "post": {
+        "operationId": "createRecurringRule",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRecurringRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringRuleView"
+                }
+              }
+            },
+            "description": "Created, with its first planned transactions generated"
+          }
+        },
+        "tags": [
+          "recurring-rule-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/recurring-rules/{id}": {
+      "patch": {
+        "operationId": "updateRecurringRule",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRecurringRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringRuleView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "recurring-rule-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/recurring-rules/{id}/archive": {
+      "post": {
+        "operationId": "archiveRecurringRule",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Archived, or already archived"
+          }
+        },
+        "tags": [
+          "recurring-rule-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/tags": {
+      "get": {
+        "operationId": "listTags",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TagView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "tag-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/tags/{id}": {
+      "patch": {
+        "operationId": "renameTag",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameTagRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "tag-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/tags/{id}/archive": {
+      "post": {
+        "operationId": "archiveTag",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Archived, or already archived"
+          }
+        },
+        "tags": [
+          "tag-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/transactions": {
       "get": {
         "operationId": "listTransactions",
@@ -1644,6 +1941,33 @@
           {
             "in": "query",
             "name": "accountId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "nullable": true
+            }
+          },
+          {
+            "in": "query",
+            "name": "paymentMethod",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "enum": [
+                "PIX",
+                "CREDIT_CARD",
+                "DEBIT_CARD",
+                "BOLETO",
+                "BANK_TRANSFER",
+                "CASH"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "tagId",
             "required": false,
             "schema": {
               "type": "string",
@@ -1853,6 +2177,57 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/transactions/{id}/confirm": {
+      "post": {
+        "operationId": "confirmTransaction",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmTransactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionView"
+                }
+              }
+            },
+            "description": "Confirmed: the transaction as it is now, entered under who confirmed it"
+          }
+        },
+        "tags": [
+          "transaction-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/transactions/{id}/restore": {
       "post": {
         "operationId": "restoreTransaction",
@@ -1887,6 +2262,50 @@
               }
             },
             "description": "Restored, or already active: the transaction as it is"
+          }
+        },
+        "tags": [
+          "transaction-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/transactions/{id}/skip": {
+      "post": {
+        "operationId": "skipTransaction",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkipTransactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Skipped: deleted, and restorable like any deleted transaction"
           }
         },
         "tags": [
@@ -2085,6 +2504,31 @@
           }
         }
       },
+      "ConfirmTransactionRequest": {
+        "required": [
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "ConsentView": {
         "type": "object",
         "properties": {
@@ -2248,6 +2692,84 @@
           }
         }
       },
+      "CreateRecurringRuleRequest": {
+        "required": [
+          "accountId",
+          "amount",
+          "frequency",
+          "kind",
+          "startOn"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "description": {
+            "maxLength": 140,
+            "minLength": 0,
+            "type": "string",
+            "nullable": true
+          },
+          "endOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "WEEKLY",
+              "MONTHLY",
+              "YEARLY"
+            ]
+          },
+          "interval": {
+            "maximum": 12,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          },
+          "paymentMethod": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "PIX",
+              "CREDIT_CARD",
+              "DEBIT_CARD",
+              "BOLETO",
+              "BANK_TRANSFER",
+              "CASH"
+            ]
+          },
+          "startOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
       "CreateTransactionRequest": {
         "required": [
           "accountId",
@@ -2297,6 +2819,26 @@
           "occurredOn": {
             "type": "string",
             "format": "date"
+          },
+          "paymentMethod": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "PIX",
+              "CREDIT_CARD",
+              "DEBIT_CARD",
+              "BOLETO",
+              "BANK_TRANSFER",
+              "CASH"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string",
+              "nullable": true
+            }
           },
           "toAccountId": {
             "type": "string",
@@ -2406,6 +2948,9 @@
       "DocumentStatus": {
         "type": "object",
         "properties": {
+          "acceptanceRequired": {
+            "type": "boolean"
+          },
           "acceptedAt": {
             "type": "string",
             "format": "date-time",
@@ -2554,6 +3099,9 @@
       "MeWorkspace": {
         "type": "object",
         "properties": {
+          "country": {
+            "type": "string"
+          },
           "currency": {
             "type": "string"
           },
@@ -2577,12 +3125,29 @@
             "type": "string",
             "format": "uuid"
           },
+          "locale": {
+            "type": "string"
+          },
           "membershipId": {
             "type": "string",
             "format": "uuid"
           },
           "name": {
             "type": "string"
+          },
+          "paymentMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "PIX",
+                "CREDIT_CARD",
+                "DEBIT_CARD",
+                "BOLETO",
+                "BANK_TRANSFER",
+                "CASH"
+              ]
+            }
           },
           "recoveredAt": {
             "type": "string",
@@ -2815,6 +3380,105 @@
           }
         }
       },
+      "RecurringRuleView": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "endOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "WEEKLY",
+              "MONTHLY",
+              "YEARLY"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "interval": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          },
+          "nextDueOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "paymentMethod": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "PIX",
+              "CREDIT_CARD",
+              "DEBIT_CARD",
+              "BOLETO",
+              "BANK_TRANSFER",
+              "CASH"
+            ]
+          },
+          "startOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RenameTagRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 30,
+            "minLength": 0,
+            "pattern": "[^\\p{Cc}]*",
+            "type": "string"
+          }
+        }
+      },
       "RenameWorkspaceRequest": {
         "required": [
           "name"
@@ -2825,6 +3489,35 @@
             "maxLength": 60,
             "minLength": 0,
             "pattern": "[^\\x00]*",
+            "type": "string"
+          }
+        }
+      },
+      "SkipTransactionRequest": {
+        "required": [
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "TagView": {
+        "type": "object",
+        "properties": {
+          "archivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
             "type": "string"
           }
         }
@@ -2888,6 +3581,41 @@
           "occurredOn": {
             "type": "string",
             "format": "date"
+          },
+          "paymentMethod": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "PIX",
+              "CREDIT_CARD",
+              "DEBIT_CARD",
+              "BOLETO",
+              "BANK_TRANSFER",
+              "CASH"
+            ]
+          },
+          "recurringRuleId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "scheduledOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED",
+              "PLANNED"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "toAccountId": {
             "type": "string",
@@ -3012,6 +3740,89 @@
           }
         }
       },
+      "UpdateRecurringRuleRequest": {
+        "required": [
+          "accountId",
+          "amount",
+          "frequency",
+          "kind",
+          "startOn",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "description": {
+            "maxLength": 140,
+            "minLength": 0,
+            "type": "string",
+            "nullable": true
+          },
+          "endOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "WEEKLY",
+              "MONTHLY",
+              "YEARLY"
+            ]
+          },
+          "interval": {
+            "maximum": 12,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          },
+          "paymentMethod": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "PIX",
+              "CREDIT_CARD",
+              "DEBIT_CARD",
+              "BOLETO",
+              "BANK_TRANSFER",
+              "CASH"
+            ]
+          },
+          "startOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "UpdateTransactionRequest": {
         "required": [
           "accountId",
@@ -3057,6 +3868,26 @@
           "occurredOn": {
             "type": "string",
             "format": "date"
+          },
+          "paymentMethod": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "PIX",
+              "CREDIT_CARD",
+              "DEBIT_CARD",
+              "BOLETO",
+              "BANK_TRANSFER",
+              "CASH"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string",
+              "nullable": true
+            }
           },
           "toAccountId": {
             "type": "string",

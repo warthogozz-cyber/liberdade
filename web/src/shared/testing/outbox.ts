@@ -40,8 +40,28 @@ export function transactionView(
     toAccountId: request.toAccountId ?? null,
     categoryId: request.categoryId ?? null,
     description: request.description ?? null,
+    paymentMethod: request.paymentMethod ?? null,
+    tags: (request.tags ?? []).filter((name) => name !== null),
+    status: 'CONFIRMED',
+    scheduledOn: null,
+    recurringRuleId: null,
     createdAt,
     memberId: 'member',
     version: 0,
+  }
+}
+
+/** A planned transaction a recurring rule generated: not counted until it is confirmed. */
+export function plannedView(
+  request: CreateTransactionRequest,
+  scheduledOn: string,
+  overrides: Partial<TransactionView> = {},
+): TransactionView {
+  return {
+    ...transactionView({ ...request, occurredOn: scheduledOn }),
+    status: 'PLANNED',
+    scheduledOn,
+    recurringRuleId: '0192f3a4-0000-7000-8000-0000000000c1',
+    ...overrides,
   }
 }

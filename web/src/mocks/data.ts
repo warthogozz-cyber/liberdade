@@ -18,6 +18,9 @@ export interface MockInvitation {
   targetMembershipId?: string
 }
 
+/** A recurring rule as stored: an archived one stays, out of the lists. */
+export type MockRule = Schemas['RecurringRuleView'] & { archived: boolean }
+
 /** A consent as the API lists it, plus whether the signed-in person is the one who gave it. */
 export type MockConsent = Schemas['ConsentView'] & { grantedByMe: boolean }
 
@@ -31,6 +34,8 @@ export interface MockState {
   accounts: MockAccount[]
   /** In seed order: the 13 expense categories, then the 6 income ones. */
   categories: Schemas['CategoryView'][]
+  /** The family's tags, made by naming them on a transaction. */
+  tags: Schemas['TagView'][]
   /** Every stored transaction, deleted or not: a deleted id stays taken and restorable. */
   transactions: TransactionView[]
   /** Ids of the deleted transactions, left out of every list and sum. */
@@ -41,6 +46,8 @@ export interface MockState {
   invitations: MockInvitation[]
   /** The modules each family switched on, by workspace id. A module with no entry is off. */
   modules: Record<string, Partial<Record<Schemas['ModuleView']['key'], boolean>>>
+  /** The family's recurring rules, in creation order, archived ones included. */
+  rules: MockRule[]
   /** The signed-in person's own history, newest first (LGPD audit trail). */
   activity: Schemas['ActivityItem'][]
   /** The signed-in person's own passkeys, newest first. */
@@ -76,7 +83,13 @@ export interface MockOrder {
 /** The versions in force, as LegalDocuments.java picks them with billing on (as in staging and the e2e). */
 const CURRENT_DOCUMENTS: MockState['currentDocuments'] = {
   TERMS: 'terms-2026-12',
-  PRIVACY: 'privacy-2026-12',
+  PRIVACY: 'privacy-2026-12.1',
+}
+
+/** `LegalDocuments.KEEPS_ACCEPTANCE`: a version keeps the acceptance of the one it continues. */
+export const KEEPS_ACCEPTANCE: Record<string, string> = {
+  'privacy-2026-11.1': 'privacy-2026-11',
+  'privacy-2026-12.1': 'privacy-2026-12',
 }
 
 /** The person starts with both documents accepted, so previews open straight into the app. */
@@ -198,12 +211,14 @@ function initialState(): MockState {
     workspaces: [],
     accounts: [],
     categories: [],
+    tags: [],
     transactions: [],
     deletedTransactionIds: new Set(),
     members: {},
     invitations: [],
     billing: { plan: { key: 'FREE', endsAt: null }, orders: [] },
     modules: {},
+    rules: [],
     activity: initialActivity(),
     passkeys: initialPasskeys(),
     hasGoogle: true,
@@ -275,6 +290,9 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
     name,
     role: 'OWNER',
     currency: 'BRL',
+    country: 'BR',
+    locale: 'pt-BR',
+    paymentMethods: ['PIX', 'CREDIT_CARD', 'DEBIT_CARD', 'BOLETO', 'BANK_TRANSFER', 'CASH'],
     timezone,
     gettingStartedDismissedAt: null,
     hasTransactions: false,

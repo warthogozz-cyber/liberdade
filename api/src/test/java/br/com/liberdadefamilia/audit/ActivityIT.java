@@ -133,7 +133,7 @@ class ActivityIT {
         // Events whose only link to Vera is the shared family: a rename, a module switch and an invitation.
         assertThat(send(mvc.patch(), ana, "/v1/workspaces/" + ws, "{\"name\":\"Os Teste\"}"))
                 .hasStatusOk();
-        assertThat(send(mvc.put(), bia, "/v1/workspaces/" + ws + "/modules/planning", "{\"enabled\":true}"))
+        assertThat(send(mvc.put(), bia, "/v1/workspaces/" + ws + "/modules/indicators", "{\"enabled\":true}"))
                 .hasStatusOk();
         assertThat(send(
                         mvc.post(),

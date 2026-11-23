@@ -8,7 +8,14 @@ import {
 } from '@/shared/api'
 import { centsToApi, MAX_CENTS, parseCents } from '@/shared/money'
 import type { components } from '@/shared/api/schema'
-import { createFamily, type MockAccount, type MockInvitation, mockState } from './data'
+import {
+  createFamily,
+  KEEPS_ACCEPTANCE,
+  type MockAccount,
+  type MockInvitation,
+  type MockRule,
+  mockState,
+} from './data'
 
 type Schemas = components['schemas']
 
@@ -103,6 +110,9 @@ function joinWorkspace(
     name: invitation.workspaceName ?? '',
     role,
     currency: 'BRL',
+    country: 'BR',
+    locale: 'pt-BR',
+    paymentMethods: ['PIX', 'CREDIT_CARD', 'DEBIT_CARD', 'BOLETO', 'BANK_TRANSFER', 'CASH'],
     timezone: 'America/Fortaleza',
     gettingStartedDismissedAt: null,
     hasTransactions: false,
@@ -188,11 +198,16 @@ function money(cents: bigint, currency: string): ApiMoney {
   return { amount: centsToApi(cents), currency }
 }
 
-/** The transactions not deleted: the only ones lists and sums see. */
-function activeTransactions(): TransactionView[] {
+/** The transactions not deleted, planned ones included: what the list shows. */
+function listedTransactions(): TransactionView[] {
   return mockState.transactions.filter(
     (transaction) => !mockState.deletedTransactionIds.has(transaction.id),
   )
+}
+
+/** The transactions not deleted and confirmed: the only ones sums see, so a planned one counts nowhere. */
+function activeTransactions(): TransactionView[] {
+  return listedTransactions().filter((transaction) => transaction.status === 'CONFIRMED')
 }
 
 /** What the transaction moved in the account: income in, expenses out, a transfer out of one and into the other. */
@@ -367,9 +382,77 @@ function sameContent(stored: TransactionView, request: TransactionView) {
     stored.toAccountId === request.toAccountId &&
     stored.categoryId === request.categoryId &&
     stored.memberId === request.memberId &&
-    stored.description === request.description
+    stored.description === request.description &&
+    stored.paymentMethod === request.paymentMethod &&
+    sameNames(stored.tags, request.tags)
   )
 }
+
+const tagKey = (name: string) => name.trim().toLowerCase()
+
+function sameNames(a: string[], b: string[]) {
+  const keys = (names: string[]) => [...new Set(names.map(tagKey))].sort()
+  return JSON.stringify(keys(a)) === JSON.stringify(keys(b))
+}
+
+/** The names a transaction ends up with: each tag once, spelled as the family's tag if it has one. */
+function tagNamesOf(names: (string | null)[]): string[] {
+  const byKey = new Map<string, string>()
+  for (const raw of names) {
+    const name = (raw ?? '').trim()
+    if (!byKey.has(tagKey(name))) {
+      const known = mockState.tags.find(
+        (tag) => tag.archivedAt === null && tagKey(tag.name) === tagKey(name),
+      )
+      byKey.set(tagKey(name), known ? known.name : name)
+    }
+  }
+  return [...byKey.values()].sort((x, y) => tagKey(x).localeCompare(tagKey(y)))
+}
+
+/** Makes the tags of these names that the family does not have yet. */
+function makeTags(names: string[]) {
+  for (const name of names) {
+    const known = mockState.tags.some(
+      (tag) => tag.archivedAt === null && tagKey(tag.name) === tagKey(name),
+    )
+    if (!known) mockState.tags.push({ id: crypto.randomUUID(), name, archivedAt: null })
+  }
+}
+
+const tagNotFound = () => problem(404, 'tag.not-found', 'Tag não encontrada.')
+const MAX_TAGS = 200
+const MAX_TAG_NAMES = 5
+const MAX_TAG_LENGTH = 30
+
+/** The field errors of a list of tag names, as the API's validator finds them. */
+function tagErrors(names: unknown): FieldError[] {
+  if (names === undefined || names === null) return []
+  const valid =
+    Array.isArray(names) &&
+    names.every(
+      (name) =>
+        typeof name === 'string' &&
+        name.trim().length > 0 &&
+        [...name.trim()].length <= MAX_TAG_LENGTH &&
+        // eslint-disable-next-line no-control-regex
+        !/[\u0000-\u001f\u007f-\u009f]/.test(name),
+    ) &&
+    new Set(names.map((name: string) => tagKey(name))).size <= MAX_TAG_NAMES
+  return valid ? [] : [{ field: 'tags', code: 'TagNames' }]
+}
+
+/** Whether the names would make the family's 201st active tag. */
+function overTagLimit(names: string[]) {
+  const fresh = names.filter(
+    (name) =>
+      !mockState.tags.some((tag) => tag.archivedAt === null && tagKey(tag.name) === tagKey(name)),
+  )
+  return mockState.tags.filter((tag) => tag.archivedAt === null).length + fresh.length > MAX_TAGS
+}
+
+const tagLimit = () =>
+  rejected('tag.limit', `A família já tem ${MAX_TAGS} tags. Arquive alguma para criar outra.`)
 
 const MIN_DATE = '2000-01-01'
 const DAYS_AHEAD = 366
@@ -402,12 +485,13 @@ function topCategoryId(categoryId: string): string {
 }
 
 /** The month's spending by top-level category, this month and last, ranked as the API ranks it. */
-function categoriesFor(month: string, currency: string) {
+function categoriesFor(month: string, currency: string, paymentMethod: string | null) {
   const [year, number] = month.split('-').map(Number)
   const previousMonth = new Date(Date.UTC(year, number - 2, 1)).toISOString().slice(0, 7)
   const totals = new Map<string, { current: bigint; previous: bigint }>()
   for (const transaction of activeTransactions()) {
     if (transaction.kind !== 'EXPENSE' || transaction.categoryId === null) continue
+    if (paymentMethod !== null && transaction.paymentMethod !== paymentMethod) continue
     const current = transaction.occurredOn.startsWith(`${month}-`)
     if (!current && !transaction.occurredOn.startsWith(`${previousMonth}-`)) continue
     const id = topCategoryId(transaction.categoryId)
@@ -443,7 +527,7 @@ function categoriesFor(month: string, currency: string) {
 }
 
 /** The month at a glance, computed as the API does: the balance of the active accounts at each day's end. */
-function dashboardFor(month: string, currency: string) {
+function dashboardFor(month: string, currency: string, paymentMethod: string | null = null) {
   const [year, number] = month.split('-').map(Number)
   const days = new Date(Date.UTC(year, number, 0)).getUTCDate()
   const transactions = activeTransactions().filter(
@@ -461,6 +545,8 @@ function dashboardFor(month: string, currency: string) {
       continue
     }
     moved[Number(transaction.occurredOn.slice(8, 10)) - 1] += effect
+    // The payment method narrows what was spent and earned; the balance stays the accounts' own.
+    if (paymentMethod !== null && transaction.paymentMethod !== paymentMethod) continue
     if (transaction.kind === 'INCOME') income += parseCents(transaction.amount.amount)
     if (transaction.kind === 'EXPENSE') expenses += parseCents(transaction.amount.amount)
   }
@@ -477,7 +563,7 @@ function dashboardFor(month: string, currency: string) {
     expenses: money(expenses, currency),
     result: money(income - expenses, currency),
     balance: money(balance, currency),
-    byCategory: categoriesFor(month, currency),
+    byCategory: categoriesFor(month, currency, paymentMethod),
     dailyBalance,
   }
 }
@@ -498,6 +584,7 @@ interface Proposed {
   toAccountId: string | null
   categoryId: string | null
   memberId: string
+  paymentMethod: string | null
 }
 
 /** Whether the person is an active member of the family. */
@@ -535,6 +622,12 @@ function familyRuleFailure(
     return rejected(
       'transaction.transfer-invalid',
       'Uma transferência precisa de duas contas diferentes e não leva categoria.',
+    )
+  }
+  if (transfer && proposed.paymentMethod !== null) {
+    return rejected(
+      'transaction.payment-method-transfer',
+      'Uma transferência não leva forma de pagamento.',
     )
   }
   if (!transfer && categoryId === null) {
@@ -581,6 +674,106 @@ function familyRuleFailure(
 function storedTransaction(id: string) {
   const transaction = mockState.transactions.find((existing) => existing.id === id)
   return transaction && { transaction, deleted: mockState.deletedTransactionIds.has(id) }
+}
+
+type RuleBody = Partial<Schemas['CreateRecurringRuleRequest']>
+
+const FREQUENCIES: unknown[] = ['WEEKLY', 'MONTHLY', 'YEARLY']
+const ruleNotFound = () => problem(404, 'recurring-rule.not-found', 'Recorrência não encontrada.')
+const planningOff = () =>
+  problem(403, 'module.disabled', 'O módulo de planejamento está desligado.')
+const planningOn = (workspace: MeWorkspace) => mockState.modules[workspace.id]?.planning === true
+/** Only an Owner or an Adult makes, edits and archives rules. */
+const canManageRules = (workspace: MeWorkspace) =>
+  workspace.role === 'OWNER' || workspace.role === 'ADULT'
+
+/** A Youth sees only the rules on the accounts that are theirs. */
+function ruleVisible(workspace: MeWorkspace, rule: MockRule): boolean {
+  if (workspace.role !== 'YOUTH') return true
+  return (
+    mockState.accounts.find((account) => account.id === rule.accountId)?.ownerMembershipId ===
+    workspace.membershipId
+  )
+}
+
+function ruleView(rule: MockRule): Schemas['RecurringRuleView'] {
+  const view: Partial<MockRule> = { ...rule }
+  delete view.archived
+  return view as Schemas['RecurringRuleView']
+}
+
+/** The fields a create or an edit sets, as stored. */
+function ruleFields(body: RuleBody) {
+  const transfer = body.kind === 'TRANSFER'
+  return {
+    kind: body.kind!,
+    amount: money(validCents(String(body.amount!.amount))!, body.amount!.currency),
+    accountId: body.accountId!,
+    toAccountId: transfer ? (body.toAccountId ?? null) : null,
+    categoryId: transfer ? null : (body.categoryId ?? null),
+    description: body.description?.trim() || null,
+    paymentMethod: transfer ? null : (body.paymentMethod ?? null),
+    frequency: body.frequency!,
+    interval: body.interval ?? 1,
+    startOn: body.startOn!,
+    endOn: body.endOn ?? null,
+  }
+}
+
+function ruleFailure(body: RuleBody | undefined): Response | undefined {
+  if (typeof body !== 'object' || body === null) return malformed()
+  const errors: FieldError[] = (['kind', 'amount', 'accountId', 'frequency', 'startOn'] as const)
+    .filter((field) => body[field] == null)
+    .map((field) => ({ field, code: 'NotNull' }))
+  if (errors.length > 0) return invalid(errors)
+  if (!KINDS.includes(body.kind) || !FREQUENCIES.includes(body.frequency)) return malformed()
+  if (!DATE.test(body.startOn!) || (body.endOn != null && !DATE.test(body.endOn))) {
+    return malformed()
+  }
+  if (validCents(String(body.amount!.amount)) === undefined) {
+    return invalid([{ field: 'amount', code: 'TransactionAmount' }])
+  }
+  const interval = body.interval ?? 1
+  if (!Number.isInteger(interval) || interval < 1 || interval > 12) {
+    return invalid([{ field: 'interval', code: 'Range' }])
+  }
+  if (body.endOn != null && body.endOn < body.startOn!) {
+    return invalid([{ field: 'endOn', code: 'RecurringRuleEnd' }])
+  }
+  const account = mockState.accounts.find((each) => each.id === body.accountId)
+  if (!account || account.archivedAt !== null) {
+    return rejected('recurring-rule.account-not-found', 'Essa conta não está disponível.')
+  }
+  if (body.kind === 'TRANSFER') {
+    const to = mockState.accounts.find((each) => each.id === body.toAccountId)
+    if (!to || to.archivedAt !== null || to.id === account.id) {
+      return rejected('recurring-rule.account-not-found', 'Essa conta não está disponível.')
+    }
+  }
+  return undefined
+}
+
+/** The first date of the rule on or after `today`, stepping by its interval from `startOn`. */
+function nextDue(rule: MockRule, today: string): string | null {
+  const [year, month, day] = rule.startOn.split('-').map(Number)
+  for (let step = 0; step < 5000; step += 1) {
+    const offset = step * rule.interval
+    let date: Date
+    if (rule.frequency === 'WEEKLY') {
+      date = new Date(Date.UTC(year, month - 1, day + offset * 7))
+    } else {
+      const months = rule.frequency === 'MONTHLY' ? offset : offset * 12
+      const first = new Date(Date.UTC(year, month - 1 + months, 1))
+      const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0))
+      date = new Date(
+        Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), Math.min(day, last.getUTCDate())),
+      )
+    }
+    const iso = date.toISOString().slice(0, 10)
+    if (rule.endOn !== null && iso > rule.endOn) return null
+    if (iso >= today) return iso
+  }
+  return null
 }
 
 /** Newest first: by date, then by creation, then by id, as the API lists them. */
@@ -794,6 +987,9 @@ export const handlers = [
           currentVersion: mockState.currentDocuments[purpose],
           acceptedVersion: accepted?.version ?? null,
           acceptedAt: accepted?.at ?? null,
+          acceptanceRequired:
+            accepted?.version !== mockState.currentDocuments[purpose] &&
+            accepted?.version !== KEEPS_ACCEPTANCE[mockState.currentDocuments[purpose]],
         }
       }),
     )
@@ -1713,6 +1909,65 @@ export const handlers = [
     },
   ),
 
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/tags'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    return HttpResponse.json(
+      mockState.tags
+        .filter((tag) => tag.archivedAt === null)
+        .sort((x, y) => tagKey(x.name).localeCompare(tagKey(y.name))),
+    )
+  }),
+
+  http.patch<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/tags/:id'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as { name?: unknown } | undefined
+      if (typeof body !== 'object' || body === null) return malformed()
+      if (body.name === undefined || tagErrors([body.name]).length > 0) {
+        return invalid([{ field: 'name', code: 'Size' }])
+      }
+      const tag = mockState.tags.find((each) => each.id === params.id && each.archivedAt === null)
+      if (!tag) return tagNotFound()
+      const name = (body.name as string).trim()
+      if (
+        mockState.tags.some(
+          (each) =>
+            each.id !== tag.id && each.archivedAt === null && tagKey(each.name) === tagKey(name),
+        )
+      ) {
+        return problem(409, 'tag.name-taken', 'Já existe uma tag com esse nome.')
+      }
+      // A transaction shows its tags by name, so the new name follows the tag everywhere.
+      for (const transaction of mockState.transactions) {
+        transaction.tags = transaction.tags
+          .map((each) => (each === tag.name ? name : each))
+          .sort((x, y) => tagKey(x).localeCompare(tagKey(y)))
+      }
+      tag.name = name
+      return HttpResponse.json(tag)
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/tags/:id/archive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!UUID.test(params.id)) return malformed()
+      const tag = mockState.tags.find((each) => each.id === params.id)
+      if (!tag) return tagNotFound()
+      // Archiving again changes nothing; the tag stays on the transactions that have it.
+      tag.archivedAt ??= new Date().toISOString()
+      return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/transactions'), ({ request, params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace
@@ -1720,8 +1975,11 @@ export const handlers = [
     const month = search.get('month') ?? ''
     const categoryId = search.get('categoryId')
     const accountId = search.get('accountId')
+    const tagId = search.get('tagId')
+    const paymentMethod = search.get('paymentMethod')
     if (!MONTH.test(month)) return malformed()
-    if ([categoryId, accountId].some((id) => id !== null && !UUID.test(id))) return malformed()
+    if ([categoryId, accountId, tagId].some((id) => id !== null && !UUID.test(id)))
+      return malformed()
     const outOfRange = monthOutOfRange(workspace, month)
     if (outOfRange) return outOfRange
     // A category takes its subcategories along; an account, what leaves it and what enters it.
@@ -1730,11 +1988,22 @@ export const handlers = [
         .filter((category) => category.id === categoryId || category.parentId === categoryId)
         .map((category) => category.id),
     )
+    const tagName = mockState.tags.find((tag) => tag.id === tagId)?.name
+    const planning = mockState.modules[workspace.id]?.planning === true
+    const thisMonth = familyToday(workspace).startsWith(`${month}-`)
     return HttpResponse.json(
-      activeTransactions()
+      listedTransactions()
         .filter(
           (transaction) =>
-            transaction.occurredOn.startsWith(`${month}-`) &&
+            // A planned one shows only with the module on: the month's, and in this month the overdue.
+            (transaction.status === 'CONFIRMED'
+              ? transaction.occurredOn.startsWith(`${month}-`)
+              : planning &&
+                (transaction.occurredOn.startsWith(`${month}-`) ||
+                  (thisMonth && transaction.occurredOn < `${month}-01`))) &&
+            (paymentMethod === null || transaction.paymentMethod === paymentMethod) &&
+            (tagId === null ||
+              (tagName !== undefined && transaction.tags.some((name) => name === tagName))) &&
             (categoryId === null ||
               (transaction.categoryId !== null && inCategory.has(transaction.categoryId))) &&
             (accountId === null ||
@@ -1757,6 +2026,7 @@ export const handlers = [
     if (key === null || !UUID.test(key)) return malformed()
     if (typeof body !== 'object' || body === null || !readable(body)) return malformed()
     const { errors, cents, description } = validateTransaction(body, CREATE_REQUIRED)
+    errors.push(...tagErrors(body.tags))
     if (errors.length > 0) return invalid(errors)
     if (body.id !== key || !UUID_V7.test(body.id)) {
       return rejected('transaction.invalid-id', 'O identificador do lançamento é inválido.')
@@ -1770,6 +2040,11 @@ export const handlers = [
       toAccountId: body.toAccountId ?? null,
       categoryId: body.categoryId ?? null,
       description,
+      paymentMethod: body.paymentMethod ?? null,
+      tags: tagNamesOf(body.tags ?? []),
+      status: 'CONFIRMED',
+      scheduledOn: null,
+      recurringRuleId: null,
       memberId: body.memberId ?? workspace.membershipId,
       createdAt: new Date().toISOString(),
       version: 0,
@@ -1783,6 +2058,8 @@ export const handlers = [
     }
     const failure = familyRuleFailure(workspace, transaction)
     if (failure) return failure
+    if (overTagLimit(transaction.tags)) return tagLimit()
+    makeTags(transaction.tags)
     mockState.transactions.push(transaction)
     return HttpResponse.json(transaction, { status: 201 })
   }),
@@ -1797,6 +2074,7 @@ export const handlers = [
       const body = (await readJson(request)) as UpdateTransactionRequest | undefined
       if (typeof body !== 'object' || body === null || !readable(body)) return malformed()
       const { errors, cents, description } = validateTransaction(body, UPDATE_REQUIRED)
+      errors.push(...tagErrors(body.tags))
       if (errors.length > 0) return invalid(errors)
       const stored = storedTransaction(params.id)
       if (!stored) return transactionNotFound()
@@ -1821,11 +2099,16 @@ export const handlers = [
         toAccountId: body.toAccountId ?? null,
         categoryId: body.categoryId ?? null,
         description,
+        paymentMethod: body.paymentMethod ?? null,
+        // No tags keeps the ones it has; a list, even an empty one, replaces them.
+        tags: body.tags == null ? current.tags : tagNamesOf(body.tags),
         memberId: body.memberId ?? current.memberId,
         version: current.version + 1,
       }
       const failure = familyRuleFailure(workspace, edited, current)
       if (failure) return failure
+      if (overTagLimit(edited.tags)) return tagLimit()
+      makeTags(edited.tags)
       Object.assign(current, edited)
       return HttpResponse.json(current)
     },
@@ -1877,13 +2160,200 @@ export const handlers = [
     },
   ),
 
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/recurring-rules'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    return HttpResponse.json(
+      mockState.rules
+        .filter((rule) => !rule.archived && ruleVisible(workspace, rule))
+        .sort(
+          (a, b) =>
+            (a.nextDueOn ?? '9999-12-31').localeCompare(b.nextDueOn ?? '9999-12-31') ||
+            a.id.localeCompare(b.id),
+        )
+        .map(ruleView),
+    )
+  }),
+
+  http.post<{ ws: string }>(
+    url('/v1/workspaces/:ws/recurring-rules'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      const body = (await readJson(request)) as RuleBody | undefined
+      const failure = ruleFailure(body)
+      if (failure || !body) return failure
+      const rule: MockRule = {
+        id: crypto.randomUUID(),
+        ...ruleFields(body),
+        createdBy: mockState.user.id,
+        nextDueOn: null,
+        version: 0,
+        archived: false,
+      }
+      rule.nextDueOn = nextDue(rule, familyToday(workspace))
+      mockState.rules.push(rule)
+      // The API plans the first occurrence at once.
+      if (rule.nextDueOn) {
+        mockState.transactions.push({
+          id: crypto.randomUUID(),
+          kind: rule.kind,
+          amount: rule.amount,
+          occurredOn: rule.nextDueOn,
+          accountId: rule.accountId,
+          toAccountId: rule.toAccountId,
+          categoryId: rule.categoryId,
+          description: rule.description,
+          paymentMethod: rule.paymentMethod,
+          tags: [],
+          status: 'PLANNED',
+          scheduledOn: rule.nextDueOn,
+          recurringRuleId: rule.id,
+          createdAt: new Date().toISOString(),
+          memberId: workspace.membershipId,
+          version: 0,
+        })
+      }
+      return HttpResponse.json(ruleView(rule), { status: 201 })
+    },
+  ),
+
+  http.patch<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/recurring-rules/:id'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as (RuleBody & { version?: number }) | undefined
+      const rule = mockState.rules.find((each) => each.id === params.id && !each.archived)
+      if (!rule) return ruleNotFound()
+      const failure = ruleFailure(body)
+      if (failure || !body) return failure
+      if (typeof body.version !== 'number') return malformed()
+      if (body.version !== rule.version) {
+        return problem(
+          409,
+          'recurring-rule.version-conflict',
+          'Essa recorrência mudou. Confira a lista.',
+        )
+      }
+      Object.assign(rule, ruleFields(body))
+      rule.nextDueOn = nextDue(rule, familyToday(workspace))
+      rule.version += 1
+      return HttpResponse.json(ruleView(rule))
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/recurring-rules/:id/archive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      if (!UUID.test(params.id)) return malformed()
+      const rule = mockState.rules.find((each) => each.id === params.id)
+      if (!rule) return ruleNotFound()
+      // Archiving again changes nothing; what it planned and is still open goes away.
+      if (!rule.archived) {
+        rule.archived = true
+        for (const transaction of mockState.transactions) {
+          if (transaction.recurringRuleId === rule.id && transaction.status === 'PLANNED') {
+            mockState.deletedTransactionIds.add(transaction.id)
+          }
+        }
+      }
+      return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/transactions/:id/confirm'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (workspace.role === 'VIEWER') return roleDenied()
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as
+        | {
+            version?: number
+            amount?: ApiMoney
+            occurredOn?: string | null
+            accountId?: string | null
+          }
+        | undefined
+      if (typeof body !== 'object' || body === null || typeof body.version !== 'number') {
+        return malformed()
+      }
+      const stored = storedTransaction(params.id)
+      if (!stored || stored.deleted) return transactionNotFound()
+      const { transaction } = stored
+      if (transaction.status !== 'PLANNED') {
+        return problem(409, 'transaction.not-planned', 'Esse lançamento não é um previsto.')
+      }
+      if (body.version !== transaction.version) {
+        return problem(409, 'transaction.version-conflict', 'Esse previsto mudou. Confira a lista.')
+      }
+      const cents = body.amount === undefined ? undefined : validCents(String(body.amount.amount))
+      if (body.amount !== undefined && cents === undefined) {
+        return invalid([{ field: 'amount', code: 'TransactionAmount' }])
+      }
+      if (body.occurredOn != null && !DATE.test(body.occurredOn)) return malformed()
+      if (body.amount !== undefined && cents !== undefined) {
+        transaction.amount = money(cents, body.amount.currency)
+      }
+      if (body.occurredOn) transaction.occurredOn = body.occurredOn
+      if (body.accountId) transaction.accountId = body.accountId
+      transaction.status = 'CONFIRMED'
+      transaction.memberId = workspace.membershipId
+      transaction.version += 1
+      return HttpResponse.json(transaction)
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/transactions/:id/skip'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (workspace.role === 'VIEWER') return roleDenied()
+      if (!UUID.test(params.id)) return malformed()
+      const body = (await readJson(request)) as { version?: number } | undefined
+      if (typeof body !== 'object' || body === null || typeof body.version !== 'number') {
+        return malformed()
+      }
+      const stored = storedTransaction(params.id)
+      if (!stored || stored.deleted) return transactionNotFound()
+      if (stored.transaction.status !== 'PLANNED') {
+        return problem(409, 'transaction.not-planned', 'Esse lançamento não é um previsto.')
+      }
+      if (body.version !== stored.transaction.version) {
+        return problem(409, 'transaction.version-conflict', 'Esse previsto mudou. Confira a lista.')
+      }
+      mockState.deletedTransactionIds.add(params.id)
+      stored.transaction.version += 1
+      return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/dashboard'), ({ request, params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace
-    const month = new URL(request.url).searchParams.get('month') ?? ''
+    const search = new URL(request.url).searchParams
+    const month = search.get('month') ?? ''
     if (!MONTH.test(month)) return malformed()
     const outOfRange = monthOutOfRange(workspace, month)
     if (outOfRange) return outOfRange
-    return HttpResponse.json(dashboardFor(month, workspace.currency))
+    return HttpResponse.json(dashboardFor(month, workspace.currency, search.get('paymentMethod')))
   }),
 ]

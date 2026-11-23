@@ -22,8 +22,8 @@ export function MonthSwitcher({ month, onChange, min = MIN_MONTH, max }: MonthSw
     year: 'numeric',
     timeZone: 'UTC',
   })
-  // pt-BR writes the month in lower case; a heading-like label starts with a capital.
-  const name = written.charAt(0).toLocaleUpperCase('pt-BR') + written.slice(1)
+  // Some locales (pt-BR) write the month in lower case; a heading-like label starts with a capital.
+  const name = written.charAt(0).toLocaleUpperCase(intl.locale) + written.slice(1)
 
   return (
     <div className="flex items-center justify-between gap-2">

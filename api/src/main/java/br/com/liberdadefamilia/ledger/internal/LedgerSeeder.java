@@ -1,6 +1,6 @@
 package br.com.liberdadefamilia.ledger.internal;
 
-import br.com.liberdadefamilia.ledger.domain.TransactionKind;
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.workspace.MemberJoined;
 import br.com.liberdadefamilia.workspace.MemberRoleChanged;

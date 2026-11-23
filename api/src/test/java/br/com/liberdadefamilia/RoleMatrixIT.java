@@ -115,6 +115,9 @@ class RoleMatrixIT {
                         dashboardRows(),
                         categoryRows(),
                         transactionRows(),
+                        plannedRows(),
+                        tagRows(),
+                        recurringRuleRows(),
                         memberRows(),
                         invitationRows(),
                         workspaceRows(),
@@ -167,6 +170,37 @@ class RoleMatrixIT {
                 Outcome.OK,
                 Outcome.OK,
                 Outcome.OK);
+    }
+
+    static Stream<Row> tagRows() {
+        return Stream.of(
+                        each("GET " + W + "/tags", W + "/tags", null, Outcome.OK, Outcome.OK, Outcome.OK, Outcome.OK),
+                        ownerAndAdult("PATCH " + W + "/tags/{id}", W + "/tags/{feira}", "{\"name\":\"Outra\"}"),
+                        ownerAndAdult("POST " + W + "/tags/{id}/archive", W + "/tags/{feira}/archive", null))
+                .flatMap(group -> group);
+    }
+
+    static Stream<Row> recurringRuleRows() {
+        String rule = """
+                {"kind":"EXPENSE","amount":{"amount":"30.00","currency":"BRL"},"accountId":"{corrente}",
+                 "categoryId":"{mercado}","frequency":"MONTHLY","interval":1,"startOn":"2026-11-05","endOn":null}""";
+        String edit = rule.replace("{\"kind\"", "{\"version\":0,\"kind\"");
+        return Stream.of(
+                        each(
+                                "GET " + W + "/recurring-rules",
+                                W + "/recurring-rules",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        ownerAndAdult("POST " + W + "/recurring-rules", W + "/recurring-rules", rule),
+                        ownerAndAdult("PATCH " + W + "/recurring-rules/{id}", W + "/recurring-rules/{rule}", edit),
+                        ownerAndAdult(
+                                "POST " + W + "/recurring-rules/{id}/archive",
+                                W + "/recurring-rules/{rule}/archive",
+                                null))
+                .flatMap(group -> group);
     }
 
     static Stream<Row> categoryRows() {
@@ -309,6 +343,41 @@ class RoleMatrixIT {
                                         restore,
                                         W + "/transactions/{youthTransferOutDeleted}/restore",
                                         null,
+                                        Outcome.NOT_FOUND)))
+                .flatMap(group -> group);
+    }
+
+    /**
+     * Confirming and skipping a planned transaction: the adults act on one in the "Corrente", the youth on one in his
+     * wallet, and then on one that is not his, which answers as if it did not exist.
+     */
+    static Stream<Row> plannedRows() {
+        String confirm = "POST " + W + "/transactions/{id}/confirm";
+        String skip = "POST " + W + "/transactions/{id}/skip";
+        String version = "{\"version\":0}";
+        return Stream.of(
+                        notYouth(confirm, W + "/transactions/{plannedFamily}/confirm", version, Outcome.FORBIDDEN),
+                        Stream.of(
+                                new Row(
+                                        YOUTH,
+                                        confirm,
+                                        W + "/transactions/{plannedYouth}/confirm",
+                                        version,
+                                        Outcome.OK),
+                                new Row(
+                                        YOUTH,
+                                        confirm,
+                                        W + "/transactions/{plannedFamily}/confirm",
+                                        version,
+                                        Outcome.NOT_FOUND)),
+                        notYouth(skip, W + "/transactions/{plannedFamily}/skip", version, Outcome.FORBIDDEN),
+                        Stream.of(
+                                new Row(YOUTH, skip, W + "/transactions/{plannedYouth}/skip", version, Outcome.OK),
+                                new Row(
+                                        YOUTH,
+                                        skip,
+                                        W + "/transactions/{plannedFamily}/skip",
+                                        version,
                                         Outcome.NOT_FOUND)))
                 .flatMap(group -> group);
     }
@@ -573,6 +642,27 @@ class RoleMatrixIT {
                         insert into categories (workspace_id, kind, name, archived_at)
                         values (:ws, 'EXPENSE', 'Antiga', now())
                         returning id""").param("ws", ws).query(UUID.class).single());
+        ids.put(
+                "feira",
+                jdbc.sql("insert into tags (workspace_id, name) values (:ws, 'feira') returning id")
+                        .param("ws", ws)
+                        .query(UUID.class)
+                        .single());
+        ids.put(
+                "rule",
+                jdbc.sql("""
+                        insert into recurring_rules
+                            (workspace_id, kind, amount, currency, account_id, category_id, frequency, interval,
+                             start_on, next_due_on, created_by)
+                        values (:ws, 'EXPENSE', 20, 'BRL', :account, :category, 'MONTHLY', 1,
+                                date '2026-11-05', date '2026-11-05', :ana)
+                        returning id""")
+                        .param("ws", ws)
+                        .param("account", ids.get("corrente"))
+                        .param("category", ids.get("mercado"))
+                        .param("ana", anaMembership)
+                        .query(UUID.class)
+                        .single());
         ids.put("familyExpense", transaction(ws, ids.get("corrente"), null, ids.get("mercado"), anaMembership, false));
         ids.put("familyDeleted", transaction(ws, ids.get("corrente"), null, ids.get("mercado"), anaMembership, true));
         ids.put("youthOwn", transaction(ws, ids.get("wallet"), null, ids.get("mercado"), leoMembership, false));
@@ -591,6 +681,8 @@ class RoleMatrixIT {
         ids.put(
                 "youthTransferOutDeleted",
                 transaction(ws, ids.get("wallet"), ids.get("corrente"), null, leoMembership, true));
+        ids.put("plannedFamily", planned(ws, ids.get("corrente"), ids.get("mercado"), anaMembership));
+        ids.put("plannedYouth", planned(ws, ids.get("wallet"), ids.get("mercado"), anaMembership));
         byte[] tokenHash = new byte[32];
         RANDOM.nextBytes(tokenHash);
         ids.put(
@@ -650,6 +742,24 @@ class RoleMatrixIT {
         return id;
     }
 
+    /** A planned expense of 5.00 for 2026-11-04, made by the membership. */
+    private UUID planned(UUID ws, UUID account, UUID category, UUID membership) {
+        UUID id = TestIds.v7();
+        jdbc.sql("""
+                        insert into transactions
+                            (id, workspace_id, kind, amount, currency, occurred_on, account_id, category_id,
+                             member_id, created_by, status, scheduled_on)
+                        values (:id, :ws, 'EXPENSE', 5, 'BRL', date '2026-11-04', :account, :category,
+                                :membership, :membership, 'PLANNED', date '2026-11-04')""")
+                .param("id", id)
+                .param("ws", ws)
+                .param("account", account)
+                .param("category", category)
+                .param("membership", membership)
+                .update();
+        return id;
+    }
+
     private final class Family {
 
         final UUID ws;
@@ -686,6 +796,8 @@ class RoleMatrixIT {
                                                where c.workspace_id = :ws),
                                 'transactions', (select json_agg(t order by t.id) from transactions t
                                                  where t.workspace_id = :ws),
+                                'rules', (select json_agg(r order by r.id) from recurring_rules r
+                                          where r.workspace_id = :ws),
                                 'invitations', (select json_agg(i order by i.id) from invitations i
                                                 where i.workspace_id = :ws),
                                 'modules', (select json_agg(x order by x.module_key) from workspace_modules x

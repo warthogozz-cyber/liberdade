@@ -18,6 +18,7 @@ import { useTransaction } from '@/shared/api/detail'
 import { useOnline } from '@/shared/offline'
 import { useToast } from '@/shared/ui'
 import { PageHeader, TransactionForm } from './TransactionForm'
+import { PlannedSheet } from './PlannedSheet'
 import './more.register'
 import { DeletedElsewhereDialog, VersionConflictDialog } from './VersionConflictDialog'
 
@@ -84,6 +85,9 @@ export function EditTransaction({ id, month, userId, workspace }: EditTransactio
         </p>
       </>
     )
+  }
+  if (opened?.status === 'PLANNED') {
+    return <PlannedEditor workspace={workspace} opened={opened} month={listMonth} />
   }
   if (opened) {
     return (
@@ -209,5 +213,30 @@ function EditForm({ userId, workspace, opened, month }: EditFormProps) {
         />
       )}
     </TransactionForm>
+  )
+}
+
+/** A planned transaction opens its own sheet, over the list's way back, not the entry form. */
+function PlannedEditor({
+  workspace,
+  opened,
+  month,
+}: {
+  workspace: MeWorkspace
+  opened: TransactionView
+  month: string
+}) {
+  const navigate = useNavigate()
+  const accounts = useAccounts(workspace.id)
+  return (
+    <>
+      <PageHeader kind="EXPENSE" editMonth={month} />
+      <PlannedSheet
+        workspace={workspace}
+        planned={opened}
+        accounts={accounts.data ?? []}
+        onClose={() => void navigate(`/lancamentos?mes=${month}`)}
+      />
+    </>
   )
 }

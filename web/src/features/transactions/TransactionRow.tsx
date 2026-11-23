@@ -1,9 +1,15 @@
 import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
-import type { AccountView, CategoryView, MeWorkspace, MemberView } from '@/shared/api'
+import {
+  useFormatMoney,
+  type AccountView,
+  type CategoryView,
+  type MeWorkspace,
+  type MemberView,
+} from '@/shared/api'
 import { firstName } from '@/shared/i18n'
-import { formatBRL, parseCents } from '@/shared/money'
+import { parseCents } from '@/shared/money'
 import { discardOutboxItem } from '@/shared/offline'
 import { useToast } from '@/shared/ui'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
@@ -27,6 +33,8 @@ interface TransactionRowProps {
   onDelete: (id: string) => void
 }
 
+const SHOWN_TAGS = 2
+
 /** A transaction of the list; a queued one says it waits for the signal or needs attention. */
 export function TransactionRow({
   item,
@@ -40,6 +48,7 @@ export function TransactionRow({
   onDelete,
 }: TransactionRowProps) {
   const intl = useIntl()
+  const format = useFormatMoney()
   const toast = useToast()
   const [step, setStep] = useState<'closed' | 'sheet' | 'confirm' | 'detail'>('closed')
   const category = item.categoryId ? categories.get(item.categoryId) : undefined
@@ -59,6 +68,19 @@ export function TransactionRow({
         .join(' · ')
   const outbox = item.outbox
   const saved = outbox === undefined
+  // The method and up to two tags; the detail has them all.
+  const extras = [
+    item.paymentMethod ? intl.formatMessage({ id: `payment.${item.paymentMethod}` }) : undefined,
+    ...item.tags.slice(0, SHOWN_TAGS),
+    item.tags.length > SHOWN_TAGS
+      ? intl.formatMessage(
+          { id: 'transactions.tagsMore' },
+          { count: item.tags.length - SHOWN_TAGS },
+        )
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   const summary = (
     <>
@@ -73,7 +95,7 @@ export function TransactionRow({
           )}
         </span>
         <span className={`font-semibold tabular-nums ${income ? 'text-positive' : ''}`}>
-          {income ? `+${formatBRL(cents)}` : transfer ? formatBRL(cents) : formatBRL(-cents)}
+          {income ? `+${format(cents)}` : transfer ? format(cents) : format(-cents)}
         </span>
       </div>
       <div className="flex w-full items-center justify-between gap-4 text-sm text-text-muted">
@@ -93,6 +115,7 @@ export function TransactionRow({
           </button>
         )}
       </div>
+      {extras && <div className="w-full text-sm text-text-muted">{extras}</div>}
     </>
   )
 

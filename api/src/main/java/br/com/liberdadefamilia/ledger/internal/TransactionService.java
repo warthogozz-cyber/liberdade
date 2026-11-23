@@ -1,10 +1,15 @@
 package br.com.liberdadefamilia.ledger.internal;
 
+import br.com.liberdadefamilia.ledger.PlannedTemplate;
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.ledger.domain.TransactionDateRange;
-import br.com.liberdadefamilia.ledger.domain.TransactionKind;
+import br.com.liberdadefamilia.ledger.internal.TransactionRepository.Planned;
 import br.com.liberdadefamilia.ledger.internal.TransactionRepository.StoredTransaction;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.shared.PaymentMethod;
 import br.com.liberdadefamilia.workspace.Memberships;
+import br.com.liberdadefamilia.workspace.ModuleKey;
+import br.com.liberdadefamilia.workspace.Modules;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -14,9 +19,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Records, edits, deletes and restores transactions. Recording is idempotent: the device makes the id, and sending
@@ -29,19 +37,28 @@ class TransactionService {
     private final AccountRepository accounts;
     private final CategoryRepository categories;
     private final TransactionRepository transactions;
+    private final TagRepository tagLinks;
+    private final TagService tags;
     private final Memberships memberships;
+    private final Modules modules;
     private final Clock clock;
 
     TransactionService(
             AccountRepository accounts,
             CategoryRepository categories,
             TransactionRepository transactions,
+            TagRepository tagLinks,
+            TagService tags,
             Memberships memberships,
+            Modules modules,
             Clock clock) {
         this.accounts = accounts;
         this.categories = categories;
         this.transactions = transactions;
+        this.tagLinks = tagLinks;
+        this.tags = tags;
         this.memberships = memberships;
+        this.modules = modules;
         this.clock = clock;
     }
 
@@ -54,6 +71,7 @@ class TransactionService {
      * @throws TransactionIdConflictException when the id is taken by other data or by another family, or, for the
      *     youth, by a transaction they did not record
      */
+    @Transactional
     Recorded record(WorkspaceMember member, UUID idempotencyKey, CreateTransactionRequest request) {
         UUID workspaceId = member.workspaceId();
         if (!request.id().equals(idempotencyKey) || request.id().version() != 7) {
@@ -70,7 +88,7 @@ class TransactionService {
         Optional<TransactionView> created =
                 transactions.insertIfAbsent(workspaceId, member.membershipId(), memberId, request);
         if (created.isPresent()) {
-            return new Recorded(created.get(), true);
+            return new Recorded(saveTags(member, created.get(), request.tags()), true);
         }
         // The id was taken since the lookup: by the other tap of a double tap, by another family, or by a transaction
         // out of the scope, which answers as the other family's would.
@@ -99,6 +117,7 @@ class TransactionService {
      * @throws LedgerConflictException when it was deleted, or changed since the screen opened (with {@code current})
      * @throws LedgerRejectedException when a family rule fails
      */
+    @Transactional
     TransactionView update(WorkspaceMember member, UUID id, UpdateTransactionRequest request) {
         UUID workspaceId = member.workspaceId();
         AccountScope scope = accounts.scopeFor(member);
@@ -106,18 +125,120 @@ class TransactionService {
         StoredTransaction stored =
                 transactions.findOwn(workspaceId, id, scope, caller).orElseThrow(TransactionService::notFound);
         checkEditable(stored, request.version());
+        checkConfirmed(stored);
         UUID memberId = request.memberId() == null ? stored.view().memberId() : request.memberId();
         checkAgainstFamily(member, scope, Proposed.of(request, memberId), stored.view());
-        return transactions
+        TransactionView updated = transactions
                 .update(workspaceId, id, scope, caller, memberId, request)
                 .orElseThrow(() -> {
-                    // Someone else edited or deleted it between the checks and the update.
+                    // Someone else edited, deleted or planned it between the checks and the update.
                     StoredTransaction now = transactions
                             .findOwn(workspaceId, id, scope, caller)
                             .orElseThrow(TransactionService::notFound);
                     checkEditable(now, request.version());
+                    checkConfirmed(now);
                     return versionConflict(now.view());
                 });
+        List<String> names = request.tags();
+        return names == null ? updated.withTags(stored.view().tags()) : saveTags(member, updated, names);
+    }
+
+    /**
+     * Makes a planned transaction a confirmed one, as it is or with what really happened, and enters it under the
+     * member who confirms it ({@code created_by} stays the one who made it). The adjustment follows the rules of a new
+     * transaction; an account or category archived since the plan may stay, as in an edit. Under the youth's scope, the
+     * transaction and the account are the ones in it, as for an edit.
+     *
+     * @throws LedgerNotFoundException when the family has no such transaction, it was deleted or skipped, or the member
+     *     may not change it
+     * @throws LedgerConflictException when it is already confirmed, or changed since the screen opened (with {@code
+     *     current})
+     * @throws LedgerRejectedException when a family rule fails
+     */
+    @Transactional
+    TransactionView confirm(WorkspaceMember member, UUID id, ConfirmTransactionRequest request) {
+        UUID workspaceId = member.workspaceId();
+        AccountScope scope = accounts.scopeFor(member);
+        StoredTransaction stored =
+                transactions.findHeld(workspaceId, id, scope).orElseThrow(TransactionService::notFound);
+        checkPlanned(stored, request.version());
+        TransactionView planned = stored.view();
+        Money amount = request.amount() == null ? planned.amount() : request.amount();
+        LocalDate occurredOn = request.occurredOn() == null ? planned.occurredOn() : request.occurredOn();
+        UUID accountId = request.accountId() == null ? planned.accountId() : request.accountId();
+        UUID memberId = member.membershipId();
+        checkAgainstFamily(
+                member,
+                scope,
+                new Proposed(
+                        planned.kind(),
+                        amount,
+                        occurredOn,
+                        accountId,
+                        planned.toAccountId(),
+                        planned.categoryId(),
+                        memberId,
+                        planned.paymentMethod()),
+                planned);
+        return transactions
+                .confirm(workspaceId, id, scope, memberId, request.version(), amount, occurredOn, accountId)
+                .orElseThrow(() -> lostRace(workspaceId, id, scope, request.version()));
+    }
+
+    /**
+     * Skips a planned transaction: it is deleted, and stays restorable like any deleted one. It stays out of the way of
+     * the rule, which never plans the occurrence again.
+     *
+     * @throws LedgerNotFoundException when the family has no such transaction, it was deleted or skipped already, or
+     *     the member may not change it
+     * @throws LedgerConflictException when it is already confirmed, or changed since the screen opened (with {@code
+     *     current})
+     */
+    @Transactional
+    void skip(WorkspaceMember member, UUID id, SkipTransactionRequest request) {
+        UUID workspaceId = member.workspaceId();
+        AccountScope scope = accounts.scopeFor(member);
+        StoredTransaction stored =
+                transactions.findHeld(workspaceId, id, scope).orElseThrow(TransactionService::notFound);
+        checkPlanned(stored, request.version());
+        if (!transactions.skip(workspaceId, id, scope, request.version(), clock.instant())) {
+            throw lostRace(workspaceId, id, scope, request.version());
+        }
+    }
+
+    /**
+     * Applies the rules of a new transaction to a rule's mold, for the member: the same checks, the same codes. The
+     * date is today's, which always passes, since the mold has none.
+     */
+    void checkTemplate(WorkspaceMember member, PlannedTemplate template) {
+        checkAgainstFamily(
+                member,
+                accounts.scopeFor(member),
+                new Proposed(
+                        template.kind(),
+                        template.amount(),
+                        today(member),
+                        template.accountId(),
+                        template.toAccountId(),
+                        template.categoryId(),
+                        member.membershipId(),
+                        template.paymentMethod()),
+                null);
+    }
+
+    /** The answer for a confirm or a skip whose conditional update found no row: what the row is now. */
+    private LedgerConflictException lostRace(UUID workspaceId, UUID id, AccountScope scope, long version) {
+        StoredTransaction now = transactions.findHeld(workspaceId, id, scope).orElseThrow(TransactionService::notFound);
+        checkPlanned(now, version);
+        return versionConflict(now.view());
+    }
+
+    /** Makes the transaction's tags the ones with these names, and returns it with them. */
+    private TransactionView saveTags(
+            WorkspaceMember member, TransactionView transaction, @Nullable List<String> names) {
+        UUID workspaceId = member.workspaceId();
+        tagLinks.replaceLinks(workspaceId, transaction.id(), tags.resolve(member, names));
+        return transaction.withTags(tagLinks.namesOf(workspaceId, transaction.id()));
     }
 
     /**
@@ -173,26 +294,37 @@ class TransactionService {
         return transactions
                 .restore(member.workspaceId(), id, scope, caller)
                 .or(() -> transactions
-                        .findOwn(member.workspaceId(), id, scope, caller)
+                        .findRestorable(member.workspaceId(), id, scope, caller)
                         .map(StoredTransaction::view))
                 .orElseThrow(TransactionService::notFound);
     }
 
     /**
      * The month's transactions in the member's scope, newest first, optionally of one category (with its
-     * subcategories) or one account.
+     * subcategories), one account, one payment method or one tag. The planned ones come only with the planning module
+     * on, and, in the family's current month, those of earlier months that are still waiting come too.
      *
      * @throws LedgerRejectedException when the month is out of range
      */
     List<TransactionView> list(
-            WorkspaceMember member, YearMonth month, @Nullable UUID categoryId, @Nullable UUID accountId) {
+            WorkspaceMember member,
+            YearMonth month,
+            @Nullable UUID categoryId,
+            @Nullable UUID accountId,
+            @Nullable PaymentMethod paymentMethod,
+            @Nullable UUID tagId) {
         checkMonth(member, month);
+        boolean planning = modules.isEnabled(member.workspaceId(), ModuleKey.PLANNING);
+        Planned planned = new Planned(planning, planning && month.equals(YearMonth.from(today(member))));
         return transactions.between(
                 member.workspaceId(),
                 month.atDay(1),
                 month.plusMonths(1).atDay(1),
                 categoryId,
                 accountId,
+                paymentMethod,
+                tagId,
+                planned,
                 accounts.scopeFor(member));
     }
 
@@ -216,6 +348,29 @@ class TransactionService {
     private static void checkEditable(StoredTransaction stored, long version) {
         if (stored.deleted()) {
             throw new LedgerConflictException("transaction.deleted", "Este lançamento foi excluído.");
+        }
+        if (stored.view().version() != version) {
+            throw versionConflict(stored.view());
+        }
+    }
+
+    /** An edit changes a confirmed transaction only: a planned one is confirmed first. */
+    private static void checkConfirmed(StoredTransaction stored) {
+        if (stored.view().planned()) {
+            throw new LedgerRejectedException("transaction.planned", "Confirme o previsto antes de editar.");
+        }
+    }
+
+    /**
+     * What a confirm or a skip needs of the row: still there (a deleted or skipped one is as absent), still planned, at
+     * the version the screen had. The first failure decides.
+     */
+    private static void checkPlanned(StoredTransaction stored, long version) {
+        if (stored.deleted()) {
+            throw notFound();
+        }
+        if (!stored.view().planned()) {
+            throw new LedgerConflictException("transaction.not-planned", "Este lançamento já foi confirmado.");
         }
         if (stored.view().version() != version) {
             throw versionConflict(stored.view());
@@ -303,6 +458,10 @@ class TransactionService {
         if (!transfer && proposed.categoryId() == null) {
             throw new LedgerRejectedException("transaction.category-required", "Escolha uma categoria.");
         }
+        if (transfer && proposed.paymentMethod() != null) {
+            throw new LedgerRejectedException(
+                    "transaction.payment-method-transfer", "Transferência não tem forma de pagamento.");
+        }
     }
 
     /**
@@ -349,7 +508,16 @@ class TransactionService {
                 && stored.accountId().equals(request.accountId())
                 && Objects.equals(stored.toAccountId(), request.toAccountId())
                 && Objects.equals(stored.categoryId(), request.categoryId())
-                && Objects.equals(stored.description(), request.description());
+                && Objects.equals(stored.description(), request.description())
+                && stored.paymentMethod() == request.paymentMethod()
+                && tagKeys(stored.tags()).equals(tagKeys(request.tags()));
+    }
+
+    /** The tags as a resend compares them: stripped, lower case, each once. */
+    private static Set<String> tagKeys(@Nullable List<String> names) {
+        return names == null
+                ? Set.of()
+                : names.stream().map(TagNamesValidator::key).collect(Collectors.toSet());
     }
 
     /** A recorded transaction, and whether this request created it. */
@@ -363,7 +531,8 @@ class TransactionService {
             UUID accountId,
             @Nullable UUID toAccountId,
             @Nullable UUID categoryId,
-            UUID memberId) {
+            UUID memberId,
+            @Nullable PaymentMethod paymentMethod) {
 
         static Proposed of(CreateTransactionRequest request, UUID memberId) {
             return new Proposed(
@@ -373,7 +542,8 @@ class TransactionService {
                     request.accountId(),
                     request.toAccountId(),
                     request.categoryId(),
-                    memberId);
+                    memberId,
+                    request.paymentMethod());
         }
 
         static Proposed of(UpdateTransactionRequest request, UUID memberId) {
@@ -384,7 +554,8 @@ class TransactionService {
                     request.accountId(),
                     request.toAccountId(),
                     request.categoryId(),
-                    memberId);
+                    memberId,
+                    request.paymentMethod());
         }
     }
 }

@@ -1,6 +1,6 @@
 import { useIntl } from 'react-intl'
 import { Keypad } from '@/features/transactions/Keypad'
-import { formatBRL } from '@/shared/money'
+import { useFormatMoney } from '@/shared/api'
 import { signedCents } from './signedCents'
 
 interface BalanceInputProps {
@@ -15,6 +15,7 @@ interface BalanceInputProps {
 /** A balance typed on the keypad. The keypad types positive amounts, so the sign is its own switch. */
 export function BalanceInput({ label, cents, negative, onCents, onNegative }: BalanceInputProps) {
   const intl = useIntl()
+  const format = useFormatMoney()
   return (
     <div className="flex flex-col gap-3">
       <output
@@ -22,7 +23,7 @@ export function BalanceInput({ label, cents, negative, onCents, onNegative }: Ba
         aria-live="polite"
         className="block py-2 text-center text-3xl font-semibold tabular-nums"
       >
-        {formatBRL(signedCents(cents, negative))}
+        {format(signedCents(cents, negative))}
       </output>
       <label className="flex min-h-12 items-center gap-3">
         <input

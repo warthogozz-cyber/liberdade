@@ -13,6 +13,10 @@ export type AccountType = AccountView['type']
 export type CreateAccountRequest = Schemas['CreateAccountRequest']
 export type UpdateAccountRequest = Schemas['UpdateAccountRequest']
 export type CategoryView = Schemas['CategoryView']
+export type RecurringRuleView = Schemas['RecurringRuleView']
+export type CreateRecurringRuleRequest = Schemas['CreateRecurringRuleRequest']
+export type UpdateRecurringRuleRequest = Schemas['UpdateRecurringRuleRequest']
+export type ConfirmTransactionRequest = Schemas['ConfirmTransactionRequest']
 export type CategoryColor = NonNullable<CategoryView['color']>
 export type CreateCategoryRequest = Schemas['CreateCategoryRequest']
 export type UpdateCategoryRequest = Schemas['UpdateCategoryRequest']
@@ -28,10 +32,14 @@ export type TransactionKind = CreateTransactionRequest['kind']
 export type ApiMoney = Schemas['Money']
 /** The kinds a category list can be asked for. Transfers have no categories (D23). */
 export type CategoryKind = operations['listCategories']['parameters']['query']['kind']
-/** What narrows the month's list: a category (with its subcategories) and an account. */
+export type PaymentMethod = NonNullable<CreateTransactionRequest['paymentMethod']>
+export type TagView = Schemas['TagView']
+/** What narrows the month's list: a category (with its subcategories), an account, a tag, a payment method. */
 export interface TransactionFilters {
   categoryId?: string
   accountId?: string
+  tagId?: string
+  paymentMethod?: PaymentMethod
 }
 export type MemberView = Schemas['MemberView']
 export type MemberRole = MemberView['role']

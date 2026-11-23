@@ -25,6 +25,11 @@ function fromOutbox(item: OutboxItem): ListItem {
     toAccountId: item.payload.toAccountId ?? null,
     categoryId: item.payload.categoryId ?? null,
     description: item.payload.description ?? null,
+    paymentMethod: item.payload.paymentMethod ?? null,
+    tags: (item.payload.tags ?? []).filter((name) => name !== null),
+    status: 'CONFIRMED',
+    scheduledOn: null,
+    recurringRuleId: null,
     // Not stored yet, so at no version of the API's.
     version: 0,
     // Without a chosen member the API credits the signed-in one; '' stands for that here.
@@ -43,7 +48,8 @@ export function mergeTransactions(
   server: TransactionView[] | undefined,
   outbox: OutboxItem[],
 ): ListItem[] {
-  const sent = server ?? []
+  // A planned one has not happened: it has its own section, outside the days and the totals.
+  const sent = (server ?? []).filter(({ status }) => status !== 'PLANNED')
   const ids = new Set(sent.map((transaction) => transaction.id))
   return [
     ...sent.map((transaction) => ({
@@ -52,6 +58,17 @@ export function mergeTransactions(
     })),
     ...outbox.filter((item) => !ids.has(item.id)).map(fromOutbox),
   ].sort(newestFirst)
+}
+
+/** The planned ones of the month, the soonest first. */
+export function plannedOf(server: TransactionView[] | undefined): TransactionView[] {
+  return (server ?? [])
+    .filter(({ status }) => status === 'PLANNED')
+    .sort(
+      (a, b) =>
+        (a.scheduledOn ?? a.occurredOn).localeCompare(b.scheduledOn ?? b.occurredOn) ||
+        a.id.localeCompare(b.id),
+    )
 }
 
 /** Groups items already sorted newest first by their date, keeping that order. */
@@ -76,10 +93,25 @@ export function categoryLabel({ icon, name }: CategoryView): string {
  */
 export function transferRoute(
   { accountId, toAccountId }: Pick<TransactionView, 'accountId' | 'toAccountId'>,
-  accounts: Map<string, AccountView>,
+  accounts: Map<string, Pick<AccountView, 'name'>>,
   unseen = '',
 ): string {
   const from = accounts.get(accountId)?.name ?? unseen
   const to = toAccountId ? (accounts.get(toAccountId)?.name ?? unseen) : ''
   return `${from} → ${to}`
+}
+
+/**
+ * Whether the person may confirm, skip or edit a planned transaction. A youth may only when every
+ * account it touches is one of theirs, the same as the server's rule (the youth's account list holds
+ * only their own accounts); anyone else but a viewer always may.
+ */
+export function canActOnPlanned(
+  role: string,
+  planned: Pick<TransactionView, 'accountId' | 'toAccountId'>,
+  held: { has(accountId: string): boolean },
+): boolean {
+  if (role === 'VIEWER') return false
+  if (role !== 'YOUTH') return true
+  return held.has(planned.accountId) && (!planned.toAccountId || held.has(planned.toAccountId))
 }

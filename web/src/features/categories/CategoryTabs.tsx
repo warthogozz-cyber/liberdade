@@ -1,17 +1,17 @@
 import { useRef, type KeyboardEvent } from 'react'
 import { useIntl } from 'react-intl'
-import type { CategoryKind } from '@/shared/api'
-import { categoryTabId } from './categoryStyle'
+import { categoryTabId, type CategoryTab } from './categoryStyle'
 import './register'
 
 const KINDS = [
   ['EXPENSE', 'categories.tab.expense'],
   ['INCOME', 'categories.tab.income'],
-] as const satisfies readonly (readonly [CategoryKind, FormatjsIntl.Message['ids']])[]
+  ['TAGS', 'categories.tab.tags'],
+] as const satisfies readonly (readonly [CategoryTab, FormatjsIntl.Message['ids']])[]
 
 interface CategoryTabsProps {
-  value: CategoryKind
-  onChange: (kind: CategoryKind) => void
+  value: CategoryTab
+  onChange: (tab: CategoryTab) => void
   /** The id of the panel the tabs control. */
   panelId: string
 }
@@ -20,7 +20,7 @@ const tabClass =
   'min-h-12 flex-1 rounded-field px-2 font-medium text-text-muted aria-selected:bg-primary aria-selected:text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
 /**
- * Gastos and Receitas as WAI-ARIA tabs with automatic activation, as the kind tabs of Lançar: only
+ * Gastos, Receitas and Tags as WAI-ARIA tabs with automatic activation, as the kind tabs of Lançar: only
  * the chosen tab is reached by Tab, and the arrows (wrapping around), Home and End choose and
  * focus another.
  */

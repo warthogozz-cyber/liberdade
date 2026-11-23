@@ -1,4 +1,4 @@
-export const locale = 'pt-BR'
+export { DEFAULT_LOCALE as locale } from '@/shared/money'
 export { messages } from './messages.pt-BR'
 export { appMessages, registerMessages, useAppMessages } from './routeMessages'
 export {

@@ -23,7 +23,8 @@ class AccountRepository {
 
     /**
      * What one transaction did to account {@code a}: income and transfers in count up, expenses and transfers out
-     * count down. Callers leave deleted transactions out. A balance is the initial balance plus the sum of this.
+     * count down. Callers leave deleted and planned transactions out. A balance is the initial balance plus the sum of
+     * this.
      */
     private static final String MOVEMENT = """
             case
@@ -41,6 +42,7 @@ class AccountRepository {
                    on t.workspace_id = a.workspace_id
                   and (t.account_id = a.id or t.to_account_id = a.id)
                   and t.deleted_at is null
+                  and t.status = 'CONFIRMED'
             where a.workspace_id = :workspaceId
               and %s
             """.formatted(MOVEMENT, AccountScope.sqlIncludes("a.id"));
@@ -258,7 +260,8 @@ class AccountRepository {
                                 from transactions t
                                 where t.workspace_id = a.workspace_id
                                   and (t.account_id = a.id or t.to_account_id = a.id)
-                                  and t.deleted_at is null), 0),
+                                  and t.deleted_at is null
+                                  and t.status = 'CONFIRMED'), 0),
                             version = version + 1,
                             updated_at = now()
                         where a.workspace_id = :workspaceId

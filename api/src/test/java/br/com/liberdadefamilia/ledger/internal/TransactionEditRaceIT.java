@@ -13,6 +13,7 @@ import br.com.liberdadefamilia.support.TestWorkspaces;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -111,10 +112,41 @@ class TransactionEditRaceIT {
                 .isTrue();
     }
 
-    /** Runs the other write right before the repository's conditional update, then the update itself. */
+    /**
+     * The row turns planned in between, at the same version: the update's own status guard keeps the edit from
+     * rewriting a planned transaction, and the answer is the planned one's. Only a direct write can do this (confirming
+     * moves a row the other way), so it stands for any write that makes the row planned after the edit's checks.
+     */
+    @Test
+    void rowTurnsPlannedBetweenChecksAndUpdate() {
+        UUID id = expense();
+        beforeTheUpdate(() -> jdbc.sql("""
+                        update transactions
+                        set status = 'PLANNED', scheduled_on = occurred_on
+                        where id = :id""").param("id", id).update());
+
+        Map<String, Object> edit = update(0);
+        edit.put("amount", Map.of("amount", "99.00", "currency", "BRL"));
+        var result = patch(id, edit);
+
+        assertThat(result).hasStatus(422).hasContentType(PROBLEM_JSON);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("transaction.planned");
+        assertThat(jdbc.sql("select amount::text from transactions where id = :id")
+                        .param("id", id)
+                        .query(String.class)
+                        .single())
+                .isEqualTo("12.3400");
+        assertThat(storedVersion(id)).isZero();
+    }
+
+    /**
+     * Runs the other write right before the repository's conditional update, then the update itself. The write runs
+     * on its own thread, so on its own connection and committed: the edit is in a transaction that the 409 rolls back,
+     * and the other tab's write is not part of it.
+     */
     private void beforeTheUpdate(Runnable otherWrite) {
         doAnswer(invocation -> {
-                    otherWrite.run();
+                    CompletableFuture.runAsync(otherWrite).join();
                     return invocation.callRealMethod();
                 })
                 .when(transactions)

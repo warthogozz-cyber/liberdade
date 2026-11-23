@@ -86,6 +86,19 @@ class MeIT {
     }
 
     @Test
+    void exposesCountryLocaleAndMethods() {
+        UUID userId = users.create("Ana Teste", "ana@example.com");
+        workspaces.createFor(userId);
+
+        var result = me(userId, "Teste");
+
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().isLenientlyEqualTo("""
+                {"workspaces":[{"country":"BR","locale":"pt-BR",
+                                "paymentMethods":["PIX","CREDIT_CARD","DEBIT_CARD","BOLETO","BANK_TRANSFER","CASH"]}]}""");
+    }
+
+    @Test
     void meHidesRemovedMembership() {
         UUID userId = users.create("Ana Teste", "ana@example.com");
         UUID workspaceId = workspaces.createFor(userId);

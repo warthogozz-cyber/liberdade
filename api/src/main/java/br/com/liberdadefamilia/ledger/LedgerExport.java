@@ -4,7 +4,7 @@ import br.com.liberdadefamilia.workspace.Role;
 import java.util.List;
 import java.util.UUID;
 
-/** What the ledger hands over for a data export. Deleted transactions never leave. */
+/** What the ledger hands over for a data export. Deleted transactions never leave, and that includes a planned one that was skipped. */
 public interface LedgerExport {
 
     /** Every account of the family, archived ones included. */
@@ -13,7 +13,13 @@ public interface LedgerExport {
     /** Every category of the family, archived ones included. */
     List<ExportedCategory> categories(UUID workspaceId);
 
-    /** Every transaction of the family, newest first. */
+    /** Every tag of the family, archived ones included, by name. */
+    List<ExportedTag> tags(UUID workspaceId);
+
+    /** The tags the membership created, archived ones included, by name. */
+    List<ExportedTag> tagsCreatedBy(UUID workspaceId, UUID membershipId);
+
+    /** Every transaction of the family, planned ones included, newest first. */
     List<ExportedTransaction> transactions(UUID workspaceId);
 
     /**

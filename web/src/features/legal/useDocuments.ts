@@ -7,6 +7,11 @@ export interface Documents {
    * on an error: only a real answer can put the gate up, so offline never locks the family out (D13).
    */
   pending: DocumentStatus[] | undefined
+  /**
+   * The version of the privacy policy that came out since the person accepted, when what they accepted
+   * still counts (no new accept needed). `undefined` otherwise.
+   */
+  policyUpdated: string | undefined
   /** Accepts the versions the API listed as current. A 409 reloads the list before it throws. */
   accept(): Promise<void>
 }
@@ -25,6 +30,23 @@ export function versionsToAccept(documents: DocumentStatus[]): { terms: string; 
   return { terms: current('TERMS'), privacy: current('PRIVACY') }
 }
 
+/**
+ * The documents that wait for an accept: those the API says need one (`acceptanceRequired`). A
+ * version that differs from the accepted one, but keeps its acceptance, does not block.
+ */
+export function documentsToAccept(documents: DocumentStatus[]): DocumentStatus[] {
+  return documents.filter(
+    (document) => document.purpose !== 'PARENTAL' && document.acceptanceRequired,
+  )
+}
+
+/** The current policy version when the person accepted an older one that still counts, else `undefined`. */
+export function policyUpdate(documents: DocumentStatus[]): string | undefined {
+  const policy = documents.find((document) => document.purpose === 'PRIVACY')
+  if (!policy || policy.acceptanceRequired) return undefined
+  return policy.acceptedVersion !== policy.currentVersion ? policy.currentVersion : undefined
+}
+
 /** The person's terms and privacy policy, and what is left to accept. */
 export function useDocuments(): Documents {
   const queryClient = useQueryClient()
@@ -39,10 +61,8 @@ export function useDocuments(): Documents {
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.documents }),
   })
   return {
-    pending: query.data?.filter(
-      (document) =>
-        document.purpose !== 'PARENTAL' && document.acceptedVersion !== document.currentVersion,
-    ),
+    pending: query.data && documentsToAccept(query.data),
+    policyUpdated: query.data && policyUpdate(query.data),
     // `onSettled` reloads the list on success and on a 409 alike. The gate only shows with a list.
     accept: () => mutation.mutateAsync(query.data ?? []),
   }

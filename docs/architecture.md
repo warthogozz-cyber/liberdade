@@ -65,7 +65,7 @@ flowchart LR
     billing[billing · Plano 6<br/>plano pago, pedidos,<br/>gateway e webhook]
   end
   subgraph opcionais[Módulos opcionais]
-    planning[planning · v0.2<br/>orçamentos, metas,<br/>reserva, recorrências]
+    planning[planning<br/>recorrências e previstos<br/>(v0.2: orçamentos, metas, reserva)]
     indicators[indicators · v0.3<br/>coleta do BCB]
     gamification[gamification · v0.3<br/>sequências, conquistas]
     ventures[ventures · v0.4<br/>Novo Projeto]
@@ -158,6 +158,20 @@ usa chama o pacote raiz (`Plans`, `@RequiresPlan`, `BillingExport`) ou ouve os e
 - **Retrato do mês.** É só do front: o cartão é desenhado e compartilhado no aparelho, sem chamada
   de rede e sem dado novo no servidor.
 
+### Planejamento (módulo `planning`, Plano 7.1)
+
+O módulo `planning` guarda as recorrências e os lançamentos previstos que elas geram, e fica no
+pacote `br.com.liberdadefamilia.planning`. Ele depende só de `workspace`, `ledger` e `shared`;
+`audit` e `privacy` o enxergam por `RecurringRuleArchived` e `PlanningExport`.
+
+- Vem ligado por padrão em toda família. Desligar o módulo tira Recorrências do Mais e Previstos da
+  lista de lançamentos; o resto do app segue igual.
+- Um previsto é uma linha de `transactions` com `status = PLANNED`, e nenhuma soma a conta. Confirmar
+  o previsto o torna um lançamento comum, e pular é excluí-lo, com desfazer.
+- **Rotina diária das 4h10** (`America/Sao_Paulo`, `RecurrenceJob`): gera os previstos das regras
+  ativas. Cada ocorrência vale uma só vez (índice único por regra e data), então rodar de novo ou
+  religar o módulo não duplica nada.
+
 ### Família, Jovem e exclusão
 
 - **Sempre um Dono ativo.** Uma família nunca fica sem Dono ativo: pedir a exclusão da conta do
@@ -187,7 +201,7 @@ web/src/
   features/
     auth/  onboarding/  transactions/  accounts/  categories/
     dashboard/  members/  modules/  privacy/
-    planning/ (v0.2)  indicators/ gamification/ (v0.3)  ventures/ (v0.4)
+    recurrences/  planning/ (v0.2)  indicators/ gamification/ (v0.3)  ventures/ (v0.4)
   shared/
     ui/         componentes do design system (Radix + Tailwind)
     money/      centavos em bigint, formatação com Intl

@@ -8,15 +8,17 @@ import {
   queryKeys,
   useAccounts,
   useCategories,
+  useFormatMoney,
   type AccountView,
   type CreateTransactionRequest,
   type MeWorkspace,
+  type PaymentMethod,
   type TransactionKind,
   type TransactionView,
   type UpdateTransactionRequest,
 } from '@/shared/api'
 import { MIN_DATE, addDays, localDate, maxDate } from '@/shared/i18n'
-import { centsToApi, formatBRL, parseCents } from '@/shared/money'
+import { centsToApi, parseCents } from '@/shared/money'
 import {
   enqueueTransaction,
   replaceOutboxItem,
@@ -31,6 +33,8 @@ import { ContextSheet, type ExpenseDate } from './ContextSheet'
 import { Keypad } from './Keypad'
 import { KindTabs } from './KindTabs'
 import { kindTabId } from './kindTabId'
+import { PaymentMethodChips } from './PaymentMethodChips'
+import { TagInput } from './TagInput'
 
 const lastAccountKey = (workspaceId: string) => `liberdade:last-account:${workspaceId}`
 
@@ -128,6 +132,7 @@ export function TransactionForm({
   children,
 }: TransactionFormProps) {
   const intl = useIntl()
+  const format = useFormatMoney()
   const navigate = useNavigate()
   const toast = useToast()
   const queryClient = useQueryClient()
@@ -165,6 +170,13 @@ export function TransactionForm({
   const [chosenLabel, setChosenLabel] = useState<string>()
   const [description, setDescription] = useState(
     () => editing?.description ?? fixing?.payload.description ?? '',
+  )
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
+    () => editing?.paymentMethod ?? fixing?.payload.paymentMethod ?? null,
+  )
+  const [tags, setTags] = useState<string[]>(
+    () =>
+      editing?.tags ?? (fixing?.payload.tags ?? []).filter((name): name is string => name !== null),
   )
   const [sheet, setSheet] = useState<'categories' | 'context' | null>(null)
   const [saving, setSaving] = useState(false)
@@ -227,6 +239,8 @@ export function TransactionForm({
     // The amount carries over; a category belongs to one kind, so it is chosen again.
     setKind(next)
     setCategoryId(undefined)
+    // A transfer is not paid for: it keeps no method, even if the tab is changed back.
+    if (next === 'TRANSFER') setPaymentMethod(null)
   }
 
   function chooseFrom(id: string) {
@@ -271,6 +285,8 @@ export function TransactionForm({
         categoryId: transfer ? null : categoryId,
         toAccountId: transfer ? (to?.id ?? null) : null,
         description: description.trim() || null,
+        paymentMethod: transfer ? null : paymentMethod,
+        tags,
         ...(chosenMemberId && kind === 'EXPENSE' ? { memberId: chosenMemberId } : {}),
         version: editing.version,
       })
@@ -289,6 +305,8 @@ export function TransactionForm({
       categoryId: transfer ? null : categoryId,
       toAccountId: transfer ? (to?.id ?? null) : null,
       description: description.trim() || null,
+      paymentMethod: transfer ? null : paymentMethod,
+      tags,
       ...(chosenMemberId && chosenMemberId !== workspace.membershipId && kind === 'EXPENSE'
         ? { memberId: chosenMemberId }
         : {}),
@@ -352,7 +370,7 @@ export function TransactionForm({
               aria-live="polite"
               className="block py-4 text-center text-4xl font-semibold tabular-nums"
             >
-              {formatBRL(cents)}
+              {format(cents)}
             </output>
             {transfer ? (
               <div className="grid grid-cols-2 gap-4">
@@ -398,6 +416,14 @@ export function TransactionForm({
                 onSheetChange={(open) => setSheet(open ? 'categories' : null)}
               />
             )}
+            {!transfer && (
+              <PaymentMethodChips
+                value={paymentMethod}
+                onChange={setPaymentMethod}
+                methods={workspace.paymentMethods}
+              />
+            )}
+            <TagInput value={tags} onChange={setTags} />
             <button
               type="button"
               onClick={() => setSheet('context')}

@@ -288,4 +288,41 @@ describe('CategoriesPage', () => {
     expect(within(sheet).getByRole('button', { name: 'Arquivar' })).toBeDisabled()
     expect(within(sheet).getByRole('button', { name: 'Salvar' })).toBeDisabled()
   })
+
+  describe('Tags tab', () => {
+    it('is the third tab and the arrows reach it', async () => {
+      seedMockFamily()
+      renderCategories()
+      await row('Mercado')
+
+      const income = screen.getByRole('tab', { name: 'Receitas' })
+      fireEvent.keyDown(income, { key: 'ArrowRight' })
+
+      const tags = screen.getByRole('tab', { name: 'Tags' })
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+        'Gastos',
+        'Receitas',
+        'Tags',
+      ])
+      expect(tags).toHaveAttribute('aria-selected', 'true')
+      expect(tags).toHaveFocus()
+      expect(screen.getByRole('tabpanel')).toHaveAccessibleName('Tags')
+
+      fireEvent.keyDown(tags, { key: 'ArrowRight' })
+      expect(screen.getByRole('tab', { name: 'Gastos' })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('shows the tags list instead of the category tree', async () => {
+      seedMockFamily()
+      mockState.tags = [{ id: crypto.randomUUID(), name: 'viagem', archivedAt: null }]
+      renderCategories()
+      await row('Mercado')
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Tags' }))
+
+      expect(await screen.findByText('viagem')).toBeInTheDocument()
+      expect(screen.queryByText('Mercado')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Nova categoria' })).not.toBeInTheDocument()
+    })
+  })
 })

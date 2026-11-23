@@ -47,6 +47,10 @@ test('coreWorksWithEveryModuleOff: the core is whole when no module is on (S2)',
   await createFamily(page)
   await setModules(page, false)
 
+  // The planning module is off: Mais has no Recorrências.
+  await visit(page, '/mais', 'Mais')
+  await expect(page.getByRole('link', { name: 'Recorrências' })).toHaveCount(0)
+
   await visit(page, '/mais/modulos', 'Módulos')
   for (const name of ['Planejamento', 'Indicadores', 'Conquistas', 'Projetos']) {
     await expect(page.getByRole('switch', { name })).toHaveAttribute('aria-checked', 'false')
@@ -89,6 +93,7 @@ test('coreWorksWithEveryModuleOff: the core is whole when no module is on (S2)',
   // The list, then edit and delete with Desfazer.
   await waitForQueueToEmpty(page)
   await expectNoErrorScreen(page)
+  await expect(page.getByRole('heading', { level: 2, name: 'Previstos' })).toHaveCount(0)
   await expect(mercado(page)).toContainText(money('10,00'))
   await mercado(page).getByRole('button').click()
   await page.getByRole('link', { name: 'Editar' }).click()

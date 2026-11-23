@@ -5,11 +5,13 @@ import {
   useCategories,
   useCurrentWorkspace,
   useDashboard,
+  useFormatMoney,
   useMe,
   type MeWorkspace,
+  type PaymentMethod,
 } from '@/shared/api'
 import { addMonths, currentMonth, maxMonth, monthFromParam } from '@/shared/i18n'
-import { formatBRL, parseCents } from '@/shared/money'
+import { parseCents } from '@/shared/money'
 import { useOnline, usePendingTotals } from '@/shared/offline'
 import { DataAsOf, useDocumentTitle } from '@/shared/ui'
 import { MonthSwitcher } from '@/shared/ui/MonthSwitcher'
@@ -67,6 +69,7 @@ function listLink(month: string, categoryId: string): string {
 
 function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeWorkspace }) {
   const intl = useIntl()
+  const format = useFormatMoney()
   const navigate = useNavigate()
   const online = useOnline()
   const [params, setParams] = useSearchParams()
@@ -74,7 +77,9 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
   const thisMonth = currentMonth(now, workspace.timezone)
   const lastMonth = maxMonth(now, workspace.timezone)
   const month = monthFromParam(params.get('mes'), now, workspace.timezone)
-  const dashboard = useDashboard(workspace.id, month)
+  const methodParam = params.get('forma')
+  const paymentMethod = workspace.paymentMethods.find((method) => method === methodParam)
+  const dashboard = useDashboard(workspace.id, month, paymentMethod)
   const categories = useCategories(workspace.id, 'EXPENSE').data
   const pending = usePendingTotals(userId, workspace.id, month)
   const data = dashboard.data
@@ -106,13 +111,13 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
   const animate = readAnimate()
   const textColor = readTextColor()
   const options = useMemo(() => {
-    const opts = { animate, textColor }
+    const opts = { animate, textColor, format }
     return {
       donut: donutOption(slices, opts),
       comparison: comparisonOption(slices, monthLabels, opts),
       line: balanceLineOption(days, opts),
     }
-  }, [slices, days, monthLabels, animate, textColor])
+  }, [slices, days, monthLabels, animate, textColor, format])
 
   function setMonth(next: string) {
     const merged = new URLSearchParams(params)
@@ -120,10 +125,18 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
     setParams(merged)
   }
 
+  function setPaymentMethod(next: PaymentMethod | undefined) {
+    const merged = new URLSearchParams(params)
+    if (next) merged.set('forma', next)
+    else merged.delete('forma')
+    setParams(merged)
+  }
+
   let content: ReactNode
   if (data) {
-    // The queue only counts in the current month; the others are what the server says.
-    const queued = month === thisMonth ? pending : null
+    // The queue only counts in the current month, and not for a payment method: it says nothing of
+    // what the server would count under it.
+    const queued = month === thisMonth && !paymentMethod ? pending : null
     const queuedIncome = queued?.monthIncome ?? 0n
     const queuedExpenses = queued?.monthExpenses ?? 0n
     const queuedBalance = queued?.balanceDelta ?? 0n
@@ -186,7 +199,7 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
                         {slice.label}
                       </span>
                       <span className="tabular-nums">
-                        {formatBRL(slice.current)}{' '}
+                        {format(slice.current)}{' '}
                         <span className="text-text-muted">{share(slice.current)}</span>
                       </span>
                     </>
@@ -225,7 +238,7 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
                       <th scope="row" className="font-normal">
                         {slice.label}
                       </th>
-                      <td className="tabular-nums">{formatBRL(slice.current)}</td>
+                      <td className="tabular-nums">{format(slice.current)}</td>
                       <td className="tabular-nums">{share(slice.current)}</td>
                     </tr>
                   ))}
@@ -265,8 +278,8 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
                       <th scope="row" className="font-normal">
                         {slice.label}
                       </th>
-                      <td className="tabular-nums">{formatBRL(slice.current)}</td>
-                      <td className="tabular-nums">{formatBRL(slice.previous)}</td>
+                      <td className="tabular-nums">{format(slice.current)}</td>
+                      <td className="tabular-nums">{format(slice.previous)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -304,7 +317,7 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
                   <th scope="row" className="font-normal">
                     {date(day)}
                   </th>
-                  <td className="tabular-nums">{formatBRL(balance)}</td>
+                  <td className="tabular-nums">{format(balance)}</td>
                 </tr>
               ))}
             </tbody>
@@ -344,6 +357,25 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
   return (
     <>
       <MonthSwitcher month={month} onChange={setMonth} max={lastMonth} />
+      <label className="flex flex-col gap-1 font-medium">
+        <FormattedMessage id="payment.label" />
+        <select
+          value={paymentMethod ?? ''}
+          onChange={(event) =>
+            setPaymentMethod(
+              workspace.paymentMethods.find((method) => method === event.target.value),
+            )
+          }
+          className="min-h-12 rounded-field border border-text-muted/30 bg-surface px-3 font-normal"
+        >
+          <option value="">{intl.formatMessage({ id: 'payment.all' })}</option>
+          {workspace.paymentMethods.map((method) => (
+            <option key={method} value={method}>
+              {intl.formatMessage({ id: `payment.${method}` })}
+            </option>
+          ))}
+        </select>
+      </label>
       {content}
       <Link
         to={`/painel/retrato?mes=${month}`}
@@ -356,12 +388,13 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
 }
 
 function Card({ id, cents }: { id: FormatjsIntl.Message['ids']; cents: bigint }) {
+  const format = useFormatMoney()
   return (
     <div className="rounded-card bg-surface p-4">
       <dt className="text-sm text-text-muted">
         <FormattedMessage id={id} />
       </dt>
-      <dd className="text-lg font-semibold tabular-nums">{formatBRL(cents)}</dd>
+      <dd className="text-lg font-semibold tabular-nums">{format(cents)}</dd>
     </div>
   )
 }

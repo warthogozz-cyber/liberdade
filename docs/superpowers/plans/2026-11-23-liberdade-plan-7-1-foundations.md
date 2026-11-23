@@ -292,7 +292,8 @@ A seção 11 do spec deixa estes pontos ao construtor, e o plano decide:
 
 | Pacote | Novo | Muda |
 |---|---|---|
-| `ledger` | `TransactionKind` (movido), `PaymentMethod`, `PaymentMethods`, `PlannedTemplate`, `PlannedTransactions`, `ExportedTag` | `ExportedTransaction`, `LedgerExport` |
+| `ledger` | `TransactionKind` (movido), `PlannedTemplate`, `PlannedTransactions`, `ExportedTag` | `ExportedTransaction`, `LedgerExport` |
+| `shared` | `PaymentMethod`, `PaymentMethods`, `TransactionAmount` (e o validador), movidos para cá nos rulings R4 e R11 | — |
 | `ledger/domain` | — | `TransactionKind` sai daqui; quem importava passa a importar `ledger.TransactionKind` |
 | `ledger/internal` | `TagController`, `TagService`, `TagRepository`, `TagView`, `RenameTagRequest`, `TagNames`, `TagNamesValidator`, `ConfirmTransactionRequest`, `SkipTransactionRequest`, `PlannedTransactionService`, `TagRejectedException` | `CreateTransactionRequest`, `UpdateTransactionRequest`, `TransactionView`, `TransactionService`, `TransactionRepository`, `TransactionController`, `DashboardController`, `DashboardService`, `LedgerJdbcExport`, `LedgerFamilyActivity`, `TransactionPurgeJob` |
 | `planning` | `package-info`, `RecurringRuleArchived`, `PlanningExport`, `ExportedRecurringRule` | — |

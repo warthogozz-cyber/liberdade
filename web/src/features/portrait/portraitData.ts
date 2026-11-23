@@ -14,12 +14,6 @@ const OTHERS = 'Outras'
 /** The largest categories kept by name; the next one joins "Outras". */
 const NAMED = 5
 
-const monthName = new Intl.DateTimeFormat('pt-BR', {
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
-
 /** The nearest whole percent of `part` in `whole` (halves go up), in exact integer arithmetic. */
 function percentOf(part: bigint, whole: bigint): number {
   return Number((part * 200n + whole) / (2n * whole))
@@ -28,10 +22,18 @@ function percentOf(part: bigint, whole: bigint): number {
 /**
  * The month card's numbers, in percent only: the 5 largest expense categories, the rest as "Outras"
  * (which also takes the rounding remainder, so the slices always add up to 100), and how much of the
- * income was left. Pure: no DOM, no network.
+ * income was left, with the month written in `locale`. Pure: no DOM, no network.
  */
-export function buildPortrait(view: DashboardView, names: Map<string, string>): PortraitData {
-  const month = monthName.format(new Date(`${view.month}-01T00:00:00Z`))
+export function buildPortrait(
+  view: DashboardView,
+  names: Map<string, string>,
+  locale: string,
+): PortraitData {
+  const month = new Intl.DateTimeFormat(locale, {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${view.month}-01T00:00:00Z`))
   const lines = view.byCategory.map((line) => ({
     id: line.categoryId,
     cents: parseCents(line.current.amount),

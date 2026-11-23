@@ -281,6 +281,54 @@ export async function recordExpense(page: Page, digits: string, category: string
   await expect(page).toHaveURL('/inicio')
 }
 
+/** What a recurring rule needs to be created on the Recorrências screen. */
+export type RuleDraft = {
+  description: string
+  /** The amount as it is typed, with a comma: "1500,00". */
+  amount: string
+  /** The account's name; the form's first account when left out. */
+  account?: string
+  /** The expense category as the chips write it, emoji included. */
+  category: string
+}
+
+/**
+ * Creates a monthly expense rule that starts today (the form's own default) through Mais >
+ * Recorrências, and returns its start date as the form showed it (`YYYY-MM-DD`, the family's today).
+ */
+export async function createRule(page: Page, draft: RuleDraft): Promise<string> {
+  await page.goto('/mais')
+  await page.getByRole('link', { name: 'Recorrências' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Recorrências' })).toBeVisible()
+  await page.getByRole('button', { name: 'Nova recorrência' }).click()
+  const form = page.getByRole('dialog', { name: 'Nova recorrência' })
+  await form.getByLabel('Valor', { exact: true }).fill(draft.amount)
+  if (draft.account) {
+    await form.getByRole('radio', { name: draft.account, exact: true }).check()
+  }
+  await form.getByText(draft.category, { exact: true }).click()
+  await form.getByRole('textbox', { name: 'Descrição (opcional)' }).fill(draft.description)
+  const startOn = await form.getByLabel('Começa em').inputValue()
+  await form.getByRole('button', { name: 'Salvar' }).click()
+  await expect(notices(page).getByText('Recorrência salva.')).toBeVisible()
+  await expect(
+    page.getByRole('main').getByRole('listitem').filter({ hasText: draft.description }),
+  ).toBeVisible()
+  return startOn
+}
+
+/** On the entry form: marks the payment method (by its label, "Pix") and adds the tag by typing it. */
+export async function addTagAndMethod(page: Page, method: string, tag: string): Promise<void> {
+  await page
+    .getByRole('group', { name: 'Forma de pagamento' })
+    .getByRole('button', { name: method, exact: true })
+    .click()
+  const tags = page.getByRole('combobox', { name: 'Tags' })
+  await tags.fill(tag)
+  await tags.press('Enter')
+  await expect(page.getByRole('button', { name: `Remover tag ${tag}` })).toBeVisible()
+}
+
 /** Opens `/lancamentos` and waits until nothing is queued any more. */
 export async function waitForQueueToEmpty(page: Page): Promise<void> {
   await page.goto('/lancamentos')

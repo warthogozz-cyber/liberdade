@@ -6,6 +6,9 @@ import static br.com.liberdadefamilia.workspace.Role.VIEWER;
 import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 
 import br.com.liberdadefamilia.ledger.internal.TransactionService.Recorded;
+import br.com.liberdadefamilia.shared.PaymentMethod;
+import br.com.liberdadefamilia.workspace.ModuleKey;
+import br.com.liberdadefamilia.workspace.RequiresModule;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -95,9 +98,33 @@ class TransactionController {
         return service.restore(member, id);
     }
 
+    @PostMapping("/v1/workspaces/{ws}/transactions/{id}/confirm")
+    @RequiresModule(ModuleKey.PLANNING)
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH})
+    @ApiResponse(
+            responseCode = "200",
+            description = "Confirmed: the transaction as it is now, entered under who confirmed it",
+            content = @Content(schema = @Schema(implementation = TransactionView.class)))
+    TransactionView confirmTransaction(
+            @PathVariable UUID id, @Valid @RequestBody ConfirmTransactionRequest request, WorkspaceMember member) {
+        return service.confirm(member, id, request);
+    }
+
+    @PostMapping("/v1/workspaces/{ws}/transactions/{id}/skip")
+    @RequiresModule(ModuleKey.PLANNING)
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH})
+    @ApiResponse(responseCode = "204", description = "Skipped: deleted, and restorable like any deleted transaction")
+    ResponseEntity<Void> skipTransaction(
+            @PathVariable UUID id, @Valid @RequestBody SkipTransactionRequest request, WorkspaceMember member) {
+        service.skip(member, id, request);
+        return ResponseEntity.noContent().build();
+    }
+
     /**
      * @param categoryId only this category and its subcategories
      * @param accountId only what leaves or enters this account
+     * @param paymentMethod only what was paid this way
+     * @param tagId only what has this tag
      */
     @GetMapping("/v1/workspaces/{ws}/transactions")
     @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
@@ -105,7 +132,9 @@ class TransactionController {
             @RequestParam YearMonth month,
             @RequestParam(required = false) @Nullable UUID categoryId,
             @RequestParam(required = false) @Nullable UUID accountId,
+            @RequestParam(required = false) @Nullable PaymentMethod paymentMethod,
+            @RequestParam(required = false) @Nullable UUID tagId,
             WorkspaceMember member) {
-        return service.list(member, month, categoryId, accountId);
+        return service.list(member, month, categoryId, accountId, paymentMethod, tagId);
     }
 }

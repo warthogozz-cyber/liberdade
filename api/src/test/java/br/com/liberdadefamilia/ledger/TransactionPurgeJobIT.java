@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.ledger.internal.TransactionPurgeJob;
+import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestIds;
 import br.com.liberdadefamilia.support.TestLedger;
@@ -12,6 +13,7 @@ import br.com.liberdadefamilia.support.TestWorkspaces;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -76,6 +78,84 @@ class TransactionPurgeJobIT {
         assertThat(exists(old)).isFalse();
         assertThat(exists(recent)).isTrue();
         assertThat(exists(active)).isTrue();
+    }
+
+    /**
+     * A deleted or skipped occurrence stays while the generator could still plan its date, so it is not made again;
+     * once its date is before the previous month, it goes with the 30 days (today is 2026-11-16).
+     */
+    @Test
+    void purgeKeepsRuleRowsUntilTheSecondMonthAfter() {
+        UUID rule = jdbc.sql("""
+                        insert into recurring_rules
+                            (workspace_id, kind, amount, currency, account_id, category_id, frequency, interval,
+                             start_on)
+                        values (:ws, 'EXPENSE', 10, 'BRL', :account, :category, 'MONTHLY', 1, '2026-09-02')
+                        returning id""")
+                .param("ws", workspaceId)
+                .param("account", ledger.walletOf(workspaceId))
+                .param("category", ledger.categoryOf(workspaceId, "EXPENSE", "Mercado"))
+                .query(UUID.class)
+                .single();
+        UUID twoMonthsBack = deletedOccurrence(rule, LocalDate.of(2026, 9, 2));
+        UUID previousMonth = deletedOccurrence(rule, LocalDate.of(2026, 10, 2));
+        UUID currentMonth = deletedOccurrence(rule, LocalDate.of(2026, 11, 2));
+        UUID ordinary = stored(NOW.minus(Duration.ofDays(31)));
+
+        job.purge();
+
+        assertThat(exists(twoMonthsBack)).isFalse();
+        assertThat(exists(previousMonth)).isTrue();
+        assertThat(exists(currentMonth)).isTrue();
+        assertThat(exists(ordinary)).isFalse();
+    }
+
+    @Test
+    void purgeKeepsRecentlyDeletedRuleRows() {
+        UUID rule = jdbc.sql("""
+                        insert into recurring_rules
+                            (workspace_id, kind, amount, currency, account_id, category_id, frequency, interval,
+                             start_on)
+                        values (:ws, 'EXPENSE', 10, 'BRL', :account, :category, 'MONTHLY', 1, '2026-09-02')
+                        returning id""")
+                .param("ws", workspaceId)
+                .param("account", ledger.walletOf(workspaceId))
+                .param("category", ledger.categoryOf(workspaceId, "EXPENSE", "Mercado"))
+                .query(UUID.class)
+                .single();
+        UUID old = ledger.insertPlanned(
+                workspaceId,
+                ledger.walletOf(workspaceId),
+                ledger.categoryOf(workspaceId, "EXPENSE", "Mercado"),
+                Money.brl("10.00"),
+                LocalDate.of(2026, 9, 2),
+                rule,
+                membershipId);
+        jdbc.sql("update transactions set deleted_at = :at where id = :id")
+                .param("at", OffsetDateTime.ofInstant(NOW.minus(Duration.ofDays(5)), ZoneOffset.UTC))
+                .param("id", old)
+                .update();
+
+        job.purge();
+
+        assertThat(exists(old)).isTrue();
+    }
+
+    /** A planned occurrence of the rule on the date, deleted 31 days ago. */
+    private UUID deletedOccurrence(UUID rule, LocalDate scheduledOn) {
+        UUID id = ledger.insertPlanned(
+                workspaceId,
+                ledger.walletOf(workspaceId),
+                ledger.categoryOf(workspaceId, "EXPENSE", "Mercado"),
+                Money.brl("10.00"),
+                scheduledOn,
+                rule,
+                membershipId);
+        jdbc.sql("update transactions set deleted_at = :at where id = :id")
+                .param("at", OffsetDateTime.ofInstant(NOW.minus(Duration.ofDays(31)), ZoneOffset.UTC))
+                .param("id", id)
+                .update();
+        return id;
     }
 
     @Test

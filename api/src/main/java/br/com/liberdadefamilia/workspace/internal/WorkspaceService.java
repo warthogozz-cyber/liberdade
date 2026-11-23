@@ -39,6 +39,7 @@ class WorkspaceService {
         }
         NewWorkspace workspace = workspaces.insert(name, timezone);
         UUID membershipId = workspaces.insertOwner(workspace.id(), user.id(), firstName(user.displayName()));
+        workspaces.enablePlanning(workspace.id());
         events.publishEvent(new WorkspaceCreated(workspace.id(), membershipId, workspace.baseCurrency()));
         return workspace.id();
     }

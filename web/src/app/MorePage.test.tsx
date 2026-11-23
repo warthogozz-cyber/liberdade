@@ -89,4 +89,22 @@ describe('MorePage', () => {
       'true',
     )
   })
+
+  it('linksToRecurrencesOnlyWithThePlanningModuleOn', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: true }
+    const { unmount } = renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByRole('link', { name: 'Recorrências' })).toHaveAttribute(
+      'href',
+      '/mais/recorrencias',
+    )
+    unmount()
+
+    mockState.modules[workspace.id] = { planning: false }
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByText(workspace.name)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Recorrências' })).not.toBeInTheDocument()
+  })
 })

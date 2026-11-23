@@ -1,9 +1,15 @@
 import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
-import type { AccountView, CategoryView, MeWorkspace, MemberView } from '@/shared/api'
+import {
+  useFormatMoney,
+  type AccountView,
+  type CategoryView,
+  type MeWorkspace,
+  type MemberView,
+} from '@/shared/api'
 import { firstName, type messages } from '@/shared/i18n'
-import { formatBRL, parseCents } from '@/shared/money'
+import { parseCents } from '@/shared/money'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Sheet } from '@/shared/ui/Sheet'
 import { categoryLabel, type ListItem } from './listItems'
@@ -51,17 +57,14 @@ export function TransactionDetailSheet({
   onDelete,
 }: TransactionDetailSheetProps) {
   const intl = useIntl()
+  const format = useFormatMoney()
   const text = (id: MessageId) => intl.formatMessage({ id })
   const [confirming, setConfirming] = useState(false)
   const category = item.categoryId ? categories.get(item.categoryId) : undefined
   const cents = parseCents(item.amount.amount)
   const transfer = item.kind === 'TRANSFER'
   const amount =
-    item.kind === 'INCOME'
-      ? `+${formatBRL(cents)}`
-      : transfer
-        ? formatBRL(cents)
-        : formatBRL(-cents)
+    item.kind === 'INCOME' ? `+${format(cents)}` : transfer ? format(cents) : format(-cents)
   const date = intl.formatDate(`${item.occurredOn}T00:00:00Z`, {
     day: '2-digit',
     month: '2-digit',
@@ -95,6 +98,11 @@ export function TransactionDetailSheet({
     [text('transactions.detail.amount'), amount],
     [text('transactions.detail.date'), date],
     ...where,
+    [
+      text('transactions.detail.paymentMethod'),
+      item.paymentMethod ? intl.formatMessage({ id: `payment.${item.paymentMethod}` }) : undefined,
+    ],
+    [text('transactions.detail.tags'), item.tags.join(', ') || undefined],
     [text('transactions.detail.description'), item.description ?? undefined],
     [text('transactions.detail.by'), by],
   ]

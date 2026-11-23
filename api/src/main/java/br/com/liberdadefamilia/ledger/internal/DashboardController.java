@@ -5,9 +5,11 @@ import static br.com.liberdadefamilia.workspace.Role.OWNER;
 import static br.com.liberdadefamilia.workspace.Role.VIEWER;
 import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 
+import br.com.liberdadefamilia.shared.PaymentMethod;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import java.time.YearMonth;
+import org.jspecify.annotations.Nullable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,7 +26,10 @@ class DashboardController {
 
     @GetMapping("/v1/workspaces/{ws}/dashboard")
     @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
-    DashboardView dashboard(@RequestParam YearMonth month, WorkspaceMember member) {
-        return service.monthOf(member, month);
+    DashboardView dashboard(
+            @RequestParam YearMonth month,
+            @RequestParam(required = false) @Nullable PaymentMethod paymentMethod,
+            WorkspaceMember member) {
+        return service.monthOf(member, month, paymentMethod);
     }
 }

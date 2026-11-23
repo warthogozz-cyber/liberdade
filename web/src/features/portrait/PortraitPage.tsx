@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { useSearchParams } from 'react-router'
-import { useCategories, useCurrentWorkspace, useDashboard, useMe } from '@/shared/api'
+import { useCategories, useCurrentWorkspace, useDashboard, useLocale, useMe } from '@/shared/api'
 import { usePlan } from '@/shared/api/billing'
 import { monthFromParam } from '@/shared/i18n'
 import { useDocumentTitle } from '@/shared/ui'
@@ -46,6 +46,7 @@ export function PortraitPage() {
 
 function PortraitScreen({ workspaceId, timezone }: { workspaceId: string; timezone: string }) {
   const intl = useIntl()
+  const locale = useLocale()
   const [params] = useSearchParams()
   const now = new Date()
   const month = monthFromParam(params.get('mes'), now, timezone)
@@ -67,8 +68,8 @@ function PortraitScreen({ workspaceId, timezone }: { workspaceId: string; timezo
     // The names come with the categories: without them a card would call every category "Outras".
     if (!dashboard.data || !categories) return null
     const names = new Map(categories.map((category) => [category.id, category.name]))
-    return buildPortrait(dashboard.data, names)
-  }, [dashboard.data, categories])
+    return buildPortrait(dashboard.data, names, locale)
+  }, [dashboard.data, categories, locale])
 
   useEffect(() => {
     // The card draws again once Inter is there, so the PNG never carries the fallback font.

@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.workspace.internal;
 
+import br.com.liberdadefamilia.shared.PaymentMethods;
 import br.com.liberdadefamilia.workspace.FamilyActivity;
 import br.com.liberdadefamilia.workspace.FamilyDeletion;
 import br.com.liberdadefamilia.workspace.Role;
@@ -87,6 +88,14 @@ class WorkspaceRepository {
                 .single();
     }
 
+    /** Turns the planning module on for a new family: it is on by default (the owner may switch it off). */
+    void enablePlanning(UUID workspaceId) {
+        jdbc.sql("""
+                        insert into workspace_modules (workspace_id, module_key, enabled)
+                        values (:workspaceId, 'planning', true)
+                        on conflict do nothing""").param("workspaceId", workspaceId).update();
+    }
+
     /** The families the user is an active member of: one query for the memberships, one for the activity. */
     List<MeWorkspace> activeWorkspacesOf(UUID userId) {
         return meWorkspaces(userId, null);
@@ -100,7 +109,7 @@ class WorkspaceRepository {
     private List<MeWorkspace> meWorkspaces(UUID userId, @Nullable UUID workspaceId) {
         List<MeRow> rows = jdbc.sql("""
                         select w.id, w.name, m.role, m.id as membership_id, w.timezone, w.base_currency,
-                               m.getting_started_dismissed_at, m.recovered_at, w.deletion_requested_at,
+                               w.country, w.locale, m.getting_started_dismissed_at, m.recovered_at, w.deletion_requested_at,
                                ((select count(*) from memberships o
                                  where o.workspace_id = w.id and o.status = 'ACTIVE') >= 2
                                 or exists (select 1 from invitations i
@@ -129,6 +138,9 @@ class WorkspaceRepository {
                         r.membershipId(),
                         r.timezone(),
                         r.currency(),
+                        r.country(),
+                        r.locale(),
+                        PaymentMethods.forCountry(r.country()),
                         r.dismissedAt(),
                         withTransactions.contains(r.id()),
                         r.familyInvited(),
@@ -150,6 +162,8 @@ class WorkspaceRepository {
                 rs.getObject("membership_id", UUID.class),
                 rs.getString("timezone"),
                 rs.getString("base_currency"),
+                rs.getString("country"),
+                rs.getString("locale"),
                 dismissed == null ? null : dismissed.toInstant(),
                 rs.getBoolean("family_invited"),
                 recovered == null ? null : recovered.toInstant(),
@@ -212,6 +226,8 @@ class WorkspaceRepository {
             UUID membershipId,
             String timezone,
             String currency,
+            String country,
+            String locale,
             @Nullable Instant dismissedAt,
             boolean familyInvited,
             @Nullable Instant recoveredAt,

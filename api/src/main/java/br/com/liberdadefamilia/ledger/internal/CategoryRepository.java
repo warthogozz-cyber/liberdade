@@ -1,6 +1,6 @@
 package br.com.liberdadefamilia.ledger.internal;
 
-import br.com.liberdadefamilia.ledger.domain.TransactionKind;
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -41,8 +41,8 @@ class CategoryRepository {
     /**
      * The categories of one kind. The active ones come first, most used first: by the number of transactions on or
      * after {@code usedSince} (D31), then by their default order, then by name. The archived ones follow, by name.
-     * Deleted transactions do not count, nor do those from accounts out of the scope: the youth's order follows
-     * their own use, and does not reveal the family's.
+     * Deleted and planned transactions do not count, nor do those from accounts out of the scope: the youth's order
+     * follows their own use, and does not reveal the family's.
      */
     List<CategoryView> allByUse(UUID workspaceId, TransactionKind kind, LocalDate usedSince, AccountScope scope) {
         return jdbc.sql("""
@@ -52,6 +52,7 @@ class CategoryRepository {
                                on t.workspace_id = c.workspace_id
                               and t.category_id = c.id
                               and t.deleted_at is null
+                              and t.status = 'CONFIRMED'
                               and t.occurred_on >= :usedSince
                               and """ + AccountScope.sqlIncludes("t.account_id") + """
                         where c.workspace_id = :workspaceId

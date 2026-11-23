@@ -1,4 +1,4 @@
-package br.com.liberdadefamilia.ledger.internal;
+package br.com.liberdadefamilia.shared;
 
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -19,7 +19,7 @@ import java.lang.annotation.Target;
 @Constraint(validatedBy = TransactionAmountValidator.class)
 @Target({FIELD, METHOD, PARAMETER})
 @Retention(RUNTIME)
-@interface TransactionAmount {
+public @interface TransactionAmount {
 
     String message() default "must be above zero, at most 999999999.99 and fit the currency";
 

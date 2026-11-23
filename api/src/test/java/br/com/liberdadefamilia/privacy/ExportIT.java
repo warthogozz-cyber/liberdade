@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.privacy;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
+import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestIds;
 import br.com.liberdadefamilia.support.TestLedger;
@@ -16,6 +17,7 @@ import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.Currency;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,7 +90,7 @@ class ExportIT {
         Map<String, byte[]> files = unzip(result);
         assertThat(files).containsOnlyKeys("dados.json", "lancamentos.csv", "atividade.csv");
         String json = text(files.get("dados.json"));
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(2);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(3);
         assertThat(JsonPath.<String>read(json, "$.profile.email")).isEqualTo("bia@example.com");
         assertThat(JsonPath.<String>read(json, "$.profile.displayName")).isEqualTo("Bia Teste");
         assertThat(JsonPath.<List<?>>read(json, "$.memberships")).hasSize(2);
@@ -139,7 +141,7 @@ class ExportIT {
                 .doesNotContain("So da Dona");
         assertThat(csv)
                 .startsWith(
-                        "﻿familia;data;tipo;valor;moeda;conta;conta_destino;categoria;descricao;quem;criado_em\r\n");
+                        "﻿familia;data;tipo;valor;moeda;conta;conta_destino;categoria;descricao;quem;criado_em;status;forma_pagamento;tags\r\n");
         assertThat(csv).contains("Família Teste;");
         assertThat(JsonPath.<List<String>>read(text(files.get("dados.json")), "$.transactions[*].description"))
                 .doesNotContain("So da Dona");
@@ -199,9 +201,18 @@ class ExportIT {
                 .matches("attachment; filename=\"liberdade-familia-\\d{4}-\\d{2}-\\d{2}\\.zip\"");
         Map<String, byte[]> files = unzip(result);
         assertThat(files)
-                .containsOnlyKeys("dados.json", "lancamentos.csv", "contas.csv", "categorias.csv", "membros.csv");
+                .containsOnlyKeys(
+                        "dados.json",
+                        "lancamentos.csv",
+                        "contas.csv",
+                        "categorias.csv",
+                        "membros.csv",
+                        "recorrencias.csv",
+                        "tags.csv");
         String csv = text(files.get("lancamentos.csv"));
-        assertThat(csv).startsWith("﻿data;tipo;valor;moeda;conta;conta_destino;categoria;descricao;quem;criado_em\r\n");
+        assertThat(csv)
+                .startsWith(
+                        "﻿data;tipo;valor;moeda;conta;conta_destino;categoria;descricao;quem;criado_em;status;forma_pagamento;tags\r\n");
         assertThat(csv).containsPattern(";Gasto;1234,56;BRL;Corrente;;Mercado;Compra grande;Aninha;");
         assertThat(csv).contains(";Transferência;100,00;BRL;Corrente;Carteira;;;Aninha;");
         assertThat(csv).contains("So da Dona").contains("Para a Bia");
@@ -220,7 +231,7 @@ class ExportIT {
         String json = text(files.get("dados.json"));
         assertThat(JsonPath.<String>read(json, "$.workspace.name")).isEqualTo("Família Teste");
         assertThat(JsonPath.<List<?>>read(json, "$.members")).hasSize(2);
-        assertThat(JsonPath.<Boolean>read(json, "$.modules.planning")).isFalse();
+        assertThat(JsonPath.<Boolean>read(json, "$.modules.planning")).isTrue();
         assertThat(JsonPath.<String>read(json, "$.transactions[0].amount.currency"))
                 .isEqualTo("BRL");
         for (Map.Entry<String, byte[]> file : files.entrySet()) {
@@ -238,7 +249,7 @@ class ExportIT {
 
         String json = text(unzip(exportFamily(f.ana, f.ws)).get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(2);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(3);
         assertThat(JsonPath.<List<?>>read(json, "$.orders")).hasSize(1);
         assertThat(JsonPath.<String>read(json, "$.orders[0].status")).isEqualTo("PAID");
         assertThat(JsonPath.<String>read(json, "$.orders[0].amount")).isEqualTo("89.00");
@@ -403,6 +414,194 @@ class ExportIT {
         assertThat(exportFamily(f.ana, f.ws)).hasStatus(429);
     }
 
+    @Test
+    void formatVersion3WithPlanningData() {
+        Family f = family();
+        UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
+        UUID checking = idOf("accounts", f.ws, "Corrente");
+        UUID market = idOf("categories", f.ws, "Mercado");
+        UUID rule = rule(f.ws, checking, market, anaMember);
+        ledger.insertPlanned(f.ws, checking, market, reais("50.00"), LocalDate.of(2026, 12, 5), rule, anaMember);
+        UUID paid = transaction(
+                f.ws, checking, null, market, "EXPENSE", "21.00", "Mensalidade", anaMember, anaMember, false);
+        jdbc.sql("update transactions set payment_method = 'PIX' where id = :id")
+                .param("id", paid)
+                .update();
+        tag(f.ws, "Escola", anaMember, paid);
+
+        String json = text(unzip(exportFamily(f.ana, f.ws)).get("dados.json"));
+
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(3);
+        assertThat(JsonPath.<String>read(json, "$.workspace.country")).isEqualTo("BR");
+        assertThat(JsonPath.<String>read(json, "$.workspace.locale")).isEqualTo("pt-BR");
+        assertThat(JsonPath.<List<?>>read(json, "$.recurringRules")).hasSize(1);
+        assertThat(JsonPath.<String>read(json, "$.recurringRules[0].frequency")).isEqualTo("MONTHLY");
+        assertThat(JsonPath.<List<?>>read(json, "$.tags")).hasSize(1);
+        assertThat(JsonPath.<String>read(json, "$.tags[0].name")).isEqualTo("Escola");
+        assertThat(JsonPath.<List<String>>read(json, "$.transactions[?(@.description=='Mensalidade')].paymentMethod"))
+                .containsExactly("PIX");
+        assertThat(JsonPath.<List<List<String>>>read(json, "$.transactions[?(@.description=='Mensalidade')].tags"))
+                .containsExactly(List.of("Escola"));
+        assertThat(JsonPath.<List<String>>read(json, "$.transactions[?(@.status=='PLANNED')].status"))
+                .containsExactly("PLANNED");
+        assertThat(JsonPath.<List<String>>read(json, "$.transactions[?(@.status=='PLANNED')].scheduledOn"))
+                .containsExactly("2026-12-05");
+        assertThat(JsonPath.<List<String>>read(json, "$.transactions[?(@.status=='PLANNED')].recurringRuleId"))
+                .containsExactly(rule.toString());
+    }
+
+    @Test
+    void csvHasNewColumnsAndFiles() {
+        Family f = family();
+        UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
+        UUID checking = idOf("accounts", f.ws, "Corrente");
+        UUID market = idOf("categories", f.ws, "Mercado");
+        rule(f.ws, checking, market, anaMember);
+        UUID paid = transaction(
+                f.ws, checking, null, market, "EXPENSE", "21.00", "Mensalidade", anaMember, anaMember, false);
+        jdbc.sql("update transactions set payment_method = 'PIX' where id = :id")
+                .param("id", paid)
+                .update();
+        tag(f.ws, "Escola", anaMember, paid);
+        tag(f.ws, "Filhos", anaMember, paid);
+
+        Map<String, byte[]> files = unzip(exportFamily(f.ana, f.ws));
+
+        assertThat(files).containsKeys("recorrencias.csv", "tags.csv");
+        assertThat(text(files.get("lancamentos.csv")))
+                .contains("criado_em;status;forma_pagamento;tags\r\n")
+                .containsPattern(";Mensalidade;Aninha;[^;]*;Confirmado;Pix;\"?Escola; Filhos\"?\r\n");
+        assertThat(text(files.get("recorrencias.csv")))
+                .contains(
+                        "tipo;valor;moeda;conta;conta_destino;categoria;forma_pagamento;descricao;frequencia;intervalo;inicio;fim;arquivada_em")
+                .contains("Gasto;30,00;BRL;Corrente;;Mercado;;Aluguel;Mensal;1;2026-12-01;;");
+        assertThat(text(files.get("tags.csv")))
+                .contains("nome;arquivada_em")
+                .contains("Escola;")
+                .contains("Filhos;");
+    }
+
+    @Test
+    void skippedPlannedStaysOut() {
+        Family f = family();
+        UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
+        UUID checking = idOf("accounts", f.ws, "Corrente");
+        UUID market = idOf("categories", f.ws, "Mercado");
+        UUID rule = rule(f.ws, checking, market, anaMember);
+        UUID skipped = ledger.insertPlanned(
+                f.ws, checking, market, reais("77.00"), LocalDate.of(2026, 12, 5), rule, anaMember);
+        jdbc.sql("update transactions set deleted_at = now() where id = :id")
+                .param("id", skipped)
+                .update();
+
+        Map<String, byte[]> files = unzip(exportFamily(f.ana, f.ws));
+
+        String json = text(files.get("dados.json"));
+        assertThat(json).doesNotContain(skipped.toString());
+        assertThat(JsonPath.<List<?>>read(json, "$.transactions[?(@.status=='PLANNED')]"))
+                .isEmpty();
+        assertThat(text(files.get("lancamentos.csv"))).doesNotContain("77,00");
+    }
+
+    @Test
+    void tagsCreatedByThePerson() {
+        Family f = family();
+        UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
+        UUID biaMember = workspaces.membershipOf(f.ws, f.bia);
+        tag(f.ws, "DaAdulta", biaMember, null);
+        tag(f.ws, "DoDono", anaMember, null);
+
+        String json = text(unzip(exportMine(f.bia)).get("dados.json"));
+
+        assertThat(JsonPath.<List<String>>read(json, "$.tags[*].name")).containsExactly("DaAdulta");
+    }
+
+    @Test
+    void transferRuleHasDestinationColumn() {
+        Family f = family();
+        UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
+        UUID checking = idOf("accounts", f.ws, "Corrente");
+        UUID savings = jdbc.sql("""
+                        insert into accounts (workspace_id, name, type, currency)
+                        values (:ws, 'Reserva', 'SAVINGS', 'BRL') returning id""").param("ws", f.ws).query(UUID.class).single();
+        jdbc.sql("""
+                        insert into recurring_rules (workspace_id, kind, amount, currency, account_id, to_account_id,
+                                                     description, frequency, "interval", start_on, created_by)
+                        values (:ws, 'TRANSFER', 100.00, 'BRL', :account, :to, 'Mesada', 'MONTHLY', 1,
+                                '2026-12-01', :by)""")
+                .param("ws", f.ws)
+                .param("account", checking)
+                .param("to", savings)
+                .param("by", anaMember)
+                .update();
+
+        String csv = text(unzip(exportFamily(f.ana, f.ws)).get("recorrencias.csv"));
+
+        assertThat(csv).contains("Transferência;100,00;BRL;Corrente;Reserva;;;Mesada;");
+    }
+
+    @Test
+    void rulesCreatedByThePerson() {
+        Family f = family();
+        UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
+        UUID biaMember = workspaces.membershipOf(f.ws, f.bia);
+        UUID checking = idOf("accounts", f.ws, "Corrente");
+        UUID market = idOf("categories", f.ws, "Mercado");
+        UUID biasRule = rule(f.ws, checking, market, biaMember);
+        rule(f.ws, checking, market, anaMember);
+
+        String json = text(unzip(exportMine(f.bia)).get("dados.json"));
+
+        assertThat(JsonPath.<List<String>>read(json, "$.recurringRules[*].id")).containsExactly(biasRule.toString());
+        assertThat(JsonPath.<String>read(json, "$.recurringRules[0].frequency")).isEqualTo("MONTHLY");
+        assertThat(JsonPath.<String>read(json, "$.recurringRules[0].familyName"))
+                .isNotEmpty();
+    }
+
+    private static Money reais(String amount) {
+        return Money.of(new BigDecimal(amount), Currency.getInstance("BRL"));
+    }
+
+    private UUID idOf(String table, UUID ws, String name) {
+        return jdbc.sql("select id from " + table + " where workspace_id = :ws and name = :name")
+                .param("ws", ws)
+                .param("name", name)
+                .query(UUID.class)
+                .single();
+    }
+
+    private UUID rule(UUID ws, UUID account, UUID category, UUID createdBy) {
+        return jdbc.sql("""
+                        insert into recurring_rules (workspace_id, kind, amount, currency, account_id, category_id,
+                                                     description, frequency, "interval", start_on, created_by)
+                        values (:ws, 'EXPENSE', 30.00, 'BRL', :account, :category, 'Aluguel', 'MONTHLY', 1,
+                                '2026-12-01', :by)
+                        returning id""")
+                .param("ws", ws)
+                .param("account", account)
+                .param("category", category)
+                .param("by", createdBy)
+                .query(UUID.class)
+                .single();
+    }
+
+    /** Creates the tag for the membership and, when a transaction is given, puts it on it. */
+    private void tag(UUID ws, String name, UUID createdBy, @Nullable UUID transaction) {
+        UUID id = jdbc.sql("insert into tags (workspace_id, name, created_by) values (:ws, :name, :by) returning id")
+                .param("ws", ws)
+                .param("name", name)
+                .param("by", createdBy)
+                .query(UUID.class)
+                .single();
+        if (transaction != null) {
+            jdbc.sql("insert into transaction_tags (workspace_id, transaction_id, tag_id) values (:ws, :tx, :tag)")
+                    .param("ws", ws)
+                    .param("tx", transaction)
+                    .param("tag", id)
+                    .update();
+        }
+    }
+
     // --- data ---
 
     private record Family(UUID ana, UUID bia, UUID ws) {}
@@ -475,7 +674,7 @@ class ExportIT {
         return id;
     }
 
-    private void transaction(
+    private UUID transaction(
             UUID ws,
             UUID account,
             @Nullable UUID toAccount,
@@ -486,6 +685,7 @@ class ExportIT {
             UUID member,
             UUID createdBy,
             boolean deleted) {
+        UUID id = TestIds.v7();
         jdbc.sql("""
                         insert into transactions
                             (id, workspace_id, kind, amount, currency, occurred_on, account_id, to_account_id,
@@ -493,7 +693,7 @@ class ExportIT {
                         values (:id, :ws, :kind, :amount, 'BRL', :on, :account, :toAccount, :category,
                                 nullif(:description, ''), :member, :createdBy,
                                 case when :deleted then now() end)""")
-                .param("id", TestIds.v7())
+                .param("id", id)
                 .param("ws", ws)
                 .param("kind", kind)
                 .param("amount", new BigDecimal(amount))
@@ -506,6 +706,7 @@ class ExportIT {
                 .param("createdBy", createdBy)
                 .param("deleted", deleted)
                 .update();
+        return id;
     }
 
     // --- requests ---
