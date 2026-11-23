@@ -1,12 +1,11 @@
-package br.com.liberdadefamilia.ledger.internal;
+package br.com.liberdadefamilia.shared;
 
-import br.com.liberdadefamilia.shared.Money;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import java.math.BigDecimal;
 
 /** Checks {@link TransactionAmount}. */
-final class TransactionAmountValidator implements ConstraintValidator<TransactionAmount, Money> {
+public class TransactionAmountValidator implements ConstraintValidator<TransactionAmount, Money> {
 
     static final BigDecimal MAX = new BigDecimal("999999999.99");
 

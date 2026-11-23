@@ -660,6 +660,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/recurring-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listRecurringRules"];
+        put?: never;
+        post: operations["createRecurringRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/recurring-rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateRecurringRule"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/recurring-rules/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveRecurringRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/tags": {
         parameters: {
             query?: never;
@@ -908,6 +956,28 @@ export interface components {
             /** @enum {string} */
             role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
         };
+        CreateRecurringRuleRequest: {
+            /** Format: uuid */
+            accountId: string;
+            amount: components["schemas"]["Money"];
+            /** Format: uuid */
+            categoryId?: string | null;
+            description?: string | null;
+            /** Format: date */
+            endOn?: string | null;
+            /** @enum {string} */
+            frequency: "WEEKLY" | "MONTHLY" | "YEARLY";
+            /** Format: int32 */
+            interval?: number;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            /** @enum {string|null} */
+            paymentMethod?: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
+            /** Format: date */
+            startOn: string;
+            /** Format: uuid */
+            toAccountId?: string | null;
+        };
         CreateTransactionRequest: {
             /** Format: uuid */
             accountId: string;
@@ -1095,6 +1165,36 @@ export interface components {
         PreviewInvitationRequest: {
             token: string;
         };
+        RecurringRuleView: {
+            /** Format: uuid */
+            accountId: string;
+            amount: components["schemas"]["Money"];
+            /** Format: uuid */
+            categoryId: string | null;
+            /** Format: uuid */
+            createdBy: string | null;
+            description: string | null;
+            /** Format: date */
+            endOn: string | null;
+            /** @enum {string} */
+            frequency: "WEEKLY" | "MONTHLY" | "YEARLY";
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            interval: number;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            /** Format: date */
+            nextDueOn: string | null;
+            /** @enum {string|null} */
+            paymentMethod: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
+            /** Format: date */
+            startOn: string;
+            /** Format: uuid */
+            toAccountId: string | null;
+            /** Format: int64 */
+            version: number;
+        };
         RenameTagRequest: {
             name: string;
         };
@@ -1172,6 +1272,30 @@ export interface components {
         };
         UpdateModuleRequest: {
             enabled: boolean;
+        };
+        UpdateRecurringRuleRequest: {
+            /** Format: uuid */
+            accountId: string;
+            amount: components["schemas"]["Money"];
+            /** Format: uuid */
+            categoryId?: string | null;
+            description?: string | null;
+            /** Format: date */
+            endOn?: string | null;
+            /** @enum {string} */
+            frequency: "WEEKLY" | "MONTHLY" | "YEARLY";
+            /** Format: int32 */
+            interval?: number;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            /** @enum {string|null} */
+            paymentMethod?: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
+            /** Format: date */
+            startOn: string;
+            /** Format: uuid */
+            toAccountId?: string | null;
+            /** Format: int64 */
+            version: number;
         };
         UpdateTransactionRequest: {
             /** Format: uuid */
@@ -2304,6 +2428,106 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ModuleView"];
                 };
+            };
+        };
+    };
+    listRecurringRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringRuleView"][];
+                };
+            };
+        };
+    };
+    createRecurringRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRecurringRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created, with its first planned transactions generated */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringRuleView"];
+                };
+            };
+        };
+    };
+    updateRecurringRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRecurringRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringRuleView"];
+                };
+            };
+        };
+    };
+    archiveRecurringRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived, or already archived */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

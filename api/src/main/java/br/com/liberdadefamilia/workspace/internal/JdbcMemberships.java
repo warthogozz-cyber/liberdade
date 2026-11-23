@@ -5,9 +5,12 @@ import br.com.liberdadefamilia.workspace.MemberSummary;
 import br.com.liberdadefamilia.workspace.MembershipStatus;
 import br.com.liberdadefamilia.workspace.Memberships;
 import br.com.liberdadefamilia.workspace.Role;
+import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.ZoneId;
 import java.util.Collection;
+import java.util.Currency;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +28,13 @@ class JdbcMemberships implements Memberships {
     private static final String SELECT = """
             select workspace_id, id, user_id, role, status, nickname
             from memberships""";
+
+    private static final String ACTIVE_MEMBER = """
+            select m.workspace_id, m.id, m.user_id, m.role, w.timezone, w.base_currency
+            from memberships m
+            join workspaces w on w.id = m.workspace_id
+            where m.workspace_id = :workspaceId
+              and m.status = 'ACTIVE'""";
 
     private final JdbcClient jdbc;
     private final ActiveOwners activeOwners;
@@ -49,6 +59,23 @@ class JdbcMemberships implements Memberships {
                 .param("membershipId", membershipId)
                 .query(Boolean.class)
                 .single();
+    }
+
+    @Override
+    public Optional<WorkspaceMember> activeMember(UUID workspaceId, UUID membershipId) {
+        return jdbc.sql(ACTIVE_MEMBER + " and m.id = :membershipId")
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .query((rs, row) -> member(rs))
+                .optional();
+    }
+
+    @Override
+    public Optional<WorkspaceMember> activeOwner(UUID workspaceId) {
+        return jdbc.sql(ACTIVE_MEMBER + " and m.role = 'OWNER' order by m.created_at, m.id limit 1")
+                .param("workspaceId", workspaceId)
+                .query((rs, row) -> member(rs))
+                .optional();
     }
 
     @Override
@@ -181,6 +208,16 @@ class JdbcMemberships implements Memberships {
                 .list();
         ended.forEach(member -> events.publishEvent(new MemberRemoved(
                 member.workspaceId(), member.membershipId(), null, MemberRemoved.Reason.ACCOUNT_DELETED)));
+    }
+
+    private static WorkspaceMember member(ResultSet rs) throws SQLException {
+        return new WorkspaceMember(
+                rs.getObject("workspace_id", UUID.class),
+                rs.getObject("id", UUID.class),
+                rs.getObject("user_id", UUID.class),
+                Role.valueOf(rs.getString("role")),
+                ZoneId.of(rs.getString("timezone")),
+                Currency.getInstance(rs.getString("base_currency")));
     }
 
     private static MemberSummary summary(ResultSet rs) throws SQLException {

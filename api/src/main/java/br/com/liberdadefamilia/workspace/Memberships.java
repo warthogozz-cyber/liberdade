@@ -13,6 +13,12 @@ public interface Memberships {
     /** Whether the membership is an ACTIVE one of this family. */
     boolean isActive(UUID workspaceId, UUID membershipId);
 
+    /** The membership as the caller of a request would be, if it is an ACTIVE one of this family; else empty. */
+    Optional<WorkspaceMember> activeMember(UUID workspaceId, UUID membershipId);
+
+    /** The family's oldest ACTIVE OWNER, as a member; empty when the family has none. */
+    Optional<WorkspaceMember> activeOwner(UUID workspaceId);
+
     Optional<MemberSummary> find(UUID workspaceId, UUID membershipId);
 
     /** Every membership of the family, active and removed. */

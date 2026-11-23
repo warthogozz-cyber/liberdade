@@ -117,6 +117,7 @@ class RoleMatrixIT {
                         transactionRows(),
                         plannedRows(),
                         tagRows(),
+                        recurringRuleRows(),
                         memberRows(),
                         invitationRows(),
                         workspaceRows(),
@@ -176,6 +177,29 @@ class RoleMatrixIT {
                         each("GET " + W + "/tags", W + "/tags", null, Outcome.OK, Outcome.OK, Outcome.OK, Outcome.OK),
                         ownerAndAdult("PATCH " + W + "/tags/{id}", W + "/tags/{feira}", "{\"name\":\"Outra\"}"),
                         ownerAndAdult("POST " + W + "/tags/{id}/archive", W + "/tags/{feira}/archive", null))
+                .flatMap(group -> group);
+    }
+
+    static Stream<Row> recurringRuleRows() {
+        String rule = """
+                {"kind":"EXPENSE","amount":{"amount":"30.00","currency":"BRL"},"accountId":"{corrente}",
+                 "categoryId":"{mercado}","frequency":"MONTHLY","interval":1,"startOn":"2026-11-05","endOn":null}""";
+        String edit = rule.replace("{\"kind\"", "{\"version\":0,\"kind\"");
+        return Stream.of(
+                        each(
+                                "GET " + W + "/recurring-rules",
+                                W + "/recurring-rules",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        ownerAndAdult("POST " + W + "/recurring-rules", W + "/recurring-rules", rule),
+                        ownerAndAdult("PATCH " + W + "/recurring-rules/{id}", W + "/recurring-rules/{rule}", edit),
+                        ownerAndAdult(
+                                "POST " + W + "/recurring-rules/{id}/archive",
+                                W + "/recurring-rules/{rule}/archive",
+                                null))
                 .flatMap(group -> group);
     }
 
@@ -624,6 +648,21 @@ class RoleMatrixIT {
                         .param("ws", ws)
                         .query(UUID.class)
                         .single());
+        ids.put(
+                "rule",
+                jdbc.sql("""
+                        insert into recurring_rules
+                            (workspace_id, kind, amount, currency, account_id, category_id, frequency, interval,
+                             start_on, next_due_on, created_by)
+                        values (:ws, 'EXPENSE', 20, 'BRL', :account, :category, 'MONTHLY', 1,
+                                date '2026-11-05', date '2026-11-05', :ana)
+                        returning id""")
+                        .param("ws", ws)
+                        .param("account", ids.get("corrente"))
+                        .param("category", ids.get("mercado"))
+                        .param("ana", anaMembership)
+                        .query(UUID.class)
+                        .single());
         ids.put("familyExpense", transaction(ws, ids.get("corrente"), null, ids.get("mercado"), anaMembership, false));
         ids.put("familyDeleted", transaction(ws, ids.get("corrente"), null, ids.get("mercado"), anaMembership, true));
         ids.put("youthOwn", transaction(ws, ids.get("wallet"), null, ids.get("mercado"), leoMembership, false));
@@ -757,6 +796,8 @@ class RoleMatrixIT {
                                                where c.workspace_id = :ws),
                                 'transactions', (select json_agg(t order by t.id) from transactions t
                                                  where t.workspace_id = :ws),
+                                'rules', (select json_agg(r order by r.id) from recurring_rules r
+                                          where r.workspace_id = :ws),
                                 'invitations', (select json_agg(i order by i.id) from invitations i
                                                 where i.workspace_id = :ws),
                                 'modules', (select json_agg(x order by x.module_key) from workspace_modules x
