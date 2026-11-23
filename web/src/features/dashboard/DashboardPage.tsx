@@ -351,6 +351,12 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
     <>
       <MonthSwitcher month={month} onChange={setMonth} max={lastMonth} />
       {content}
+      <Link
+        to={`/painel/retrato?mes=${month}`}
+        className="flex min-h-12 items-center justify-center rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <FormattedMessage id="dashboard.portrait" />
+      </Link>
     </>
   )
 }

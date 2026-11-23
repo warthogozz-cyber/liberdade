@@ -9,6 +9,7 @@ export const CORE = [
   'modules',
   'privacy',
   'billing',
+  'portrait',
 ]
 export const OPTIONAL = ['planning', 'indicators', 'gamification', 'ventures']
 

@@ -77,6 +77,13 @@ export const routes: RouteObject[] = [
                   })),
               },
               {
+                path: '/painel/retrato',
+                lazy: () =>
+                  import('@/features/portrait/PortraitPage').then((m) => ({
+                    Component: m.PortraitPage,
+                  })),
+              },
+              {
                 path: '/mais',
                 lazy: () => import('@/app/MorePage').then((m) => ({ Component: m.MorePage })),
               },
