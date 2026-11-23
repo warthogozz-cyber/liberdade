@@ -2,9 +2,15 @@ package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.ledger.domain.BalanceCalculator;
 import br.com.liberdadefamilia.ledger.domain.CategoryRanking;
+import br.com.liberdadefamilia.ledger.domain.MonthSummary;
+import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.shared.PaymentMethod;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.time.YearMonth;
 import java.util.Currency;
+import java.util.Map;
+import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,27 +37,27 @@ class DashboardService {
 
     /**
      * One transaction, so that the balance, the totals and the ranking come from the same moment. Every number is of
-     * the member's scope (D13): for the youth, the accounts they own.
+     * the member's scope (D13): for the youth, the accounts they own. A payment method narrows the income, the
+     * expenses, the result and the categories; the balance is what the accounts hold, whatever was paid with.
      */
     @Transactional(readOnly = true)
-    DashboardView monthOf(WorkspaceMember member, YearMonth month) {
+    DashboardView monthOf(WorkspaceMember member, YearMonth month, @Nullable PaymentMethod paymentMethod) {
         transactionService.checkMonth(member, month);
         Currency base = member.baseCurrency();
         AccountScope scope = accounts.scopeFor(member);
         var initialBalances = accounts.activeInitialBalances(member.workspaceId(), scope);
         initialBalances.values().removeIf(money -> !money.currency().equals(base));
-        var flows = transactions.flowsUntil(member.workspaceId(), month.atDay(1), month.atEndOfMonth(), scope).stream()
-                .filter(flow -> flow.amount().currency().equals(base))
-                .toList();
-        var summary = BalanceCalculator.summarize(month, base, initialBalances, flows);
-        var categories = transactions.expensesByTopCategory(member.workspaceId(), month, scope).stream()
+        var summary = summarize(member, month, base, initialBalances, null, scope);
+        var flowSummary =
+                paymentMethod == null ? summary : summarize(member, month, base, initialBalances, paymentMethod, scope);
+        var categories = transactions.expensesByTopCategory(member.workspaceId(), month, paymentMethod, scope).stream()
                 .filter(total -> total.current().currency().equals(base))
                 .toList();
         return new DashboardView(
                 month.toString(),
-                summary.income(),
-                summary.expenses(),
-                summary.result(),
+                flowSummary.income(),
+                flowSummary.expenses(),
+                flowSummary.result(),
                 summary.balance(),
                 CategoryRanking.rank(categories, CATEGORY_LIMIT).stream()
                         .map(line -> new DashboardCategory(line.categoryId(), line.current(), line.previous()))
@@ -59,5 +65,21 @@ class DashboardService {
                 summary.daily().stream()
                         .map(day -> new DashboardDay(day.day(), day.balance()))
                         .toList());
+    }
+
+    private MonthSummary summarize(
+            WorkspaceMember member,
+            YearMonth month,
+            Currency base,
+            Map<UUID, Money> initialBalances,
+            @Nullable PaymentMethod paymentMethod,
+            AccountScope scope) {
+        var flows =
+                transactions
+                        .flowsUntil(member.workspaceId(), month.atDay(1), month.atEndOfMonth(), paymentMethod, scope)
+                        .stream()
+                        .filter(flow -> flow.amount().currency().equals(base))
+                        .toList();
+        return BalanceCalculator.summarize(month, base, initialBalances, flows);
     }
 }

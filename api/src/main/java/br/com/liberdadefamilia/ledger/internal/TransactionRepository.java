@@ -1,9 +1,10 @@
 package br.com.liberdadefamilia.ledger.internal;
 
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.ledger.domain.CategoryTotal;
 import br.com.liberdadefamilia.ledger.domain.Flow;
-import br.com.liberdadefamilia.ledger.domain.TransactionKind;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.shared.PaymentMethod;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -27,8 +28,8 @@ import org.springframework.stereotype.Component;
 class TransactionRepository {
 
     private static final String COLUMNS = """
-            id, kind, amount, currency, occurred_on, account_id, to_account_id, category_id, description, member_id,
-            created_at, version""";
+            id, kind, amount, currency, occurred_on, account_id, to_account_id, category_id, description, payment_method,
+            member_id, created_at, version""";
 
     /** The transaction touches the scope: it leaves or enters an account in it (a transfer from outside included). */
     private static final String VISIBLE = AccountScope.sqlTouches("account_id", "to_account_id");
@@ -58,9 +59,11 @@ class TransactionRepository {
         return jdbc.sql("""
                         insert into transactions
                             (id, workspace_id, kind, amount, currency, occurred_on,
-                             account_id, to_account_id, category_id, description, member_id, created_by)
+                             account_id, to_account_id, category_id, description, payment_method, member_id,
+                             created_by)
                         values (:id, :workspaceId, :kind, :amount, :currency, :occurredOn,
-                                :accountId, :toAccountId, :categoryId, :description, :memberId, :createdBy)
+                                :accountId, :toAccountId, :categoryId, :description, :paymentMethod, :memberId,
+                                :createdBy)
                         on conflict (id) do nothing
                         returning\s""" + COLUMNS)
                 .param("id", request.id())
@@ -73,6 +76,7 @@ class TransactionRepository {
                 .param("toAccountId", request.toAccountId())
                 .param("categoryId", request.categoryId())
                 .param("description", request.description())
+                .param("paymentMethod", methodName(request.paymentMethod()))
                 .param("memberId", memberId)
                 .param("createdBy", createdBy)
                 .query(TransactionRepository::view)
@@ -138,6 +142,7 @@ class TransactionRepository {
                             to_account_id = :toAccountId,
                             category_id = :categoryId,
                             description = :description,
+                            payment_method = :paymentMethod,
                             member_id = :memberId,
                             version = version + 1,
                             updated_at = now()
@@ -161,6 +166,7 @@ class TransactionRepository {
                 .param("toAccountId", request.toAccountId())
                 .param("categoryId", request.categoryId())
                 .param("description", request.description())
+                .param("paymentMethod", methodName(request.paymentMethod()))
                 .query(TransactionRepository::view)
                 .optional();
     }
@@ -215,8 +221,8 @@ class TransactionRepository {
 
     /**
      * The transactions on or after {@code from} and before {@code until}, newest first (D20). With a category, only
-     * that category and its subcategories; with an account, the transactions leaving or entering it. Only those that
-     * touch the scope.
+     * that category and its subcategories; with an account, the transactions leaving or entering it; with a payment
+     * method, only those paid that way. Only those that touch the scope.
      */
     List<TransactionView> between(
             UUID workspaceId,
@@ -224,6 +230,7 @@ class TransactionRepository {
             LocalDate until,
             @Nullable UUID categoryId,
             @Nullable UUID accountId,
+            @Nullable PaymentMethod paymentMethod,
             AccountScope scope) {
         return jdbc.sql("select " + COLUMNS + """
                          from transactions
@@ -240,6 +247,7 @@ class TransactionRepository {
                           and (cast(:accountId as uuid) is null
                                or account_id = cast(:accountId as uuid)
                                or to_account_id = cast(:accountId as uuid))
+                          and (cast(:paymentMethod as text) is null or payment_method = cast(:paymentMethod as text))
                           and """ + VISIBLE + """
                         order by occurred_on desc, created_at desc, id desc""")
                 .param("workspaceId", workspaceId)
@@ -247,6 +255,7 @@ class TransactionRepository {
                 .param("until", until)
                 .param("categoryId", categoryId)
                 .param("accountId", accountId)
+                .param("paymentMethod", methodName(paymentMethod))
                 .param("scopeIds", scope.sqlArray())
                 .query(TransactionRepository::view)
                 .list();
@@ -257,7 +266,12 @@ class TransactionRepository {
      * collapses into the day before {@code monthStart}, so that years of history come back as a few flows. Only what
      * touches the scope: a transfer from an account outside it into one inside counts in the balance alone.
      */
-    List<Flow> flowsUntil(UUID workspaceId, LocalDate monthStart, LocalDate monthEnd, AccountScope scope) {
+    List<Flow> flowsUntil(
+            UUID workspaceId,
+            LocalDate monthStart,
+            LocalDate monthEnd,
+            @Nullable PaymentMethod paymentMethod,
+            AccountScope scope) {
         return jdbc.sql("""
                         select greatest(occurred_on, cast(:monthStart as date) - 1) as day,
                                kind, account_id, to_account_id, currency, sum(amount) as amount
@@ -265,12 +279,14 @@ class TransactionRepository {
                         where workspace_id = :workspaceId
                           and occurred_on <= :monthEnd
                           and deleted_at is null
+                          and (cast(:paymentMethod as text) is null or payment_method = cast(:paymentMethod as text))
                           and """ + VISIBLE + """
                         group by 1, kind, account_id, to_account_id, currency""")
                 .param("workspaceId", workspaceId)
                 .param("scopeIds", scope.sqlArray())
                 .param("monthStart", monthStart)
                 .param("monthEnd", monthEnd)
+                .param("paymentMethod", methodName(paymentMethod))
                 .query((rs, row) -> new Flow(
                         rs.getObject("day", LocalDate.class),
                         TransactionKind.valueOf(rs.getString("kind")),
@@ -284,7 +300,8 @@ class TransactionRepository {
      * The expenses of the month and of the month before, by top-level category: a subcategory counts for its parent
      * (D9). One line for each category and currency. Only the expenses from accounts in the scope.
      */
-    List<CategoryTotal> expensesByTopCategory(UUID workspaceId, YearMonth month, AccountScope scope) {
+    List<CategoryTotal> expensesByTopCategory(
+            UUID workspaceId, YearMonth month, @Nullable PaymentMethod paymentMethod, AccountScope scope) {
         return jdbc.sql("""
                         select coalesce(c.parent_id, c.id) as category_id, t.currency,
                                coalesce(sum(t.amount) filter (where t.occurred_on >= :monthStart), 0) as current,
@@ -298,6 +315,7 @@ class TransactionRepository {
                           and t.deleted_at is null
                           and t.occurred_on >= :previousStart
                           and t.occurred_on < :nextStart
+                          and (cast(:paymentMethod as text) is null or t.payment_method = cast(:paymentMethod as text))
                           and """ + AccountScope.sqlIncludes("t.account_id") + """
                         group by coalesce(c.parent_id, c.id), t.currency""")
                 .param("workspaceId", workspaceId)
@@ -305,6 +323,7 @@ class TransactionRepository {
                 .param("monthStart", month.atDay(1))
                 .param("previousStart", month.minusMonths(1).atDay(1))
                 .param("nextStart", month.plusMonths(1).atDay(1))
+                .param("paymentMethod", methodName(paymentMethod))
                 .query((rs, row) -> {
                     Currency currency = Currency.getInstance(rs.getString("currency"));
                     return new CategoryTotal(
@@ -339,9 +358,18 @@ class TransactionRepository {
                 rs.getObject("to_account_id", UUID.class),
                 rs.getObject("category_id", UUID.class),
                 rs.getString("description"),
+                method(rs.getString("payment_method")),
                 rs.getObject("member_id", UUID.class),
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
                 rs.getLong("version"));
+    }
+
+    private static @Nullable String methodName(@Nullable PaymentMethod method) {
+        return method == null ? null : method.name();
+    }
+
+    private static @Nullable PaymentMethod method(@Nullable String name) {
+        return name == null ? null : PaymentMethod.valueOf(name);
     }
 
     private static StoredTransaction stored(ResultSet rs, int row) throws SQLException {

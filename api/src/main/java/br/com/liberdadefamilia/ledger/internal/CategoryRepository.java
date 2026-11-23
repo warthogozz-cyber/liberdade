@@ -1,6 +1,6 @@
 package br.com.liberdadefamilia.ledger.internal;
 
-import br.com.liberdadefamilia.ledger.domain.TransactionKind;
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;

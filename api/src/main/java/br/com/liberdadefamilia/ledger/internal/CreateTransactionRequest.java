@@ -1,7 +1,8 @@
 package br.com.liberdadefamilia.ledger.internal;
 
-import br.com.liberdadefamilia.ledger.domain.TransactionKind;
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.shared.PaymentMethod;
 import br.com.liberdadefamilia.shared.TextPatterns;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -15,7 +16,8 @@ import org.jspecify.annotations.Nullable;
  * A new transaction as the device sends it. A transfer has {@code toAccountId} and no {@code categoryId}; income and
  * expenses have a category and no destination, which the family rules check. The description is stripped, and a blank
  * one becomes null, before validation. It may hold any character but U+0000, which PostgreSQL text cannot store.
- * {@code memberId} is who the spending was for; null means whoever records it.
+ * {@code memberId} is who the spending was for; null means whoever records it. {@code paymentMethod} is how it was
+ * paid, and a transfer has none.
  */
 record CreateTransactionRequest(
         @NotNull UUID id,
@@ -31,7 +33,9 @@ record CreateTransactionRequest(
         @Schema(nullable = true)
         @Size(max = CreateTransactionRequest.MAX_DESCRIPTION_LENGTH)
         @Pattern(regexp = TextPatterns.WITHOUT_NUL)
-        String description) {
+        String description,
+
+        @Nullable @Schema(nullable = true) PaymentMethod paymentMethod) {
 
     static final int MAX_DESCRIPTION_LENGTH = 140;
 

@@ -6,6 +6,7 @@ import static br.com.liberdadefamilia.workspace.Role.VIEWER;
 import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 
 import br.com.liberdadefamilia.ledger.internal.TransactionService.Recorded;
+import br.com.liberdadefamilia.shared.PaymentMethod;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -98,6 +99,7 @@ class TransactionController {
     /**
      * @param categoryId only this category and its subcategories
      * @param accountId only what leaves or enters this account
+     * @param paymentMethod only what was paid this way
      */
     @GetMapping("/v1/workspaces/{ws}/transactions")
     @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
@@ -105,7 +107,8 @@ class TransactionController {
             @RequestParam YearMonth month,
             @RequestParam(required = false) @Nullable UUID categoryId,
             @RequestParam(required = false) @Nullable UUID accountId,
+            @RequestParam(required = false) @Nullable PaymentMethod paymentMethod,
             WorkspaceMember member) {
-        return service.list(member, month, categoryId, accountId);
+        return service.list(member, month, categoryId, accountId, paymentMethod);
     }
 }

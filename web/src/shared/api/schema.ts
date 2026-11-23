@@ -834,6 +834,8 @@ export interface components {
             memberId?: string | null;
             /** Format: date */
             occurredOn: string;
+            /** @enum {string|null} */
+            paymentMethod?: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
             /** Format: uuid */
             toAccountId?: string | null;
         };
@@ -918,6 +920,7 @@ export interface components {
             workspaces: components["schemas"]["MeWorkspace"][];
         };
         MeWorkspace: {
+            country: string;
             currency: string;
             /** Format: date-time */
             deletionScheduledFor: string | null;
@@ -927,9 +930,11 @@ export interface components {
             hasTransactions: boolean;
             /** Format: uuid */
             id: string;
+            locale: string;
             /** Format: uuid */
             membershipId: string;
             name: string;
+            paymentMethods: ("PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH")[];
             /** Format: date-time */
             recoveredAt: string | null;
             /** @enum {string} */
@@ -1024,6 +1029,8 @@ export interface components {
             memberId: string;
             /** Format: date */
             occurredOn: string;
+            /** @enum {string|null} */
+            paymentMethod: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
             /** Format: uuid */
             toAccountId: string | null;
             /** Format: int64 */
@@ -1068,6 +1075,8 @@ export interface components {
             memberId?: string | null;
             /** Format: date */
             occurredOn: string;
+            /** @enum {string|null} */
+            paymentMethod?: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
             /** Format: uuid */
             toAccountId?: string | null;
             /** Format: int64 */
@@ -1875,6 +1884,7 @@ export interface operations {
         parameters: {
             query: {
                 month: string;
+                paymentMethod?: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
             };
             header?: never;
             path: {
@@ -2191,6 +2201,7 @@ export interface operations {
                 month: string;
                 categoryId?: string | null;
                 accountId?: string | null;
+                paymentMethod?: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
             };
             header?: never;
             path: {

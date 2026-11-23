@@ -1,11 +1,12 @@
 package br.com.liberdadefamilia.ledger.domain;
 
-import static br.com.liberdadefamilia.ledger.domain.TransactionKind.EXPENSE;
-import static br.com.liberdadefamilia.ledger.domain.TransactionKind.INCOME;
-import static br.com.liberdadefamilia.ledger.domain.TransactionKind.TRANSFER;
+import static br.com.liberdadefamilia.ledger.TransactionKind.EXPENSE;
+import static br.com.liberdadefamilia.ledger.TransactionKind.INCOME;
+import static br.com.liberdadefamilia.ledger.TransactionKind.TRANSFER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.shared.Money;
 import java.time.LocalDate;
 import java.time.YearMonth;

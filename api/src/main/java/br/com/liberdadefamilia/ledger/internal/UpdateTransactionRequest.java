@@ -1,7 +1,8 @@
 package br.com.liberdadefamilia.ledger.internal;
 
-import br.com.liberdadefamilia.ledger.domain.TransactionKind;
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.shared.PaymentMethod;
 import br.com.liberdadefamilia.shared.TextPatterns;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -14,7 +15,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * The whole transaction as the person left it on the edit screen: a full replacement, not a partial change. {@code
  * version} is the one the screen was opened with; if the transaction changed since, the edit is refused. The
- * description is cleaned as on create. A null {@code memberId} keeps the one the transaction has.
+ * description is cleaned as on create. A null {@code memberId} keeps the one the transaction has; a null {@code
+ * paymentMethod} clears it.
  */
 record UpdateTransactionRequest(
         @NotNull Long version,
@@ -30,7 +32,9 @@ record UpdateTransactionRequest(
         @Schema(nullable = true)
         @Size(max = CreateTransactionRequest.MAX_DESCRIPTION_LENGTH)
         @Pattern(regexp = TextPatterns.WITHOUT_NUL)
-        String description) {
+        String description,
+
+        @Nullable @Schema(nullable = true) PaymentMethod paymentMethod) {
 
     UpdateTransactionRequest {
         description = CreateTransactionRequest.cleanDescription(description);

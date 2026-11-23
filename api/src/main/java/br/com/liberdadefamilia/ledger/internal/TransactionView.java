@@ -1,7 +1,8 @@
 package br.com.liberdadefamilia.ledger.internal;
 
-import br.com.liberdadefamilia.ledger.domain.TransactionKind;
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.shared.PaymentMethod;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -21,6 +22,7 @@ record TransactionView(
         @Nullable @Schema(nullable = true) UUID toAccountId,
         @Nullable @Schema(nullable = true) UUID categoryId,
         @Nullable @Schema(nullable = true) String description,
+        @Nullable @Schema(nullable = true) PaymentMethod paymentMethod,
         UUID memberId,
         Instant createdAt,
         long version) {}

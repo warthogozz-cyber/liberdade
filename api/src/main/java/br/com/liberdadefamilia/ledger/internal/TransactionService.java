@@ -1,9 +1,10 @@
 package br.com.liberdadefamilia.ledger.internal;
 
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.ledger.domain.TransactionDateRange;
-import br.com.liberdadefamilia.ledger.domain.TransactionKind;
 import br.com.liberdadefamilia.ledger.internal.TransactionRepository.StoredTransaction;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.shared.PaymentMethod;
 import br.com.liberdadefamilia.workspace.Memberships;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.time.Clock;
@@ -180,12 +181,16 @@ class TransactionService {
 
     /**
      * The month's transactions in the member's scope, newest first, optionally of one category (with its
-     * subcategories) or one account.
+     * subcategories), one account or one payment method.
      *
      * @throws LedgerRejectedException when the month is out of range
      */
     List<TransactionView> list(
-            WorkspaceMember member, YearMonth month, @Nullable UUID categoryId, @Nullable UUID accountId) {
+            WorkspaceMember member,
+            YearMonth month,
+            @Nullable UUID categoryId,
+            @Nullable UUID accountId,
+            @Nullable PaymentMethod paymentMethod) {
         checkMonth(member, month);
         return transactions.between(
                 member.workspaceId(),
@@ -193,6 +198,7 @@ class TransactionService {
                 month.plusMonths(1).atDay(1),
                 categoryId,
                 accountId,
+                paymentMethod,
                 accounts.scopeFor(member));
     }
 
@@ -303,6 +309,10 @@ class TransactionService {
         if (!transfer && proposed.categoryId() == null) {
             throw new LedgerRejectedException("transaction.category-required", "Escolha uma categoria.");
         }
+        if (transfer && proposed.paymentMethod() != null) {
+            throw new LedgerRejectedException(
+                    "transaction.payment-method-transfer", "Transferência não tem forma de pagamento.");
+        }
     }
 
     /**
@@ -349,7 +359,8 @@ class TransactionService {
                 && stored.accountId().equals(request.accountId())
                 && Objects.equals(stored.toAccountId(), request.toAccountId())
                 && Objects.equals(stored.categoryId(), request.categoryId())
-                && Objects.equals(stored.description(), request.description());
+                && Objects.equals(stored.description(), request.description())
+                && stored.paymentMethod() == request.paymentMethod();
     }
 
     /** A recorded transaction, and whether this request created it. */
@@ -363,7 +374,8 @@ class TransactionService {
             UUID accountId,
             @Nullable UUID toAccountId,
             @Nullable UUID categoryId,
-            UUID memberId) {
+            UUID memberId,
+            @Nullable PaymentMethod paymentMethod) {
 
         static Proposed of(CreateTransactionRequest request, UUID memberId) {
             return new Proposed(
@@ -373,7 +385,8 @@ class TransactionService {
                     request.accountId(),
                     request.toAccountId(),
                     request.categoryId(),
-                    memberId);
+                    memberId,
+                    request.paymentMethod());
         }
 
         static Proposed of(UpdateTransactionRequest request, UUID memberId) {
@@ -384,7 +397,8 @@ class TransactionService {
                     request.accountId(),
                     request.toAccountId(),
                     request.categoryId(),
-                    memberId);
+                    memberId,
+                    request.paymentMethod());
         }
     }
 }

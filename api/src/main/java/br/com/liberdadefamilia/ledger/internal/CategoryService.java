@@ -1,6 +1,6 @@
 package br.com.liberdadefamilia.ledger.internal;
 
-import br.com.liberdadefamilia.ledger.domain.TransactionKind;
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.time.Clock;
 import java.util.UUID;

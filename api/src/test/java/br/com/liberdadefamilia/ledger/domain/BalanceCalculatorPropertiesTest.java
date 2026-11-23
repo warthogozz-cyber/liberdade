@@ -2,6 +2,7 @@ package br.com.liberdadefamilia.ledger.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.shared.Money;
 import java.math.BigDecimal;
 import java.time.LocalDate;

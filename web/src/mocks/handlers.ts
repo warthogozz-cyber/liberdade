@@ -103,6 +103,9 @@ function joinWorkspace(
     name: invitation.workspaceName ?? '',
     role,
     currency: 'BRL',
+    country: 'BR',
+    locale: 'pt-BR',
+    paymentMethods: ['PIX', 'CREDIT_CARD', 'DEBIT_CARD', 'BOLETO', 'BANK_TRANSFER', 'CASH'],
     timezone: 'America/Fortaleza',
     gettingStartedDismissedAt: null,
     hasTransactions: false,
@@ -367,7 +370,8 @@ function sameContent(stored: TransactionView, request: TransactionView) {
     stored.toAccountId === request.toAccountId &&
     stored.categoryId === request.categoryId &&
     stored.memberId === request.memberId &&
-    stored.description === request.description
+    stored.description === request.description &&
+    stored.paymentMethod === request.paymentMethod
   )
 }
 
@@ -1770,6 +1774,7 @@ export const handlers = [
       toAccountId: body.toAccountId ?? null,
       categoryId: body.categoryId ?? null,
       description,
+      paymentMethod: body.paymentMethod ?? null,
       memberId: body.memberId ?? workspace.membershipId,
       createdAt: new Date().toISOString(),
       version: 0,
@@ -1821,6 +1826,7 @@ export const handlers = [
         toAccountId: body.toAccountId ?? null,
         categoryId: body.categoryId ?? null,
         description,
+        paymentMethod: body.paymentMethod ?? null,
         memberId: body.memberId ?? current.memberId,
         version: current.version + 1,
       }

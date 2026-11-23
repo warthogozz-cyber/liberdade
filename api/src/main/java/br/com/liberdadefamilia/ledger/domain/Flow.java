@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.ledger.domain;
 
+import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.shared.Money;
 import java.time.LocalDate;
 import java.util.UUID;

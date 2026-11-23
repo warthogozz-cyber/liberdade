@@ -40,6 +40,7 @@ export function transactionView(
     toAccountId: request.toAccountId ?? null,
     categoryId: request.categoryId ?? null,
     description: request.description ?? null,
+    paymentMethod: request.paymentMethod ?? null,
     createdAt,
     memberId: 'member',
     version: 0,
