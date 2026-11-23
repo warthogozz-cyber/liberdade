@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useIntl } from 'react-intl'
 import { useSearchParams } from 'react-router'
 import { useCurrentWorkspace } from '@/shared/api'
@@ -46,12 +46,23 @@ function PlanBody({
   // Only the order the person came back to, and only while it still waits for payment.
   const waitingId =
     returned !== null && open?.id === returned && open.status === 'CREATED' ? returned : null
-  useRefreshOrder(ws, waitingId)
-
-  if (plan.isPending) return <p>{intl.formatMessage({ id: 'common.loading' })}</p>
-  if (plan.isError) return <p role="alert">{intl.formatMessage({ id: 'billing.loadFailed' })}</p>
+  // The order stays watched once the plan stops listing it, so how it ended can still be told.
+  const [watched, setWatched] = useState<string | null>(null)
+  if (waitingId !== null && watched !== waitingId) setWatched(waitingId)
+  const refresh = useRefreshOrder(ws, watched)
 
   const data = plan.data
+  if (data === undefined) {
+    if (plan.isError) return <p role="alert">{intl.formatMessage({ id: 'billing.loadFailed' })}</p>
+    // Offline without a saved plan: the request waits for the signal.
+    if (plan.fetchStatus === 'paused') {
+      return <p>{intl.formatMessage({ id: 'billing.offline' })}</p>
+    }
+    return <p>{intl.formatMessage({ id: 'common.loading' })}</p>
+  }
+  const ended = refresh.status === 'EXPIRED' || refresh.status === 'CANCELED'
+  // An order waits for payment: no second checkout until it is settled.
+  const pending = open?.status === 'CREATED'
   const founder = data.key === 'FAMILY'
   return (
     // The accent lives on this container only, not on the whole app.
@@ -75,6 +86,7 @@ function PlanBody({
             <FounderOfferCard
               ws={ws}
               canPurchase={data.canPurchase}
+              pending={pending}
               online={online}
               assign={assign}
             />
@@ -83,7 +95,14 @@ function PlanBody({
           )}
         </>
       )}
-      {waitingId !== null && <p>{intl.formatMessage({ id: 'billing.waiting' })}</p>}
+      {waitingId !== null && (
+        <p role="status">
+          {intl.formatMessage({ id: refresh.exhausted ? 'billing.stalled' : 'billing.waiting' })}
+        </p>
+      )}
+      {waitingId === null && ended && (
+        <p role="status">{intl.formatMessage({ id: 'billing.notCompleted' })}</p>
+      )}
       {open?.status === 'REFUND_PENDING' && (
         <section className="flex flex-col gap-2">
           {open.refundReason === 'DUPLICATE' ? (

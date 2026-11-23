@@ -8,12 +8,20 @@ interface FounderOfferCardProps {
   ws: string
   /** The Owner of a family that can buy; anyone else only reads the offer. */
   canPurchase: boolean
+  /** An order waits for payment: a second checkout could charge twice, so there is no button. */
+  pending: boolean
   online: boolean
   assign?: (url: string) => void
 }
 
 /** The pre-sale offer (FOUNDER_2026, R$ 89,00, one year) and the button that starts the checkout. */
-export function FounderOfferCard({ ws, canPurchase, online, assign }: FounderOfferCardProps) {
+export function FounderOfferCard({
+  ws,
+  canPurchase,
+  pending,
+  online,
+  assign,
+}: FounderOfferCardProps) {
   const intl = useIntl()
   const checkout = useStartCheckout(ws, assign)
   const [error, setError] = useState<string>()
@@ -35,7 +43,8 @@ export function FounderOfferCard({ ws, canPurchase, online, assign }: FounderOff
     <section className="flex flex-col gap-3">
       <p>{intl.formatMessage({ id: 'billing.offer' })}</p>
       <p className="text-text-muted">{intl.formatMessage({ id: 'billing.offer.includes' })}</p>
-      {canPurchase && (
+      <p>{intl.formatMessage({ id: 'billing.noAutoCharge' })}</p>
+      {canPurchase && !pending && (
         <>
           <button
             type="button"

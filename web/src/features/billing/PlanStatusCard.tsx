@@ -34,6 +34,7 @@ export function PlanStatusCard({ ws, plan, isOwner, online }: PlanStatusCardProp
     intl.formatDate(value, { day: '2-digit', month: '2-digit', timeZone: DATE_ZONE })
 
   async function pick(theme: FounderTheme) {
+    if (theme === plan.theme) return
     setError(undefined)
     try {
       await setTheme.mutateAsync(theme)
@@ -49,9 +50,9 @@ export function PlanStatusCard({ ws, plan, isOwner, online }: PlanStatusCardProp
   const refundable = plan.canRefund && paidOrderId !== null
   return (
     <section className="flex flex-col gap-3">
-      <p className="text-lg font-semibold text-(--founder-accent)">
+      <h2 className="self-start rounded-full bg-(--founder-accent) px-3 py-1 text-lg font-semibold text-white">
         {intl.formatMessage({ id: 'billing.founder' })}
-      </p>
+      </h2>
       {plan.endsAt !== null && (
         <p>
           {intl.formatMessage(
@@ -62,11 +63,7 @@ export function PlanStatusCard({ ws, plan, isOwner, online }: PlanStatusCardProp
       )}
       <p>{intl.formatMessage({ id: 'billing.noAutoCharge' })}</p>
       {isOwner && (
-        <ThemePicker
-          value={plan.theme}
-          disabled={!online || setTheme.isPending}
-          onPick={(theme) => void pick(theme)}
-        />
+        <ThemePicker value={plan.theme} disabled={!online} onPick={(theme) => void pick(theme)} />
       )}
       {error && (
         <p role="alert" className="text-negative">

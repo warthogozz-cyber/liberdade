@@ -22,6 +22,10 @@ const planKey = (ws: string) => [...queryKeys.workspace(ws), 'billing', 'plan'] 
 const orderKey = (ws: string, orderId: string) =>
   [...queryKeys.workspace(ws), 'billing', 'order', orderId] as const
 
+function callsMade(state: { dataUpdateCount: number; errorUpdateCount: number } | undefined) {
+  return state ? state.dataUpdateCount + state.errorUpdateCount : 0
+}
+
 /** The family's plan; `ws` is undefined until the family is known. */
 export function usePlan(ws: string | undefined) {
   return useQuery({
@@ -67,19 +71,29 @@ export function useRefreshOrder(ws: string, orderId: string | null) {
     gcTime: 0,
     meta: { persist: false },
     retry: false,
+    // Coming back from the payment tab must not add calls: only the timer asks.
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     refetchInterval: (current) => {
       const done = current.state.data !== undefined && current.state.data.status !== 'CREATED'
-      const calls = current.state.dataUpdateCount + current.state.errorUpdateCount
-      return done || calls >= REFRESH_MAX_CALLS ? false : REFRESH_INTERVAL_MS
+      return done || callsMade(current.state) >= REFRESH_MAX_CALLS ? false : REFRESH_INTERVAL_MS
     },
   })
+  // Read for their effect: each answer re-renders, even an unchanged one, so the count is current.
+  void query.dataUpdatedAt
+  void query.errorUpdatedAt
   const status = query.data?.status
+  // All the calls were made and the order still waits: polling has given up.
+  const exhausted =
+    orderId !== null &&
+    (status === undefined || status === 'CREATED') &&
+    callsMade(queryClient.getQueryState(orderKey(ws, orderId))) >= REFRESH_MAX_CALLS
   useEffect(() => {
-    if (status !== undefined && status !== 'CREATED') {
+    if ((status !== undefined && status !== 'CREATED') || exhausted) {
       void queryClient.invalidateQueries({ queryKey: planKey(ws) })
     }
-  }, [status, queryClient, ws])
-  return query
+  }, [status, exhausted, queryClient, ws])
+  return { status, exhausted }
 }
 
 /** Asks for the money back for the paid order (`paidOrderId`). */

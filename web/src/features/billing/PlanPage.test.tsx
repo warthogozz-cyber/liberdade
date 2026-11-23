@@ -137,9 +137,10 @@ describe('PlanPage', () => {
   it('pollingStopsAfterTwoMinutes', async () => {
     const workspace = seedMockFamily()
     let refreshCalls = 0
-    plan(workspace.id, {
-      ...FREE,
-      openOrder: { id: 'o1', status: 'CREATED', refundReason: null },
+    let planCalls = 0
+    plan(workspace.id, () => {
+      planCalls += 1
+      return { ...FREE, openOrder: { id: 'o1', status: 'CREATED', refundReason: null } }
     })
     server.use(
       http.post(`${API_URL}/v1/workspaces/${workspace.id}/billing/orders/o1/refresh`, () => {
@@ -150,12 +151,149 @@ describe('PlanPage', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     renderPlan('/mais/plano?pedido=o1')
 
-    await screen.findByText(/esperando a confirmação do Asaas/)
+    expect(await screen.findByRole('status')).toHaveTextContent(/esperando a confirmação do Asaas/)
+    const before = planCalls
     for (let i = 0; i < 30; i += 1) await act(() => vi.advanceTimersByTimeAsync(5000))
 
     expect(refreshCalls).toBe(24)
+    // Giving up reads the plan once more and says so.
+    expect(
+      await screen.findByText(/Ainda não recebemos a confirmação do Asaas/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/esperando a confirmação/)).not.toBeInTheDocument()
+    await waitFor(() => expect(planCalls).toBeGreaterThan(before))
     await act(() => vi.advanceTimersByTimeAsync(30_000))
     expect(refreshCalls).toBe(24)
+  })
+
+  it('waitingOrderHidesTheBuyButton', async () => {
+    const workspace = seedMockFamily()
+    plan(workspace.id, {
+      ...FREE,
+      openOrder: { id: 'o1', status: 'CREATED', refundReason: null },
+    })
+    renderPlan('/mais/plano?pedido=o1')
+
+    expect(await screen.findByRole('status')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ser Família Fundadora' })).not.toBeInTheDocument()
+  })
+
+  it('returnWithoutAMatchingOrderDoesNotPoll', async () => {
+    const workspace = seedMockFamily()
+    let refreshCalls = 0
+    plan(workspace.id, FREE)
+    server.use(
+      http.post(`${API_URL}/v1/workspaces/${workspace.id}/billing/orders/o1/refresh`, () => {
+        refreshCalls += 1
+        return HttpResponse.json({ id: 'o1', status: 'CREATED', refundReason: null })
+      }),
+    )
+    renderPlan('/mais/plano?pedido=o1')
+
+    expect(await screen.findByRole('button', { name: 'Ser Família Fundadora' })).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(refreshCalls).toBe(0)
+  })
+
+  it('expiredOrderIsExplained', async () => {
+    const workspace = seedMockFamily()
+    let expired = false
+    plan(workspace.id, () =>
+      expired ? FREE : { ...FREE, openOrder: { id: 'o1', status: 'CREATED', refundReason: null } },
+    )
+    server.use(
+      http.post(`${API_URL}/v1/workspaces/${workspace.id}/billing/orders/o1/refresh`, () => {
+        expired = true
+        return HttpResponse.json({ id: 'o1', status: 'EXPIRED', refundReason: null })
+      }),
+    )
+    renderPlan('/mais/plano?pedido=o1')
+
+    expect(await screen.findByText(/O pagamento não foi concluído/)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Ser Família Fundadora' })).toBeInTheDocument()
+  })
+
+  it('ownerPicksATheme', async () => {
+    const workspace = seedMockFamily()
+    plan(workspace.id, FOUNDER)
+    let body: unknown
+    let puts = 0
+    server.use(
+      http.put(
+        `${API_URL}/v1/workspaces/${workspace.id}/billing/plan/theme`,
+        async ({ request }) => {
+          puts += 1
+          body = await request.json()
+          return new HttpResponse(null, { status: 204 })
+        },
+      ),
+    )
+    renderPlan()
+
+    await screen.findByText('★ Família Fundadora')
+    expect(screen.getByRole('radio', { name: /Verde-azulado/ })).toBeChecked()
+    // The same theme again sends nothing.
+    fireEvent.click(screen.getByRole('radio', { name: /Verde-azulado/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /Oceano/ }))
+
+    await waitFor(() => expect(body).toEqual({ theme: 'OCEAN' }))
+    expect(puts).toBe(1)
+  })
+
+  it('themeErrorShowsDetail', async () => {
+    const workspace = seedMockFamily()
+    plan(workspace.id, FOUNDER)
+    server.use(
+      http.put(`${API_URL}/v1/workspaces/${workspace.id}/billing/plan/theme`, () =>
+        problem(403, 'plan.required', 'Este recurso é do plano Família.'),
+      ),
+    )
+    renderPlan()
+
+    await screen.findByText('★ Família Fundadora')
+    fireEvent.click(screen.getByRole('radio', { name: /Floresta/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Este recurso é do plano Família.')
+  })
+
+  it('refundErrorShowsDetail', async () => {
+    const workspace = seedMockFamily()
+    plan(workspace.id, FOUNDER)
+    server.use(
+      http.post(`${API_URL}/v1/workspaces/${workspace.id}/billing/orders/o1/refund`, () =>
+        problem(409, 'billing.refund-window-closed', 'O prazo de 7 dias já passou.'),
+      ),
+    )
+    renderPlan()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Receber meu dinheiro de volta' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Receber os R$ 89,00 de volta' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('O prazo de 7 dias já passou.')
+  })
+
+  it('nonOwnerFounderHasNoControls', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'ADULT'
+    plan(workspace.id, { ...FOUNDER, canRefund: false })
+    renderPlan()
+
+    expect(await screen.findByText('★ Família Fundadora')).toBeInTheDocument()
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByText('Quem cuida do plano é o Dono da família')).toBeInTheDocument()
+  })
+
+  it('offlineDisablesRefundAndThemes', async () => {
+    const workspace = seedMockFamily()
+    plan(workspace.id, FOUNDER)
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderPlan()
+
+    expect(
+      await screen.findByRole('button', { name: 'Receber meu dinheiro de volta' }),
+    ).toBeDisabled()
+    for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled()
   })
 
   it('founderWithinSevenDaysCanRefund', async () => {

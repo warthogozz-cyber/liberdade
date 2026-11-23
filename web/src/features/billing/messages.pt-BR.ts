@@ -16,6 +16,9 @@ export const billingMessages = {
   'billing.endsOnLong': 'Seu plano vale até {date}.',
   'billing.noAutoCharge': 'Não existe cobrança automática.',
   'billing.contact': 'Dúvidas? Escreva para {email}.',
+  'billing.stalled':
+    'Ainda não recebemos a confirmação do Asaas. Volte a esta tela mais tarde: o plano aparece aqui assim que o pagamento for confirmado.',
+  'billing.notCompleted': 'O pagamento não foi concluído. Você pode tentar de novo quando quiser.',
   'billing.waiting':
     'Estamos esperando a confirmação do Asaas. Pode fechar esta tela; avisamos aqui quando chegar.',
   'billing.refundPending': 'Reembolso em processamento',
@@ -26,7 +29,7 @@ export const billingMessages = {
   'billing.refund.open': 'Receber meu dinheiro de volta',
   'billing.refund.title': 'Receber o dinheiro de volta?',
   'billing.refund.body':
-    'Sua família volta ao plano Grátis e o dinheiro é devolvido pelo Asaas, no mesmo meio do pagamento.',
+    'O plano termina na hora: o tema e o selo voltam ao padrão e nenhum dado da família é apagado. O dinheiro volta pelo mesmo meio do pagamento, pelo Asaas.',
   'billing.refund.confirm': 'Receber os R$ 89,00 de volta',
   'billing.refund.keep': 'Continuar Fundadora',
   'billing.theme': 'Tema',
