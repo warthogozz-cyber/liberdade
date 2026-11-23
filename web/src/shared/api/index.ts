@@ -76,4 +76,4 @@ export type {
   UpdateTransactionRequest,
   WorkspaceView,
 } from './types'
-export { useFormatMoney, useLocale } from './useFormatMoney'
+export { useCachedLocale, useFormatMoney, useLocale } from './useFormatMoney'

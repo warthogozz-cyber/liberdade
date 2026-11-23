@@ -65,7 +65,11 @@ export function useWorkspaces(): MeWorkspace[] {
  * the user's families. `undefined` while there is none.
  */
 export function useCurrentWorkspace(): MeWorkspace | undefined {
-  const workspaces = useWorkspaces()
+  return useChosenWorkspace(useWorkspaces())
+}
+
+/** The family this device chose among `workspaces`; see `useCurrentWorkspace`. */
+export function useChosenWorkspace(workspaces: MeWorkspace[]): MeWorkspace | undefined {
   const chosen = useSyncExternalStore(
     subscribeToWorkspaceChoice,
     readSelectedWorkspaceId,

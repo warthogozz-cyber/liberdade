@@ -3,7 +3,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import type { ReactNode } from 'react'
 import { IntlProvider } from 'react-intl'
 import { ReauthProvider } from '@/shared/auth/ReauthProvider'
-import { useLocale } from '@/shared/api'
+import { useCachedLocale } from '@/shared/api'
 import { useAppMessages } from '@/shared/i18n'
 import { persistOptions } from '@/shared/offline'
 import { ToastProvider } from '@/shared/ui'
@@ -16,7 +16,7 @@ interface AppProvidersProps {
 /** The messages, in the current family's locale; it reads the family, so it sits inside the cache. */
 function FamilyIntl({ children }: { children: ReactNode }) {
   return (
-    <IntlProvider locale={useLocale()} messages={useAppMessages()}>
+    <IntlProvider locale={useCachedLocale()} messages={useAppMessages()}>
       {children}
     </IntlProvider>
   )
