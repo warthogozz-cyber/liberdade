@@ -56,6 +56,11 @@ test('coreWorksWithEveryModuleOff: the core is whole when no module is on (S2)',
   await expect(bar.getByRole('listitem')).toHaveCount(4)
   await page.goto('/inicio')
   await expect(page.getByText('Saldo total')).toBeVisible()
+  // An address typed by hand does not open the planning hub either: it lands on the home.
+  await page.goto('/planejar')
+  await expect(page).toHaveURL('/inicio')
+  await expect(page.getByRole('heading', { level: 1, name: 'Planejar' })).toHaveCount(0)
+  await expect(page.getByText('Saldo total')).toBeVisible()
   for (const name of [
     'Orçamento do mês',
     'Reserva de emergência',

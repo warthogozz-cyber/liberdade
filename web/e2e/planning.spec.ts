@@ -28,12 +28,34 @@ test('budget crossing 80% shows the toast', async ({ page }) => {
   })
 
   await recordExpense(page, '100', '🛒 Mercado')
-  await waitForQueueToEmpty(page)
-  await page.goto('/inicio')
-  await expect(page.getByRole('heading', { level: 2, name: 'Orçamento do mês' })).toBeVisible()
-  // The card now reads 86%, so the second expense reached the budget, and still no new toast.
-  await expect(page.getByRole('meter', { name: 'Mercado' })).toHaveAttribute('aria-valuenow', '86')
+  // From here the page is never reloaded: a reload would throw a late toast away and the checks
+  // below could not fail. The marker proves it is the same document at the end.
+  await page.evaluate(() => {
+    ;(window as unknown as { sameDocument: boolean }).sameDocument = true
+  })
+  // Leave through the bar, and wait for the queue to sync on the list, still in the same document.
+  await page.getByRole('link', { name: 'Lançamentos' }).click()
+  await expect(page).toHaveURL('/lancamentos')
+  await expect(page.getByText('Aguardando sinal')).toHaveCount(0, { timeout: 20_000 })
+  // Back on the home the card reads 86%, so the second expense reached the budget.
+  await page.getByRole('link', { name: 'Início' }).click()
+  await expect(page.getByRole('meter', { name: 'Mercado' })).toHaveAttribute(
+    'aria-valuenow',
+    '86',
+    { timeout: 20_000 },
+  )
+  // Give a toast the time to show, longer than the sync takes to reach the watcher.
+  await page.waitForTimeout(3_000)
+
   await expect(notices(page).getByText(/Mercado: (chegou|passou)/)).toHaveCount(0)
+  const seen = await page.evaluate(() =>
+    Object.keys(localStorage).filter((key) => key.startsWith('liberdade.budget-toast:')),
+  )
+  expect(seen.filter((key) => key.endsWith(':80'))).toHaveLength(1)
+  expect(seen.filter((key) => key.endsWith(':100'))).toHaveLength(0)
+  expect(
+    await page.evaluate(() => (window as unknown as { sameDocument?: boolean }).sameDocument),
+  ).toBe(true)
 })
 
 test('closing the month copies limits', async ({ page }) => {
