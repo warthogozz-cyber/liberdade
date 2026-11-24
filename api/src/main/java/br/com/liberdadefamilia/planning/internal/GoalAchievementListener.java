@@ -14,7 +14,10 @@ import org.springframework.transaction.event.TransactionalEventListener;
 /**
  * Marks reached the goals that follow an account once the ledger moved it (D4, D9): after the ledger's transaction
  * commits, in a transaction of its own. A failure never undoes or fails the ledger's change; it is logged by its class
- * only, and the next read of the goals does the check again. Marking is idempotent, so a repeated event is harmless.
+ * only, and the next read of the goals does the check again.
+ *
+ * <p>The listener is idempotent: the {@code UPDATE} only writes where {@code achieved_at IS NULL}, so a repeated event
+ * marks nothing and publishes nothing. The check on read covers a listener that failed.
  */
 @Component
 class GoalAchievementListener {

@@ -2,6 +2,7 @@ package br.com.liberdadefamilia.workspace.internal;
 
 import br.com.liberdadefamilia.identity.UserDirectory;
 import br.com.liberdadefamilia.identity.UserSummary;
+import br.com.liberdadefamilia.workspace.MemberProfileChanged;
 import br.com.liberdadefamilia.workspace.MemberRemoved;
 import br.com.liberdadefamilia.workspace.MemberRoleChanged;
 import br.com.liberdadefamilia.workspace.MembershipStatus;
@@ -56,7 +57,8 @@ class MemberService {
     }
 
     /**
-     * Applies the change and publishes {@link MemberRoleChanged} when the role moved.
+     * Applies the change and publishes {@link MemberRoleChanged} when the role moved and {@link MemberProfileChanged} when the
+     * nickname did.
      *
      * {@code requireRecentSignIn} runs only when the role really changes, decided here with the owners locked.
      *
@@ -103,6 +105,9 @@ class MemberService {
             consentBy = caller.userId();
         }
         members.update(workspaceId, membershipId, roleChanges ? newRole : null, request.nickname(), consentBy);
+        if (request.nickname() != null && !request.nickname().equals(target.nickname())) {
+            events.publishEvent(new MemberProfileChanged(workspaceId, membershipId));
+        }
         if (roleChanges) {
             events.publishEvent(
                     new MemberRoleChanged(workspaceId, membershipId, target.role(), newRole, caller.userId()));

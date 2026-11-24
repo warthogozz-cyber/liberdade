@@ -5,6 +5,7 @@ import br.com.liberdadefamilia.billing.Plans;
 import br.com.liberdadefamilia.ledger.AccountRef;
 import br.com.liberdadefamilia.ledger.LedgerFigures;
 import br.com.liberdadefamilia.planning.GoalArchived;
+import br.com.liberdadefamilia.planning.GoalChanged;
 import br.com.liberdadefamilia.planning.domain.GoalIcon;
 import br.com.liberdadefamilia.planning.domain.SuggestedContribution;
 import br.com.liberdadefamilia.shared.Money;
@@ -129,6 +130,7 @@ class GoalService {
                 icon.key(),
                 linked,
                 member.membershipId());
+        events.publishEvent(new GoalChanged(workspaceId, id));
         return reachedView(member, goals.find(workspaceId, id).orElseThrow(), current);
     }
 
@@ -166,6 +168,7 @@ class GoalService {
                 clock.instant())) {
             throw GoalRejectedException.versionConflict();
         }
+        events.publishEvent(new GoalChanged(workspaceId, id));
         return reachedView(member, goals.find(workspaceId, id).orElseThrow(), current);
     }
 
@@ -215,6 +218,7 @@ class GoalService {
         if (saved.compareTo(row.targetAmount()) >= 0) {
             goals.markReached(workspaceId, id, clock.instant());
         }
+        events.publishEvent(new GoalChanged(workspaceId, id));
         return contributionView(contribution);
     }
 
@@ -229,8 +233,9 @@ class GoalService {
     }
 
     /**
-     * Marks reached the active goals that follow one of the accounts and whose balance got to the target (D9). It runs
-     * in a transaction of its own, after the ledger's committed (D4).
+     * Marks reached the active goals that follow one of the accounts and whose balance got to the target (D9), and
+     * publishes {@link GoalChanged} for each one it marked. It runs in a transaction of its own, after the ledger's
+     * committed (D4).
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     void reachLinked(UUID workspaceId, Collection<UUID> accountIds) {
@@ -238,7 +243,9 @@ class GoalService {
         for (GoalRepository.Row row : goals.linkedUnreached(workspaceId, accountIds)) {
             UUID account = row.linkedAccountId();
             if (account != null && balanceOf(workspaceId, account, balances).compareTo(row.targetAmount()) >= 0) {
-                goals.markReached(workspaceId, row.id(), clock.instant());
+                if (goals.markReached(workspaceId, row.id(), clock.instant())) {
+                    events.publishEvent(new GoalChanged(workspaceId, row.id()));
+                }
             }
         }
     }

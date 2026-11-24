@@ -1,27 +1,32 @@
 package br.com.liberdadefamilia.ledger.internal;
 
+import br.com.liberdadefamilia.ledger.CategoryChanged;
 import br.com.liberdadefamilia.ledger.TransactionKind;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.time.Clock;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Creates, edits, archives and brings back the family's categories. A subcategory has a top-level parent of the same
- * kind and no children of its own (D7). Error messages and logs never carry a name.
+ * kind and no children of its own (D7). Error messages and logs never carry a name. Every change publishes
+ * {@link CategoryChanged} inside its transaction.
  */
 @Service
 class CategoryService {
 
     private final CategoryRepository categories;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
-    CategoryService(CategoryRepository categories, Clock clock) {
+    CategoryService(CategoryRepository categories, Clock clock, ApplicationEventPublisher events) {
         this.categories = categories;
         this.clock = clock;
+        this.events = events;
     }
 
     /**
@@ -49,6 +54,7 @@ class CategoryService {
         }
         UUID id = nameTakenIfDuplicate(() -> categories.insert(
                 workspaceId, request.name(), request.kind(), request.icon(), request.color(), parentId));
+        events.publishEvent(new CategoryChanged(workspaceId, id));
         return view(workspaceId, id);
     }
 
@@ -66,6 +72,7 @@ class CategoryService {
         }
         nameTakenIfDuplicate(() -> categories.update(
                 workspaceId, categoryId, request.name(), request.icon(), request.color(), request.isFixed()));
+        events.publishEvent(new CategoryChanged(workspaceId, categoryId));
         return view(workspaceId, categoryId);
     }
 
@@ -84,7 +91,9 @@ class CategoryService {
                 throw new LedgerRejectedException(
                         "category.last-active", "É preciso manter pelo menos uma categoria ativa desse tipo.");
             }
-            categories.archiveWithChildren(workspaceId, categoryId, clock.instant());
+            if (categories.archiveWithChildren(workspaceId, categoryId, clock.instant())) {
+                events.publishEvent(new CategoryChanged(workspaceId, categoryId));
+            }
         }
         return view(workspaceId, categoryId);
     }
@@ -111,7 +120,9 @@ class CategoryService {
                 throw new LedgerRejectedException(
                         "category.parent-archived", "Reative a categoria principal primeiro.");
             }
-            nameTakenIfDuplicate(() -> categories.unarchiveWithChildren(workspaceId, categoryId));
+            if (nameTakenIfDuplicate(() -> categories.unarchiveWithChildren(workspaceId, categoryId))) {
+                events.publishEvent(new CategoryChanged(workspaceId, categoryId));
+            }
         }
         return view(workspaceId, categoryId);
     }

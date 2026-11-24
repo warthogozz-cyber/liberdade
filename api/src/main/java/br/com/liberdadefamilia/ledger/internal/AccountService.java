@@ -1,11 +1,13 @@
 package br.com.liberdadefamilia.ledger.internal;
 
 import br.com.liberdadefamilia.ledger.AccountChanged;
+import br.com.liberdadefamilia.ledger.AccountOwnerChanged;
 import br.com.liberdadefamilia.ledger.internal.AccountRepository.AccountChoice;
 import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.workspace.Memberships;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.time.Clock;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
@@ -16,7 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Creates, edits, archives and brings back the family's accounts. Error messages and logs never carry a name or an
- * amount. A change to an existing account publishes {@link AccountChanged} inside its transaction.
+ * amount. A new account, or a change to an existing one, publishes {@link AccountChanged} inside its transaction; a
+ * new owner publishes {@link AccountOwnerChanged}.
  */
 @Service
 class AccountService {
@@ -49,6 +52,7 @@ class AccountService {
         }
         UUID id = nameTakenIfDuplicate(
                 () -> accounts.insert(workspaceId, request.name(), request.type(), request.initialBalance(), owner));
+        events.publishEvent(new AccountChanged(workspaceId, id));
         return view(member, id);
     }
 
@@ -85,11 +89,14 @@ class AccountService {
     @Transactional
     AccountView setOwner(WorkspaceMember member, UUID accountId, @Nullable UUID ownerMembershipId) {
         UUID workspaceId = member.workspaceId();
-        find(member, accountId);
+        UUID formerOwner = find(member, accountId).ownerMembershipId();
         if (ownerMembershipId != null && !memberships.isActive(workspaceId, ownerMembershipId)) {
             throw new LedgerRejectedException("account.owner-not-found", "Essa pessoa não faz parte da família.");
         }
         accounts.setOwner(workspaceId, accountId, ownerMembershipId);
+        if (!Objects.equals(formerOwner, ownerMembershipId)) {
+            events.publishEvent(new AccountOwnerChanged(workspaceId, accountId, formerOwner, ownerMembershipId));
+        }
         return view(member, accountId);
     }
 

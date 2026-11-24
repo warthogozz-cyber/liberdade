@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
@@ -12,6 +13,9 @@ public interface Memberships {
 
     /** Whether the membership is an ACTIVE one of this family. */
     boolean isActive(UUID workspaceId, UUID membershipId);
+
+    /** The ones among these memberships that are ACTIVE, in one query; none for an empty collection. */
+    Set<UUID> activeAmong(Collection<UUID> membershipIds);
 
     /** The membership as the caller of a request would be, if it is an ACTIVE one of this family; else empty. */
     Optional<WorkspaceMember> activeMember(UUID workspaceId, UUID membershipId);
