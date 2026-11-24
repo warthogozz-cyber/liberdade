@@ -200,13 +200,14 @@ describe('SessionLayout across tabs', () => {
   })
 
   it('clears the session and reloads at /inicio when another person signed in', async () => {
-    // Read at the moment of the reload: a screen still mounted may start fetching the session again
-    // right after the clear, and that is not what this test is about.
-    let meWhenReloading: unknown = 'unread'
+    // A screen still mounted may fetch the session again right after the clear, before the reload,
+    // so the test watches the clear itself instead of the cache at the moment of the reload.
+    let meCleared = false
     const { queryClient } = await openHome()
-    const assign = vi.fn<(url: string) => void>(() => {
-      meWhenReloading = queryClient.getQueryData(['me'])
+    queryClient.getQueryCache().subscribe((event) => {
+      if (event.type === 'removed' && event.query.queryKey[0] === 'me') meCleared = true
     })
+    const assign = vi.fn<(url: string) => void>()
     vi.stubGlobal('location', { ...window.location, assign })
 
     new FakeBroadcastChannel('liberdade-session').postMessage({
@@ -215,6 +216,6 @@ describe('SessionLayout across tabs', () => {
     })
 
     await waitFor(() => expect(assign).toHaveBeenCalledExactlyOnceWith('/inicio'))
-    expect(meWhenReloading).toBeUndefined()
+    expect(meCleared).toBe(true)
   })
 })

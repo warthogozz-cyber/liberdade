@@ -14,3 +14,17 @@ registerSlot('workspace', {
   roles: ['OWNER', 'ADULT', 'VIEWER', 'YOUTH'],
   Component: lazy(() => import('./PlanningInvalidator')),
 })
+
+registerSlot('workspace', {
+  key: 'planning-budget-toast',
+  module: 'planning',
+  roles: ['OWNER', 'ADULT'],
+  Component: lazy(() => import('./BudgetToastWatcher')),
+})
+
+registerSlot('home', {
+  key: 'planning-budget-card',
+  module: 'planning',
+  roles: ['OWNER', 'ADULT', 'VIEWER'],
+  Component: lazy(() => import('./BudgetHomeCard')),
+})

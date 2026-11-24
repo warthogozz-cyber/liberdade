@@ -1,6 +1,6 @@
 /**
- * The text of the planning module's hub and, until their own tasks replace them, its placeholder
- * screens. It loads with the module (see `register.ts`), never with the app.
+ * The text of the planning module's hub, the budget screen and, until their own tasks replace
+ * them, the other placeholder screens. It loads with the module (see `register.ts`), never with the app.
  */
 export const planningMessages = {
   'planning.title': 'Planejar',
@@ -10,6 +10,39 @@ export const planningMessages = {
   'planning.goals.description': 'O que a família está juntando',
   'planning.reserve.title': 'Reserva',
   'planning.reserve.description': 'Quantos meses de gastos estão guardados',
+  'planning.budget.of': '{spent} de {limit}',
+  'planning.budget.usage': '{percent}%',
+  'planning.budget.near': 'Chegou a 80% do limite',
+  'planning.budget.at': 'Chegou ao limite',
+  'planning.budget.over': 'Passou {amount}',
+  'planning.budget.define': 'Definir limite',
+  'planning.budget.copy': 'Copiar do mês anterior',
+  'planning.budget.copied': '{count, plural, one {# limite copiado} other {# limites copiados}}',
+  'planning.budget.copyNone': 'Não há limites novos para copiar.',
+  'planning.budget.empty': 'Nenhum limite neste mês.',
+  'planning.budget.offline': 'Sem conexão. Limites precisam de internet.',
+  'planning.budget.conflict': 'Esse limite mudou. Confira o valor.',
+  'planning.budget.failed': 'Não deu para salvar o limite. Tente de novo.',
+  'planning.budget.loadFailed': 'Não deu para carregar os limites.',
+  'planning.budget.sheet.new': 'Definir limite',
+  'planning.budget.sheet.edit': 'Limite de {category}',
+  'planning.budget.sheet.category': 'Categoria',
+  'planning.budget.sheet.choose': 'Escolha uma categoria',
+  'planning.budget.sheet.limit': 'Limite do mês',
+  'planning.budget.sheet.invalid': 'Digite um valor maior que zero, como 500,00.',
+  'planning.budget.sheet.save': 'Salvar',
+  'planning.budget.sheet.remove': 'Remover limite',
+  'planning.budget.sheet.removed': 'Limite removido.',
+  'planning.budget.sheet.saved': 'Limite salvo.',
+  'planning.budget.sheet.noCategories': 'Todas as categorias de gasto já têm limite neste mês.',
+  'planning.budget.toast.near': '{category}: chegou a 80% do limite',
+  'planning.budget.toast.at': '{category}: chegou ao limite',
+  'planning.budget.toast.over': '{category}: passou {amount} do limite',
+  'planning.home.title': 'Orçamento do mês',
+  'planning.home.summary': '{month}: {within} de {total} categorias dentro do limite',
+  'planning.home.copy': 'Copiar limites',
+  'planning.home.dismiss': 'Agora não',
+  'planning.home.open': 'Ver orçamento',
   'planning.recurrences.title': 'Recorrências',
   'planning.recurrences.description': 'Contas que se repetem',
 } as const

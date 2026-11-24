@@ -4,6 +4,7 @@
  * the initial load. Every call needs the connection: none goes through the offline queue.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { emitLocalAction } from '@/shared/events'
 import { client, unwrap } from './client'
 import { queryKeys } from './queryKeys'
 import type {
@@ -116,11 +117,19 @@ export function useArchiveRule(ws: string) {
   })
 }
 
-/** Confirms a planned transaction. */
+/** Confirms a planned transaction, and tells the device's listeners it is now a saved expense (D17). */
 export function useConfirmPlanned(ws: string) {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: ConfirmTransactionRequest }) =>
       confirmPlanned(ws, id, body),
+    onSuccess: (confirmed) =>
+      emitLocalAction({
+        type: 'transaction-saved',
+        workspaceId: ws,
+        ...(confirmed.categoryId ? { categoryId: confirmed.categoryId } : {}),
+        month: confirmed.occurredOn.slice(0, 7),
+        fromQueue: false,
+      }),
     onSettled: useRefreshWorkspace(ws),
   })
 }
