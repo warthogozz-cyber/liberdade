@@ -3,6 +3,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { useAccounts, useCurrentWorkspace, type MeWorkspace } from '@/shared/api'
 import { useGoals, type GoalView } from '@/shared/api/planning'
 import { useOnline } from '@/shared/offline'
+import { celebrationSound } from '@/shared/sound'
 import { useDocumentTitle } from '@/shared/ui'
 import { celebrateNew, useCelebrationQueue } from './celebration'
 import { GoalCelebrations } from './GoalCelebration'
@@ -50,7 +51,10 @@ function GoalsContent({ workspace }: { workspace: MeWorkspace }) {
   useEffect(() => {
     if (!data) return
     const reached = celebrateNew(workspace.id, data.goals, new Date())
-    if (reached.length > 0) add(reached)
+    if (reached.length > 0) {
+      add(reached)
+      celebrationSound(workspace.id)
+    }
   }, [data, workspace.id, add])
 
   const list = data?.goals ?? []

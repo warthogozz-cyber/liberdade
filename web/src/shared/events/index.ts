@@ -1,1 +1,1 @@
-export { emitLocalAction, onLocalAction, type LocalAction } from './localActions'
+export { emitLocalAction, lastLocalActionAt, onLocalAction, type LocalAction } from './localActions'

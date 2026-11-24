@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.ledger.internal;
 
+import br.com.liberdadefamilia.ledger.TagChanged;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.time.Clock;
 import java.util.LinkedHashMap;
@@ -8,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,11 +27,13 @@ class TagService {
     private final TagRepository tags;
     private final AccountRepository accounts;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
-    TagService(TagRepository tags, AccountRepository accounts, Clock clock) {
+    TagService(TagRepository tags, AccountRepository accounts, Clock clock, ApplicationEventPublisher events) {
         this.tags = tags;
         this.accounts = accounts;
         this.clock = clock;
+        this.events = events;
     }
 
     /** The active tags the member may see. */
@@ -88,6 +92,7 @@ class TagService {
         } catch (DuplicateKeyException e) {
             throw new LedgerConflictException("tag.name-taken", "Já existe uma tag com esse nome.");
         }
+        events.publishEvent(new TagChanged(workspaceId, id));
         return tags.findActive(workspaceId, id).orElseThrow(TagService::notFound);
     }
 

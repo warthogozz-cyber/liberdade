@@ -13,9 +13,11 @@ import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Currency;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
@@ -60,6 +62,17 @@ class JdbcMemberships implements Memberships {
                 .param("membershipId", membershipId)
                 .query(Boolean.class)
                 .single();
+    }
+
+    @Override
+    public Set<UUID> activeAmong(Collection<UUID> membershipIds) {
+        if (membershipIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(jdbc.sql("select id from memberships where id in (:ids) and status = 'ACTIVE'")
+                .param("ids", membershipIds)
+                .query(UUID.class)
+                .list());
     }
 
     @Override

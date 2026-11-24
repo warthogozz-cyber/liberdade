@@ -64,6 +64,12 @@ export function MorePage() {
         <FormattedMessage id="more.privacy" />
       </Link>
       <Link
+        to="/mais/ajustes"
+        className="flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <FormattedMessage id="more.settings" />
+      </Link>
+      <Link
         to="/painel"
         className="flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >

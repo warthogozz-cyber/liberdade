@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { onlineManager } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -7,6 +7,7 @@ import { mockState, seedMockFamily } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL, queryKeys, type CreateTransactionRequest, type MeWorkspace } from '@/shared/api'
+import { markRemoteArrival, resetLocalChanges } from '@/shared/live/localChanges'
 import { db } from '@/shared/offline'
 import {
   createTestQueryClient,
@@ -27,6 +28,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  resetLocalChanges()
   cleanup()
   vi.useRealTimers()
   vi.restoreAllMocks()
@@ -609,5 +611,48 @@ describe('TransactionsPage, account filter and undo offline', () => {
     // The queue is read after the list; give it the time it takes.
     await new Promise((resolve) => setTimeout(resolve, 100))
     expect(screen.queryByText('Nenhum lançamento neste mês.')).not.toBeInTheDocument()
+  })
+})
+
+describe('TransactionsPage live arrivals', () => {
+  const OTHER_ID = '0192f3a4-0000-7000-8000-0000000000b4'
+  const THIRD_ID = '0192f3a4-0000-7000-8000-0000000000b5'
+  const ANNOUNCEMENT = 'Lançamento novo na lista.'
+
+  /** The polite region, with the text it holds. */
+  const region = () => document.querySelector('.sr-only[aria-live="polite"]')!
+
+  it('announcesArrivalOnce', async () => {
+    const workspace = seedMockFamily()
+    renderWithCachedMercado(workspace)
+    await screen.findAllByText(/Mercado/)
+    expect(region()).toHaveTextContent('')
+
+    act(() => markRemoteArrival(MERCADO_ID))
+
+    await waitFor(() => expect(region()).toHaveTextContent(ANNOUNCEMENT))
+    expect(region()).toHaveClass('sr-only')
+    expect(screen.getAllByText(ANNOUNCEMENT)).toHaveLength(1)
+  })
+
+  it('announcesAtMostEveryTenSeconds', async () => {
+    const workspace = seedMockFamily()
+    storeOnServer(workspace, request(OTHER_ID, 'Mercado', { occurredOn: '2026-11-15' }))
+    storeOnServer(workspace, request(THIRD_ID, 'Mercado', { occurredOn: '2026-11-15' }))
+    renderWithCachedMercado(workspace)
+    await screen.findAllByText(/Mercado/)
+
+    act(() => markRemoteArrival(MERCADO_ID))
+    await waitFor(() => expect(region()).toHaveTextContent(ANNOUNCEMENT))
+    const first = region().firstElementChild
+
+    vi.setSystemTime('2026-11-15T15:00:03Z')
+    act(() => markRemoteArrival(OTHER_ID))
+    expect(region().firstElementChild).toBe(first)
+
+    vi.setSystemTime('2026-11-15T15:00:11Z')
+    act(() => markRemoteArrival(THIRD_ID))
+    await waitFor(() => expect(region().firstElementChild).not.toBe(first))
+    expect(region()).toHaveTextContent(ANNOUNCEMENT)
   })
 })

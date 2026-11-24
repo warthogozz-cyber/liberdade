@@ -93,6 +93,7 @@ export const planningMessages = {
   'planning.reserve.saved': 'Reserva atualizada.',
   'planning.reserve.homeTitle': 'Reserva de emergência',
   'planning.reserve.open': 'Ver reserva',
+  'planning.reserve.celebration': 'Reserva completa: {months} meses guardados!',
   'planning.budget.of': '{spent} de {limit}',
   'planning.budget.usage': '{percent}%',
   'planning.budget.near': 'Chegou a 80% do limite',

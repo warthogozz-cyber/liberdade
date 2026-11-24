@@ -20,5 +20,6 @@ quando houver, custo. Um ADR aceito não é editado; se a decisão mudar, um nov
 | [0013](0013-property-tests-without-jqwik.md) | Testes de propriedade sem jqwik | Aceito |
 | [0014](0014-dns-cloudflare-and-costs.md) | DNS no Cloudflare e custos atualizados | Aceito |
 | [0015](0015-revenue-model-and-billing.md) | Modelo de receita e cobrança | Aceito |
+| [0016](0016-live-sync-sse-in-process.md) | Avisos ao vivo por SSE, no processo | Aceito |
 
 Modelo: [0001](0001-record-architecture-decisions.md).

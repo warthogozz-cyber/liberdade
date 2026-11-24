@@ -10,6 +10,7 @@ import {
   type MeWorkspace,
   type PaymentMethod,
 } from '@/shared/api'
+import { useReducedMotion } from '@/shared/motion'
 import { addMonths, currentMonth, maxMonth, monthFromParam } from '@/shared/i18n'
 import { parseCents } from '@/shared/money'
 import { useOnline, usePendingTotals } from '@/shared/offline'
@@ -46,10 +47,6 @@ export function DashboardPage() {
       )}
     </main>
   )
-}
-
-function readAnimate(): boolean {
-  return !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 }
 
 /** The axes take the current theme's text color. */
@@ -108,7 +105,7 @@ function DashboardScreen({ userId, workspace }: { userId: string; workspace: MeW
       intl.formatDate(`${value}-01T00:00:00Z`, { month: 'long', timeZone: 'UTC' })
     return { current: name(month), previous: name(addMonths(month, -1)) }
   }, [month, intl])
-  const animate = readAnimate()
+  const animate = !useReducedMotion()
   const textColor = readTextColor()
   const options = useMemo(() => {
     const opts = { animate, textColor, format }

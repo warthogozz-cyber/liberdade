@@ -19,7 +19,7 @@ export function Sheet({ open, onOpenChange, title, children }: SheetProps) {
         {/* The title names the sheet; its contents vary too much for one description. */}
         <Dialog.Content
           aria-describedby={undefined}
-          className="fixed inset-x-0 bottom-0 z-40 mx-auto max-h-[85vh] max-w-lg overflow-y-auto rounded-t-sheet bg-surface p-6 shadow-lg"
+          className="fixed inset-x-0 bottom-0 z-40 mx-auto max-h-[85vh] max-w-lg overflow-y-auto rounded-t-sheet bg-surface p-6 shadow-lg motion-safe:animate-sheet-in"
         >
           <div className="mb-4 flex items-center justify-between gap-4">
             <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>

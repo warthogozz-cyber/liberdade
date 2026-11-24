@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
-import { checkBudget, composition } from './chunk-budget.mjs'
+import { checkBudget, composition, lazyOnly } from './chunk-budget.mjs'
 
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist')
 const manifest = JSON.parse(readFileSync(join(dist, '.vite', 'manifest.json'), 'utf8'))
@@ -22,7 +22,13 @@ if (existsSync(modulesPath)) {
     console.table(parts.filter((p) => p.kind === kind).slice(0, 15))
   }
 }
-if (!ok) {
-  console.error('A chunk is over its budget (gzip, KB).')
-  process.exit(1)
-}
+// The achievement sound's synthesizer loads only when a sound plays (D13).
+const lazy = lazyOnly(
+  manifest,
+  ['src/shared/sound/synth.ts'],
+  existsSync(modulesPath) ? JSON.parse(readFileSync(modulesPath, 'utf8')) : {},
+)
+if (!lazy.ok)
+  console.error('Loaded in the first load, must be on demand: ' + lazy.offenders.join(', '))
+if (!ok) console.error('A chunk is over its budget (gzip, KB).')
+if (!ok || !lazy.ok) process.exit(1)

@@ -53,8 +53,9 @@ class AccountRepository {
         this.jdbc = jdbc;
     }
 
-    /** What a new transaction needs to know about an account: its currency, and whether it is archived. */
-    record AccountChoice(Currency currency, boolean archived) {}
+    /** What a write needs to know about an account: its currency, whether it is archived, and who owns it. */
+    record AccountChoice(
+            Currency currency, boolean archived, @Nullable UUID ownerMembershipId) {}
 
     /**
      * The accounts the member may see and record in (D13): for the youth, the accounts whose owner is their membership,
@@ -194,7 +195,7 @@ class AccountRepository {
      */
     Optional<AccountChoice> choice(UUID workspaceId, UUID accountId, AccountScope scope) {
         return jdbc.sql("""
-                        select currency, archived_at is not null as archived
+                        select currency, archived_at is not null as archived, owner_membership_id
                         from accounts
                         where workspace_id = :workspaceId
                           and id = :accountId
@@ -202,8 +203,10 @@ class AccountRepository {
                 .param("workspaceId", workspaceId)
                 .param("scopeIds", scope.sqlArray())
                 .param("accountId", accountId)
-                .query((rs, row) ->
-                        new AccountChoice(Currency.getInstance(rs.getString("currency")), rs.getBoolean("archived")))
+                .query((rs, row) -> new AccountChoice(
+                        Currency.getInstance(rs.getString("currency")),
+                        rs.getBoolean("archived"),
+                        rs.getObject("owner_membership_id", UUID.class)))
                 .optional();
     }
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { useSearchParams } from 'react-router'
 import {
@@ -19,6 +19,7 @@ import {
 } from '@/shared/api'
 import { useMembers } from '@/shared/api/family'
 import { addDays, localDate, maxMonth, monthFromParam } from '@/shared/i18n'
+import { isRecentArrival, onArrival } from '@/shared/live/localChanges'
 import { useOnline, useOutbox, type OutboxItem } from '@/shared/offline'
 import { DataAsOf, useDocumentTitle, useToast } from '@/shared/ui'
 import { MonthSwitcher } from '@/shared/ui/MonthSwitcher'
@@ -26,6 +27,12 @@ import { groupByDay, mergeTransactions, plannedOf } from './listItems'
 import { PlannedSection } from './PlannedSection'
 import { TransactionFilters } from './TransactionFilters'
 import { TransactionRow } from './TransactionRow'
+
+/** The least time between two announcements of new entries to a screen reader. */
+const ANNOUNCE_EVERY_MS = 10_000
+
+/** The clock, apart so the effect that reads it is not mistaken for a render. */
+const clock = () => Date.now()
 
 const outlineButton =
   'min-h-12 rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
@@ -293,6 +300,33 @@ function TransactionList({
   const groups = groupByDay(mergeTransactions(transactions.data, queued))
   const planned = plannedOf(transactions.data)
 
+  // An arrival is marked when the stream says so, which can be after the list drew.
+  const [arrivalCount, redraw] = useReducer((count: number) => count + 1, 0)
+  useEffect(() => onArrival(redraw), [])
+  const announced = useRef(new Set<string>())
+  const lastAnnounced = useRef(Number.NEGATIVE_INFINITY)
+  const [announcement, setAnnouncement] = useState<{ text: string; count: number } | null>(null)
+  const shownIds = groups
+    .flatMap((group) => group.items)
+    .filter((item) => item.outbox === undefined)
+    .map((item) => item.id)
+    .join(',')
+  useEffect(() => {
+    const at = clock()
+    const arrivals = shownIds
+      .split(',')
+      .filter((id) => id && isRecentArrival(id, at) && !announced.current.has(id))
+    if (arrivals.length === 0) return
+    // Within the interval the arrival waits, unannounced, for a later render.
+    if (at - lastAnnounced.current < ANNOUNCE_EVERY_MS) return
+    for (const id of arrivals) announced.current.add(id)
+    lastAnnounced.current = at
+    setAnnouncement((previous) => ({
+      text: intl.formatMessage({ id: 'transactions.newArrival' }),
+      count: (previous?.count ?? 0) + 1,
+    }))
+  }, [shownIds, arrivalCount, intl])
+
   function failed(error: unknown) {
     console.error(error)
     toast.show({ message: intl.formatMessage({ id: 'common.actionFailed' }) })
@@ -334,6 +368,9 @@ function TransactionList({
 
   return (
     <>
+      <div aria-live="polite" className="sr-only">
+        {announcement && <span key={announcement.count}>{announcement.text}</span>}
+      </div>
       <PlannedSection
         workspace={workspace}
         planned={planned}

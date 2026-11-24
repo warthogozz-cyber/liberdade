@@ -48,7 +48,8 @@ async function expectNoViolationsWith(
   ensureHeading: () => Promise<void>,
 ): Promise<void> {
   for (const colorScheme of ['light', 'dark'] as const) {
-    await page.emulateMedia({ colorScheme })
+    // Without motion, a sheet is fully opaque at once: axe would read colors mid-fade-in.
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' })
     await ensureHeading()
     await expect(ready).toBeVisible()
     const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze()
@@ -135,6 +136,11 @@ test('the family screens meet WCAG 2.2 AA in both themes', async ({ page }) => {
       ready: page.getByText('Nenhum lançamento neste mês.'),
     },
     { path: '/mais', heading: 'Mais', ready: page.getByRole('button', { name: 'Sair' }) },
+    {
+      path: '/mais/ajustes',
+      heading: 'Ajustes',
+      ready: page.getByRole('switch', { name: 'Sons de conquista' }),
+    },
   ]
 
   for (const { path, heading, ready } of screens) {

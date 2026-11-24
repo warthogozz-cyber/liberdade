@@ -10,6 +10,10 @@ import br.com.liberdadefamilia.support.TestIds;
 import br.com.liberdadefamilia.support.TestLedger;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
+import br.com.liberdadefamilia.workspace.Role;
+import com.jayway.jsonpath.JsonPath;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -154,6 +158,77 @@ class LedgerEventsIT {
         assertThat(accountChanges()).hasSize(4).allMatch(new AccountChanged(ws, banco)::equals);
     }
 
+    @Test
+    void createAccountPublishesAccountChanged() {
+        var created = send("POST", "/accounts", """
+                {"name":"Banco","type":"CHECKING","initialBalance":{"amount":"0.00","currency":"BRL"}}""");
+        assertThat(created).hasStatus(201);
+        UUID id = UUID.fromString(JsonPath.read(body(created), "$.id"));
+
+        assertThat(accountChanges()).containsExactly(new AccountChanged(ws, id));
+    }
+
+    @Test
+    void setOwnerPublishesFormerAndNewOwner() {
+        UUID leo = users.create("Leo Teste", "leo@example.com");
+        UUID leoMembership = workspaces.addMember(ws, leo, Role.YOUTH, "Leo");
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        UUID biaMembership = workspaces.addMember(ws, bia, Role.ADULT, "Bia");
+        UUID leoWallet = jdbc.sql("""
+                        insert into accounts (workspace_id, name, type, currency, owner_membership_id)
+                        values (:ws, 'Carteira do Leo', 'WALLET', 'BRL', :owner) returning id""")
+                .param("ws", ws)
+                .param("owner", leoMembership)
+                .query(UUID.class)
+                .single();
+        events.clear();
+
+        assertThat(send("PUT", "/accounts/" + leoWallet + "/owner", "{\"membershipId\":\"" + biaMembership + "\"}"))
+                .hasStatusOk();
+
+        assertThat(events.stream(AccountOwnerChanged.class).toList())
+                .containsExactly(new AccountOwnerChanged(ws, leoWallet, leoMembership, biaMembership));
+    }
+
+    @Test
+    void categoryLifecyclePublishes() {
+        var created = send("POST", "/categories", """
+                {"name":"Academia","kind":"EXPENSE","icon":"🏋️","color":"GREEN","parentId":null}""");
+        assertThat(created).hasStatus(201);
+        UUID id = UUID.fromString(JsonPath.read(body(created), "$.id"));
+
+        assertThat(send("PATCH", "/categories/" + id, "{\"name\":\"Esporte\"}")).hasStatusOk();
+        assertThat(send("POST", "/categories/" + id + "/archive", null)).hasStatusOk();
+        assertThat(send("POST", "/categories/" + id + "/unarchive", null)).hasStatusOk();
+
+        assertThat(events.stream(CategoryChanged.class).toList())
+                .containsExactly(
+                        new CategoryChanged(ws, id),
+                        new CategoryChanged(ws, id),
+                        new CategoryChanged(ws, id),
+                        new CategoryChanged(ws, id));
+    }
+
+    @Test
+    void tagRenamePublishes() {
+        UUID tag = jdbc.sql("insert into tags (workspace_id, name) values (:ws, 'viagem') returning id")
+                .param("ws", ws)
+                .query(UUID.class)
+                .single();
+
+        assertThat(send("PATCH", "/tags/" + tag, "{\"name\":\"passeio\"}")).hasStatusOk();
+
+        assertThat(events.stream(TagChanged.class).toList()).containsExactly(new TagChanged(ws, tag));
+    }
+
+    private static String body(MvcTestResult result) {
+        try {
+            return result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        } catch (UnsupportedEncodingException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     private TransactionChanged change(UUID transactionId, UUID accountId, @Nullable UUID toAccountId) {
         return new TransactionChanged(ws, transactionId, accountId, toAccountId);
     }
@@ -210,6 +285,7 @@ class LedgerEventsIT {
         var request = switch (method) {
             case "PATCH" -> mvc.patch();
             case "DELETE" -> mvc.delete();
+            case "PUT" -> mvc.put();
             default -> mvc.post();
         };
         request.uri("/v1/workspaces/" + ws + path)

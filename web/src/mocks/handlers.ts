@@ -998,6 +998,9 @@ function isKnownTimezone(timezone: unknown): timezone is string {
 export const handlers = [
   http.get(url('/v1/csrf'), () => HttpResponse.json(CSRF)),
 
+  // The live stream is not mocked: a 204 makes the browser's EventSource give up quietly.
+  http.get(url('/v1/workspaces/:ws/events'), () => new HttpResponse(null, { status: 204 })),
+
   http.post(url('/logout'), ({ request }) => {
     if (withoutToken(request)) {
       return problem(403, 'csrf.invalid', 'Sua sessão foi atualizada. Tente de novo.')

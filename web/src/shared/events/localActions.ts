@@ -13,8 +13,16 @@ type Listener = (action: LocalAction) => void
 
 const listeners = new Set<Listener>()
 
+const lastAt = new Map<string, number>()
+
+/** When the person last did something on this device in the family; queued saves do not count. */
+export function lastLocalActionAt(workspaceId: string): number | null {
+  return lastAt.get(workspaceId) ?? null
+}
+
 /** Tells every listener, in the order they subscribed; one that throws does not stop the others. */
 export function emitLocalAction(action: LocalAction): void {
+  if (!action.fromQueue) lastAt.set(action.workspaceId, Date.now())
   for (const listener of [...listeners]) {
     try {
       listener(action)

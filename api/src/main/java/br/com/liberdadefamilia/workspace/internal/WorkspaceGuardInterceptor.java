@@ -5,6 +5,7 @@ import br.com.liberdadefamilia.workspace.RequiresModule;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceRequests;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
@@ -52,6 +53,11 @@ class WorkspaceGuardInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        if (request.getDispatcherType() == DispatcherType.ASYNC) {
+            // The container re-dispatches a request that went async (a live stream that ended); the first dispatch
+            // already passed the guard, and a member removed since then must not turn the end of the stream into a 404.
+            return true;
+        }
         WorkspaceScoped scope =
                 handler instanceof HandlerMethod method ? method.getMethodAnnotation(WorkspaceScoped.class) : null;
         if (scope == null) {

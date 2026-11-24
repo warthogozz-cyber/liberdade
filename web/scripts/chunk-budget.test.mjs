@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkBudget, composition, groupOf, initialFiles } from './chunk-budget.mjs'
+import { checkBudget, composition, groupOf, initialFiles, lazyOnly } from './chunk-budget.mjs'
 
 const KB = 1024
 
@@ -133,5 +133,51 @@ describe('composition', () => {
       { group: 'dexie', kind: 'package', renderedKb: 1, gzipKb: 10 },
       { group: 'src/app', kind: 'src', renderedKb: 1, gzipKb: 10 },
     ])
+  })
+})
+
+describe('lazy-only sources', () => {
+  const SYNTH = 'src/shared/sound/synth.ts'
+
+  it('lazyOnlyFlagsInitialSynth', () => {
+    const manifest = {
+      'index.html': { file: 'assets/index.js', isEntry: true, imports: ['synth'] },
+      synth: { file: 'assets/synth.js', src: SYNTH },
+    }
+
+    expect(lazyOnly(manifest, [SYNTH])).toEqual({ ok: false, offenders: [SYNTH] })
+  })
+
+  it('lazyOnlyFlagsSynthInlinedIntoEntry', () => {
+    const manifest = {
+      'index.html': { file: 'assets/index.js', isEntry: true },
+    }
+    const modulesByFile = {
+      'assets/index.js': { 'src/main.tsx': 100, [SYNTH]: 50 },
+    }
+
+    expect(lazyOnly(manifest, [SYNTH], modulesByFile)).toEqual({ ok: false, offenders: [SYNTH] })
+  })
+
+  it('lazyOnlyPassesSynthInItsOwnDynamicChunk', () => {
+    const manifest = {
+      'index.html': { file: 'assets/index.js', isEntry: true, dynamicImports: [SYNTH] },
+      [SYNTH]: { file: 'assets/synth.js', src: SYNTH, isDynamicEntry: true },
+    }
+    const modulesByFile = {
+      'assets/index.js': { 'src/main.tsx': 100 },
+      'assets/synth.js': { [SYNTH]: 50 },
+    }
+
+    expect(lazyOnly(manifest, [SYNTH], modulesByFile)).toEqual({ ok: true, offenders: [] })
+  })
+
+  it('lazyOnlyPassesDynamicSynth', () => {
+    const manifest = {
+      'index.html': { file: 'assets/index.js', isEntry: true, dynamicImports: [SYNTH] },
+      [SYNTH]: { file: 'assets/synth.js', src: SYNTH, isDynamicEntry: true },
+    }
+
+    expect(lazyOnly(manifest, [SYNTH])).toEqual({ ok: true, offenders: [] })
   })
 })

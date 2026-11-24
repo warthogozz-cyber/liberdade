@@ -88,14 +88,16 @@ class BudgetRepository {
                 > 0;
     }
 
-    void delete(UUID workspaceId, LocalDate month, UUID categoryId) {
-        jdbc.sql("""
+    /** Removes the limit. Whether there was one to remove. */
+    boolean delete(UUID workspaceId, LocalDate month, UUID categoryId) {
+        return jdbc.sql("""
                         delete from budgets
                         where workspace_id = :workspaceId and month = :month and category_id = :categoryId""")
-                .param("workspaceId", workspaceId)
-                .param("month", month)
-                .param("categoryId", categoryId)
-                .update();
+                        .param("workspaceId", workspaceId)
+                        .param("month", month)
+                        .param("categoryId", categoryId)
+                        .update()
+                > 0;
     }
 
     /** Copies the limits of {@code from} to {@code to}, for the categories that are not archived and have none there. */

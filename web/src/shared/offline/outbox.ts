@@ -1,5 +1,6 @@
 import { Dexie } from 'dexie'
 import type { CreateTransactionRequest } from '@/shared/api'
+import { markLocalChange } from '@/shared/live/localChanges'
 import { parseCents } from '@/shared/money'
 import { db, type OutboxItem } from './db'
 import { withOutboxLock } from './lock'
@@ -38,6 +39,8 @@ export async function enqueueTransaction(
     attempts: 0,
     status: 'pending',
   }
+  // Before the item can be sent, so the stream's notice of it is never taken for an arrival.
+  markLocalChange(item.id)
   await db.outbox.add(item)
   notifyOutboxChanged()
   return item

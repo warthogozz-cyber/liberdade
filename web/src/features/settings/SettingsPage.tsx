@@ -1,0 +1,60 @@
+import { useId } from 'react'
+import { useIntl } from 'react-intl'
+import { playAchievement, unlockSound, useSoundEnabled } from '@/shared/sound'
+import { useDocumentTitle } from '@/shared/ui'
+import './register'
+
+const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+
+/** The settings of this device; today, the opt-in achievement sound. */
+export function SettingsPage() {
+  const intl = useIntl()
+  const title = intl.formatMessage({ id: 'settings.title' })
+  useDocumentTitle(title)
+  const [enabled, setEnabled] = useSoundEnabled()
+  const helpId = useId()
+
+  return (
+    <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
+      <h1 className="text-2xl font-semibold">{title}</h1>
+      <h2 className="text-lg font-semibold">{intl.formatMessage({ id: 'settings.sounds' })}</h2>
+      <div className="flex items-center justify-between gap-4">
+        <span className="font-medium">{intl.formatMessage({ id: 'settings.sound.label' })}</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          aria-label={intl.formatMessage({ id: 'settings.sound.label' })}
+          aria-describedby={helpId}
+          onClick={() => {
+            if (!enabled) unlockSound()
+            setEnabled(!enabled)
+          }}
+          className={`relative h-8 w-14 shrink-0 rounded-full border border-primary ${
+            enabled ? 'bg-primary' : 'bg-surface'
+          } ${focus}`}
+        >
+          <span
+            aria-hidden="true"
+            className={`absolute top-1 left-1 size-5 rounded-full bg-text ${
+              enabled ? 'translate-x-6' : ''
+            }`}
+          />
+        </button>
+      </div>
+      <p id={helpId} className="text-text-muted">
+        {intl.formatMessage({ id: 'settings.sound.help' })}
+      </p>
+      <button
+        type="button"
+        onClick={() => {
+          unlockSound()
+          void playAchievement()
+        }}
+        className={`flex min-h-12 items-center justify-center rounded-field border border-primary px-4 font-medium text-primary ${focus}`}
+      >
+        {intl.formatMessage({ id: 'settings.sound.listen' })}
+      </button>
+    </main>
+  )
+}

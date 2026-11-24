@@ -9,6 +9,7 @@ import {
   pendingTotals,
   replaceOutboxItem,
 } from '@/shared/offline'
+import { isLocalChange, resetLocalChanges } from '@/shared/live/localChanges'
 import { outboxItem as item, outboxPayload as payload } from '@/shared/testing'
 
 /** Undone after each test, so a failed assertion leaves no listener behind. */
@@ -22,6 +23,7 @@ function listenForChanges() {
 }
 
 afterEach(() => {
+  resetLocalChanges()
   for (const remove of removals.splice(0)) remove()
   vi.restoreAllMocks()
 })
@@ -38,6 +40,13 @@ describe('enqueueTransaction', () => {
     expect(queued).toEqual(item('t1'))
     expect(await db.outbox.get('t1')).toEqual(item('t1'))
     expect(listener).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('enqueueMarksLocalChange', () => {
+  it('marks the new transaction as saved on this device', async () => {
+    await enqueueTransaction({ userId: 'a', workspaceId: 'ws1', payload: payload('t9') })
+    expect(isLocalChange('t9')).toBe(true)
   })
 })
 

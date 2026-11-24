@@ -4,6 +4,7 @@ import br.com.liberdadefamilia.ledger.CategoryRef;
 import br.com.liberdadefamilia.ledger.CategorySpending;
 import br.com.liberdadefamilia.ledger.LedgerFigures;
 import br.com.liberdadefamilia.ledger.TransactionKind;
+import br.com.liberdadefamilia.planning.BudgetChanged;
 import br.com.liberdadefamilia.planning.domain.BudgetRollup;
 import br.com.liberdadefamilia.planning.domain.BudgetUsage;
 import br.com.liberdadefamilia.shared.Money;
@@ -16,10 +17,14 @@ import java.util.Currency;
 import java.util.List;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** The family's monthly limits per expense category (D6, D7). Limits are never audited (spec 6.11). */
+/**
+ * The family's monthly limits per expense category (D6, D7). Limits are never audited (spec 6.11); a write that changed
+ * something publishes {@link BudgetChanged} inside its transaction.
+ */
 @Service
 class BudgetService {
 
@@ -28,10 +33,12 @@ class BudgetService {
 
     private final BudgetRepository budgets;
     private final LedgerFigures ledger;
+    private final ApplicationEventPublisher events;
 
-    BudgetService(BudgetRepository budgets, LedgerFigures ledger) {
+    BudgetService(BudgetRepository budgets, LedgerFigures ledger, ApplicationEventPublisher events) {
         this.budgets = budgets;
         this.ledger = ledger;
+        this.events = events;
     }
 
     /** A saved line, and whether the save created it. */
@@ -94,6 +101,7 @@ class BudgetService {
         if (!written) {
             throw BudgetRejectedException.versionConflict();
         }
+        events.publishEvent(new BudgetChanged(workspaceId, month));
         BudgetRepository.Row row = budgets.find(workspaceId, first, categoryId).orElseThrow();
         return new Saved(line(row, spendingOf(workspaceId, month)), created);
     }
@@ -101,14 +109,19 @@ class BudgetService {
     /** Removes the limit; removing one that is not there changes nothing. */
     @Transactional
     void delete(WorkspaceMember member, YearMonth month, UUID categoryId) {
-        budgets.delete(member.workspaceId(), month.atDay(1), categoryId);
+        if (budgets.delete(member.workspaceId(), month.atDay(1), categoryId)) {
+            events.publishEvent(new BudgetChanged(member.workspaceId(), month));
+        }
     }
 
     /** Copies the previous month's limits for the categories that have none this month and are not archived. */
     @Transactional
     CopyBudgetsView copyPrevious(WorkspaceMember member, YearMonth month) {
-        return new CopyBudgetsView(
-                budgets.copy(member.workspaceId(), month.minusMonths(1).atDay(1), month.atDay(1)));
+        int copied = budgets.copy(member.workspaceId(), month.minusMonths(1).atDay(1), month.atDay(1));
+        if (copied > 0) {
+            events.publishEvent(new BudgetChanged(member.workspaceId(), month));
+        }
+        return new CopyBudgetsView(copied);
     }
 
     private List<CategorySpending> spendingOf(UUID workspaceId, YearMonth month) {

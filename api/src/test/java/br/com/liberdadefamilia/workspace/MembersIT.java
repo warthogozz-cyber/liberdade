@@ -28,6 +28,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -36,6 +38,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@RecordApplicationEvents
 @Import({TestcontainersConfiguration.class, MembersIT.Listener.class})
 class MembersIT {
 
@@ -88,6 +91,9 @@ class MembersIT {
 
     @Autowired
     RoleChanges roleChanges;
+
+    @Autowired
+    ApplicationEvents events;
 
     @Test
     void listsMembersForEveryRole() {
@@ -177,6 +183,25 @@ class MembersIT {
 
         assertThat(result).hasStatusOk();
         assertThat(result).bodyJson().extractingPath("$.nickname").isEqualTo("Bibi");
+    }
+
+    @Test
+    void nicknameChangePublishes() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        UUID ws = workspaces.createFor(ana);
+        UUID biaMembership = workspaces.addMember(ws, bia, Role.ADULT);
+        events.clear();
+
+        assertThat(patch(ana, ws, biaMembership, "{\"nickname\":\"Bibi\"}", 0)).hasStatusOk();
+        assertThat(events.stream(MemberProfileChanged.class).toList())
+                .containsExactly(new MemberProfileChanged(ws, biaMembership));
+
+        // The same nickname again, and a request without one, change nothing and say nothing.
+        assertThat(patch(ana, ws, biaMembership, "{\"nickname\":\"  Bibi \"}", 0))
+                .hasStatusOk();
+        assertThat(patch(ana, ws, biaMembership, "{\"role\":\"ADULT\"}", 0)).hasStatusOk();
+        assertThat(events.stream(MemberProfileChanged.class).toList()).hasSize(1);
     }
 
     @Test

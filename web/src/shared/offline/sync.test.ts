@@ -15,6 +15,7 @@ import {
   type SyncDeps,
   type SyncResult,
 } from '@/shared/offline'
+import { isLocalChange, markLocalChange, resetLocalChanges } from '@/shared/live/localChanges'
 import { outboxItem, outboxPayload as payload, transactionView as viewOf } from '@/shared/testing'
 import { withOutboxLock } from './lock'
 
@@ -131,6 +132,27 @@ afterEach(async () => {
 })
 
 describe('syncOutbox', () => {
+  it('sendRefreshesLocalMark', async () => {
+    resetLocalChanges()
+    // Queued six minutes ago while offline: the enqueue mark has run out.
+    markLocalChange('t1', Date.now() - 6 * 60_000)
+    expect(isLocalChange('t1')).toBe(false)
+    await db.outbox.add(item('t1'))
+    const markedDuringSend: boolean[] = []
+    const deps = syncDeps({
+      send: vi.fn<SyncDeps['send']>((queued) => {
+        markedDuringSend.push(isLocalChange(queued.id))
+        return Promise.resolve(viewOf(queued.payload))
+      }),
+    })
+
+    await syncOutbox(deps)
+
+    expect(markedDuringSend).toEqual([true])
+    expect(isLocalChange('t1')).toBe(true)
+    resetLocalChanges()
+  })
+
   it('sends the due items one at a time, in the order they were made', async () => {
     await db.outbox.bulkAdd([item('t1', { createdAt: 200 }), item('t2', { createdAt: 100 })])
     const deps = syncDeps()

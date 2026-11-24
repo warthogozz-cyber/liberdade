@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.identity.internal;
 import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
 
 import br.com.liberdadefamilia.shared.RateLimiter;
+import jakarta.servlet.DispatcherType;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -83,7 +84,13 @@ class SecurityConfig {
         http.setSharedObject(UserDetailsService.class, new PasskeyUserDetailsService(accounts));
 
         // The contract route exists only in dev and test (D32); elsewhere it answers 404.
-        http.authorizeHttpRequests(requests -> requests.requestMatchers(
+        http.authorizeHttpRequests(requests -> requests
+                        // The container re-dispatches a finished async request (a live stream that ended) through the
+                        // filters; the original request was authorized, and a stream of a signed-out session must end
+                        // cleanly instead of turning into a 401.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC)
+                        .permitAll()
+                        .requestMatchers(
                                 "/actuator/health",
                                 "/actuator/health/**",
                                 "/v1/csrf",

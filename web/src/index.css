@@ -16,8 +16,28 @@
   --radius-card: 12px;
   --radius-sheet: 16px;
 
+  /* Durations and easing every animation takes (D11); reduced motion zeroes them below. */
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-sheet: 250ms;
+  --motion-celebration: 900ms;
+  --motion-ease: ease-out;
+
+  /* A transaction that arrived from another device (D10). */
+  --animate-arrive: arrive var(--motion-base) var(--motion-ease) both;
+  @keyframes arrive {
+    from {
+      opacity: 0.4;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
   /* The goal celebration: at most one second, opacity and transform only (D20). */
-  --animate-goal-pop: goal-pop 900ms ease-out both;
+  --animate-goal-pop: goal-pop var(--motion-celebration) var(--motion-ease) both;
   @keyframes goal-pop {
     from {
       opacity: 0;
@@ -27,6 +47,34 @@
       opacity: 1;
       transform: none;
     }
+  }
+
+  /* The sheet of a dialog rising from the bottom edge. */
+  --animate-sheet-in: sheet-in var(--motion-sheet) var(--motion-ease) both;
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+    --motion-sheet: 0ms;
+    --motion-celebration: 0ms;
+  }
+
+  .motion-safe\:animate-arrive,
+  .motion-safe\:animate-goal-pop,
+  .motion-safe\:animate-sheet-in {
+    animation: none;
   }
 }
 
