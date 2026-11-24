@@ -2656,6 +2656,15 @@ export const handlers = [
     return HttpResponse.json(reserveView())
   }),
 
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/indicators'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (mockState.modules[workspace.id]?.indicators !== true) {
+      return problem(403, 'module.disabled', 'O módulo de indicadores está desligado.')
+    }
+    return HttpResponse.json({ indicators: mockState.indicators })
+  }),
+
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/goals'), ({ params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace

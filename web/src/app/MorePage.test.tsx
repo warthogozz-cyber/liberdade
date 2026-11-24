@@ -100,6 +100,30 @@ describe('MorePage', () => {
     )
   })
 
+  it.each(['OWNER', 'ADULT', 'VIEWER', 'YOUTH'] as const)(
+    'indicatorsItemWhenOnFor%s',
+    async (role) => {
+      const workspace = seedMockFamily()
+      workspace.role = role
+      mockState.modules[workspace.id] = { indicators: true }
+      renderWithProviders(<MorePage />, { path: '/mais' })
+
+      expect(await screen.findByRole('link', { name: 'Indicadores' })).toHaveAttribute(
+        'href',
+        '/mais/indicadores',
+      )
+    },
+  )
+
+  it('noIndicatorsItemWhenOff', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { indicators: false }
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByText(workspace.name)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Indicadores' })).not.toBeInTheDocument()
+  })
+
   it('no recurrences entry', async () => {
     const workspace = seedMockFamily()
     mockState.modules[workspace.id] = { planning: true }

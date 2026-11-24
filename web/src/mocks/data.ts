@@ -94,6 +94,8 @@ export interface MockState {
   currentDocuments: Record<'TERMS' | 'PRIVACY', string>
   /** The versions the signed-in person accepted; null while a document is still pending. */
   acceptedDocuments: Record<'TERMS' | 'PRIVACY', { version: string; at: string } | null>
+  /** The five Banco Central indicators the route returns, in card order (the fake source's values). */
+  indicators: Schemas['IndicatorView'][]
   /** The paid plan: `plan` is FREE until a payment, and `orders` are the checkouts started, newest last. */
   billing: { plan: MockPlan; orders: MockOrder[] }
 }
@@ -244,6 +246,59 @@ function initialConsents(): MockConsent[] {
   ]
 }
 
+function initialIndicators(): Schemas['IndicatorView'][] {
+  const source = { name: 'Banco Central do Brasil', url: 'https://api.bcb.gov.br/dados/serie' }
+  const updatedAt = '2026-11-24T11:30:02Z'
+  const base = { source, updatedAt, stale: false }
+  return [
+    {
+      ...base,
+      code: 'SELIC_TARGET',
+      name: 'Selic (meta)',
+      unit: 'PERCENT_YEAR',
+      value: '15.00',
+      referenceDate: '2026-11-24',
+      variation: { value: '0.25', unit: 'PP', basis: 'LAST_CHANGE', since: '2026-11-05' },
+    },
+    {
+      ...base,
+      code: 'CDI',
+      name: 'CDI',
+      unit: 'PERCENT_YEAR',
+      value: '14.90',
+      referenceDate: '2026-11-24',
+      variation: { value: '0.00', unit: 'PP', basis: 'PREVIOUS', since: '2026-11-21' },
+    },
+    {
+      ...base,
+      code: 'IPCA_MONTH',
+      name: 'IPCA do mês',
+      unit: 'PERCENT_MONTH',
+      value: '0.50',
+      referenceDate: '2026-10-01',
+      variation: { value: '0.10', unit: 'PP', basis: 'PREVIOUS', since: '2026-09-01' },
+    },
+    {
+      ...base,
+      code: 'IPCA_12M',
+      name: 'IPCA em 12 meses',
+      unit: 'PERCENT_12M',
+      value: '4.00',
+      referenceDate: '2026-10-01',
+      variation: { value: '-0.10', unit: 'PP', basis: 'PREVIOUS', since: '2026-09-01' },
+    },
+    {
+      ...base,
+      code: 'USD_PTAX_SELL',
+      name: 'Dólar (PTAX venda)',
+      unit: 'BRL',
+      value: '5.4100',
+      referenceDate: '2026-11-24',
+      variation: { value: '-0.41', unit: 'PERCENT', basis: 'PREVIOUS', since: '2026-11-21' },
+    },
+  ]
+}
+
 function initialState(): MockState {
   return {
     signedIn: true,
@@ -263,6 +318,7 @@ function initialState(): MockState {
     members: {},
     invitations: [],
     billing: { plan: { key: 'FREE', endsAt: null }, orders: [] },
+    indicators: initialIndicators(),
     modules: {},
     rules: [],
     budgets: [],

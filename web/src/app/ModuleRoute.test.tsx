@@ -6,22 +6,35 @@ import { mockState, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
-import { PlanningModuleRoute } from './PlanningModuleRoute'
+import { ModuleRoute } from './ModuleRoute'
 
 afterEach(cleanup)
 
 function App() {
   return (
     <Routes>
-      <Route element={<PlanningModuleRoute />}>
-        <Route path="/planejar" element={<p>Hub do planejamento</p>} />
-      </Route>
+      <Route
+        path="/planejar"
+        element={
+          <ModuleRoute module="planning">
+            <p>Hub do planejamento</p>
+          </ModuleRoute>
+        }
+      />
+      <Route
+        path="/mais/indicadores"
+        element={
+          <ModuleRoute module="indicators">
+            <p>Indicadores</p>
+          </ModuleRoute>
+        }
+      />
       <Route path="/inicio" element={<p>Início</p>} />
     </Routes>
   )
 }
 
-describe('PlanningModuleRoute', () => {
+describe('ModuleRoute', () => {
   it('sends the family home while the planning module is off', async () => {
     const workspace = seedMockFamily()
     mockState.modules[workspace.id] = { planning: false }
@@ -40,6 +53,19 @@ describe('PlanningModuleRoute', () => {
 
     expect(await screen.findByText('Hub do planejamento')).toBeTruthy()
     expect(router.state.location.pathname).toBe('/planejar')
+  })
+
+  it('checks the module it is given', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: true, indicators: false }
+
+    const { router } = renderWithProviders(<App />, {
+      path: '/*',
+      route: '/mais/indicadores',
+    })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
+    expect(screen.queryByText('Indicadores')).toBeNull()
   })
 
   it('shows nothing while the module list loads', async () => {
