@@ -107,6 +107,7 @@ export const messages = {
     '{count, plural, one {# gasto precisa de atenção} other {# gastos precisam de atenção}}',
   'transactions.offline': 'Sem conexão. Você pode lançar; os gastos saem quando o sinal voltar.',
   'transactions.pending': 'Aguardando sinal',
+  'transactions.newArrival': 'Lançamento novo na lista.',
   'transactions.needsAttention': 'Precisa de atenção',
   'transactions.empty': 'Nenhum lançamento neste mês.',
   'transactions.uncategorized': 'Sem categoria',

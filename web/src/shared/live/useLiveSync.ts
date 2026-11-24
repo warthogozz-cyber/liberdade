@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { API_URL } from '@/shared/api'
 import { invalidationPrefixes } from './invalidation'
 import { emitLiveChange } from './liveChanges'
+import { isLocalChange, markRemoteArrival } from './localChanges'
 
 const DEBOUNCE_MS = 250
 const HIDDEN_LIMIT_MS = 5 * 60_000
@@ -98,6 +99,9 @@ export function useLiveSync(workspaceId: string, options?: Options): void {
         const change = parseChange((event as MessageEvent).data)
         if (!change) return
         emitLiveChange({ workspaceId, ...change })
+        if (change.entity === 'transaction' && change.id && !isLocalChange(change.id)) {
+          markRemoteArrival(change.id)
+        }
         pending.add(change.entity)
         clearTimeout(debounceTimer)
         debounceTimer = setTimeout(flush, DEBOUNCE_MS)

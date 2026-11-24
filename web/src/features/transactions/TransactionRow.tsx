@@ -9,6 +9,7 @@ import {
   type MemberView,
 } from '@/shared/api'
 import { firstName } from '@/shared/i18n'
+import { isRecentArrival } from '@/shared/live/localChanges'
 import { parseCents } from '@/shared/money'
 import { discardOutboxItem } from '@/shared/offline'
 import { useToast } from '@/shared/ui'
@@ -120,7 +121,9 @@ export function TransactionRow({
   )
 
   return (
-    <li className="flex flex-col gap-1 py-3">
+    <li
+      className={`flex flex-col gap-1 py-3${isRecentArrival(item.id) ? ' motion-safe:animate-arrive' : ''}`}
+    >
       {saved ? (
         <button
           type="button"

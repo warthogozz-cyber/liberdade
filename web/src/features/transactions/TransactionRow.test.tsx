@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import type { AccountView, MemberView } from '@/shared/api'
 import { outboxPayload, renderWithProviders, transactionView } from '@/shared/testing'
+import { markRemoteArrival, resetLocalChanges } from '@/shared/live/localChanges'
 import { TransactionRow } from './TransactionRow'
 
 afterEach(() => {
+  resetLocalChanges()
   cleanup()
   vi.restoreAllMocks()
 })
@@ -42,6 +44,17 @@ function renderRow(member: MemberView) {
 }
 
 describe('TransactionRow', () => {
+  it('arrivalGetsHighlight', () => {
+    markRemoteArrival('t1')
+    renderRow(removed({ nickname: 'Tio' }))
+    expect(screen.getByRole('listitem')).toHaveClass('motion-safe:animate-arrive')
+  })
+
+  it('anOrdinaryRowGetsNoHighlight', () => {
+    renderRow(removed({ nickname: 'Tio' }))
+    expect(screen.getByRole('listitem')).not.toHaveClass('motion-safe:animate-arrive')
+  })
+
   it('removedMemberName', () => {
     renderRow(removed({ nickname: 'Tio' }))
     expect(screen.getByText('Tio (saiu)')).toBeInTheDocument()

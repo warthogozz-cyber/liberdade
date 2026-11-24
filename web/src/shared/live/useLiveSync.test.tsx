@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API_URL } from '@/shared/api'
 import { renderHookWithProviders } from '@/shared/testing'
 import { onLiveChange } from './liveChanges'
+import { isRecentArrival, markLocalChange, resetLocalChanges } from './localChanges'
 import { useLiveSync } from './useLiveSync'
 
 const WS = 'ws1'
@@ -87,6 +88,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  resetLocalChanges()
   cleanup()
   vi.useRealTimers()
   vi.restoreAllMocks()
@@ -264,6 +266,25 @@ describe('useLiveSync', () => {
     latest().emitChanged('{"entity":"unicorn"}')
     vi.advanceTimersByTime(250)
     expect(invalidatedKeys(invalidate)).toEqual([['ws', WS]])
+  })
+
+  it('localIdIsNotAnArrival', () => {
+    mount()
+    markLocalChange('t1')
+    latest().emitChanged('{"entity":"transaction","id":"t1"}')
+    expect(isRecentArrival('t1')).toBe(false)
+  })
+
+  it('remoteIdIsAnArrival', () => {
+    mount()
+    latest().emitChanged('{"entity":"transaction","id":"t2"}')
+    expect(isRecentArrival('t2')).toBe(true)
+  })
+
+  it('onlyATransactionWithAnIdIsAnArrival', () => {
+    mount()
+    latest().emitChanged('{"entity":"account","id":"a1"}')
+    expect(isRecentArrival('a1')).toBe(false)
   })
 
   it('closesOnUnmount', () => {

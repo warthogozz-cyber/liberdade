@@ -16,6 +16,19 @@
   --radius-card: 12px;
   --radius-sheet: 16px;
 
+  /* A transaction that arrived from another device (D10). */
+  --animate-arrive: arrive 200ms ease-out both;
+  @keyframes arrive {
+    from {
+      opacity: 0.4;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
   /* The goal celebration: at most one second, opacity and transform only (D20). */
   --animate-goal-pop: goal-pop 900ms ease-out both;
   @keyframes goal-pop {

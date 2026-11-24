@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { markLocalChange } from '@/shared/live/localChanges'
 import {
   archiveAccount,
   archiveCategory,
@@ -40,8 +41,10 @@ export function useDeleteTransaction(ws: string) {
 /** Saves an edit of a transaction, with the `version` it was opened at. */
 export function useUpdateTransaction(ws: string) {
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: UpdateTransactionRequest }) =>
-      updateTransaction(ws, id, body),
+    mutationFn: ({ id, body }: { id: string; body: UpdateTransactionRequest }) => {
+      markLocalChange(id)
+      return updateTransaction(ws, id, body)
+    },
     onSettled: useRefreshWorkspace(ws),
   })
 }
@@ -49,7 +52,10 @@ export function useUpdateTransaction(ws: string) {
 /** Brings back a deleted transaction. */
 export function useRestoreTransaction(ws: string) {
   return useMutation({
-    mutationFn: (id: string) => restoreTransaction(ws, id),
+    mutationFn: (id: string) => {
+      markLocalChange(id)
+      return restoreTransaction(ws, id)
+    },
     onSettled: useRefreshWorkspace(ws),
   })
 }

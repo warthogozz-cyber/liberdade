@@ -5,6 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { emitLocalAction } from '@/shared/events'
+import { markLocalChange } from '@/shared/live/localChanges'
 import { client, unwrap } from './client'
 import { queryKeys } from './queryKeys'
 import type {
@@ -120,8 +121,10 @@ export function useArchiveRule(ws: string) {
 /** Confirms a planned transaction, and tells the device's listeners it is now a saved expense (D17). */
 export function useConfirmPlanned(ws: string) {
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: ConfirmTransactionRequest }) =>
-      confirmPlanned(ws, id, body),
+    mutationFn: ({ id, body }: { id: string; body: ConfirmTransactionRequest }) => {
+      markLocalChange(id)
+      return confirmPlanned(ws, id, body)
+    },
     onSuccess: (confirmed) =>
       emitLocalAction({
         type: 'transaction-saved',
