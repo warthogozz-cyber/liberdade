@@ -5,16 +5,12 @@ import type {
   DocumentStatus,
   CreateAccountRequest,
   UpdateAccountRequest,
-  CategoryHint,
-  CategoryHintItem,
   CategoryKind,
   CategoryView,
   CreateCategoryRequest,
   UpdateCategoryRequest,
   CreateTransactionRequest,
   DashboardView,
-  ImportResult,
-  ImportRow,
   MeView,
   ModuleView,
   PaymentMethod,
@@ -209,32 +205,4 @@ export function unarchiveCategory(ws: string, id: string): Promise<CategoryView>
 /** The family's four modules, switched on or off. Every role may read them. */
 export function listModules(ws: string): Promise<ModuleView[]> {
   return unwrap(client.GET('/v1/workspaces/{ws}/modules', { params: { path: { ws } } }))
-}
-
-/** Sends up to 500 confirmed statement lines. A resend counts the lines already saved as `skipped`. */
-export function importStatement(
-  ws: string,
-  accountId: string,
-  rows: ImportRow[],
-): Promise<ImportResult> {
-  return unwrap(
-    client.POST('/v1/workspaces/{ws}/accounts/{accountId}/imports', {
-      params: { path: { ws, accountId } },
-      body: { rows },
-    }),
-  )
-}
-
-/** The category each past `(kind, description)` used, in the order asked; `null` when none fits. */
-export async function categoryHints(
-  ws: string,
-  items: CategoryHintItem[],
-): Promise<CategoryHint[]> {
-  const { hints } = await unwrap(
-    client.POST('/v1/workspaces/{ws}/imports/category-hints', {
-      params: { path: { ws } },
-      body: { items },
-    }),
-  )
-  return hints
 }

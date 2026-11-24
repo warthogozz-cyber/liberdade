@@ -200,6 +200,14 @@ function money(cents: bigint, currency: string): ApiMoney {
   return { amount: centsToApi(cents), currency }
 }
 
+/** The paid plan running, or billing off: the API then opens the import to every family. */
+function importAllowed(): boolean {
+  return mockState.billing.plan.key === 'FAMILY' || !mockState.billing.selling
+}
+
+/** The description key the category hints match: the one line the mock knows. */
+const HINTED_KEY = 'padaria pao quente'
+
 /** The transactions not deleted, planned ones included: what the list shows. */
 function listedTransactions(): TransactionView[] {
   return mockState.transactions.filter(
@@ -1600,7 +1608,7 @@ export const handlers = [
       presaleOpen: true,
       canPurchase: workspace.role === 'OWNER' && !running,
       canRefund: workspace.role === 'OWNER' && paid !== undefined,
-      importAllowed: running,
+      importAllowed: importAllowed(),
       refundDeadline:
         workspace.role === 'OWNER' && paid !== undefined ? refundDeadline(Date.now()) : null,
       paidOrderId: paid?.id ?? null,
@@ -2945,4 +2953,118 @@ export const handlers = [
     if (outOfRange) return outOfRange
     return HttpResponse.json(dashboardFor(month, workspace.currency, search.get('paymentMethod')))
   }),
+
+  // The category the family last used for a description: here, Mercado for "padaria pao quente".
+  http.post<{ ws: string }>(
+    url('/v1/workspaces/:ws/imports/category-hints'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (workspace.role === 'VIEWER') return roleDenied()
+      if (!importAllowed()) return problem(403, 'plan.required', 'Este recurso é do plano Família.')
+      const body = (await readJson(request)) as Partial<Schemas['CategoryHintsRequest']> | undefined
+      if (typeof body !== 'object' || body === null || !Array.isArray(body.items)) {
+        return malformed()
+      }
+      const mercado = mockState.categories.find(
+        (category) =>
+          category.kind === 'EXPENSE' &&
+          category.name === 'Mercado' &&
+          category.archivedAt === null,
+      )
+      const view: Schemas['CategoryHintsResponse'] = {
+        hints: body.items.map((item) => ({
+          categoryId:
+            item.kind === 'EXPENSE' && item.key === HINTED_KEY ? (mercado?.id ?? null) : null,
+        })),
+      }
+      return HttpResponse.json(view)
+    },
+  ),
+
+  // A key already seen in the session is skipped; a line naming a planned one confirms it with planning on.
+  http.post<{ ws: string; accountId: string }>(
+    url('/v1/workspaces/:ws/accounts/:accountId/imports'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (workspace.role === 'VIEWER') return roleDenied()
+      if (!importAllowed()) return problem(403, 'plan.required', 'Este recurso é do plano Família.')
+      if (!UUID.test(params.accountId)) return malformed()
+      const account = mockState.accounts.find(
+        (each) => each.id === params.accountId && each.archivedAt === null,
+      )
+      if (!account) return problem(404, 'account.not-found', 'Conta não encontrada.')
+      const body = (await readJson(request)) as Partial<Schemas['ImportRequest']> | undefined
+      if (
+        typeof body !== 'object' ||
+        body === null ||
+        !Array.isArray(body.rows) ||
+        body.rows.length === 0 ||
+        body.rows.length > 500
+      ) {
+        return malformed()
+      }
+      const amounts = body.rows.map((row) => validCents(String(row.amount?.amount)))
+      if (amounts.some((cents) => cents === undefined)) {
+        return invalid([{ field: 'rows', code: 'TransactionAmount' }])
+      }
+      const planning = mockState.modules[workspace.id]?.planning === true
+      const taken = new Set(
+        mockState.transactions.flatMap((transaction) =>
+          transaction.importKey ? [transaction.importKey] : [],
+        ),
+      )
+      const result: Schemas['ImportResult'] = { created: 0, confirmed: 0, skipped: 0 }
+      body.rows.forEach((row, index) => {
+        const cents = amounts[index]!
+        if (mockState.importKeys.has(row.importKey) || taken.has(row.importKey)) {
+          result.skipped += 1
+          return
+        }
+        mockState.importKeys.add(row.importKey)
+        const planned =
+          planning && row.confirmsPlannedId ? storedTransaction(row.confirmsPlannedId) : undefined
+        if (
+          planned &&
+          !planned.deleted &&
+          planned.transaction.status === 'PLANNED' &&
+          planned.transaction.accountId === account.id
+        ) {
+          const { transaction } = planned
+          transaction.status = 'CONFIRMED'
+          transaction.occurredOn = row.occurredOn
+          transaction.amount = money(cents, row.amount.currency)
+          transaction.importKey = row.importKey
+          transaction.memberId = workspace.membershipId
+          transaction.version += 1
+          result.confirmed += 1
+          return
+        }
+        mockState.transactions.push({
+          id: row.id,
+          kind: row.kind,
+          amount: money(cents, row.amount.currency),
+          occurredOn: row.occurredOn,
+          accountId: account.id,
+          toAccountId: null,
+          categoryId: row.categoryId,
+          description: row.description ?? null,
+          paymentMethod: null,
+          tags: [],
+          status: 'CONFIRMED',
+          scheduledOn: null,
+          recurringRuleId: null,
+          importKey: row.importKey,
+          memberId: workspace.membershipId,
+          createdAt: new Date().toISOString(),
+          version: 0,
+        })
+        result.created += 1
+      })
+      return HttpResponse.json(result)
+    },
+  ),
 ]

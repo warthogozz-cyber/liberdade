@@ -124,6 +124,17 @@ describe('useImport', () => {
     expect(totals).toEqual({ created: 0, confirmed: 0, skipped: 0, failedAfter: null })
   })
 
+  it('refusesACheckedLineWithoutACategory', async () => {
+    const ws = seedMockFamily().id
+    const calls = mockImport()
+    const { result } = renderHookWithProviders(() => useImport(ws, ACCOUNT))
+
+    await expect(result.current.send([row(0), row(1, { categoryId: null })])).rejects.toThrow(
+      'A checked line has no category',
+    )
+    expect(calls).toHaveLength(0)
+  })
+
   it('invalidatesTheFamilyQueriesAtTheEnd', async () => {
     const ws = seedMockFamily().id
     mockImport()

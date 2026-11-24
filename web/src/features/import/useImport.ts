@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { importStatement } from '@/shared/api/endpoints'
+import { importStatement } from '@/shared/api/imports'
 import { queryKeys } from '@/shared/api/queryKeys'
 import { planningKeys } from '@/shared/api/planning'
 import { useWorkspaces } from '@/shared/api/hooks'
@@ -20,13 +20,15 @@ export type ImportTotals = {
 }
 
 function toRow(line: PreviewLine, currency: string): ImportRow {
+  // The screen keeps the button off while a checked line has no category; this is the last guard.
+  if (line.categoryId === null) throw new Error('A checked line has no category')
   return {
     id: line.id,
     kind: line.kind,
     amount: { amount: centsToApi(line.absCents), currency },
     occurredOn: line.occurredOn,
     description: line.description.trim().slice(0, MAX_DESCRIPTION_LENGTH),
-    categoryId: line.categoryId as string,
+    categoryId: line.categoryId,
     importKey: line.importKey,
     confirmsPlannedId: line.confirmsPlannedId,
   }

@@ -96,8 +96,14 @@ export interface MockState {
   acceptedDocuments: Record<'TERMS' | 'PRIVACY', { version: string; at: string } | null>
   /** The five Banco Central indicators the route returns, in card order (the fake source's values). */
   indicators: Schemas['IndicatorView'][]
-  /** The paid plan: `plan` is FREE until a payment, and `orders` are the checkouts started, newest last. */
-  billing: { plan: MockPlan; orders: MockOrder[] }
+  /**
+   * The paid plan: `plan` is FREE until a payment, and `orders` are the checkouts started, newest last.
+   * `selling` is billing being on (the legal set in force, as in staging and the e2e); with it off, the
+   * API opens the paid features to every family, so the free plan imports too.
+   */
+  billing: { plan: MockPlan; orders: MockOrder[]; selling: boolean }
+  /** The import keys the statement import already took in this session, each line at most once. */
+  importKeys: Set<string>
 }
 
 /** The family's plan as the mock keeps it; `endsAt` is when it stops. */
@@ -321,7 +327,8 @@ function initialState(): MockState {
     deletedTransactionIds: new Set(),
     members: {},
     invitations: [],
-    billing: { plan: { key: 'FREE', endsAt: null }, orders: [] },
+    billing: { plan: { key: 'FREE', endsAt: null }, orders: [], selling: true },
+    importKeys: new Set(),
     indicators: initialIndicators(),
     modules: {},
     rules: [],
@@ -461,6 +468,11 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
 /** Creates "Família Teste" with its seed and returns the membership. Every test with a family starts here. */
 export function seedMockFamily(): MeWorkspace {
   return createFamily('Família Teste', 'America/Fortaleza')
+}
+
+/** Puts the family on the paid plan, until a year from the mock's dates, as a paid checkout would. */
+export function seedFamilyPlan(): void {
+  mockState.billing.plan = { key: 'FAMILY', endsAt: '2027-11-30T03:00:00Z' }
 }
 
 /**
