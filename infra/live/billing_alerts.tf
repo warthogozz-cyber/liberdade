@@ -1,13 +1,13 @@
 locals {
-  # Only the API logs billing alerts; the caddy group is left out.
-  billing_alert_log_groups = {
+  # Only the API logs billing and indicator alerts; the caddy group is left out.
+  api_log_groups = {
     staging    = "/liberdade/staging"
     production = "/liberdade/production"
   }
 }
 
 resource "aws_cloudwatch_log_metric_filter" "billing_alert" {
-  for_each = local.billing_alert_log_groups
+  for_each = local.api_log_groups
 
   name = "liberdade-billing-alert-${each.key}"
   # Quoted term: matches the "BILLING_ALERT type=<TYPE>" WARN line the API writes.
@@ -24,7 +24,7 @@ resource "aws_cloudwatch_log_metric_filter" "billing_alert" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "billing_alert" {
-  for_each = local.billing_alert_log_groups
+  for_each = local.api_log_groups
 
   alarm_name          = "liberdade-billing-alert-${each.key}"
   alarm_description   = "The ${each.key} API logged a billing alert; check the logs for the alert type."

@@ -14,9 +14,9 @@ export function LegalLayout({
   children,
 }: {
   title: string
-  version: string
-  /** The month the text came out, from its `LegalText`. */
-  date: string
+  /** The version and the day the text came out (from its `LegalText`); a page with no versions leaves both out. */
+  version?: string
+  date?: string
   intro: string
   children: ReactNode
 }) {
@@ -31,9 +31,11 @@ export function LegalLayout({
         {intl.formatMessage({ id: 'legal.back' })}
       </Link>
       <h1 className="text-2xl font-semibold">{title}</h1>
-      <p className="text-text-muted">
-        {intl.formatMessage({ id: 'legal.version' }, { version, date })}
-      </p>
+      {version !== undefined && date !== undefined ? (
+        <p className="text-text-muted">
+          {intl.formatMessage({ id: 'legal.version' }, { version, date })}
+        </p>
+      ) : null}
       <p>{intro}</p>
       {children}
     </main>

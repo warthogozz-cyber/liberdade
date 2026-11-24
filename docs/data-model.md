@@ -316,6 +316,11 @@ Lançamentos `PLANNED` não entram em saldos nem no painel até serem confirmado
 | `indicator_points` | `series_code`, `ref_date`, `value numeric(19,6)`, `fetched_at`, `source_url`; `UNIQUE (series_code, ref_date)` |
 | `achievements` | `workspace_id`, `membership_id`, `achievement_key`, `earned_at`; `UNIQUE (membership_id, achievement_key)` |
 
+No Plano 8.1 (migração V18), `indicator_series` ganhou `last_success_at`, `last_failure_at` e
+`failure_streak` (a saúde de cada coleta) e já nasce com as cinco séries: `SELIC_TARGET` (432),
+`CDI` (4389), `IPCA_MONTH` (433), `IPCA_12M` (13522) e `USD_PTAX_SELL` (PTAX). Nenhuma das duas
+tabelas tem `workspace_id`: nada delas entra na exportação nem na exclusão de conta.
+
 Sequências não têm tabela: são calculadas a partir das semanas com lançamentos (seção 4 da
 [arquitetura](architecture.md#4-componentes-da-api)). Indicadores não pertencem a uma família e não
 têm `workspace_id`.

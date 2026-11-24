@@ -676,6 +676,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/indicators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listIndicators"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/invitations": {
         parameters: {
             query?: never;
@@ -1287,6 +1303,22 @@ export interface components {
             goals: components["schemas"]["GoalView"][];
             limitReached: boolean;
         };
+        IndicatorView: {
+            code: string;
+            name: string;
+            /** Format: date */
+            referenceDate: string | null;
+            source: components["schemas"]["SourceView"];
+            stale: boolean;
+            unit: string;
+            /** Format: date-time */
+            updatedAt: string | null;
+            value: string | null;
+            variation: components["schemas"]["VariationView"] | null;
+        };
+        IndicatorsView: {
+            indicators: components["schemas"]["IndicatorView"][];
+        };
         InvitationPreview: {
             invitedBy: string | null;
             /** @enum {string} */
@@ -1485,6 +1517,10 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        SourceView: {
+            name: string;
+            url: string | null;
+        };
         SpendingSplitView: {
             fixed: components["schemas"]["Money"];
             /** @example 2026-11 */
@@ -1624,6 +1660,13 @@ export interface components {
             toAccountId?: string | null;
             /** Format: int64 */
             version: number;
+        };
+        VariationView: {
+            basis: string;
+            /** Format: date */
+            since: string;
+            unit: string;
+            value: string;
         };
         WorkspaceView: {
             /** Format: uuid */
@@ -2799,6 +2842,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContributionView"];
+                };
+            };
+        };
+    };
+    listIndicators: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndicatorsView"];
                 };
             };
         };

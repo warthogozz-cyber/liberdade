@@ -21,9 +21,11 @@ describe('legal texts', () => {
       'privacy-2026-11',
       'privacy-2026-11.1',
       'privacy-2026-11.2',
+      'privacy-2026-11.3',
       'privacy-2026-12',
       'privacy-2026-12.1',
       'privacy-2026-12.2',
+      'privacy-2026-12.3',
       'terms-2026-11',
       'terms-2026-12',
     ])
@@ -41,7 +43,7 @@ describe('legal texts', () => {
   })
 
   it('latestIsEmbedded', () => {
-    expect(legalConfig.latest).toEqual({ terms: 'terms-2026-12', privacy: 'privacy-2026-12.2' })
+    expect(legalConfig.latest).toEqual({ terms: 'terms-2026-12', privacy: 'privacy-2026-12.3' })
     expect(legalConfig.texts).toHaveProperty([legalConfig.latest.terms])
     expect(legalConfig.texts).toHaveProperty([legalConfig.latest.privacy])
   })
@@ -56,6 +58,17 @@ describe('legal texts', () => {
       for (const word of ['orçamentos', 'metas', 'aportes', 'reserva']) {
         expect(shown).toContain(word)
       }
+    }
+  })
+
+  it('privacy 11.3 and 12.3 explain the Banco Central search', () => {
+    for (const version of ['privacy-2026-11.3', 'privacy-2026-12.3']) {
+      const shown = idsOf(legalConfig.texts[version])
+        .map((id) => legalMessages[id as keyof typeof legalMessages])
+        .join(' ')
+      expect(shown).toContain('O app busca indicadores públicos no Banco Central do Brasil.')
+      expect(shown).toContain('Nenhum dado seu ou da sua família sai nessa busca.')
+      expect(legalConfig.texts[version].updatedAt).toBe('24 de novembro de 2026')
     }
   })
 

@@ -94,6 +94,8 @@ export interface MockState {
   currentDocuments: Record<'TERMS' | 'PRIVACY', string>
   /** The versions the signed-in person accepted; null while a document is still pending. */
   acceptedDocuments: Record<'TERMS' | 'PRIVACY', { version: string; at: string } | null>
+  /** The five Banco Central indicators the route returns, in card order (the fake source's values). */
+  indicators: Schemas['IndicatorView'][]
   /** The paid plan: `plan` is FREE until a payment, and `orders` are the checkouts started, newest last. */
   billing: { plan: MockPlan; orders: MockOrder[] }
 }
@@ -117,7 +119,7 @@ export interface MockOrder {
 /** The versions in force, as LegalDocuments.java picks them with billing on (as in staging and the e2e). */
 const CURRENT_DOCUMENTS: MockState['currentDocuments'] = {
   TERMS: 'terms-2026-12',
-  PRIVACY: 'privacy-2026-12.2',
+  PRIVACY: 'privacy-2026-12.3',
 }
 
 /** `LegalDocuments.KEEPS_ACCEPTANCE`: a version keeps the acceptance of the one it continues. */
@@ -125,7 +127,9 @@ export const KEEPS_ACCEPTANCE: Record<string, string> = {
   'privacy-2026-11.1': 'privacy-2026-11',
   'privacy-2026-11.2': 'privacy-2026-11.1',
   'privacy-2026-12.1': 'privacy-2026-12',
+  'privacy-2026-11.3': 'privacy-2026-11.2',
   'privacy-2026-12.2': 'privacy-2026-12.1',
+  'privacy-2026-12.3': 'privacy-2026-12.2',
 }
 
 /** Whether `accepted` is `current` or a version `current` continues, down the chain (`LegalDocuments.KEEPS_ACCEPTANCE`). */
@@ -244,6 +248,59 @@ function initialConsents(): MockConsent[] {
   ]
 }
 
+function initialIndicators(): Schemas['IndicatorView'][] {
+  const source = { name: 'Banco Central do Brasil', url: 'https://api.bcb.gov.br/dados/serie' }
+  const updatedAt = '2026-11-24T11:30:02Z'
+  const base = { source, updatedAt, stale: false }
+  return [
+    {
+      ...base,
+      code: 'SELIC_TARGET',
+      name: 'Selic (meta)',
+      unit: 'PERCENT_YEAR',
+      value: '15.00',
+      referenceDate: '2026-11-24',
+      variation: { value: '0.25', unit: 'PP', basis: 'LAST_CHANGE', since: '2026-11-05' },
+    },
+    {
+      ...base,
+      code: 'CDI',
+      name: 'CDI',
+      unit: 'PERCENT_YEAR',
+      value: '14.90',
+      referenceDate: '2026-11-24',
+      variation: { value: '0.00', unit: 'PP', basis: 'PREVIOUS', since: '2026-11-21' },
+    },
+    {
+      ...base,
+      code: 'IPCA_MONTH',
+      name: 'IPCA do mês',
+      unit: 'PERCENT_MONTH',
+      value: '0.50',
+      referenceDate: '2026-10-01',
+      variation: { value: '0.10', unit: 'PP', basis: 'PREVIOUS', since: '2026-09-01' },
+    },
+    {
+      ...base,
+      code: 'IPCA_12M',
+      name: 'IPCA em 12 meses',
+      unit: 'PERCENT_12M',
+      value: '4.00',
+      referenceDate: '2026-10-01',
+      variation: { value: '-0.10', unit: 'PP', basis: 'PREVIOUS', since: '2026-09-01' },
+    },
+    {
+      ...base,
+      code: 'USD_PTAX_SELL',
+      name: 'Dólar (PTAX venda)',
+      unit: 'BRL',
+      value: '5.4100',
+      referenceDate: '2026-11-24',
+      variation: { value: '-0.41', unit: 'PERCENT', basis: 'PREVIOUS', since: '2026-11-21' },
+    },
+  ]
+}
+
 function initialState(): MockState {
   return {
     signedIn: true,
@@ -263,6 +320,7 @@ function initialState(): MockState {
     members: {},
     invitations: [],
     billing: { plan: { key: 'FREE', endsAt: null }, orders: [] },
+    indicators: initialIndicators(),
     modules: {},
     rules: [],
     budgets: [],

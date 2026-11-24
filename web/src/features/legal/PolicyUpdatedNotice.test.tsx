@@ -4,7 +4,7 @@ import { mockState, seedMockFamily } from '@/mocks/data'
 import { renderWithProviders } from '@/shared/testing'
 import { PolicyUpdatedNotice } from './PolicyUpdatedNotice'
 
-const KEY = 'liberdade.policyNotice.privacy-2026-12.2'
+const KEY = 'liberdade.policyNotice.privacy-2026-12.3'
 
 afterEach(() => {
   cleanup()
@@ -29,6 +29,17 @@ describe('PolicyUpdatedNotice', () => {
     const read = screen.getByRole('link', { name: /Ler/ })
     expect(read).toHaveAttribute('href', '/privacidade')
     expect(screen.getByRole('button', { name: 'Fechar' })).toBeVisible()
+  })
+
+  it('showsTheNoticeToWhoAcceptedTheTwelveDotTwoText', async () => {
+    seedMockFamily()
+    mockState.acceptedDocuments.PRIVACY = {
+      version: 'privacy-2026-12.2',
+      at: '2026-11-20T10:00:00Z',
+    }
+    renderWithProviders(<PolicyUpdatedNotice />)
+
+    expect(await notice()).toHaveTextContent('Atualizamos a política de privacidade.')
   })
 
   it('showsNothingWhenThePolicyIsTheAcceptedOne', async () => {

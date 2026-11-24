@@ -1,12 +1,13 @@
-import { Navigate, type RouteObject } from 'react-router'
+import { Navigate, Outlet, type RouteObject } from 'react-router'
 import { AppShell } from '@/app/AppShell'
+import { ModuleRoute } from '@/app/ModuleRoute'
 import { NotFoundPage } from '@/app/NotFoundPage'
-import { PlanningModuleRoute } from '@/app/PlanningModuleRoute'
 import { RootRedirect } from '@/app/RootRedirect'
 import { SessionLayout } from '@/app/SessionLayout'
 import { WorkspaceLayout } from '@/app/WorkspaceLayout'
 import { WelcomePage } from '@/features/onboarding/WelcomePage'
 // Registers the planning module and its messages; the screens load on demand.
+import '@/features/indicators/register'
 import '@/features/planning/register'
 import '@/features/recurrences/register'
 
@@ -39,6 +40,11 @@ export const routes: RouteObject[] = [
   {
     path: '/termos',
     lazy: () => import('@/features/legal/TermsPage').then((m) => ({ Component: m.TermsPage })),
+  },
+  {
+    // Public: the address in the indicator robot's User-Agent. Not in More.
+    path: '/robo',
+    lazy: () => import('@/features/legal/BotPage').then((m) => ({ Component: m.BotPage })),
   },
   {
     element: <SessionLayout />,
@@ -153,12 +159,40 @@ export const routes: RouteObject[] = [
                   })),
               },
               {
+                // With the indicators module off, its screens do not open either.
+                element: (
+                  <ModuleRoute module="indicators">
+                    <Outlet />
+                  </ModuleRoute>
+                ),
+                children: [
+                  {
+                    path: '/mais/indicadores',
+                    lazy: () =>
+                      import('@/features/indicators/IndicatorsPage').then((m) => ({
+                        Component: m.IndicatorsPage,
+                      })),
+                  },
+                  {
+                    path: '/mais/indicadores/calculadora',
+                    lazy: () =>
+                      import('@/features/indicators/RealReturnPage').then((m) => ({
+                        Component: m.RealReturnPage,
+                      })),
+                  },
+                ],
+              },
+              {
                 path: '/mais/recorrencias',
                 element: <Navigate to="/planejar/recorrencias" replace />,
               },
               {
                 // With the planning module off, none of its screens opens (US-27).
-                Component: PlanningModuleRoute,
+                element: (
+                  <ModuleRoute module="planning">
+                    <Outlet />
+                  </ModuleRoute>
+                ),
                 children: [
                   {
                     path: '/planejar',

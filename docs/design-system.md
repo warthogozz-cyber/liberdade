@@ -110,8 +110,8 @@ funciona igual sem eles.
 | `EmptyState` | Ilustração simples, uma frase e uma ação. |
 | `Sheet` / `Dialog` | Folha inferior no mobile e diálogo no desktop; foco preso e `Esc` fecha (Radix). |
 | `Tabs`, `Nav` | Navegação principal: Início, Lançamentos, + Lançar, Planejar, Mais. |
-| `SourceStamp` | "Fonte: Banco Central · atualizado em 31/10/2026"; vira "desatualizado" após 3 dias úteis. |
-| `Disclaimer` | Faixa fixa: "Conteúdo educativo. Não é recomendação de investimento." |
+| `SourceStamp` | "Fonte: Banco Central do Brasil · atualizado em 31/10/2026"; vira "desatualizado" após 3 dias úteis, em texto e não só em cor. Já existe em `shared/ui` e fecha cada cartão de indicador. |
+| `Disclaimer` | Faixa fixa: "Conteúdo educativo. Não é recomendação de investimento." Já existe em `shared/ui` e fica no topo das duas telas de indicadores. |
 | `ModuleToggle` | Linha com nome, descrição de uma linha e chave liga/desliga. |
 
 Base: primitivas Radix + Tailwind, no estilo shadcn/ui (o código dos componentes fica no repositório).
