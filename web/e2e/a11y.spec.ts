@@ -350,7 +350,7 @@ test('the planning screens and the home cards meet WCAG 2.2 AA in both themes', 
   await expectNoViolations(page, 'Planejar', page.getByRole('link', { name: /^Orçamento/ }))
 
   await page.goto('/planejar/orcamento')
-  await expectNoViolations(page, 'Orçamento', page.getByRole('meter', { name: 'Mercado' }))
+  await expectNoViolations(page, 'Orçamento', page.getByRole('button', { name: /Mercado/ }))
   await page.getByRole('button', { name: 'Definir limite' }).click()
   await expectNoViolationsOpen(page, page.getByRole('dialog', { name: 'Definir limite' }))
   await page.keyboard.press('Escape')

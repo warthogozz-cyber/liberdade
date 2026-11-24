@@ -74,7 +74,7 @@ test('closing the month copies limits', async ({ page }) => {
   await card.getByRole('link', { name: 'Ver orçamento' }).click()
   await expect(page).toHaveURL('/planejar/orcamento')
   await expect(page.getByRole('heading', { level: 1, name: 'Orçamento' })).toBeVisible()
-  await expect(page.getByRole('meter', { name: 'Mercado' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Mercado/ })).toBeVisible()
   await expect(
     page.getByRole('main').getByRole('listitem').filter({ hasText: 'Mercado' }),
   ).toContainText(/R\$\s500,00/)

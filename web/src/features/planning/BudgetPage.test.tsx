@@ -61,7 +61,11 @@ describe('BudgetPage', () => {
 
     expect(await screen.findByText('Passou R$ 60,00')).toBeInTheDocument()
     expect(screen.getByText('R$ 1.260,00 de R$ 1.200,00')).toBeInTheDocument()
-    expect(screen.getByRole('meter', { name: 'Mercado' })).toHaveAttribute('aria-valuenow', '105')
+    // The meter sits inside the editable button, so the button's name carries the value instead.
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument()
+    const meter = screen.getByLabelText('Mercado', { selector: '[role="meter"]' })
+    expect(meter).toHaveAttribute('aria-valuenow', '105')
+    expect(meter).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('near and at say it in words', async () => {

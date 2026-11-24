@@ -45,6 +45,8 @@ export function BudgetLine({ name, line, onOpen, disabled }: BudgetLineProps) {
       </span>
       <span
         role="meter"
+        // Inside the button the text already says the percent and the amounts.
+        aria-hidden={onOpen ? true : undefined}
         aria-label={name}
         aria-valuemin={0}
         aria-valuemax={Math.max(100, line.usagePercent)}
