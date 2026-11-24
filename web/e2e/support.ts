@@ -430,3 +430,75 @@ export async function stubCheckoutHost(page: Page): Promise<void> {
     }),
   )
 }
+
+const API = 'http://localhost:8080'
+
+/** The page's own family: its id and the time zone its months are counted in. */
+async function currentWorkspace(page: Page): Promise<{ id: string; timezone: string }> {
+  const response = await page.request.get(`${API}/v1/me`)
+  expect(response.ok()).toBe(true)
+  const me = (await response.json()) as { workspaces: { id: string; timezone: string }[] }
+  return me.workspaces[0]!
+}
+
+/** A write to the API as the signed-in page, with the CSRF token it needs. */
+async function apiWrite(
+  page: Page,
+  method: 'PUT' | 'POST',
+  path: string,
+  data: Record<string, unknown>,
+): Promise<unknown> {
+  const csrf = (await (await page.request.get(`${API}/v1/csrf`)).json()) as {
+    headerName: string
+    token: string
+  }
+  const response = await page.request.fetch(`${API}${path}`, {
+    method,
+    headers: { [csrf.headerName]: csrf.token },
+    data,
+  })
+  expect(response.ok(), `${method} ${path} answered ${response.status()}`).toBe(true)
+  return response.status() === 204 ? undefined : response.json()
+}
+
+/** The family's month, `YYYY-MM`, `offset` months from the current one, counted in the family's time zone. */
+export async function familyMonth(page: Page, offset = 0): Promise<string> {
+  const { timezone } = await currentWorkspace(page)
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date())
+  const year = Number(parts.find((part) => part.type === 'year')!.value)
+  const month = Number(parts.find((part) => part.type === 'month')!.value)
+  const shifted = new Date(Date.UTC(year, month - 1 + offset, 1))
+  return shifted.toISOString().slice(0, 7)
+}
+
+/** Sets the limit of an expense category (by its name) for a month (`YYYY-MM`) through the API; the amount is "100.00". */
+export async function seedBudgetLimit(
+  page: Page,
+  month: string,
+  category: string,
+  amount: string,
+): Promise<void> {
+  const { id } = await currentWorkspace(page)
+  const categories = (await (
+    await page.request.get(`${API}/v1/workspaces/${id}/categories?kind=EXPENSE`)
+  ).json()) as { id: string; name: string }[]
+  const found = categories.find((each) => each.name === category)
+  expect(found, `the expense category ${category}`).toBeDefined()
+  await apiWrite(page, 'PUT', `/v1/workspaces/${id}/budgets/${month}/${found!.id}`, {
+    limitAmount: { amount, currency: 'BRL' },
+  })
+}
+
+/** Creates a goal with no deadline and no linked account through the API; the target is "100.00". */
+export async function seedGoal(page: Page, name: string, target: string): Promise<void> {
+  const { id } = await currentWorkspace(page)
+  await apiWrite(page, 'POST', `/v1/workspaces/${id}/goals`, {
+    name,
+    icon: 'savings',
+    targetAmount: { amount: target, currency: 'BRL' },
+  })
+}

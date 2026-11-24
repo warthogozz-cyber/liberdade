@@ -51,6 +51,19 @@ test('coreWorksWithEveryModuleOff: the core is whole when no module is on (S2)',
   await visit(page, '/mais', 'Mais')
   await expect(page.getByRole('link', { name: 'Planejar' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Recorrências' })).toHaveCount(0)
+  // The bar has its four items, Início and Mais among them, and the home has no planning cards.
+  const bar = page.getByRole('navigation', { name: 'Navegação principal' })
+  await expect(bar.getByRole('listitem')).toHaveCount(4)
+  await page.goto('/inicio')
+  await expect(page.getByText('Saldo total')).toBeVisible()
+  for (const name of [
+    'Orçamento do mês',
+    'Reserva de emergência',
+    'Saldo previsto · estimativa',
+    'Gastos do mês',
+  ]) {
+    await expect(page.getByRole('heading', { level: 2, name })).toHaveCount(0)
+  }
 
   await visit(page, '/mais/modulos', 'Módulos')
   for (const name of ['Planejamento', 'Indicadores', 'Conquistas', 'Projetos']) {

@@ -227,6 +227,24 @@ Spring Security, por isso fogem das convenções acima. O diagrama mostra só as
 Um lançamento `PLANNED` fica em `transactions`, mas nenhuma soma o conta (saldos e painel)
 até ele ser confirmado.
 
+### Plano 7.2 (migração V17)
+
+**V17: orçamento, metas e reserva** (`V17__planning.sql`)
+
+| Tabela | Colunas e regras |
+|---|---|
+| `budgets` | `id` (UUIDv7), `workspace_id`, `category_id`, `month` (sempre o dia 1), `limit_amount` (maior que zero), `currency`, `version`, `created_at`, `updated_at`. Chave composta `(workspace_id, category_id)` para `categories`. `UNIQUE (workspace_id, category_id, month)`: um limite por categoria e mês |
+| `goals` | `id` (UUIDv7), `workspace_id`, `name` (1 a 40 caracteres), `target_amount` (maior que zero), `currency`, `due_on` (nulo; mês de prazo, sempre o dia 1), `icon`, `linked_account_id` (nulo), `achieved_at` (nulo), `archived_at` (nulo), `created_by`, `created_at`, `updated_at`, `version`. A conta vinculada e o autor usam chaves compostas com `workspace_id`; se a conta ou o autor sair, a coluna vira nula. `UNIQUE (workspace_id, id)`, a chave que os aportes usam |
+| `goal_contributions` | `id` (UUIDv7), `workspace_id`, `goal_id`, `amount` (diferente de zero: positivo guarda, negativo retira), `occurred_on`, `member_id` (vira nulo se a pessoa sair), `created_at`. Chave composta para `goals` com `ON DELETE CASCADE`. Índice `goal_contributions_by_goal` em `(workspace_id, goal_id, occurred_on)` |
+| `accounts` | Ganha `is_reserve` (`boolean`, padrão falso): a conta faz parte da reserva de emergência |
+| `categories` | Ganha `is_fixed` (`boolean`, padrão falso): a categoria de gasto é um custo fixo |
+| `workspaces` | Ganha `reserve_target_months` (`smallint`, de 1 a 24, padrão 6) e `manual_monthly_cost` (nulo, maior que zero): o custo mensal que a família informa quando há pouco histórico |
+| `audit_events` | `target_type` ganha `GOAL` |
+
+O progresso de uma meta com conta vinculada é o saldo dessa conta; sem conta, é a soma dos aportes.
+Limites, aportes e valores de meta não vão para a auditoria: só o arquivamento de uma meta aparece,
+como `GOAL` (`goal.archived`), sem nome nem valor.
+
 ### Regras no banco
 
 | Tabela | Regra |

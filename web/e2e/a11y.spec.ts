@@ -12,7 +12,10 @@ import {
   joinAsYouth,
   newUser,
   openInvitation,
+  familyMonth,
   recordExpense,
+  seedBudgetLimit,
+  seedGoal,
   signInBudget,
   signInWithGoogle,
   stubFirstReauthRequired,
@@ -330,4 +333,52 @@ test('Recorrências, Previstos and the Tags tab meet WCAG 2.2 AA in both themes'
   )
   await page.getByRole('button', { name: 'Renomear Escola' }).click()
   await expectNoViolationsOpen(page, page.getByRole('dialog', { name: 'Renomear Escola' }))
+})
+
+test('the planning screens and the home cards meet WCAG 2.2 AA in both themes', async ({
+  page,
+}) => {
+  await signInWithGoogle(page, newUser())
+  await createFamily(page)
+  // A limit, an expense inside it and a goal, so the screens and cards have content to check.
+  await seedBudgetLimit(page, await familyMonth(page), 'Mercado', '100.00')
+  await seedGoal(page, 'Viagem', '1000.00')
+  await recordExpense(page, '8500', '🛒 Mercado')
+  await waitForQueueToEmpty(page)
+
+  await page.goto('/planejar')
+  await expectNoViolations(page, 'Planejar', page.getByRole('link', { name: /^Orçamento/ }))
+
+  await page.goto('/planejar/orcamento')
+  await expectNoViolations(page, 'Orçamento', page.getByRole('meter', { name: 'Mercado' }))
+  await page.getByRole('button', { name: 'Definir limite' }).click()
+  await expectNoViolationsOpen(page, page.getByRole('dialog', { name: 'Definir limite' }))
+  await page.keyboard.press('Escape')
+
+  await page.goto('/planejar/metas')
+  await expectNoViolations(page, 'Metas', page.getByRole('meter', { name: 'Viagem' }))
+  await page.getByRole('button', { name: /Viagem/ }).click()
+  await expectNoViolationsOpen(page, page.getByRole('button', { name: 'Guardar', exact: true }))
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Nova meta' }).click()
+  await expectNoViolationsOpen(page, page.getByRole('dialog', { name: 'Nova meta' }))
+  await page.keyboard.press('Escape')
+
+  await page.goto('/planejar/reserva')
+  await expectNoViolations(
+    page,
+    'Reserva',
+    page.getByText('Quanto a família gasta por mês, mais ou menos?'),
+  )
+
+  // Início with every card of the planning module.
+  await page.goto('/inicio')
+  await expectNoViolations(
+    page,
+    'Início',
+    page.getByRole('heading', { level: 2, name: 'Saldo previsto · estimativa' }),
+  )
+  await expect(page.getByRole('heading', { level: 2, name: 'Orçamento do mês' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'Reserva de emergência' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'Gastos do mês' })).toBeVisible()
 })
