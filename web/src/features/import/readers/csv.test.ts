@@ -15,6 +15,15 @@ describe('parseCsv', () => {
     ])
   })
 
+  it('quoteOnlyOpensAtFieldStart', () => {
+    const parsed = parseCsv('a;5" TV;c\n1;2;3')
+    expect(parsed.separator).toBe(';')
+    expect(parsed.rows).toEqual([
+      ['a', '5" TV', 'c'],
+      ['1', '2', '3'],
+    ])
+  })
+
   it('findsTheSeparator', async () => {
     expect(parseCsv('a;b;c\n1;2,5;3\n4;5;6').separator).toBe(';')
     expect(parseCsv('a,b,c\n1,2,3\n4,5,6').separator).toBe(',')

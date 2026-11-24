@@ -10,12 +10,14 @@ function split(text: string, separator: CsvSeparator): string[][] {
   let field = ''
   let quoted = false
   let touched = false
+  let atStart = true
   const endRow = () => {
     row.push(field)
     if (row.some((cell) => cell.trim() !== '')) rows.push(row)
     row = []
     field = ''
     touched = false
+    atStart = true
   }
   for (let i = 0; i < text.length; i++) {
     const c = text[i]
@@ -26,19 +28,22 @@ function split(text: string, separator: CsvSeparator): string[][] {
           i++
         } else quoted = false
       } else field += c
-    } else if (c === '"') {
+    } else if (c === '"' && atStart) {
       quoted = true
       touched = true
+      atStart = false
     } else if (c === separator) {
       row.push(field)
       field = ''
       touched = true
+      atStart = true
     } else if (c === '\r' || c === '\n') {
       if (c === '\r' && text[i + 1] === '\n') i++
       endRow()
     } else {
       field += c
       touched = true
+      atStart = false
     }
   }
   if (touched || field !== '') endRow()
