@@ -1,5 +1,9 @@
 type Synth = typeof import('./synth')
 
+// A touch `pointerdown` does not count as user activation; its release and `click` do.
+const GESTURES = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'] as const
+const LISTENER = { capture: true, passive: true }
+
 let loaded: Synth | undefined
 let loading: Promise<Synth | undefined> | undefined
 
@@ -55,12 +59,10 @@ export function armSoundUnlock(): () => void {
     unlockSound()
   }
   const remove = () => {
-    window.removeEventListener('pointerdown', onGesture, true)
-    window.removeEventListener('keydown', onGesture, true)
+    for (const type of GESTURES) window.removeEventListener(type, onGesture, LISTENER)
   }
 
-  window.addEventListener('pointerdown', onGesture, true)
-  window.addEventListener('keydown', onGesture, true)
+  for (const type of GESTURES) window.addEventListener(type, onGesture, LISTENER)
   const cancelIdle = idle(() => {
     if (!disposed) void load()
   })

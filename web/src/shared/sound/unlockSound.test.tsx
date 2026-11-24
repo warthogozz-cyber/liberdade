@@ -42,6 +42,27 @@ describe('armSoundUnlock', () => {
     dispose()
   })
 
+  it('unlocksOnTouchReleaseAndRemovesEveryListenerOnceRunning', async () => {
+    const remove = vi.spyOn(window, 'removeEventListener')
+    const { armSoundUnlock } = await fresh()
+    const dispose = armSoundUnlock()
+    await vi.advanceTimersByTimeAsync(1_000)
+
+    window.dispatchEvent(new Event('touchend'))
+    expect(unlock).toHaveBeenCalledOnce()
+
+    isRunning.mockReturnValue(true)
+    window.dispatchEvent(new Event('pointerup'))
+    const removed = remove.mock.calls.map(([type]) => type)
+    for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) {
+      expect(removed).toContain(type)
+    }
+    window.dispatchEvent(new Event('click'))
+    expect(unlock).toHaveBeenCalledOnce()
+    dispose()
+    remove.mockRestore()
+  })
+
   it('removesTheListenersOnCleanup', async () => {
     const { armSoundUnlock } = await fresh()
     const dispose = armSoundUnlock()
