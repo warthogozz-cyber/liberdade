@@ -7,6 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { emitLocalAction } from '@/shared/events'
 import { client, unwrap } from './client'
+import { queryKeys } from './queryKeys'
 import type { components } from './schema'
 
 type Schemas = components['schemas']
@@ -26,16 +27,20 @@ export type UpdateReserveRequest = Schemas['UpdateReserveRequest']
 export type ProjectionView = Schemas['ProjectionView']
 export type SpendingSplitView = Schemas['SpendingSplitView']
 
-/** Everything planning reads sits under `['planning', ws]`, so one invalidation reaches all of it. */
+/**
+ * Everything planning reads sits under the family key (`['ws', ws, 'planning']`), so a core edit
+ * that refreshes the family reaches planning too, and one invalidation of `all` reaches only it.
+ */
 export const planningKeys = {
-  all: (ws: string) => ['planning', ws] as const,
-  budgets: (ws: string, month: string) => ['planning', ws, 'budgets', month] as const,
-  goals: (ws: string) => ['planning', ws, 'goals'] as const,
+  all: (ws: string) => [...queryKeys.workspace(ws), 'planning'] as const,
+  budgets: (ws: string, month: string) => [...planningKeys.all(ws), 'budgets', month] as const,
+  goals: (ws: string) => [...planningKeys.all(ws), 'goals'] as const,
   contributions: (ws: string, goalId: string) =>
-    ['planning', ws, 'goals', goalId, 'contributions'] as const,
-  reserve: (ws: string) => ['planning', ws, 'reserve'] as const,
-  projection: (ws: string) => ['planning', ws, 'projection'] as const,
-  spendingSplit: (ws: string, month: string) => ['planning', ws, 'spending-split', month] as const,
+    [...planningKeys.goals(ws), goalId, 'contributions'] as const,
+  reserve: (ws: string) => [...planningKeys.all(ws), 'reserve'] as const,
+  projection: (ws: string) => [...planningKeys.all(ws), 'projection'] as const,
+  spendingSplit: (ws: string, month: string) =>
+    [...planningKeys.all(ws), 'spending-split', month] as const,
 }
 
 /** The month's limits with what each category spent. */

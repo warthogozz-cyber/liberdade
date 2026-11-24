@@ -18,7 +18,7 @@ describe('PlanningInvalidator', () => {
     )
 
     emitLocalAction({ type: 'transaction-saved', workspaceId: 'ws-1', fromQueue: true })
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['planning', 'ws-1'] })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['ws', 'ws-1', 'planning'] })
 
     unmount()
     emitLocalAction({ type: 'contribution-saved', workspaceId: 'ws-1', fromQueue: false })
