@@ -63,14 +63,15 @@ class LedgerJdbcExport implements LedgerExport {
                         a.initialBalance(),
                         a.balance(),
                         a.ownerMembershipId(),
-                        a.archivedAt()))
+                        a.archivedAt(),
+                        a.isReserve()))
                 .toList();
     }
 
     @Override
     public List<ExportedCategory> categories(UUID workspaceId) {
         return jdbc.sql("""
-                        select id, parent_id, kind, name, archived_at
+                        select id, parent_id, kind, name, archived_at, is_fixed
                         from categories
                         where workspace_id = :workspaceId
                         order by kind, name, id""")
@@ -82,7 +83,8 @@ class LedgerJdbcExport implements LedgerExport {
                             rs.getObject("parent_id", UUID.class),
                             rs.getString("kind"),
                             rs.getString("name"),
-                            archivedAt == null ? null : archivedAt.toInstant());
+                            archivedAt == null ? null : archivedAt.toInstant(),
+                            rs.getBoolean("is_fixed"));
                 })
                 .list();
     }

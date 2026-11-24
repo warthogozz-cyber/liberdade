@@ -132,6 +132,45 @@ describe('routes', () => {
   })
 })
 
+describe('planning routes', () => {
+  it('old recurrences path redirects', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: true }
+    const { router } = renderWithProviders(null, { routes, route: '/mais/recorrencias' })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/planejar/recorrencias'))
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Recorrências' }),
+    ).toBeInTheDocument()
+  })
+
+  it('youth is sent back from budget', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    mockState.modules[workspace.id] = { planning: true }
+    const { router } = renderWithProviders(null, { routes, route: '/planejar/orcamento' })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/planejar'))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Planejar' })).toBeInTheDocument()
+  })
+
+  it('sends a family without the planning module home from every planning address', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: false }
+    const { router } = renderWithProviders(null, { routes, route: '/planejar/metas' })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
+  })
+
+  it('adult opens the budget placeholder', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: true }
+    renderWithProviders(null, { routes, route: '/planejar/orcamento' })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Orçamento' })).toBeInTheDocument()
+  })
+})
+
 describe('lazy routes', () => {
   function findRoute(list: RouteObject[], path: string): RouteObject | undefined {
     for (const route of list) {

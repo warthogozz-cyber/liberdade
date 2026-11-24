@@ -19,7 +19,16 @@ const baseOpts = {
 const money = (amount: string) => ({ amount, currency: 'BRL' })
 
 function category(id: string, name: string): CategoryView {
-  return { id, kind: 'EXPENSE', name, icon: null, color: null, parentId: null, archivedAt: null }
+  return {
+    id,
+    kind: 'EXPENSE',
+    name,
+    icon: null,
+    color: null,
+    parentId: null,
+    archivedAt: null,
+    isFixed: false,
+  }
 }
 
 function rows(count: number, withOthers: boolean): DashboardView['byCategory'] {

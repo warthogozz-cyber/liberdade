@@ -13,7 +13,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * A partial change to an account: what is null stays as it is. {@code initialBalance} sets the starting balance;
  * {@code balance} sets what the account has now, and the service works the starting balance out from it. Only one of
- * them may come. The name is stripped before validation.
+ * them may come. {@code isReserve} marks or unmarks the account as part of the emergency reserve. The name is stripped
+ * before validation.
  */
 @PartialRequest
 record UpdateAccountRequest(
@@ -25,7 +26,8 @@ record UpdateAccountRequest(
 
         @Nullable @Schema(nullable = true) AccountType type,
         @Nullable @Schema(nullable = true) @BalanceAmount Money initialBalance,
-        @Nullable @Schema(nullable = true) @BalanceAmount Money balance) {
+        @Nullable @Schema(nullable = true) @BalanceAmount Money balance,
+        @Nullable @Schema(nullable = true) Boolean isReserve) {
 
     UpdateAccountRequest {
         if (name != null) {
@@ -44,6 +46,6 @@ record UpdateAccountRequest(
     @Schema(hidden = true)
     @AssertTrue
     boolean isNotEmpty() {
-        return name != null || type != null || initialBalance != null || balance != null;
+        return name != null || type != null || initialBalance != null || balance != null || isReserve != null;
     }
 }

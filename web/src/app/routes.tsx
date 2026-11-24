@@ -1,11 +1,13 @@
-import type { RouteObject } from 'react-router'
+import { Navigate, type RouteObject } from 'react-router'
 import { AppShell } from '@/app/AppShell'
 import { NotFoundPage } from '@/app/NotFoundPage'
+import { PlanningModuleRoute } from '@/app/PlanningModuleRoute'
 import { RootRedirect } from '@/app/RootRedirect'
 import { SessionLayout } from '@/app/SessionLayout'
 import { WorkspaceLayout } from '@/app/WorkspaceLayout'
 import { WelcomePage } from '@/features/onboarding/WelcomePage'
 // Registers the planning module and its messages; the screens load on demand.
+import '@/features/planning/register'
 import '@/features/recurrences/register'
 
 // Secondary screens load on demand, so the first load stays small (chunk budget in CI). Copy this
@@ -145,10 +147,55 @@ export const routes: RouteObject[] = [
               },
               {
                 path: '/mais/recorrencias',
-                lazy: () =>
-                  import('@/features/recurrences/RecurrencesPage').then((m) => ({
-                    Component: m.RecurrencesPage,
-                  })),
+                element: <Navigate to="/planejar/recorrencias" replace />,
+              },
+              {
+                // With the planning module off, none of its screens opens (US-27).
+                Component: PlanningModuleRoute,
+                children: [
+                  {
+                    path: '/planejar',
+                    lazy: () =>
+                      import('@/features/planning/PlanHub').then((m) => ({ Component: m.PlanHub })),
+                  },
+                  {
+                    // The budget and the reserve are not a Youth's to see (US-10).
+                    lazy: () =>
+                      import('@/features/planning/AdultsOnlyRoute').then((m) => ({
+                        Component: m.AdultsOnlyRoute,
+                      })),
+                    children: [
+                      {
+                        path: '/planejar/orcamento',
+                        lazy: () =>
+                          import('@/features/planning/BudgetPage').then((m) => ({
+                            Component: m.BudgetPage,
+                          })),
+                      },
+                      {
+                        path: '/planejar/reserva',
+                        lazy: () =>
+                          import('@/features/planning/ReservePage').then((m) => ({
+                            Component: m.ReservePage,
+                          })),
+                      },
+                    ],
+                  },
+                  {
+                    path: '/planejar/metas',
+                    lazy: () =>
+                      import('@/features/planning/GoalsPage').then((m) => ({
+                        Component: m.GoalsPage,
+                      })),
+                  },
+                  {
+                    path: '/planejar/recorrencias',
+                    lazy: () =>
+                      import('@/features/recurrences/RecurrencesPage').then((m) => ({
+                        Component: m.RecurrencesPage,
+                      })),
+                  },
+                ],
               },
             ],
           },

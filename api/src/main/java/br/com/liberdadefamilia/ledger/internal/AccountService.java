@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.ledger.internal;
 
+import br.com.liberdadefamilia.ledger.AccountChanged;
 import br.com.liberdadefamilia.ledger.internal.AccountRepository.AccountChoice;
 import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.workspace.Memberships;
@@ -8,13 +9,14 @@ import java.time.Clock;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Creates, edits, archives and brings back the family's accounts. Error messages and logs never carry a name or an
- * amount.
+ * amount. A change to an existing account publishes {@link AccountChanged} inside its transaction.
  */
 @Service
 class AccountService {
@@ -22,11 +24,13 @@ class AccountService {
     private final AccountRepository accounts;
     private final Memberships memberships;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
-    AccountService(AccountRepository accounts, Memberships memberships, Clock clock) {
+    AccountService(AccountRepository accounts, Memberships memberships, Clock clock, ApplicationEventPublisher events) {
         this.accounts = accounts;
         this.memberships = memberships;
         this.clock = clock;
+        this.events = events;
     }
 
     /**
@@ -63,11 +67,12 @@ class AccountService {
                 throw unsupportedCurrency();
             }
         }
-        nameTakenIfDuplicate(() ->
-                accounts.update(workspaceId, accountId, request.name(), request.type(), request.initialBalance()));
+        nameTakenIfDuplicate(() -> accounts.update(
+                workspaceId, accountId, request.name(), request.type(), request.initialBalance(), request.isReserve()));
         if (balance != null) {
             accounts.setBalance(workspaceId, accountId, balance);
         }
+        events.publishEvent(new AccountChanged(workspaceId, accountId));
         return view(member, accountId);
     }
 
@@ -102,7 +107,9 @@ class AccountService {
                 throw new LedgerRejectedException(
                         "account.last-active", "A família precisa de pelo menos uma conta ativa.");
             }
-            accounts.archive(workspaceId, accountId, clock.instant());
+            if (accounts.archive(workspaceId, accountId, clock.instant())) {
+                events.publishEvent(new AccountChanged(workspaceId, accountId));
+            }
         }
         return view(member, accountId);
     }
@@ -117,7 +124,9 @@ class AccountService {
     AccountView unarchive(WorkspaceMember member, UUID accountId) {
         UUID workspaceId = member.workspaceId();
         if (find(member, accountId).archived()) {
-            nameTakenIfDuplicate(() -> accounts.unarchive(workspaceId, accountId));
+            if (nameTakenIfDuplicate(() -> accounts.unarchive(workspaceId, accountId))) {
+                events.publishEvent(new AccountChanged(workspaceId, accountId));
+            }
         }
         return view(member, accountId);
     }

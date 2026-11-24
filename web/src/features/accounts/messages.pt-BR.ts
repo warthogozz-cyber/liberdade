@@ -21,6 +21,8 @@ export const accountsMessages = {
     'Os gastos deixam o saldo negativo. Pagar a fatura é uma transferência de outra conta para o cartão.',
   'accounts.hint.WALLET': 'Saldo em app de pagamento, como carteiras de celular.',
   'accounts.hint.INVESTMENT': 'Atualize o saldo à mão quando quiser, com Acertar saldo.',
+  'accounts.field.reserve': 'Esta conta é reserva',
+  'accounts.field.reserveHint': 'O saldo dela conta para a reserva de emergência.',
   'accounts.field.owner': 'Titular',
   'accounts.owner.none': 'Ninguém',
   'accounts.owner.line': 'Titular: {name}',

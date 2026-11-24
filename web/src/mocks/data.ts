@@ -21,6 +21,32 @@ export interface MockInvitation {
 /** A recurring rule as stored: an archived one stays, out of the lists. */
 export type MockRule = Schemas['RecurringRuleView'] & { archived: boolean }
 
+/** A monthly limit as stored: the month is `YYYY-MM`, the limit in cents. */
+export interface MockBudget {
+  month: string
+  categoryId: string
+  limitCents: bigint
+  version: number
+}
+
+/**
+ * A goal as stored: the target in cents, the due month as `YYYY-MM`. An archived one stays, out of the list; its
+ * contributions are newest first.
+ */
+export interface MockGoal {
+  id: string
+  name: string
+  icon: string
+  targetCents: bigint
+  currency: string
+  dueOn: string | null
+  linkedAccountId: string | null
+  achievedAt: string | null
+  archived: boolean
+  version: number
+  contributions: Schemas['ContributionView'][]
+}
+
 /** A consent as the API lists it, plus whether the signed-in person is the one who gave it. */
 export type MockConsent = Schemas['ConsentView'] & { grantedByMe: boolean }
 
@@ -48,6 +74,14 @@ export interface MockState {
   modules: Record<string, Partial<Record<Schemas['ModuleView']['key'], boolean>>>
   /** The family's recurring rules, in creation order, archived ones included. */
   rules: MockRule[]
+  /** The family's monthly limits per category. */
+  budgets: MockBudget[]
+  /** The family's goals, in creation order, archived ones included. */
+  goals: MockGoal[]
+  /** The emergency reserve settings: the target in months and the monthly cost the family typed in. */
+  reserve: { targetMonths: number; manualMonthlyCost: Schemas['ReserveView']['manualMonthlyCost'] }
+  /** The family's average monthly spending over its history, in cents; null while it has none. */
+  spendingHistoryCents: bigint | null
   /** The signed-in person's own history, newest first (LGPD audit trail). */
   activity: Schemas['ActivityItem'][]
   /** The signed-in person's own passkeys, newest first. */
@@ -83,13 +117,25 @@ export interface MockOrder {
 /** The versions in force, as LegalDocuments.java picks them with billing on (as in staging and the e2e). */
 const CURRENT_DOCUMENTS: MockState['currentDocuments'] = {
   TERMS: 'terms-2026-12',
-  PRIVACY: 'privacy-2026-12.1',
+  PRIVACY: 'privacy-2026-12.2',
 }
 
 /** `LegalDocuments.KEEPS_ACCEPTANCE`: a version keeps the acceptance of the one it continues. */
 export const KEEPS_ACCEPTANCE: Record<string, string> = {
   'privacy-2026-11.1': 'privacy-2026-11',
+  'privacy-2026-11.2': 'privacy-2026-11.1',
   'privacy-2026-12.1': 'privacy-2026-12',
+  'privacy-2026-12.2': 'privacy-2026-12.1',
+}
+
+/** Whether `accepted` is `current` or a version `current` continues, down the chain (`LegalDocuments.KEEPS_ACCEPTANCE`). */
+export function keepsAcceptance(current: string, accepted: string | undefined): boolean {
+  let version: string | undefined = current
+  while (version !== undefined) {
+    if (version === accepted) return true
+    version = KEEPS_ACCEPTANCE[version]
+  }
+  return false
 }
 
 /** The person starts with both documents accepted, so previews open straight into the app. */
@@ -219,6 +265,10 @@ function initialState(): MockState {
     billing: { plan: { key: 'FREE', endsAt: null }, orders: [] },
     modules: {},
     rules: [],
+    budgets: [],
+    goals: [],
+    reserve: { targetMonths: 6, manualMonthlyCost: null },
+    spendingHistoryCents: null,
     activity: initialActivity(),
     passkeys: initialPasskeys(),
     hasGoogle: true,
@@ -321,6 +371,7 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
     initialBalance: { amount: '0.00', currency: workspace.currency },
     ownerMembershipId: workspace.membershipId,
     archivedAt: null,
+    isReserve: false,
   })
   mockState.categories.push(
     ...EXPENSE_CATEGORIES.map(([icon, categoryName]) => ({
@@ -330,6 +381,7 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
       color: null,
       parentId: null,
       archivedAt: null,
+      isFixed: false,
       name: categoryName,
     })),
     ...INCOME_CATEGORIES.map(([icon, categoryName]) => ({
@@ -339,6 +391,7 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
       color: null,
       parentId: null,
       archivedAt: null,
+      isFixed: false,
       name: categoryName,
     })),
   )
@@ -348,4 +401,72 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
 /** Creates "Família Teste" with its seed and returns the membership. Every test with a family starts here. */
 export function seedMockFamily(): MeWorkspace {
   return createFamily('Família Teste', 'America/Fortaleza')
+}
+
+/**
+ * Fills the planning data the screens read, for a family that already has its seed: one limit on
+ * Mercado that is near (R$ 400,00 spent of R$ 500,00 this month), two goals (one with a due month),
+ * and a spending history, so the reserve takes its cost from it and the projection has an average.
+ */
+export function seedPlanningFixture(workspace: MeWorkspace): void {
+  const month = new Date().toISOString().slice(0, 7)
+  const account = mockState.accounts[0]
+  const mercado = mockState.categories.find((each) => each.name === 'Mercado')
+  if (!account || !mercado) throw new Error('Seed the family before the planning fixture')
+  mockState.transactions.push({
+    id: crypto.randomUUID(),
+    kind: 'EXPENSE',
+    amount: { amount: '400.00', currency: workspace.currency },
+    occurredOn: `${month}-02`,
+    accountId: account.id,
+    toAccountId: null,
+    categoryId: mercado.id,
+    description: null,
+    paymentMethod: null,
+    tags: [],
+    status: 'CONFIRMED',
+    scheduledOn: null,
+    recurringRuleId: null,
+    createdAt: new Date().toISOString(),
+    memberId: workspace.membershipId,
+    version: 0,
+  })
+  mockState.budgets.push({ month, categoryId: mercado.id, limitCents: 50_000n, version: 0 })
+  const dueYear = Number(month.slice(0, 4)) + 1
+  mockState.goals.push(
+    {
+      id: crypto.randomUUID(),
+      name: 'Viagem',
+      icon: 'travel',
+      targetCents: 500_000n,
+      currency: workspace.currency,
+      dueOn: `${dueYear}-${month.slice(5)}`,
+      linkedAccountId: null,
+      achievedAt: null,
+      archived: false,
+      version: 0,
+      contributions: [
+        {
+          id: crypto.randomUUID(),
+          amount: { amount: '1000.00', currency: workspace.currency },
+          memberId: workspace.membershipId,
+          occurredOn: `${month}-01`,
+        },
+      ],
+    },
+    {
+      id: crypto.randomUUID(),
+      name: 'Notebook',
+      icon: 'tech',
+      targetCents: 300_000n,
+      currency: workspace.currency,
+      dueOn: null,
+      linkedAccountId: null,
+      achievedAt: null,
+      archived: false,
+      version: 0,
+      contributions: [],
+    },
+  )
+  mockState.spendingHistoryCents = 300_000n
 }

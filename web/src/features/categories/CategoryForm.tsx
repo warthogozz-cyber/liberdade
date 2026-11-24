@@ -10,6 +10,7 @@ import {
   type MeWorkspace,
   type UpdateCategoryRequest,
 } from '@/shared/api'
+import { useModuleEnabled } from '@/shared/modules'
 import { useOnline } from '@/shared/offline'
 import { useToast } from '@/shared/ui'
 import { CATEGORY_COLORS, CATEGORY_ICONS } from './categoryStyle'
@@ -51,6 +52,15 @@ export function CategoryForm({ workspace, kind, categories, category, onDone }: 
   const nameErrorId = `${ids}-name-error`
   const iconLegendId = `${ids}-icon-legend`
   const colorLegendId = `${ids}-color-legend`
+  // The fixed flag is the planning module's, and only an expense can be fixed. Hidden, it stays out
+  // of the request and the stored flag is kept.
+  const planningOn = useModuleEnabled('planning')
+  const showFixed =
+    planningOn &&
+    category !== undefined &&
+    kind === 'EXPENSE' &&
+    (workspace.role === 'OWNER' || workspace.role === 'ADULT')
+  const [isFixed, setIsFixed] = useState(category?.isFixed ?? false)
   const pending = create.isPending || update.isPending
 
   const parents = categories.filter(
@@ -73,7 +83,8 @@ export function CategoryForm({ workspace, kind, categories, category, onDone }: 
     ...(category && icon !== null && icon !== category.icon && { icon }),
     ...(category && color !== null && color !== category.color && { color }),
   }
-  const changed = Object.keys(changes).length > 0
+  const fixedChanged = showFixed && isFixed !== category.isFixed
+  const changed = Object.keys(changes).length > 0 || fixedChanged
   const canSave = online && !pending && trimmed !== '' && (!category || changed)
 
   async function submit(event: FormEvent) {
@@ -83,7 +94,10 @@ export function CategoryForm({ workspace, kind, categories, category, onDone }: 
     setError(undefined)
     try {
       if (category) {
-        await update.mutateAsync({ id: category.id, body: changes })
+        await update.mutateAsync({
+          id: category.id,
+          body: showFixed ? { ...changes, isFixed } : changes,
+        })
       } else {
         await create.mutateAsync({
           name: trimmed,
@@ -230,6 +244,24 @@ export function CategoryForm({ workspace, kind, categories, category, onDone }: 
         </label>
       )}
 
+      {showFixed && (
+        <div className="flex flex-col gap-1">
+          <label className="flex min-h-12 items-center gap-3 font-medium">
+            <input
+              type="checkbox"
+              checked={isFixed}
+              disabled={!online}
+              aria-describedby={`${ids}-isFixed-hint`}
+              onChange={(event) => setIsFixed(event.target.checked)}
+              className="size-5"
+            />
+            {intl.formatMessage({ id: 'categories.field.fixed' })}
+          </label>
+          <p id={`${ids}-isFixed-hint`} className="text-text-muted">
+            {intl.formatMessage({ id: 'categories.field.fixedHint' })}
+          </p>
+        </div>
+      )}
       {error && (
         <p role="alert" className="text-negative">
           {error}

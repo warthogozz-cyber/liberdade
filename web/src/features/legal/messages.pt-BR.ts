@@ -1,7 +1,9 @@
 import { privacy202611Messages } from './texts/privacy-2026-11'
 import { privacy2026111Messages } from './texts/privacy-2026-11.1'
+import { privacy2026112Messages } from './texts/privacy-2026-11.2'
 import { privacy202612Messages } from './texts/privacy-2026-12'
 import { privacy2026121Messages } from './texts/privacy-2026-12.1'
+import { privacy2026122Messages } from './texts/privacy-2026-12.2'
 import { terms202611Messages } from './texts/terms-2026-11'
 import { terms202612Messages } from './texts/terms-2026-12'
 
@@ -18,8 +20,10 @@ export const legalMessages = {
 
   ...privacy202611Messages,
   ...privacy2026111Messages,
+  ...privacy2026112Messages,
   ...privacy202612Messages,
   ...privacy2026121Messages,
+  ...privacy2026122Messages,
   ...terms202611Messages,
   ...terms202612Messages,
 } as const

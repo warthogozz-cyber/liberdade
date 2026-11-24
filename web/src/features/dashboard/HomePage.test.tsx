@@ -1,3 +1,4 @@
+import { lazy } from 'react'
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -6,6 +7,7 @@ import { mockState, seedMockFamily } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL, queryKeys, type DashboardView, type MeWorkspace } from '@/shared/api'
+import { registerSlot, resetSlots } from '@/shared/modules'
 import { db } from '@/shared/offline'
 import {
   createTestQueryClient,
@@ -32,6 +34,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  resetSlots()
   vi.useRealTimers()
   vi.restoreAllMocks()
 })
@@ -272,5 +275,43 @@ describe('HomePage recovery notice', () => {
 
     expect(await screen.findByText('R$ 10,00')).toBeInTheDocument()
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument()
+  })
+})
+
+describe('HomePage slot', () => {
+  it('renders the home slot', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: true }
+    const Probe = lazy(() => Promise.resolve({ default: () => <p>Card de teste</p> }))
+    registerSlot('home', { key: 'probe', module: 'planning', roles: ['OWNER'], Component: Probe })
+    renderHome()
+
+    expect(await screen.findByText('Card de teste')).toBeInTheDocument()
+  })
+
+  it('youth sees no planning cards', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    mockState.modules[workspace.id] = { planning: true }
+    // Stand-ins for the four planning cards, registered as the planning module does.
+    const titles = [
+      'Orçamento do mês',
+      'Reserva de emergência',
+      'Saldo previsto · estimativa',
+      'Gastos fixos',
+    ]
+    titles.forEach((title, index) => {
+      const Card = lazy(() => Promise.resolve({ default: () => <h2>{title}</h2> }))
+      registerSlot('home', {
+        key: `planning-card-${index}`,
+        module: 'planning',
+        roles: ['OWNER', 'ADULT', 'VIEWER'],
+        Component: Card,
+      })
+    })
+    renderHome()
+
+    expect(await screen.findByText('Sua carteira')).toBeInTheDocument()
+    for (const title of titles) expect(screen.queryByText(title)).not.toBeInTheDocument()
   })
 })

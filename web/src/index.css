@@ -15,6 +15,19 @@
   --radius-field: 8px;
   --radius-card: 12px;
   --radius-sheet: 16px;
+
+  /* The goal celebration: at most one second, opacity and transform only (D20). */
+  --animate-goal-pop: goal-pop 900ms ease-out both;
+  @keyframes goal-pop {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 }
 
 @layer base {

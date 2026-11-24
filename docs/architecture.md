@@ -172,6 +172,38 @@ pacote `br.com.liberdadefamilia.planning`. Ele depende só de `workspace`, `ledg
   ativas. Cada ocorrência vale uma só vez (índice único por regra e data), então rodar de novo ou
   religar o módulo não duplica nada.
 
+#### Plano 7.2: orçamento, metas, reserva e projeção
+
+O `planning` ganha orçamento por categoria, metas com aportes, reserva de emergência, projeção do
+saldo e a divisão entre gastos fixos e variáveis. Mesmo com mais coisa, ele continua fora do
+`ledger`: o `ledger` nunca depende do `planning`.
+
+- **Dependências.** O `planning` declara `allowedDependencies = {"workspace", "ledger", "billing",
+  "shared"}`. A dependência `planning → billing` existe só para o limite de metas do plano Grátis
+  (3 metas ativas); com a cobrança desligada, não há limite. O `billing` não depende do `planning`.
+- **Porta `LedgerFigures`.** É a única entrada do `planning` nos números do `ledger`: gasto
+  confirmado por categoria e por mês, saldos (ativo e da reserva), contas e categorias, divisão
+  fixo/variável e os fluxos que ainda vão acontecer. Cada método olha só a família pedida.
+- **Eventos do `ledger`.** `TransactionChanged` e `AccountChanged` saem de dentro da transação que
+  mudou o dado. O `planning` os ouve depois do commit (`GoalAchievementListener`) para marcar a meta
+  atingida; o ouvinte loga só o nome da classe da falha, nunca valores nem nomes.
+- **Rotas.** Todas levam `@RequiresModule(ModuleKey.PLANNING)` e `@WorkspaceScoped`. Orçamento,
+  reserva, projeção e fixo/variável são negados ao Jovem (403); as metas os quatro papéis leem, e o
+  Jovem nunca recebe a conta vinculada.
+- **Slots do web** (`shared/modules/slots.ts`). `registerSlot('home' | 'workspace', entrada)` deixa
+  um módulo opcional pôr um componente no núcleo sem o núcleo importá-lo. O `<ModuleSlot>` filtra
+  pelo módulo ligado e pelo papel, e põe cada entrada num `Suspense` e num limite de erro. O Início
+  usa o slot `home` (cards do orçamento, da reserva, da projeção e de fixo/variável); o
+  `WorkspaceLayout` usa o slot `workspace` para os observadores invisíveis. Os cards e as telas
+  carregam sob demanda, fora do carregamento inicial (`check:chunks`).
+- **Barramento local** (`shared/events/localActions.ts`). `emitLocalAction` e `onLocalAction` levam
+  `transaction-saved` e `contribution-saved` do núcleo para o planejamento. Quem vem da fila offline
+  (`fromQueue: true`) invalida as consultas, mas não gera aviso nem celebração.
+- **Avisos.** O aviso de 80% e 100% do limite e a celebração de meta atingida guardam o que já foi
+  dito no `localStorage` do aparelho (com `try/catch`), sem som e sem vibração.
+- **Navegação.** A barra inferior ganha Planejar entre "+ Novo gasto" e Mais enquanto o módulo está
+  ligado (cinco itens; quatro quando desligado). Recorrências passou para `/planejar/recorrencias`.
+
 ### Família, Jovem e exclusão
 
 - **Sempre um Dono ativo.** Uma família nunca fica sem Dono ativo: pedir a exclusão da conta do

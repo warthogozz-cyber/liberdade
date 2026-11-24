@@ -14,7 +14,11 @@ import br.com.liberdadefamilia.ledger.ExportedCategory;
 import br.com.liberdadefamilia.ledger.ExportedTag;
 import br.com.liberdadefamilia.ledger.ExportedTransaction;
 import br.com.liberdadefamilia.ledger.LedgerExport;
+import br.com.liberdadefamilia.planning.ExportedBudget;
+import br.com.liberdadefamilia.planning.ExportedContribution;
+import br.com.liberdadefamilia.planning.ExportedGoal;
 import br.com.liberdadefamilia.planning.ExportedRecurringRule;
+import br.com.liberdadefamilia.planning.ExportedReserveSettings;
 import br.com.liberdadefamilia.planning.PlanningExport;
 import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.shared.PaymentMethod;
@@ -63,7 +67,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 class ExportService {
 
-    private static final int FORMAT_VERSION = 3;
+    private static final int FORMAT_VERSION = 4;
     private static final ZoneId FORTALEZA = ZoneId.of("America/Fortaleza");
     private static final List<String> TRANSACTION_HEADER = List.of(
             "data",
@@ -150,6 +154,12 @@ class ExportService {
             String familyName,
             @JsonUnwrapped ExportedRecurringRule rule) {}
 
+    /** A goal contribution the person made, with the family it belongs to. */
+    private record PersonalContribution(
+            UUID workspaceId,
+            String familyName,
+            @JsonUnwrapped ExportedContribution contribution) {}
+
     private record PersonalData(
             UserProfile profile,
             List<PersonalMembership> memberships,
@@ -158,6 +168,7 @@ class ExportService {
             List<PersonalTransaction> transactions,
             List<PersonalTag> tags,
             List<PersonalRule> recurringRules,
+            List<PersonalContribution> goalContributions,
             Map<UUID, Map<UUID, String>> names) {}
 
     /** An order as written in the export: the amount as decimal text, like the rest of it. */
@@ -190,6 +201,10 @@ class ExportService {
             List<ExportedTransaction> transactions,
             List<ExportedTag> tags,
             List<ExportedRecurringRule> recurringRules,
+            List<ExportedBudget> budgets,
+            List<ExportedGoal> goals,
+            List<ExportedContribution> goalContributions,
+            ExportedReserveSettings reserve,
             List<OrderLine> orders,
             @Nullable ExportedPlan plan,
             Map<String, Boolean> modules,
@@ -279,6 +294,7 @@ class ExportService {
         List<PersonalTransaction> transactions = new ArrayList<>();
         List<PersonalTag> tags = new ArrayList<>();
         List<PersonalRule> rules = new ArrayList<>();
+        List<PersonalContribution> contributions = new ArrayList<>();
         Map<UUID, Map<UUID, String>> names = new HashMap<>();
         for (MemberSummary m : mine) {
             String family = familyNames.getOrDefault(m.workspaceId(), "");
@@ -312,6 +328,9 @@ class ExportService {
             for (ExportedRecurringRule r : planning.rulesCreatedBy(m.workspaceId(), m.membershipId())) {
                 rules.add(new PersonalRule(m.workspaceId(), family, r));
             }
+            for (ExportedContribution c : planning.contributionsBy(m.workspaceId(), m.membershipId())) {
+                contributions.add(new PersonalContribution(m.workspaceId(), family, c));
+            }
         }
         transactions.sort(Comparator.comparing(PersonalTransaction::occurredOn)
                 .thenComparing(PersonalTransaction::createdAt)
@@ -323,6 +342,10 @@ class ExportService {
         rules.sort(Comparator.comparing(PersonalRule::familyName)
                 .thenComparing(r -> r.rule().startOn())
                 .thenComparing(r -> r.rule().id()));
+
+        contributions.sort(Comparator.comparing(PersonalContribution::familyName)
+                .thenComparing(c -> c.contribution().occurredOn())
+                .thenComparing(c -> c.contribution().id()));
 
         List<PersonalConsent> consentRows = consents.listForExport(userId).stream()
                 .map(c -> new PersonalConsent(
@@ -338,7 +361,15 @@ class ExportService {
                         c.supersededAt()))
                 .toList();
         return new PersonalData(
-                profile, membershipRows, consentRows, audit.allActivityOf(userId), transactions, tags, rules, names);
+                profile,
+                membershipRows,
+                consentRows,
+                audit.allActivityOf(userId),
+                transactions,
+                tags,
+                rules,
+                contributions,
+                names);
     }
 
     private FamilyData loadFamily(UUID workspaceId) {
@@ -360,6 +391,10 @@ class ExportService {
                 ledger.transactions(workspaceId),
                 ledger.tags(workspaceId),
                 planning.rules(workspaceId),
+                planning.budgets(workspaceId),
+                planning.goals(workspaceId),
+                planning.contributions(workspaceId),
+                planning.reserveSettings(workspaceId),
                 billing.orders(workspaceId).stream().map(OrderLine::of).toList(),
                 billing.plan(workspaceId).orElse(null),
                 enabled,
@@ -412,6 +447,7 @@ class ExportService {
         root.put("transactions", data.transactions());
         root.put("tags", data.tags());
         root.put("recurringRules", data.recurringRules());
+        root.put("goalContributions", data.goalContributions());
 
         List<List<String>> rows = new ArrayList<>();
         for (PersonalTransaction t : data.transactions()) {
@@ -445,9 +481,23 @@ class ExportService {
                     a.metadata().getOrDefault("os", "")));
         }
 
+        List<List<String>> contributionRows = new ArrayList<>();
+        for (PersonalContribution pc : data.goalContributions()) {
+            ExportedContribution c = pc.contribution();
+            contributionRows.add(List.of(
+                    pc.familyName(),
+                    c.goalName(),
+                    c.occurredOn().toString(),
+                    CsvWriter.amount(c.amount().amount()),
+                    c.amount().currency().getCurrencyCode()));
+        }
+
         Map<String, byte[]> files = new LinkedHashMap<>();
         files.put("dados.json", json.writerWithDefaultPrettyPrinter().writeValueAsBytes(root));
         files.put("lancamentos.csv", csv.toBytes(header, rows, Set.of(3)));
+        files.put(
+                "aportes.csv",
+                csv.toBytes(List.of("familia", "meta", "data", "valor", "moeda"), contributionRows, Set.of(3)));
         files.put(
                 "atividade.csv", csv.toBytes(List.of("quando", "acao", "quem", "navegador", "sistema"), activityRows));
         zip(out, files);
@@ -464,6 +514,11 @@ class ExportService {
         root.put("transactions", data.transactions());
         root.put("recurringRules", data.recurringRules());
         root.put("tags", data.tags());
+        root.put("budgets", data.budgets());
+        root.put("goals", data.goals());
+        root.put("goalContributions", data.goalContributions());
+        root.put("reserveTargetMonths", data.reserve().targetMonths());
+        root.put("manualMonthlyCost", data.reserve().manualMonthlyCost());
         root.put("modules", data.modules());
         root.put("orders", data.orders());
         root.put("plan", data.plan());
@@ -495,7 +550,8 @@ class ExportService {
                     CsvWriter.amount(a.balance().amount()),
                     a.balance().currency().getCurrencyCode(),
                     owner == null ? "" : orEmpty(data.names().get(owner)),
-                    archivedAt == null ? "" : archivedAt.toString()));
+                    archivedAt == null ? "" : archivedAt.toString(),
+                    Boolean.toString(a.isReserve())));
         }
         Map<UUID, String> categoryNames = new HashMap<>();
         data.categories().forEach(c -> categoryNames.put(c.id(), c.name()));
@@ -535,7 +591,42 @@ class ExportService {
                     c.name(),
                     Labels.categoryKind(c.kind()),
                     parent == null ? "" : categoryNames.getOrDefault(parent, ""),
+                    archivedAt == null ? "" : archivedAt.toString(),
+                    Boolean.toString(c.isFixed())));
+        }
+        List<List<String>> budgetRows = new ArrayList<>();
+        for (ExportedBudget b : data.budgets()) {
+            budgetRows.add(List.of(
+                    categoryNames.getOrDefault(b.categoryId(), ""),
+                    b.month().toString().substring(0, 7),
+                    CsvWriter.amount(b.limit().amount()),
+                    b.limit().currency().getCurrencyCode()));
+        }
+        List<List<String>> goalRows = new ArrayList<>();
+        for (ExportedGoal g : data.goals()) {
+            LocalDate dueOn = g.dueOn();
+            UUID linked = g.linkedAccountId();
+            Instant achievedAt = g.achievedAt();
+            Instant archivedAt = g.archivedAt();
+            goalRows.add(List.of(
+                    g.name(),
+                    CsvWriter.amount(g.target().amount()),
+                    g.target().currency().getCurrencyCode(),
+                    dueOn == null ? "" : dueOn.toString().substring(0, 7),
+                    g.icon(),
+                    linked == null ? "" : accountNames.getOrDefault(linked, ""),
+                    achievedAt == null ? "" : achievedAt.toString(),
                     archivedAt == null ? "" : archivedAt.toString()));
+        }
+        List<List<String>> contributionRows = new ArrayList<>();
+        for (ExportedContribution c : data.goalContributions()) {
+            UUID member = c.memberId();
+            contributionRows.add(List.of(
+                    c.goalName(),
+                    c.occurredOn().toString(),
+                    CsvWriter.amount(c.amount().amount()),
+                    c.amount().currency().getCurrencyCode(),
+                    member == null ? "" : orEmpty(data.names().get(member))));
         }
         List<List<String>> memberRows = new ArrayList<>();
         for (Member m : data.members()) {
@@ -548,11 +639,20 @@ class ExportService {
         files.put(
                 "contas.csv",
                 csv.toBytes(
-                        List.of("nome", "tipo", "saldo_inicial", "saldo", "moeda", "titular", "arquivada_em"),
+                        List.of(
+                                "nome",
+                                "tipo",
+                                "saldo_inicial",
+                                "saldo",
+                                "moeda",
+                                "titular",
+                                "arquivada_em",
+                                "reserva"),
                         accountRows,
                         Set.of(2, 3)));
         files.put(
-                "categorias.csv", csv.toBytes(List.of("nome", "tipo", "categoria_pai", "arquivada_em"), categoryRows));
+                "categorias.csv",
+                csv.toBytes(List.of("nome", "tipo", "categoria_pai", "arquivada_em", "fixa"), categoryRows));
         files.put("membros.csv", csv.toBytes(List.of("apelido", "papel", "situacao"), memberRows));
         files.put(
                 "recorrencias.csv",
@@ -574,6 +674,24 @@ class ExportService {
                         ruleRows,
                         Set.of(1)));
         files.put("tags.csv", csv.toBytes(List.of("nome", "arquivada_em"), tagRows));
+        files.put("orcamentos.csv", csv.toBytes(List.of("categoria", "mes", "limite", "moeda"), budgetRows, Set.of(2)));
+        files.put(
+                "metas.csv",
+                csv.toBytes(
+                        List.of(
+                                "nome",
+                                "valor_alvo",
+                                "moeda",
+                                "vencimento",
+                                "icone",
+                                "conta_vinculada",
+                                "atingida_em",
+                                "arquivada_em"),
+                        goalRows,
+                        Set.of(1)));
+        files.put(
+                "aportes.csv",
+                csv.toBytes(List.of("meta", "data", "valor", "moeda", "quem"), contributionRows, Set.of(2)));
         zip(out, files);
     }
 

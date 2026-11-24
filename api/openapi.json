@@ -889,6 +889,195 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/budgets": {
+      "get": {
+        "operationId": "getBudgets",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetMonthView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "budget-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/budgets/{month}/copy-previous": {
+      "post": {
+        "operationId": "copyPreviousBudgets",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyBudgetsView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "budget-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/budgets/{month}/{categoryId}": {
+      "delete": {
+        "operationId": "deleteBudget",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed, or there was none"
+          }
+        },
+        "tags": [
+          "budget-controller"
+        ]
+      },
+      "put": {
+        "operationId": "setBudget",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetBudgetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetLineView"
+                }
+              }
+            },
+            "description": "The limit was changed"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetLineView"
+                }
+              }
+            },
+            "description": "The limit was created"
+          }
+        },
+        "tags": [
+          "budget-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/categories": {
       "get": {
         "operationId": "listCategories",
@@ -1265,6 +1454,256 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/goals": {
+      "get": {
+        "operationId": "getGoals",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalsView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "goal-controller"
+        ]
+      },
+      "post": {
+        "operationId": "createGoal",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGoalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalView"
+                }
+              }
+            },
+            "description": "The goal was created"
+          }
+        },
+        "tags": [
+          "goal-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/goals/{id}": {
+      "patch": {
+        "operationId": "updateGoal",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGoalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "goal-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/goals/{id}/archive": {
+      "post": {
+        "operationId": "archiveGoal",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Archived, or it already was"
+          }
+        },
+        "tags": [
+          "goal-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/goals/{id}/contributions": {
+      "get": {
+        "operationId": "getContributions",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContributionView"
+                  }
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "goal-controller"
+        ]
+      },
+      "post": {
+        "operationId": "createContribution",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContributionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContributionView"
+                }
+              }
+            },
+            "description": "The contribution was recorded"
+          }
+        },
+        "tags": [
+          "goal-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/invitations": {
       "get": {
         "operationId": "listInvitations",
@@ -1624,6 +2063,38 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/projection": {
+      "get": {
+        "operationId": "getProjection",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectionView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "projection-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/recurring-rules": {
       "get": {
         "operationId": "listRecurringRules",
@@ -1781,6 +2252,118 @@
         },
         "tags": [
           "recurring-rule-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/reserve": {
+      "get": {
+        "operationId": "getReserve",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReserveView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "reserve-controller"
+        ]
+      },
+      "patch": {
+        "operationId": "updateReserve",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReserveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReserveView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "reserve-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/spending-split": {
+      "get": {
+        "operationId": "getSpendingSplit",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendingSplitView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "projection-controller"
         ]
       }
     },
@@ -2388,6 +2971,9 @@
           "initialBalance": {
             "$ref": "#/components/schemas/Money"
           },
+          "isReserve": {
+            "type": "boolean"
+          },
           "name": {
             "type": "string"
           },
@@ -2443,6 +3029,62 @@
           }
         }
       },
+      "BudgetLineView": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "limit": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "overBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "spent": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "UNDER",
+              "NEAR",
+              "AT",
+              "OVER"
+            ]
+          },
+          "usagePercent": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "BudgetMonthView": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BudgetLineView"
+            }
+          },
+          "month": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "type": "string",
+            "example": "2026-11"
+          }
+        }
+      },
       "CategoryView": {
         "type": "object",
         "properties": {
@@ -2472,6 +3114,9 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "isFixed": {
+            "type": "boolean"
           },
           "kind": {
             "type": "string",
@@ -2581,6 +3226,36 @@
           }
         }
       },
+      "ContributionView": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "memberId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "CopyBudgetsView": {
+        "type": "object",
+        "properties": {
+          "copied": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "CreateAccountRequest": {
         "required": [
           "initialBalance",
@@ -2661,6 +3336,55 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          }
+        }
+      },
+      "CreateContributionRequest": {
+        "required": [
+          "amount",
+          "occurredOn"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "CreateGoalRequest": {
+        "required": [
+          "icon",
+          "name",
+          "targetAmount"
+        ],
+        "type": "object",
+        "properties": {
+          "dueOn": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "type": "string",
+            "nullable": true,
+            "example": "2026-11"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "linkedAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string"
+          },
+          "targetAmount": {
+            "$ref": "#/components/schemas/Money"
           }
         }
       },
@@ -2970,6 +3694,76 @@
               "PRIVACY",
               "PARENTAL"
             ]
+          }
+        }
+      },
+      "GoalView": {
+        "type": "object",
+        "properties": {
+          "achievedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "dueOn": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "type": "string",
+            "nullable": true,
+            "example": "2026-11"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "linked": {
+            "type": "boolean"
+          },
+          "linkedAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "name": {
+            "type": "string"
+          },
+          "percent": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "saved": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "suggestedMonthly": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "targetAmount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "GoalsView": {
+        "type": "object",
+        "properties": {
+          "goals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoalView"
+            }
+          },
+          "limitReached": {
+            "type": "boolean"
           }
         }
       },
@@ -3380,6 +4174,53 @@
           }
         }
       },
+      "ProjectionPointView": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "estimatedSpending": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "monthEnd": {
+            "type": "string",
+            "format": "date"
+          },
+          "scheduled": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "ProjectionView": {
+        "type": "object",
+        "properties": {
+          "averageSpending": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "balanceToday": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "hasHistory": {
+            "type": "boolean"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectionPointView"
+            }
+          },
+          "today": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
       "RecurringRuleView": {
         "type": "object",
         "properties": {
@@ -3493,6 +4334,73 @@
           }
         }
       },
+      "ReserveView": {
+        "type": "object",
+        "properties": {
+          "averageMonthlyCost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "balance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "costSource": {
+            "type": "string",
+            "enum": [
+              "HISTORY",
+              "MANUAL",
+              "NONE"
+            ]
+          },
+          "hasReserveAccounts": {
+            "type": "boolean"
+          },
+          "manualMonthlyCost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "missing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "months": {
+            "type": "number",
+            "nullable": true
+          },
+          "targetMonths": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SetBudgetRequest": {
+        "required": [
+          "limitAmount"
+        ],
+        "type": "object",
+        "properties": {
+          "limitAmount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        }
+      },
       "SkipTransactionRequest": {
         "required": [
           "version"
@@ -3502,6 +4410,22 @@
           "version": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "SpendingSplitView": {
+        "type": "object",
+        "properties": {
+          "fixed": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "month": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "type": "string",
+            "example": "2026-11"
+          },
+          "variable": {
+            "$ref": "#/components/schemas/Money"
           }
         }
       },
@@ -3648,6 +4572,10 @@
           "initialBalance": {
             "$ref": "#/components/schemas/Money"
           },
+          "isReserve": {
+            "type": "boolean",
+            "nullable": true
+          },
           "name": {
             "maxLength": 60,
             "minLength": 1,
@@ -3693,12 +4621,57 @@
             "type": "string",
             "nullable": true
           },
+          "isFixed": {
+            "type": "boolean",
+            "nullable": true
+          },
           "name": {
             "maxLength": 40,
             "minLength": 1,
             "pattern": "[^\\x00]*",
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "UpdateGoalRequest": {
+        "required": [
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "clearDueOn": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "dueOn": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "type": "string",
+            "nullable": true,
+            "example": "2026-11"
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 1,
+            "pattern": "[^\\x00]*",
+            "type": "string",
+            "nullable": true
+          },
+          "targetAmount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -3820,6 +4793,27 @@
           "version": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "UpdateReserveRequest": {
+        "required": [],
+        "type": "object",
+        "properties": {
+          "manualMonthlyCost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "targetMonths": {
+            "maximum": 24,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
           }
         }
       },

@@ -13,6 +13,7 @@ import {
   type TransactionView,
   type UpdateTransactionRequest,
 } from '@/shared/api'
+import { emitLocalAction } from '@/shared/events'
 import { currentMonth } from '@/shared/i18n'
 import { useTransaction } from '@/shared/api/detail'
 import { useOnline } from '@/shared/offline'
@@ -145,8 +146,9 @@ function EditForm({ userId, workspace, opened, month }: EditFormProps) {
 
   /** Saves the edit; a conflict or a transaction gone elsewhere opens its dialog (D12). */
   async function submit(body: UpdateTransactionRequest): Promise<boolean> {
+    let saved: TransactionView
     try {
-      await update.mutateAsync({ id: opened.id, body })
+      saved = await update.mutateAsync({ id: opened.id, body })
     } catch (error) {
       const current = error instanceof ApiError ? error.extra.current : undefined
       if (
@@ -168,6 +170,13 @@ function EditForm({ userId, workspace, opened, month }: EditFormProps) {
       }
       return false
     }
+    emitLocalAction({
+      type: 'transaction-saved',
+      workspaceId: workspace.id,
+      ...(saved.categoryId ? { categoryId: saved.categoryId } : {}),
+      month: saved.occurredOn.slice(0, 7),
+      fromQueue: false,
+    })
     toast.show({ message: intl.formatMessage({ id: 'transactions.updated' }) })
     await navigate(listPath)
     return true

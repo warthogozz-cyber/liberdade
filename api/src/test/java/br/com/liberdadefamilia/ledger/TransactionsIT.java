@@ -658,16 +658,16 @@ class TransactionsIT {
     @Test
     void logsNeverShowValues(CapturedOutput output) {
         UUID savedId = TestIds.v7();
-        Map<String, Object> saved = expense(savedId, ana, money("43.21", "BRL"));
+        Map<String, Object> saved = expense(savedId, ana, money("98765.43", "BRL"));
         saved.put("description", "Feira secreta");
         UUID rejectedId = TestIds.v7();
-        Map<String, Object> rejected = expense(rejectedId, ana, money("43.21", "USD"));
+        Map<String, Object> rejected = expense(rejectedId, ana, money("98765.43", "USD"));
         rejected.put("description", "Feira secreta");
 
         assertThat(post(ana, savedId, saved)).hasStatus(201);
         assertThat(post(ana, rejectedId, rejected)).hasStatus(422);
 
-        assertThat(output.getAll()).doesNotContain("43.21").doesNotContain("Feira secreta");
+        assertThat(output.getAll()).doesNotContain("98765.43").doesNotContain("Feira secreta");
     }
 
     /** A double tap on "Salvar": the same session posts the same expense twice at once, and only one is kept. */

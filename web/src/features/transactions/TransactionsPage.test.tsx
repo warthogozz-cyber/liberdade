@@ -367,6 +367,7 @@ describe('TransactionsPage, viewing and organizing', () => {
       color: null,
       parentId: mercado,
       archivedAt: null,
+      isFixed: false,
       name: 'Feira',
     })
     storeOnServer(workspace, request(MERCADO_ID, 'Mercado', { occurredOn: '2026-11-15' }))

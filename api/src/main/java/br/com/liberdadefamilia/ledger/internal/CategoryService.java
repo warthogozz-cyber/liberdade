@@ -54,14 +54,18 @@ class CategoryService {
 
     /**
      * @throws LedgerNotFoundException when the category is not in the family
+     * @throws LedgerRejectedException when it would make a category that is not an expense one fixed
      * @throws LedgerConflictException when a sibling has the name
      */
     @Transactional
     CategoryView update(WorkspaceMember member, UUID categoryId, UpdateCategoryRequest request) {
         UUID workspaceId = member.workspaceId();
-        view(workspaceId, categoryId);
-        nameTakenIfDuplicate(
-                () -> categories.update(workspaceId, categoryId, request.name(), request.icon(), request.color()));
+        CategoryView category = view(workspaceId, categoryId);
+        if (Boolean.TRUE.equals(request.isFixed()) && category.kind() != TransactionKind.EXPENSE) {
+            throw new LedgerRejectedException("category.fixed-not-expense", "Só categorias de gasto podem ser fixas.");
+        }
+        nameTakenIfDuplicate(() -> categories.update(
+                workspaceId, categoryId, request.name(), request.icon(), request.color(), request.isFixed()));
         return view(workspaceId, categoryId);
     }
 

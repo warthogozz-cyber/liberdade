@@ -47,9 +47,28 @@ test('coreWorksWithEveryModuleOff: the core is whole when no module is on (S2)',
   await createFamily(page)
   await setModules(page, false)
 
-  // The planning module is off: Mais has no Recorrências.
+  // The planning module is off: the bar has no Planejar, and Mais has no Recorrências.
   await visit(page, '/mais', 'Mais')
+  await expect(page.getByRole('link', { name: 'Planejar' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Recorrências' })).toHaveCount(0)
+  // The bar has its four items, Início and Mais among them, and the home has no planning cards.
+  const bar = page.getByRole('navigation', { name: 'Navegação principal' })
+  await expect(bar.getByRole('listitem')).toHaveCount(4)
+  await page.goto('/inicio')
+  await expect(page.getByText('Saldo total')).toBeVisible()
+  // An address typed by hand does not open the planning hub either: it lands on the home.
+  await page.goto('/planejar')
+  await expect(page).toHaveURL('/inicio')
+  await expect(page.getByRole('heading', { level: 1, name: 'Planejar' })).toHaveCount(0)
+  await expect(page.getByText('Saldo total')).toBeVisible()
+  for (const name of [
+    'Orçamento do mês',
+    'Reserva de emergência',
+    'Saldo previsto · estimativa',
+    'Gastos do mês',
+  ]) {
+    await expect(page.getByRole('heading', { level: 2, name })).toHaveCount(0)
+  }
 
   await visit(page, '/mais/modulos', 'Módulos')
   for (const name of ['Planejamento', 'Indicadores', 'Conquistas', 'Projetos']) {

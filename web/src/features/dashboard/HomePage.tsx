@@ -12,6 +12,7 @@ import {
 } from '@/shared/api'
 import { currentMonth } from '@/shared/i18n'
 import { parseCents } from '@/shared/money'
+import { ModuleSlot } from '@/shared/modules'
 import { useOnline, useOutbox, usePendingTotals } from '@/shared/offline'
 import { DataAsOf, useDocumentTitle } from '@/shared/ui'
 import { isRecoveryNoticeRecent } from '@/features/members/recoveryWindow'
@@ -179,6 +180,7 @@ function HomeContent({ me, workspace }: HomeContentProps) {
         </Suspense>
       )}
       {totals}
+      <ModuleSlot name="home" />
       {!youth && (
         <p className="text-sm text-text-muted">
           <FormattedMessage id="home.addAccountsHint" />

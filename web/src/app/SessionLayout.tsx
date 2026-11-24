@@ -5,6 +5,7 @@ import { Navigate, Outlet, useNavigate } from 'react-router'
 import { PendingGate } from '@/app/PendingGate'
 import { PolicyUpdatedNotice } from '@/features/legal/PolicyUpdatedNotice'
 import { useDocuments } from '@/features/legal/useDocuments'
+import { emitLocalAction } from '@/shared/events'
 import { ApiError, postTransaction, queryKeys, useMe, type MeView } from '@/shared/api'
 import {
   applySentTransaction,
@@ -17,6 +18,9 @@ import {
 const DocumentsGate = lazy(() =>
   import('@/features/legal/DocumentsGate').then((m) => ({ default: m.DocumentsGate })),
 )
+
+/** An item older than this, when sent, counts as having come from the offline queue. */
+const QUEUED_AFTER_MS = 60_000
 
 function logCleanupFailure(error: unknown): void {
   console.error('Could not clear the session after another tab changed it', error)
@@ -71,7 +75,17 @@ export function SessionLayout() {
     return startOutboxSync({
       userId,
       send: (item, signal) => postTransaction(item.workspaceId, item.payload, signal),
-      onSent: (item, view) => applySentTransaction(queryClient, item.workspaceId, view),
+      onSent: (item, view) => {
+        applySentTransaction(queryClient, item.workspaceId, view)
+        emitLocalAction({
+          type: 'transaction-saved',
+          workspaceId: item.workspaceId,
+          ...(item.payload.categoryId ? { categoryId: item.payload.categoryId } : {}),
+          month: item.payload.occurredOn.slice(0, 7),
+          // A retried or old item left the queue late: nothing should celebrate or toast it.
+          fromQueue: item.attempts > 0 || Date.now() - item.createdAt > QUEUED_AFTER_MS,
+        })
+      },
       // The 401 of `/v1/me` then reaches the app's global handler.
       onUnauthorized: () => void queryClient.invalidateQueries({ queryKey: queryKeys.me }),
     })

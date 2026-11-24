@@ -436,6 +436,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/budgets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getBudgets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/budgets/{month}/copy-previous": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["copyPreviousBudgets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/budgets/{month}/{categoryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setBudget"];
+        post?: never;
+        delete: operations["deleteBudget"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/categories": {
         parameters: {
             query?: never;
@@ -542,6 +590,70 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["exportFamilyData"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getGoals"];
+        put?: never;
+        post: operations["createGoal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/goals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateGoal"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/goals/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveGoal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/goals/{id}/contributions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getContributions"];
+        put?: never;
+        post: operations["createContribution"];
         delete?: never;
         options?: never;
         head?: never;
@@ -660,6 +772,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/projection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getProjection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/recurring-rules": {
         parameters: {
             query?: never;
@@ -702,6 +830,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["archiveRecurringRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/reserve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getReserve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateReserve"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/spending-split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getSpendingSplit"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -864,6 +1024,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             initialBalance: components["schemas"]["Money"];
+            isReserve: boolean;
             name: string;
             /** Format: uuid */
             ownerMembershipId: string | null;
@@ -884,6 +1045,24 @@ export interface components {
             /** Format: uuid */
             workspaceId: string | null;
         };
+        BudgetLineView: {
+            /** Format: uuid */
+            categoryId: string;
+            limit: components["schemas"]["Money"];
+            overBy: components["schemas"]["Money"] | null;
+            spent: components["schemas"]["Money"];
+            /** @enum {string} */
+            state: "UNDER" | "NEAR" | "AT" | "OVER";
+            /** Format: int32 */
+            usagePercent: number;
+            /** Format: int64 */
+            version: number;
+        };
+        BudgetMonthView: {
+            lines: components["schemas"]["BudgetLineView"][];
+            /** @example 2026-11 */
+            month: string;
+        };
         CategoryView: {
             /** Format: date-time */
             archivedAt: string | null;
@@ -892,6 +1071,7 @@ export interface components {
             icon: string | null;
             /** Format: uuid */
             id: string;
+            isFixed: boolean;
             /** @enum {string} */
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
             name: string;
@@ -932,6 +1112,19 @@ export interface components {
             workspaceId: string;
             workspaceName: string;
         };
+        ContributionView: {
+            amount: components["schemas"]["Money"];
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            memberId: string | null;
+            /** Format: date */
+            occurredOn: string;
+        };
+        CopyBudgetsView: {
+            /** Format: int32 */
+            copied: number;
+        };
         CreateAccountRequest: {
             initialBalance: components["schemas"]["Money"];
             name: string;
@@ -949,6 +1142,20 @@ export interface components {
             name: string;
             /** Format: uuid */
             parentId?: string | null;
+        };
+        CreateContributionRequest: {
+            amount: components["schemas"]["Money"];
+            /** Format: date */
+            occurredOn: string;
+        };
+        CreateGoalRequest: {
+            /** @example 2026-11 */
+            dueOn?: string | null;
+            icon: string;
+            /** Format: uuid */
+            linkedAccountId?: string | null;
+            name: string;
+            targetAmount: components["schemas"]["Money"];
         };
         CreateInvitationRequest: {
             nickname: string;
@@ -1039,6 +1246,30 @@ export interface components {
             currentVersion: string;
             /** @enum {string} */
             purpose: "TERMS" | "PRIVACY" | "PARENTAL";
+        };
+        GoalView: {
+            /** Format: date-time */
+            achievedAt: string | null;
+            /** @example 2026-11 */
+            dueOn: string | null;
+            icon: string;
+            /** Format: uuid */
+            id: string;
+            linked: boolean;
+            /** Format: uuid */
+            linkedAccountId: string | null;
+            name: string;
+            /** Format: int32 */
+            percent: number;
+            saved: components["schemas"]["Money"];
+            suggestedMonthly: components["schemas"]["Money"] | null;
+            targetAmount: components["schemas"]["Money"];
+            /** Format: int64 */
+            version: number;
+        };
+        GoalsView: {
+            goals: components["schemas"]["GoalView"][];
+            limitReached: boolean;
         };
         InvitationPreview: {
             invitedBy: string | null;
@@ -1166,6 +1397,21 @@ export interface components {
         PreviewInvitationRequest: {
             token: string;
         };
+        ProjectionPointView: {
+            balance: components["schemas"]["Money"];
+            estimatedSpending: components["schemas"]["Money"];
+            /** Format: date */
+            monthEnd: string;
+            scheduled: components["schemas"]["Money"];
+        };
+        ProjectionView: {
+            averageSpending: components["schemas"]["Money"] | null;
+            balanceToday: components["schemas"]["Money"];
+            hasHistory: boolean;
+            points: components["schemas"]["ProjectionPointView"][];
+            /** Format: date */
+            today: string;
+        };
         RecurringRuleView: {
             /** Format: uuid */
             accountId: string;
@@ -1202,9 +1448,32 @@ export interface components {
         RenameWorkspaceRequest: {
             name: string;
         };
+        ReserveView: {
+            averageMonthlyCost: components["schemas"]["Money"] | null;
+            balance: components["schemas"]["Money"];
+            /** @enum {string} */
+            costSource: "HISTORY" | "MANUAL" | "NONE";
+            hasReserveAccounts: boolean;
+            manualMonthlyCost: components["schemas"]["Money"] | null;
+            missing: components["schemas"]["Money"] | null;
+            months: number | null;
+            /** Format: int32 */
+            targetMonths: number;
+        };
+        SetBudgetRequest: {
+            limitAmount: components["schemas"]["Money"];
+            /** Format: int64 */
+            version?: number | null;
+        };
         SkipTransactionRequest: {
             /** Format: int64 */
             version: number;
+        };
+        SpendingSplitView: {
+            fixed: components["schemas"]["Money"];
+            /** @example 2026-11 */
+            month: string;
+            variable: components["schemas"]["Money"];
         };
         TagView: {
             /** Format: date-time */
@@ -1255,6 +1524,7 @@ export interface components {
         UpdateAccountRequest: {
             balance?: components["schemas"]["Money"];
             initialBalance?: components["schemas"]["Money"];
+            isReserve?: boolean | null;
             name?: string | null;
             /** @enum {string|null} */
             type?: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT" | null;
@@ -1263,7 +1533,18 @@ export interface components {
             /** @enum {string|null} */
             color?: "TEAL" | "BLUE" | "INDIGO" | "PURPLE" | "PINK" | "RED" | "ORANGE" | "GREEN" | null;
             icon?: string | null;
+            isFixed?: boolean | null;
             name?: string | null;
+        };
+        UpdateGoalRequest: {
+            clearDueOn?: boolean | null;
+            /** @example 2026-11 */
+            dueOn?: string | null;
+            icon?: string | null;
+            name?: string | null;
+            targetAmount?: components["schemas"]["Money"] | null;
+            /** Format: int64 */
+            version: number;
         };
         UpdateMemberRequest: {
             nickname?: string | null;
@@ -1297,6 +1578,11 @@ export interface components {
             toAccountId?: string | null;
             /** Format: int64 */
             version: number;
+        };
+        UpdateReserveRequest: {
+            manualMonthlyCost?: components["schemas"]["Money"] | null;
+            /** Format: int32 */
+            targetMonths?: number | null;
         };
         UpdateTransactionRequest: {
             /** Format: uuid */
@@ -1989,6 +2275,116 @@ export interface operations {
             };
         };
     };
+    getBudgets: {
+        parameters: {
+            query?: {
+                month?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetMonthView"];
+                };
+            };
+        };
+    };
+    copyPreviousBudgets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopyBudgetsView"];
+                };
+            };
+        };
+    };
+    setBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                month: string;
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description The limit was changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetLineView"];
+                };
+            };
+            /** @description The limit was created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetLineView"];
+                };
+            };
+        };
+    };
+    deleteBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                month: string;
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed, or there was none */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listCategories: {
         parameters: {
             query: {
@@ -2208,6 +2604,158 @@ export interface operations {
                 };
                 content: {
                     "application/zip": string;
+                };
+            };
+        };
+    };
+    getGoals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalsView"];
+                };
+            };
+        };
+    };
+    createGoal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGoalRequest"];
+            };
+        };
+        responses: {
+            /** @description The goal was created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalView"];
+                };
+            };
+        };
+    };
+    updateGoal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGoalRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalView"];
+                };
+            };
+        };
+    };
+    archiveGoal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived, or it already was */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getContributions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionView"][];
+                };
+            };
+        };
+    };
+    createContribution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContributionRequest"];
+            };
+        };
+        responses: {
+            /** @description The contribution was recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionView"];
                 };
             };
         };
@@ -2432,6 +2980,29 @@ export interface operations {
             };
         };
     };
+    getProjection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectionView"];
+                };
+            };
+        };
+    };
     listRecurringRules: {
         parameters: {
             query?: never;
@@ -2529,6 +3100,81 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getReserve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReserveView"];
+                };
+            };
+        };
+    };
+    updateReserve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateReserveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReserveView"];
+                };
+            };
+        };
+    };
+    getSpendingSplit: {
+        parameters: {
+            query?: {
+                month?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpendingSplitView"];
+                };
             };
         };
     };

@@ -10,8 +10,10 @@ import { centsToApi, MAX_CENTS, parseCents } from '@/shared/money'
 import type { components } from '@/shared/api/schema'
 import {
   createFamily,
-  KEEPS_ACCEPTANCE,
+  keepsAcceptance,
   type MockAccount,
+  type MockBudget,
+  type MockGoal,
   type MockInvitation,
   type MockRule,
   mockState,
@@ -687,6 +689,200 @@ const planningOn = (workspace: MeWorkspace) => mockState.modules[workspace.id]?.
 const canManageRules = (workspace: MeWorkspace) =>
   workspace.role === 'OWNER' || workspace.role === 'ADULT'
 
+const budgetInvalid = () => problem(400, 'request.invalid', 'Alguns campos precisam de ajuste.')
+const budgetConflict = () =>
+  problem(
+    409,
+    'budget.version-conflict',
+    'O limite foi alterado por outra pessoa. Recarregue e tente de novo.',
+  )
+
+const GOAL_ICONS: unknown[] = [
+  'savings',
+  'home',
+  'car',
+  'travel',
+  'education',
+  'health',
+  'gift',
+  'party',
+  'tech',
+  'other',
+]
+const FREE_ACTIVE_GOALS = 3
+const MAX_GOAL_NAME_LENGTH = 40
+const goalNotFound = () => problem(404, 'goal.not-found', 'Meta não encontrada.')
+const goalRejected = (code: string, detail: string) => problem(422, code, detail)
+const goalLimitReached = () =>
+  problem(
+    403,
+    'goal.limit-reached',
+    'No plano Grátis, a família tem até 3 metas ativas. Conclua ou arquive uma, ou veja o plano Família em Mais > Plano.',
+  )
+const thisMonth = () => new Date().toISOString().slice(0, 7)
+
+/** The reserve as the mock knows it: no reserve accounts, so the balance is zero; the typed cost wins over the history's. */
+function reserveView(): Schemas['ReserveView'] {
+  const { targetMonths, manualMonthlyCost } = mockState.reserve
+  const history = mockState.spendingHistoryCents
+  const average = manualMonthlyCost ?? (history === null ? null : money(history, 'BRL'))
+  const cents = average ? parseCents(average.amount) : null
+  return {
+    balance: money(0n, 'BRL'),
+    hasReserveAccounts: false,
+    averageMonthlyCost: average,
+    costSource: manualMonthlyCost ? 'MANUAL' : history === null ? 'NONE' : 'HISTORY',
+    months: cents === null ? null : 0,
+    targetMonths,
+    missing: cents === null ? null : money(cents * BigInt(targetMonths), 'BRL'),
+    manualMonthlyCost,
+  }
+}
+
+/** The last day of the month `months` after the one `iso` is in, as `YYYY-MM-DD`. */
+function monthEnd(iso: string, months: number): string {
+  const [year, month] = iso.split('-').map(Number)
+  return new Date(Date.UTC(year, month + months, 0)).toISOString().slice(0, 10)
+}
+
+/** The projection as the mock knows it: nothing scheduled; with a history the balance falls by its average each month (D13). */
+function projectionView(workspace: MeWorkspace): Schemas['ProjectionView'] {
+  const today = familyToday(workspace)
+  const balance = money(
+    mockState.accounts
+      .filter((account) => account.archivedAt === null)
+      .reduce((sum, account) => sum + balanceCents(account), 0n),
+    'BRL',
+  )
+  const history = mockState.spendingHistoryCents
+  const balanceCentsToday = parseCents(balance.amount)
+  return {
+    today,
+    balanceToday: balance,
+    hasHistory: history !== null,
+    averageSpending: history === null ? null : money(history, 'BRL'),
+    points: [0, 1, 2, 3].map((months) => ({
+      monthEnd: monthEnd(today, months),
+      balance: money(balanceCentsToday - (history ?? 0n) * BigInt(months), 'BRL'),
+      scheduled: money(0n, 'BRL'),
+      estimatedSpending: money(history === null ? 0n : history * BigInt(months), 'BRL'),
+    })),
+  }
+}
+
+/** The month's confirmed spending: fixed when it came from a rule or its category (or the parent) is fixed (D14). */
+function spendingSplitView(month: string): Schemas['SpendingSplitView'] {
+  const byId = new Map(mockState.categories.map((category) => [category.id, category]))
+  const fixedCategory = (id: string | null) => {
+    const category = id ? byId.get(id) : undefined
+    if (!category) return false
+    const parent = category.parentId ? byId.get(category.parentId) : undefined
+    return category.isFixed || parent?.isFixed === true
+  }
+  let fixed = 0n
+  let variable = 0n
+  for (const transaction of activeTransactions()) {
+    if (transaction.kind !== 'EXPENSE' || !transaction.occurredOn.startsWith(`${month}-`)) continue
+    const cents = parseCents(transaction.amount.amount)
+    if (transaction.recurringRuleId !== null || fixedCategory(transaction.categoryId))
+      fixed += cents
+    else variable += cents
+  }
+  return { month, fixed: money(fixed, 'BRL'), variable: money(variable, 'BRL') }
+}
+
+/** Not zero (above zero unless `signed`), at most 999,999,999.99 and with at most 2 decimal places. */
+function goalCents(value: unknown, signed = false): bigint | undefined {
+  const read = readMoney(value)
+  if (!read) return undefined
+  const abs = read.cents < 0n ? -read.cents : read.cents
+  if (abs === 0n || abs > MAX_CENTS || (!signed && read.cents < 0n)) return undefined
+  return read.cents
+}
+
+/** Whether the free plan already holds its 3 active goals (the API's D11, with billing on as in staging). */
+const goalLimitReachedNow = () =>
+  mockState.billing.plan.key === 'FREE' &&
+  mockState.goals.filter((goal) => !goal.archived && goal.achievedAt === null).length >=
+    FREE_ACTIVE_GOALS
+
+/** The goal as the API shows it; a reached goal gets its `achievedAt` here, as the API's read does. */
+function goalView(goal: MockGoal, workspace: MeWorkspace): Schemas['GoalView'] {
+  const account = goal.linkedAccountId
+    ? mockState.accounts.find((each) => each.id === goal.linkedAccountId)
+    : undefined
+  const raw = account
+    ? balanceCents(account)
+    : goal.contributions.reduce((sum, each) => sum + parseCents(each.amount.amount), 0n)
+  const saved = raw < 0n ? 0n : raw
+  if (saved >= goal.targetCents && goal.achievedAt === null) {
+    goal.achievedAt = new Date().toISOString()
+  }
+  const percent = saved >= goal.targetCents ? 100 : Number((saved * 100n) / goal.targetCents)
+  let suggestedMonthly: ApiMoney | null = null
+  if (goal.dueOn && saved < goal.targetCents) {
+    const [year, month] = thisMonth().split('-').map(Number)
+    const [dueYear, dueMonth] = goal.dueOn.split('-').map(Number)
+    const months = BigInt(Math.max(1, (dueYear - year) * 12 + (dueMonth - month)))
+    suggestedMonthly = money((goal.targetCents - saved + months - 1n) / months, goal.currency)
+  }
+  return {
+    id: goal.id,
+    name: goal.name,
+    icon: goal.icon,
+    targetAmount: money(goal.targetCents, goal.currency),
+    saved: money(saved, goal.currency),
+    percent,
+    dueOn: goal.dueOn,
+    suggestedMonthly,
+    linked: goal.linkedAccountId !== null,
+    linkedAccountId: workspace.role === 'YOUTH' ? null : goal.linkedAccountId,
+    achievedAt: goal.achievedAt,
+    version: goal.version,
+  }
+}
+
+/** A goal of the family that is not archived, or the 404 the API answers. */
+function activeGoal(id: string): MockGoal | Response {
+  return mockState.goals.find((goal) => goal.id === id && !goal.archived) ?? goalNotFound()
+}
+
+/** The line of a limit: what the category (and its subcategories) spent in the month, confirmed only. */
+function budgetLine(budget: MockBudget): { name: string; line: Schemas['BudgetLineView'] } {
+  const currency = 'BRL'
+  const category = mockState.categories.find((each) => each.id === budget.categoryId)
+  const spentCents = activeTransactions()
+    .filter((transaction) => {
+      if (transaction.kind !== 'EXPENSE' || !transaction.occurredOn.startsWith(budget.month)) {
+        return false
+      }
+      const own = mockState.categories.find((each) => each.id === transaction.categoryId)
+      return own?.id === budget.categoryId || own?.parentId === budget.categoryId
+    })
+    .reduce((sum, transaction) => sum + parseCents(transaction.amount.amount), 0n)
+  const percent = Number((spentCents * 100n) / budget.limitCents)
+  const state =
+    spentCents > budget.limitCents
+      ? 'OVER'
+      : spentCents === budget.limitCents
+        ? 'AT'
+        : percent >= 80
+          ? 'NEAR'
+          : 'UNDER'
+  return {
+    name: category?.name ?? '',
+    line: {
+      categoryId: budget.categoryId,
+      limit: money(budget.limitCents, currency),
+      spent: money(spentCents, currency),
+      usagePercent: percent,
+      state,
+      overBy: state === 'OVER' ? money(spentCents - budget.limitCents, currency) : null,
+      version: budget.version,
+    },
+  }
+}
+
 /** A Youth sees only the rules on the accounts that are theirs. */
 function ruleVisible(workspace: MeWorkspace, rule: MockRule): boolean {
   if (workspace.role !== 'YOUTH') return true
@@ -987,9 +1183,10 @@ export const handlers = [
           currentVersion: mockState.currentDocuments[purpose],
           acceptedVersion: accepted?.version ?? null,
           acceptedAt: accepted?.at ?? null,
-          acceptanceRequired:
-            accepted?.version !== mockState.currentDocuments[purpose] &&
-            accepted?.version !== KEEPS_ACCEPTANCE[mockState.currentDocuments[purpose]],
+          acceptanceRequired: !keepsAcceptance(
+            mockState.currentDocuments[purpose],
+            accepted?.version,
+          ),
         }
       }),
     )
@@ -1602,6 +1799,7 @@ export const handlers = [
       initialBalance: money(initial.cents, workspace.currency),
       ownerMembershipId: typeof owner === 'string' ? owner : null,
       archivedAt: null,
+      isReserve: false,
     }
     mockState.accounts.push(account)
     return HttpResponse.json(accountView(account), { status: 201 })
@@ -1622,7 +1820,8 @@ export const handlers = [
         initial === undefined ||
         balance === undefined ||
         (body.type != null && !ACCOUNT_TYPES.includes(body.type)) ||
-        (body.name != null && typeof body.name !== 'string')
+        (body.name != null && typeof body.name !== 'string') ||
+        (body.isReserve != null && typeof body.isReserve !== 'boolean')
       ) {
         return malformed()
       }
@@ -1638,7 +1837,13 @@ export const handlers = [
       if (initial !== null && balance !== null) {
         errors.push({ field: 'oneBalanceAtMost', code: 'AssertTrue' })
       }
-      if (name === null && body.type == null && initial === null && balance === null) {
+      if (
+        name === null &&
+        body.type == null &&
+        initial === null &&
+        balance === null &&
+        body.isReserve == null
+      ) {
         errors.push({ field: 'notEmpty', code: 'AssertTrue' })
       }
       if (errors.length > 0) return invalid(errors)
@@ -1656,6 +1861,7 @@ export const handlers = [
       if (name !== null) account.name = name
       if (body.type != null) account.type = body.type as MockAccount['type']
       if (initial !== null) account.initialBalance = money(initial.cents, account.currency)
+      if (typeof body.isReserve === 'boolean') account.isReserve = body.isReserve
       if (balance !== null) {
         account.initialBalance = money(balance.cents - movementCents(account.id), account.currency)
       }
@@ -1794,6 +2000,7 @@ export const handlers = [
       color: typeof color === 'string' ? (color as CategoryColor) : null,
       parentId: parent,
       archivedAt: null,
+      isFixed: false,
     }
     mockState.categories.push(category)
     return HttpResponse.json(category, { status: 201 })
@@ -1812,7 +2019,8 @@ export const handlers = [
       if (
         (body.name != null && typeof body.name !== 'string') ||
         (icon != null && typeof icon !== 'string') ||
-        (color != null && !CATEGORY_COLORS.includes(color))
+        (color != null && !CATEGORY_COLORS.includes(color)) ||
+        (body.isFixed != null && typeof body.isFixed !== 'boolean')
       ) {
         return malformed()
       }
@@ -1824,12 +2032,15 @@ export const handlers = [
       if (typeof icon === 'string' && (icon === '' || icon.length > MAX_ICON_LENGTH)) {
         errors.push({ field: 'icon', code: 'Size' })
       }
-      if (name === null && icon == null && color == null) {
+      if (name === null && icon == null && color == null && body.isFixed == null) {
         errors.push({ field: 'notEmpty', code: 'AssertTrue' })
       }
       if (errors.length > 0) return invalid(errors)
       const category = mockState.categories.find((existing) => existing.id === params.id)
       if (!category) return categoryNotFound()
+      if (body.isFixed === true && category.kind !== 'EXPENSE') {
+        return rejected('category.fixed-not-expense', 'Só categorias de gasto podem ser fixas.')
+      }
       // Only active categories hold a name: renaming an archived one never clashes.
       if (
         name !== null &&
@@ -1841,6 +2052,7 @@ export const handlers = [
       if (name !== null) category.name = name
       if (typeof icon === 'string') category.icon = icon
       if (typeof color === 'string') category.color = color as CategoryColor
+      if (typeof body.isFixed === 'boolean') category.isFixed = body.isFixed
       return HttpResponse.json(category)
     },
   ),
@@ -2272,6 +2484,368 @@ export const handlers = [
         }
       }
       return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/budgets'), ({ request, params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    if (workspace.role === 'YOUTH') return roleDenied()
+    const month = new URL(request.url).searchParams.get('month')
+    if (!month || !MONTH.test(month)) return budgetInvalid()
+    const lines = mockState.budgets
+      .filter((budget) => budget.month === month)
+      .map((budget) => budgetLine(budget))
+      .sort(
+        (a, b) =>
+          a.name.localeCompare(b.name) || a.line.categoryId.localeCompare(b.line.categoryId),
+      )
+      .map((entry) => entry.line)
+    return HttpResponse.json({ month, lines })
+  }),
+
+  http.put<{ ws: string; month: string; categoryId: string }>(
+    url('/v1/workspaces/:ws/budgets/:month/:categoryId'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      if (!MONTH.test(params.month)) return budgetInvalid()
+      const body = (await readJson(request)) as
+        { limitAmount?: ApiMoney; version?: number | null } | undefined
+      const category = mockState.categories.find((each) => each.id === params.categoryId)
+      if (!category) return problem(404, 'category.not-found', 'Categoria não encontrada.')
+      if (category.kind !== 'EXPENSE') {
+        return problem(
+          422,
+          'budget.category-not-expense',
+          'Orçamento só vale para categorias de gasto.',
+        )
+      }
+      let limitCents: bigint
+      try {
+        limitCents = parseCents(body?.limitAmount?.amount ?? '')
+      } catch {
+        return budgetInvalid()
+      }
+      if (limitCents <= 0n) return budgetInvalid()
+      const stored = mockState.budgets.find(
+        (each) => each.month === params.month && each.categoryId === params.categoryId,
+      )
+      const version = body?.version ?? null
+      if (!stored) {
+        if (version !== null) return budgetConflict()
+        const created = {
+          month: params.month,
+          categoryId: params.categoryId,
+          limitCents,
+          version: 0,
+        }
+        mockState.budgets.push(created)
+        return HttpResponse.json(budgetLine(created).line, { status: 201 })
+      }
+      if (version !== stored.version) return budgetConflict()
+      stored.limitCents = limitCents
+      stored.version += 1
+      return HttpResponse.json(budgetLine(stored).line)
+    },
+  ),
+
+  http.delete<{ ws: string; month: string; categoryId: string }>(
+    url('/v1/workspaces/:ws/budgets/:month/:categoryId'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      if (!MONTH.test(params.month)) return budgetInvalid()
+      mockState.budgets = mockState.budgets.filter(
+        (each) => !(each.month === params.month && each.categoryId === params.categoryId),
+      )
+      return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
+  http.post<{ ws: string; month: string }>(
+    url('/v1/workspaces/:ws/budgets/:month/copy-previous'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      if (!MONTH.test(params.month)) return budgetInvalid()
+      const [year, month] = params.month.split('-').map(Number)
+      const previous =
+        month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, '0')}`
+      const copies = mockState.budgets.filter(
+        (from) =>
+          from.month === previous &&
+          mockState.categories.some(
+            (each) => each.id === from.categoryId && each.archivedAt === null,
+          ) &&
+          !mockState.budgets.some(
+            (to) => to.month === params.month && to.categoryId === from.categoryId,
+          ),
+      )
+      for (const from of copies) {
+        mockState.budgets.push({ ...from, month: params.month, version: 0 })
+      }
+      return HttpResponse.json({ copied: copies.length })
+    },
+  ),
+
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/projection'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    if (workspace.role === 'YOUTH') return roleDenied()
+    return HttpResponse.json(projectionView(workspace))
+  }),
+
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/spending-split'), ({ request, params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    if (workspace.role === 'YOUTH') return roleDenied()
+    const month = new URL(request.url).searchParams.get('month')
+    if (!month || !MONTH.test(month)) return budgetInvalid()
+    return HttpResponse.json(spendingSplitView(month))
+  }),
+
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/reserve'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    if (workspace.role === 'YOUTH') return roleDenied()
+    return HttpResponse.json(reserveView())
+  }),
+
+  http.patch<{ ws: string }>(url('/v1/workspaces/:ws/reserve'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    if (!canManageRules(workspace)) return roleDenied()
+    const body = (await readJson(request)) as Schemas['UpdateReserveRequest'] | undefined
+    if (!body || typeof body !== 'object') return malformed()
+    const hasCost = 'manualMonthlyCost' in body
+    const cost = hasCost ? readMoney(body.manualMonthlyCost) : null
+    if (
+      (body.targetMonths === undefined && !hasCost) ||
+      (body.targetMonths != null &&
+        (!Number.isInteger(body.targetMonths) ||
+          body.targetMonths < 1 ||
+          body.targetMonths > 24)) ||
+      cost === undefined ||
+      (cost !== null && (cost.cents <= 0n || cost.cents > MAX_CENTS))
+    ) {
+      return budgetInvalid()
+    }
+    if (body.targetMonths != null) mockState.reserve.targetMonths = body.targetMonths
+    if (hasCost) {
+      mockState.reserve.manualMonthlyCost = cost ? money(cost.cents, cost.currency) : null
+    }
+    return HttpResponse.json(reserveView())
+  }),
+
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/goals'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    const views = mockState.goals
+      .filter((goal) => !goal.archived)
+      .map((goal) => goalView(goal, workspace))
+    const active = views.filter((view) => view.achievedAt === null)
+    const achieved = views
+      .filter((view) => view.achievedAt !== null)
+      .sort((a, b) => (b.achievedAt ?? '').localeCompare(a.achievedAt ?? ''))
+    return HttpResponse.json({
+      goals: [...active, ...achieved],
+      limitReached: canManageRules(workspace) && goalLimitReachedNow(),
+    })
+  }),
+
+  http.post<{ ws: string }>(url('/v1/workspaces/:ws/goals'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    if (!canManageRules(workspace)) return roleDenied()
+    const body = (await readJson(request)) as Partial<Schemas['CreateGoalRequest']> | undefined
+    if (!body || typeof body !== 'object') return malformed()
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    const targetCents = goalCents(body.targetAmount)
+    if (
+      !name ||
+      name.length > MAX_GOAL_NAME_LENGTH ||
+      !GOAL_ICONS.includes(body.icon) ||
+      targetCents === undefined ||
+      (body.dueOn != null && !MONTH.test(body.dueOn))
+    ) {
+      return budgetInvalid()
+    }
+    if (body.targetAmount?.currency !== workspace.currency) {
+      return goalRejected('goal.currency', 'A meta precisa estar na moeda da família.')
+    }
+    if (body.dueOn != null && body.dueOn < thisMonth()) {
+      return goalRejected('goal.due-in-past', 'O prazo não pode ser um mês que já passou.')
+    }
+    const linked = body.linkedAccountId ?? null
+    if (
+      linked !== null &&
+      !mockState.accounts.some((each) => each.id === linked && !each.archivedAt)
+    ) {
+      return goalRejected(
+        'goal.linked-account-invalid',
+        'Escolha uma conta ativa da família para a meta acompanhar.',
+      )
+    }
+    if (goalLimitReachedNow()) return goalLimitReached()
+    const goal: MockGoal = {
+      id: crypto.randomUUID(),
+      name,
+      icon: body.icon as string,
+      targetCents,
+      currency: workspace.currency,
+      dueOn: body.dueOn ?? null,
+      linkedAccountId: linked,
+      achievedAt: null,
+      archived: false,
+      version: 0,
+      contributions: [],
+    }
+    mockState.goals.push(goal)
+    return HttpResponse.json(goalView(goal, workspace), { status: 201 })
+  }),
+
+  http.patch<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/goals/:id'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      const goal = activeGoal(params.id)
+      if (goal instanceof Response) return goal
+      const body = (await readJson(request)) as Partial<Schemas['UpdateGoalRequest']> | undefined
+      if (!body || typeof body !== 'object') return malformed()
+      const name = typeof body.name === 'string' ? body.name.trim() : null
+      const targetCents = body.targetAmount == null ? null : goalCents(body.targetAmount)
+      if (
+        typeof body.version !== 'number' ||
+        (name !== null && (!name || name.length > MAX_GOAL_NAME_LENGTH)) ||
+        (body.icon != null && !GOAL_ICONS.includes(body.icon)) ||
+        (body.dueOn != null && !MONTH.test(body.dueOn)) ||
+        targetCents === undefined ||
+        (body.clearDueOn === true && body.dueOn != null) ||
+        (name === null &&
+          targetCents === null &&
+          body.dueOn == null &&
+          body.icon == null &&
+          body.clearDueOn !== true)
+      ) {
+        return budgetInvalid()
+      }
+      if (body.version !== goal.version) {
+        return problem(
+          409,
+          'goal.version-conflict',
+          'A meta foi alterada por outra pessoa. Recarregue e tente de novo.',
+        )
+      }
+      if (body.targetAmount != null && body.targetAmount.currency !== goal.currency) {
+        return goalRejected('goal.currency', 'A meta precisa estar na moeda da família.')
+      }
+      if (body.dueOn != null && body.dueOn < thisMonth()) {
+        return goalRejected('goal.due-in-past', 'O prazo não pode ser um mês que já passou.')
+      }
+      if (name !== null) goal.name = name
+      if (targetCents !== null) goal.targetCents = targetCents
+      if (body.clearDueOn === true) goal.dueOn = null
+      else if (body.dueOn != null) goal.dueOn = body.dueOn
+      if (body.icon != null) goal.icon = body.icon
+      goal.version += 1
+      return HttpResponse.json(goalView(goal, workspace))
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/goals/:id/archive'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      const goal = mockState.goals.find((each) => each.id === params.id)
+      if (!goal) return goalNotFound()
+      goal.archived = true
+      return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
+  http.post<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/goals/:id/contributions'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      const goal = activeGoal(params.id)
+      if (goal instanceof Response) return goal
+      const body = (await readJson(request)) as
+        Partial<Schemas['CreateContributionRequest']> | undefined
+      if (!body || typeof body !== 'object') return malformed()
+      const cents = goalCents(body.amount, true)
+      if (
+        cents === undefined ||
+        typeof body.occurredOn !== 'string' ||
+        !DATE.test(body.occurredOn)
+      ) {
+        return budgetInvalid()
+      }
+      if (goal.linkedAccountId !== null) {
+        return goalRejected('goal.linked-account', 'Esta meta acompanha o saldo de uma conta.')
+      }
+      if (body.amount?.currency !== goal.currency) {
+        return goalRejected('goal.currency', 'A meta precisa estar na moeda da família.')
+      }
+      const sum = goal.contributions.reduce(
+        (total, each) => total + parseCents(each.amount.amount),
+        0n,
+      )
+      if (sum + cents < 0n) {
+        return goalRejected('goal.negative-balance', 'O guardado não pode ficar negativo.')
+      }
+      const contribution: Schemas['ContributionView'] = {
+        id: crypto.randomUUID(),
+        amount: money(cents, goal.currency),
+        occurredOn: body.occurredOn,
+        memberId: workspace.membershipId,
+      }
+      goal.contributions.unshift(contribution)
+      // Marks the goal reached when this contribution got it there, as the API does.
+      goalView(goal, workspace)
+      return HttpResponse.json(contribution, { status: 201 })
+    },
+  ),
+
+  http.get<{ ws: string; id: string }>(
+    url('/v1/workspaces/:ws/goals/:id/contributions'),
+    ({ params }) => {
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      const goal = activeGoal(params.id)
+      if (goal instanceof Response) return goal
+      return HttpResponse.json(goal.contributions)
     },
   ),
 

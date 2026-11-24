@@ -118,6 +118,10 @@ class RoleMatrixIT {
                         plannedRows(),
                         tagRows(),
                         recurringRuleRows(),
+                        budgetRows(),
+                        goalRows(),
+                        reserveRows(),
+                        projectionRows(),
                         memberRows(),
                         invitationRows(),
                         workspaceRows(),
@@ -200,6 +204,92 @@ class RoleMatrixIT {
                                 "POST " + W + "/recurring-rules/{id}/archive",
                                 W + "/recurring-rules/{rule}/archive",
                                 null))
+                .flatMap(group -> group);
+    }
+
+    static Stream<Row> budgetRows() {
+        String put = "{\"limitAmount\":{\"amount\":\"100.00\",\"currency\":\"BRL\"},\"version\":null}";
+        return Stream.of(
+                        each(
+                                "GET " + W + "/budgets",
+                                W + "/budgets?month=2026-11",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK),
+                        ownerAndAdult(
+                                "PUT " + W + "/budgets/{month}/{categoryId}", W + "/budgets/2026-11/{mercado}", put),
+                        ownerAndAdult(
+                                "DELETE " + W + "/budgets/{month}/{categoryId}",
+                                W + "/budgets/2026-11/{mercado}",
+                                null),
+                        ownerAndAdult(
+                                "POST " + W + "/budgets/{month}/copy-previous",
+                                W + "/budgets/2026-11/copy-previous",
+                                null))
+                .flatMap(group -> group);
+    }
+
+    static Stream<Row> goalRows() {
+        String create = "{\"name\":\"Nova\",\"targetAmount\":{\"amount\":\"100.00\",\"currency\":\"BRL\"},"
+                + "\"icon\":\"gift\"}";
+        String contribution = "{\"amount\":{\"amount\":\"10.00\",\"currency\":\"BRL\"},\"occurredOn\":\"2026-11-02\"}";
+        return Stream.of(
+                        each("GET " + W + "/goals", W + "/goals", null, Outcome.OK, Outcome.OK, Outcome.OK, Outcome.OK),
+                        ownerAndAdult("POST " + W + "/goals", W + "/goals", create),
+                        ownerAndAdult(
+                                "PATCH " + W + "/goals/{id}",
+                                W + "/goals/{goal}",
+                                "{\"name\":\"Outra\",\"version\":0}"),
+                        ownerAndAdult("POST " + W + "/goals/{id}/archive", W + "/goals/{goal}/archive", null),
+                        ownerAndAdult(
+                                "POST " + W + "/goals/{id}/contributions",
+                                W + "/goals/{goal}/contributions",
+                                contribution),
+                        each(
+                                "GET " + W + "/goals/{id}/contributions",
+                                W + "/goals/{goal}/contributions",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK))
+                .flatMap(group -> group);
+    }
+
+    static Stream<Row> reserveRows() {
+        return Stream.of(
+                        each(
+                                "GET " + W + "/reserve",
+                                W + "/reserve",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK),
+                        ownerAndAdult("PATCH " + W + "/reserve", W + "/reserve", "{\"targetMonths\":12}"))
+                .flatMap(group -> group);
+    }
+
+    static Stream<Row> projectionRows() {
+        return Stream.of(
+                        each(
+                                "GET " + W + "/projection",
+                                W + "/projection",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK),
+                        each(
+                                "GET " + W + "/spending-split",
+                                W + "/spending-split?month=2026-11",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK))
                 .flatMap(group -> group);
     }
 
@@ -681,6 +771,16 @@ class RoleMatrixIT {
         ids.put(
                 "youthTransferOutDeleted",
                 transaction(ws, ids.get("wallet"), ids.get("corrente"), null, leoMembership, true));
+        ids.put(
+                "goal",
+                jdbc.sql("""
+                        insert into goals (workspace_id, name, target_amount, currency, icon, created_by)
+                        values (:ws, 'Viagem', 1000, 'BRL', 'travel', :ana)
+                        returning id""")
+                        .param("ws", ws)
+                        .param("ana", anaMembership)
+                        .query(UUID.class)
+                        .single());
         ids.put("plannedFamily", planned(ws, ids.get("corrente"), ids.get("mercado"), anaMembership));
         ids.put("plannedYouth", planned(ws, ids.get("wallet"), ids.get("mercado"), anaMembership));
         byte[] tokenHash = new byte[32];
@@ -798,6 +898,9 @@ class RoleMatrixIT {
                                                  where t.workspace_id = :ws),
                                 'rules', (select json_agg(r order by r.id) from recurring_rules r
                                           where r.workspace_id = :ws),
+                                'goals', (select json_agg(g order by g.id) from goals g where g.workspace_id = :ws),
+                                'contributions', (select json_agg(gc order by gc.id) from goal_contributions gc
+                                                  where gc.workspace_id = :ws),
                                 'invitations', (select json_agg(i order by i.id) from invitations i
                                                 where i.workspace_id = :ws),
                                 'modules', (select json_agg(x order by x.module_key) from workspace_modules x

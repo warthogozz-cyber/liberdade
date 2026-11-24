@@ -21,6 +21,7 @@ export const messages = {
   'nav.home': 'Início',
   'nav.transactions': 'Lançamentos',
   'nav.newExpense': 'Novo gasto',
+  'nav.planning': 'Planejar',
   'nav.more': 'Mais',
   'more.accounts': 'Contas',
   'more.categories': 'Categorias',

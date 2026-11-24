@@ -7,6 +7,7 @@ import { mockState, seedMockFamily, type MockAccount } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL, postTransaction, queryKeys, type MeWorkspace } from '@/shared/api'
+import { onLocalAction, type LocalAction } from '@/shared/events'
 import { localDate } from '@/shared/i18n'
 import { db, syncOutbox } from '@/shared/offline'
 import {
@@ -58,6 +59,7 @@ function addAccount(
     initialBalance: { amount: '0.00', currency: 'BRL' },
     ownerMembershipId: workspace.membershipId,
     archivedAt,
+    isReserve: false,
   }
   mockState.accounts.push(account)
   return account
@@ -935,6 +937,29 @@ describe('NewTransactionPage, editing', () => {
       }),
     ])
     expect(await within(toastRegion()).findByText('Lançamento atualizado.')).toBeInTheDocument()
+  })
+
+  it('emitsALocalActionWhenTheEditIsSaved', async () => {
+    const workspace = seedMockFamily()
+    storeForEdit(workspace)
+    const actions: LocalAction[] = []
+    const off = onLocalAction((action) => actions.push(action))
+    const { router } = await openEdit()
+
+    press('Apagar', '9')
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancamentos'))
+    off()
+    expect(actions).toEqual([
+      {
+        type: 'transaction-saved',
+        workspaceId: workspace.id,
+        categoryId: category('Mercado').id,
+        month: '2026-11',
+        fromQueue: false,
+      },
+    ])
   })
 
   it('editKeepsArchivedAccount', async () => {

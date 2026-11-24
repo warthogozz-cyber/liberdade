@@ -48,6 +48,8 @@ export const categoriesMessages = {
   'categories.icon.work': 'Trabalho',
   'categories.icon.investments': 'Investimentos',
   'categories.save': 'Salvar',
+  'categories.field.fixed': 'Gasto fixo',
+  'categories.field.fixedHint': 'Entra na conta dos gastos que se repetem todo mês.',
   'categories.cancel': 'Cancelar',
   'categories.archive': 'Arquivar',
   'categories.archive.title': 'Arquivar {name}?',
