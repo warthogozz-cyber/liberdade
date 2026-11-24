@@ -436,6 +436,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/budgets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getBudgets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/budgets/{month}/copy-previous": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["copyPreviousBudgets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/budgets/{month}/{categoryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setBudget"];
+        post?: never;
+        delete: operations["deleteBudget"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/categories": {
         parameters: {
             query?: never;
@@ -885,6 +933,24 @@ export interface components {
             /** Format: uuid */
             workspaceId: string | null;
         };
+        BudgetLineView: {
+            /** Format: uuid */
+            categoryId: string;
+            limit: components["schemas"]["Money"];
+            overBy: components["schemas"]["Money"] | null;
+            spent: components["schemas"]["Money"];
+            /** @enum {string} */
+            state: "UNDER" | "NEAR" | "AT" | "OVER";
+            /** Format: int32 */
+            usagePercent: number;
+            /** Format: int64 */
+            version: number;
+        };
+        BudgetMonthView: {
+            lines: components["schemas"]["BudgetLineView"][];
+            /** @example 2026-11 */
+            month: string;
+        };
         CategoryView: {
             /** Format: date-time */
             archivedAt: string | null;
@@ -933,6 +999,10 @@ export interface components {
             /** Format: uuid */
             workspaceId: string;
             workspaceName: string;
+        };
+        CopyBudgetsView: {
+            /** Format: int32 */
+            copied: number;
         };
         CreateAccountRequest: {
             initialBalance: components["schemas"]["Money"];
@@ -1203,6 +1273,11 @@ export interface components {
         };
         RenameWorkspaceRequest: {
             name: string;
+        };
+        SetBudgetRequest: {
+            limitAmount: components["schemas"]["Money"];
+            /** Format: int64 */
+            version?: number | null;
         };
         SkipTransactionRequest: {
             /** Format: int64 */
@@ -1985,6 +2060,116 @@ export interface operations {
         };
         responses: {
             /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getBudgets: {
+        parameters: {
+            query?: {
+                month?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetMonthView"];
+                };
+            };
+        };
+    };
+    copyPreviousBudgets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopyBudgetsView"];
+                };
+            };
+        };
+    };
+    setBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                month: string;
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description The limit was changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetLineView"];
+                };
+            };
+            /** @description The limit was created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetLineView"];
+                };
+            };
+        };
+    };
+    deleteBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                month: string;
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed, or there was none */
             204: {
                 headers: {
                     [name: string]: unknown;

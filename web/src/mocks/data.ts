@@ -21,6 +21,14 @@ export interface MockInvitation {
 /** A recurring rule as stored: an archived one stays, out of the lists. */
 export type MockRule = Schemas['RecurringRuleView'] & { archived: boolean }
 
+/** A monthly limit as stored: the month is `YYYY-MM`, the limit in cents. */
+export interface MockBudget {
+  month: string
+  categoryId: string
+  limitCents: bigint
+  version: number
+}
+
 /** A consent as the API lists it, plus whether the signed-in person is the one who gave it. */
 export type MockConsent = Schemas['ConsentView'] & { grantedByMe: boolean }
 
@@ -48,6 +56,8 @@ export interface MockState {
   modules: Record<string, Partial<Record<Schemas['ModuleView']['key'], boolean>>>
   /** The family's recurring rules, in creation order, archived ones included. */
   rules: MockRule[]
+  /** The family's monthly limits per category. */
+  budgets: MockBudget[]
   /** The signed-in person's own history, newest first (LGPD audit trail). */
   activity: Schemas['ActivityItem'][]
   /** The signed-in person's own passkeys, newest first. */
@@ -219,6 +229,7 @@ function initialState(): MockState {
     billing: { plan: { key: 'FREE', endsAt: null }, orders: [] },
     modules: {},
     rules: [],
+    budgets: [],
     activity: initialActivity(),
     passkeys: initialPasskeys(),
     hasGoogle: true,

@@ -12,6 +12,7 @@ import {
   createFamily,
   KEEPS_ACCEPTANCE,
   type MockAccount,
+  type MockBudget,
   type MockInvitation,
   type MockRule,
   mockState,
@@ -686,6 +687,50 @@ const planningOn = (workspace: MeWorkspace) => mockState.modules[workspace.id]?.
 /** Only an Owner or an Adult makes, edits and archives rules. */
 const canManageRules = (workspace: MeWorkspace) =>
   workspace.role === 'OWNER' || workspace.role === 'ADULT'
+
+const budgetInvalid = () => problem(400, 'request.invalid', 'Alguns campos precisam de ajuste.')
+const budgetConflict = () =>
+  problem(
+    409,
+    'budget.version-conflict',
+    'O limite foi alterado por outra pessoa. Recarregue e tente de novo.',
+  )
+
+/** The line of a limit: what the category (and its subcategories) spent in the month, confirmed only. */
+function budgetLine(budget: MockBudget): { name: string; line: Schemas['BudgetLineView'] } {
+  const currency = 'BRL'
+  const category = mockState.categories.find((each) => each.id === budget.categoryId)
+  const spentCents = activeTransactions()
+    .filter((transaction) => {
+      if (transaction.kind !== 'EXPENSE' || !transaction.occurredOn.startsWith(budget.month)) {
+        return false
+      }
+      const own = mockState.categories.find((each) => each.id === transaction.categoryId)
+      return own?.id === budget.categoryId || own?.parentId === budget.categoryId
+    })
+    .reduce((sum, transaction) => sum + parseCents(transaction.amount.amount), 0n)
+  const percent = Number((spentCents * 100n) / budget.limitCents)
+  const state =
+    spentCents > budget.limitCents
+      ? 'OVER'
+      : spentCents === budget.limitCents
+        ? 'AT'
+        : percent >= 80
+          ? 'NEAR'
+          : 'UNDER'
+  return {
+    name: category?.name ?? '',
+    line: {
+      categoryId: budget.categoryId,
+      limit: money(budget.limitCents, currency),
+      spent: money(spentCents, currency),
+      usagePercent: percent,
+      state,
+      overBy: state === 'OVER' ? money(spentCents - budget.limitCents, currency) : null,
+      version: budget.version,
+    },
+  }
+}
 
 /** A Youth sees only the rules on the accounts that are theirs. */
 function ruleVisible(workspace: MeWorkspace, rule: MockRule): boolean {
@@ -2287,6 +2332,118 @@ export const handlers = [
         }
       }
       return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/budgets'), ({ request, params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    if (workspace.role === 'YOUTH') return roleDenied()
+    const month = new URL(request.url).searchParams.get('month')
+    if (!month || !MONTH.test(month)) return budgetInvalid()
+    const lines = mockState.budgets
+      .filter((budget) => budget.month === month)
+      .map((budget) => budgetLine(budget))
+      .sort(
+        (a, b) =>
+          a.name.localeCompare(b.name) || a.line.categoryId.localeCompare(b.line.categoryId),
+      )
+      .map((entry) => entry.line)
+    return HttpResponse.json({ month, lines })
+  }),
+
+  http.put<{ ws: string; month: string; categoryId: string }>(
+    url('/v1/workspaces/:ws/budgets/:month/:categoryId'),
+    async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      if (!MONTH.test(params.month)) return budgetInvalid()
+      const body = (await readJson(request)) as
+        { limitAmount?: ApiMoney; version?: number | null } | undefined
+      const category = mockState.categories.find((each) => each.id === params.categoryId)
+      if (!category) return problem(404, 'category.not-found', 'Categoria não encontrada.')
+      if (category.kind !== 'EXPENSE') {
+        return problem(
+          422,
+          'budget.category-not-expense',
+          'Orçamento só vale para categorias de gasto.',
+        )
+      }
+      let limitCents: bigint
+      try {
+        limitCents = parseCents(body?.limitAmount?.amount ?? '')
+      } catch {
+        return budgetInvalid()
+      }
+      if (limitCents <= 0n) return budgetInvalid()
+      const stored = mockState.budgets.find(
+        (each) => each.month === params.month && each.categoryId === params.categoryId,
+      )
+      const version = body?.version ?? null
+      if (!stored) {
+        if (version !== null) return budgetConflict()
+        const created = {
+          month: params.month,
+          categoryId: params.categoryId,
+          limitCents,
+          version: 0,
+        }
+        mockState.budgets.push(created)
+        return HttpResponse.json(budgetLine(created).line, { status: 201 })
+      }
+      if (version !== stored.version) return budgetConflict()
+      stored.limitCents = limitCents
+      stored.version += 1
+      return HttpResponse.json(budgetLine(stored).line)
+    },
+  ),
+
+  http.delete<{ ws: string; month: string; categoryId: string }>(
+    url('/v1/workspaces/:ws/budgets/:month/:categoryId'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      if (!MONTH.test(params.month)) return budgetInvalid()
+      mockState.budgets = mockState.budgets.filter(
+        (each) => !(each.month === params.month && each.categoryId === params.categoryId),
+      )
+      return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
+  http.post<{ ws: string; month: string }>(
+    url('/v1/workspaces/:ws/budgets/:month/copy-previous'),
+    ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = guard(params.ws)
+      if (workspace instanceof Response) return workspace
+      if (!planningOn(workspace)) return planningOff()
+      if (!canManageRules(workspace)) return roleDenied()
+      if (!MONTH.test(params.month)) return budgetInvalid()
+      const [year, month] = params.month.split('-').map(Number)
+      const previous =
+        month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, '0')}`
+      const copies = mockState.budgets.filter(
+        (from) =>
+          from.month === previous &&
+          mockState.categories.some(
+            (each) => each.id === from.categoryId && each.archivedAt === null,
+          ) &&
+          !mockState.budgets.some(
+            (to) => to.month === params.month && to.categoryId === from.categoryId,
+          ),
+      )
+      for (const from of copies) {
+        mockState.budgets.push({ ...from, month: params.month, version: 0 })
+      }
+      return HttpResponse.json({ copied: copies.length })
     },
   ),
 

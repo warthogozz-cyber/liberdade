@@ -118,6 +118,7 @@ class RoleMatrixIT {
                         plannedRows(),
                         tagRows(),
                         recurringRuleRows(),
+                        budgetRows(),
                         memberRows(),
                         invitationRows(),
                         workspaceRows(),
@@ -199,6 +200,30 @@ class RoleMatrixIT {
                         ownerAndAdult(
                                 "POST " + W + "/recurring-rules/{id}/archive",
                                 W + "/recurring-rules/{rule}/archive",
+                                null))
+                .flatMap(group -> group);
+    }
+
+    static Stream<Row> budgetRows() {
+        String put = "{\"limitAmount\":{\"amount\":\"100.00\",\"currency\":\"BRL\"},\"version\":null}";
+        return Stream.of(
+                        each(
+                                "GET " + W + "/budgets",
+                                W + "/budgets?month=2026-11",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK),
+                        ownerAndAdult(
+                                "PUT " + W + "/budgets/{month}/{categoryId}", W + "/budgets/2026-11/{mercado}", put),
+                        ownerAndAdult(
+                                "DELETE " + W + "/budgets/{month}/{categoryId}",
+                                W + "/budgets/2026-11/{mercado}",
+                                null),
+                        ownerAndAdult(
+                                "POST " + W + "/budgets/{month}/copy-previous",
+                                W + "/budgets/2026-11/copy-previous",
                                 null))
                 .flatMap(group -> group);
     }
