@@ -235,7 +235,7 @@ outros aparelhos se atualizarem sem recarregar. Ele lê de `identity`, `workspac
 - **Web** (`shared/live`). O `LiveSync`, montado no `WorkspaceLayout`, abre o stream só com a aba
   visível e com rede, junta os avisos por 250 ms e busca de novo as consultas afetadas. Reconectar
   busca tudo. Sem stream (429, 204, 401), o app busca de novo ao voltar à aba ou à rede, e tenta
-  abrir uma vez por minuto.
+  abrir no máximo uma vez por minuto, ao voltar à aba ou à rede.
 - **Som e movimento.** `shared/sound` toca um som curto de conquista, desligado por padrão e ligado
   em Mais > Ajustes (`/mais/ajustes`, no aparelho). O sintetizador carrega sob demanda e o
   `check:chunks` confere que ele fica fora do carregamento inicial. As animações usam os tokens de
