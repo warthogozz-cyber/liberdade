@@ -13,6 +13,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -232,6 +237,45 @@ class ReserveIT {
     }
 
     @Test
+    void concurrentPatchesKeepBothValues() throws Exception {
+        String cost = "{\"manualMonthlyCost\":{\"amount\":\"700.00\",\"currency\":\"BRL\"}}";
+        for (int round = 0; round < 5; round++) {
+            int target = 7 + round;
+            assertThat(patch(ana, "{\"targetMonths\":6}")).hasStatusOk();
+            assertThat(patch(ana, "{\"manualMonthlyCost\":null}")).hasStatusOk();
+            CountDownLatch ready = new CountDownLatch(2);
+            CountDownLatch go = new CountDownLatch(1);
+            ExecutorService pool =
+                    Executors.newFixedThreadPool(2, Thread.ofPlatform().daemon().factory());
+            try {
+                Future<Integer> first = pool.submit(() -> raced(ready, go, "{\"targetMonths\":" + target + "}"));
+                Future<Integer> second = pool.submit(() -> raced(ready, go, cost));
+                assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+                go.countDown();
+                assertThat(first.get(30, TimeUnit.SECONDS)).isEqualTo(200);
+                assertThat(second.get(30, TimeUnit.SECONDS)).isEqualTo(200);
+            } finally {
+                pool.shutdownNow();
+            }
+            var result = get(ana);
+            assertThat(result).bodyJson().extractingPath("$.targetMonths").isEqualTo(target);
+            assertThat(result)
+                    .bodyJson()
+                    .extractingPath("$.manualMonthlyCost.amount")
+                    .isEqualTo("700.00");
+        }
+    }
+
+    @Test
+    void unchangedPatchDoesNotTouchTheRow() {
+        java.sql.Timestamp before = updatedAt();
+
+        assertThat(patch(ana, "{\"targetMonths\":6}")).hasStatusOk();
+
+        assertThat(updatedAt()).isEqualTo(before);
+    }
+
+    @Test
     void viewerReadsButCannotWrite() {
         UUID vera = users.create("Vera Teste", "vera@example.com");
         workspaces.addMember(ws, vera, Role.VIEWER);
@@ -261,6 +305,19 @@ class ReserveIT {
             assertThat(result).hasStatus(403);
             assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("module.disabled");
         }
+    }
+
+    private int raced(CountDownLatch ready, CountDownLatch go, String body) throws InterruptedException {
+        ready.countDown();
+        go.await();
+        return patch(ana, body).getResponse().getStatus();
+    }
+
+    private java.sql.Timestamp updatedAt() {
+        return jdbc.sql("select updated_at from workspaces where id = :ws")
+                .param("ws", ws)
+                .query(java.sql.Timestamp.class)
+                .single();
     }
 
     private void reserveAccount(String initialBalance) {

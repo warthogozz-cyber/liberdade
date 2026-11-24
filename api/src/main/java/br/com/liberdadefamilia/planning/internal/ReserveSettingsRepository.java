@@ -19,7 +19,16 @@ class ReserveSettingsRepository {
     record Settings(int targetMonths, @Nullable BigDecimal manualMonthlyCost) {}
 
     Settings find(UUID workspaceId) {
-        return jdbc.sql("select reserve_target_months, manual_monthly_cost from workspaces where id = :ws")
+        return read(workspaceId, "");
+    }
+
+    /** Reads the settings and holds the workspace row until the transaction ends, so a change starts from the latest. */
+    Settings findForUpdate(UUID workspaceId) {
+        return read(workspaceId, " for update");
+    }
+
+    private Settings read(UUID workspaceId, String lock) {
+        return jdbc.sql("select reserve_target_months, manual_monthly_cost from workspaces where id = :ws" + lock)
                 .param("ws", workspaceId)
                 .query((rs, row) ->
                         new Settings(rs.getInt("reserve_target_months"), rs.getBigDecimal("manual_monthly_cost")))

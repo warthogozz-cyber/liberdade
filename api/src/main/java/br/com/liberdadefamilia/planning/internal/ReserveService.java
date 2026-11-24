@@ -58,18 +58,22 @@ class ReserveService {
             throw BudgetRejectedException.invalid();
         }
         UUID workspaceId = member.workspaceId();
-        ReserveSettingsRepository.Settings before = settings.find(workspaceId);
+        ReserveSettingsRepository.Settings before = settings.findForUpdate(workspaceId);
         int target = requested != null ? requested : before.targetMonths();
         BigDecimal cost = before.manualMonthlyCost();
         if (request.manualMonthlyCostGiven()) {
             Money typed = request.manualMonthlyCost();
             cost = typed == null ? null : checked(member, typed);
         }
-        settings.update(workspaceId, target, cost);
-        if (target != before.targetMonths()) {
+        boolean targetChanged = target != before.targetMonths();
+        boolean costChanged = !sameCost(cost, before.manualMonthlyCost());
+        if (targetChanged || costChanged) {
+            settings.update(workspaceId, target, cost);
+        }
+        if (targetChanged) {
             events.publishEvent(new ReserveTargetChanged(workspaceId, member.userId()));
         }
-        if (!sameCost(cost, before.manualMonthlyCost())) {
+        if (costChanged) {
             events.publishEvent(new ReserveCostChanged(workspaceId, member.userId()));
         }
         return build(member, new ReserveSettingsRepository.Settings(target, cost));
