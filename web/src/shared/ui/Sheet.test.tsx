@@ -43,4 +43,10 @@ describe('Sheet', () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
+
+  it('entersWithSheetAnimation', () => {
+    renderSheet()
+
+    expect(screen.getByRole('dialog')).toHaveClass('motion-safe:animate-sheet-in')
+  })
 })
