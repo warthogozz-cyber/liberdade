@@ -32,7 +32,7 @@ describe('parseCsv', () => {
 
   it('skipsEmptyLinesAndIgnoresTitleLines', async () => {
     const { separator, rows } = parseCsv(
-      decode(await fixtureBytes('csv-semicolon-comma-decimal.csv'), 'csv'),
+      decode(await fixtureBytes('csv-semicolon-comma-decimal.csv')),
     )
     expect(separator).toBe(';')
     expect(rows).toHaveLength(7)

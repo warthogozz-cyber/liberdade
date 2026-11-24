@@ -1,39 +1,27 @@
-const HEADER_BYTES = 2048
-
 function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
 }
 
-function hasUtf8Bom(bytes: Uint8Array): boolean {
-  return bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf
-}
-
-/** The OFX header names the encoding: `encoding="..."` in XML, CHARSET/ENCODING in SGML. */
-function ofxEncoding(bytes: Uint8Array): 'utf-8' | 'windows-1252' {
-  const head = new TextDecoder('windows-1252').decode(bytes.subarray(0, HEADER_BYTES))
-  if (/^\s*<\?xml/i.test(head)) {
-    const declared = /<\?xml[^>]*encoding\s*=\s*["']([^"']+)["']/i.exec(head)?.[1]
-    return declared && !/^utf-?8$/i.test(declared) ? 'windows-1252' : 'utf-8'
-  }
-  const charset = /^CHARSET:\s*(\S+)/im.exec(head)?.[1]
-  const encoding = /^ENCODING:\s*(\S+)/im.exec(head)?.[1]
-  if (charset && /^utf-?8$/i.test(charset)) return 'utf-8'
-  if (!charset && encoding && /^utf-?8$/i.test(encoding)) return 'utf-8'
-  return 'windows-1252'
+/** The encoding a byte-order mark names, or null without one. */
+function bomEncoding(bytes: Uint8Array): 'utf-8' | 'utf-16le' | 'utf-16be' | null {
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) return 'utf-8'
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return 'utf-16le'
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return 'utf-16be'
+  return null
 }
 
 /**
- * Turns the file's bytes into text. OFX follows its own header (windows-1252 by default in SGML);
- * CSV tries strict UTF-8 and falls back to windows-1252. A BOM is dropped.
+ * Turns the file's bytes into text. A byte-order mark decides (UTF-8 or UTF-16) and is dropped. Without one the
+ * bytes are tried as strict UTF-8 and read as windows-1252 only when that fails. This holds for OFX too, whatever
+ * its header says: SGML headers often pair `ENCODING:UTF-8` with `CHARSET:NONE` or name a charset the body does not
+ * use, while windows-1252 text with accents is practically never valid UTF-8, so the bytes are the better witness.
  */
-export function decode(bytes: Uint8Array, hint: 'ofx' | 'csv'): string {
-  if (hasUtf8Bom(bytes)) return stripBom(new TextDecoder('utf-8').decode(bytes))
-  if (hint === 'ofx') {
-    return stripBom(new TextDecoder(ofxEncoding(bytes)).decode(bytes))
-  }
+export function decode(bytes: Uint8Array): string {
+  const bom = bomEncoding(bytes)
+  if (bom) return stripBom(new TextDecoder(bom).decode(bytes))
   try {
-    return stripBom(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
   } catch {
-    return stripBom(new TextDecoder('windows-1252').decode(bytes))
+    return new TextDecoder('windows-1252').decode(bytes)
   }
 }
