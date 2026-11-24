@@ -1,4 +1,5 @@
 import { ApiError, type TransactionView } from '@/shared/api'
+import { markLocalChange } from '@/shared/live/localChanges'
 import { db, type OutboxItem } from './db'
 import { withOutboxLock } from './lock'
 import { OUTBOX_EVENT, userItems } from './outbox'
@@ -117,6 +118,8 @@ async function sendFirst({
   if (signal?.aborted) return { status: 'done' }
   const timeout = AbortSignal.timeout(SEND_TIMEOUT_MS)
   const sendSignal = signal ? anySignal([signal, timeout]) : timeout
+  // A long wait offline outlives the enqueue mark; fresh now, the stream's notice is not an arrival.
+  markLocalChange(item.id)
   let view: TransactionView
   try {
     view = await Promise.race([send(item, sendSignal), untilAborted(timeout)])
