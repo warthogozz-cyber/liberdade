@@ -543,7 +543,7 @@ git commit -m "feat(indicators): add the central bank client, the fake source an
   5. `sleeper.sleep(pauseBetweenSeries)` antes da próxima série.
 - Interrompido durante uma espera: devolve a interrupção à thread e para a coleta.
 - Depois das cinco, com `checkStale`, relê as séries e chama `alerts.stale(code)` para cada uma que
-  `Staleness.isStale` disser. Sempre termina com `alerts.run(ok, failed)`.
+  `Staleness.isStale` disser. Termina com `alerts.run(ok, failed)`, e a linha INDICATOR_RUN só é escrita quando o laço sobre as séries termina; uma execução que quebra não escreve linha, e é isso que o alarme de execução ausente pega.
 - `IndicatorStartupRun` escuta `ApplicationReadyEvent`, existe só com
   `liberdade.scheduling.enabled` ligado (`matchIfMissing = true`, como o `SchedulingConfig`) e, se
   alguma série tem `lastSuccessAt` nulo, chama `runOnce(false)` numa thread virtual. A decisão fica

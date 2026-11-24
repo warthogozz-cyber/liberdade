@@ -23,7 +23,9 @@ public class IndicatorStartupRun {
 
     @EventListener(ApplicationReadyEvent.class)
     void onReady() {
-        Thread.ofVirtual().name("indicator-startup").start(this::collectIfNeverSucceeded);
+        Thread.ofVirtual()
+                .name("indicator-startup")
+                .start(() -> IndicatorJob.runGuarded(this::collectIfNeverSucceeded));
     }
 
     /** Collects, without the stale check, when some series has never had a success. */

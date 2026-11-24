@@ -57,9 +57,28 @@ public class IndicatorJob {
         this.tx = new TransactionTemplate(transactions);
     }
 
+    /**
+     * The scheduled entry. The scheduler has one thread shared with the other jobs and a BCB outage holds a run for
+     * minutes, so the work goes to a virtual thread and this returns at once. A trigger that finds a run going is
+     * skipped by the guard in {@link #runOnce}.
+     */
     @Scheduled(cron = "0 30 8,19 * * *", zone = "America/Sao_Paulo")
     public void run() {
-        runOnce(clock.instant().atZone(ZONE).getHour() < 12);
+        boolean checkStale = clock.instant().atZone(ZONE).getHour() < 12;
+        Thread.ofVirtual().name("indicator-job").start(() -> runGuarded(() -> runOnce(checkStale)));
+    }
+
+    /**
+     * Runs the work and keeps a crash from escaping the thread: it logs the kind of exception, never the message
+     * (it could carry a value or a URL). A crashed run writes no INDICATOR_RUN line, which the run-missing alarm
+     * catches.
+     */
+    static void runGuarded(Runnable work) {
+        try {
+            work.run();
+        } catch (RuntimeException failure) {
+            log.warn("indicator run crashed kind={}", failure.getClass().getName());
+        }
     }
 
     /** One collection of all series. A call while another is running returns at once, without fetching. */
@@ -138,9 +157,10 @@ public class IndicatorJob {
     }
 
     private void failed(IndicatorCode code, String kind) {
-        repository.markFailure(code, clock.instant());
-        alerts.fetchFailed(code);
+        // The lines come first: if the database fails on markFailure, the alert is already written.
         log.warn("indicator fetch failed series={} kind={}", code, kind);
+        alerts.fetchFailed(code);
+        repository.markFailure(code, clock.instant());
     }
 
     private LocalDate windowStart(IndicatorCode code, LocalDate today) {

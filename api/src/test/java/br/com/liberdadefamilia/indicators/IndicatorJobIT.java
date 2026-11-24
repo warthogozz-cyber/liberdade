@@ -213,7 +213,9 @@ class IndicatorJobIT {
                 c -> List.of(
                         valid(c),
                         new FetchedPoint(
-                                LocalDate.parse("2026-11-23"), new BigDecimal("1500"), "https://example.test/x")));
+                                LocalDate.parse("2026-11-23"),
+                                new BigDecimal("1500.123456"),
+                                "https://example.test/x")));
 
         IndicatorJob.RunReport report = job.runOnce(false);
 
@@ -223,7 +225,9 @@ class IndicatorJobIT {
         assertThat(output.getAll())
                 .contains("INDICATOR_ALERT type=FETCH_FAILED series=SELIC_TARGET")
                 .contains("indicator fetch failed series=SELIC_TARGET kind=OUT_OF_RANGE")
-                .doesNotContain("1500");
+                // The sentinel cannot appear by accident, in any of its forms.
+                .doesNotContain("1500.123456")
+                .doesNotContain("1500,123456");
     }
 
     @Test
