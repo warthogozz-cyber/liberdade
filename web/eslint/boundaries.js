@@ -14,6 +14,7 @@ export const CORE = [
   'billing',
   'portrait',
   'settings',
+  'import',
 ]
 export const OPTIONAL = ['planning', 'recurrences', 'indicators', 'gamification', 'ventures']
 
