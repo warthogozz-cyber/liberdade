@@ -65,7 +65,13 @@ describe('useImport', () => {
     })
 
     expect(calls.map((c) => c.rows.length)).toEqual([500, 500, 200])
-    expect(totals).toEqual({ created: 1197, confirmed: 3, skipped: 0, failedAfter: null, failure: null })
+    expect(totals).toEqual({
+      created: 1197,
+      confirmed: 3,
+      skipped: 0,
+      failedAfter: null,
+      failure: null,
+    })
     expect(calls[0].rows[0].id).toBe('id-0')
     expect(calls[2].rows[199].id).toBe('id-1199')
   })
@@ -163,7 +169,13 @@ describe('useImport', () => {
     })
 
     expect(calls).toHaveLength(0)
-    expect(totals).toEqual({ created: 0, confirmed: 0, skipped: 0, failedAfter: null, failure: null })
+    expect(totals).toEqual({
+      created: 0,
+      confirmed: 0,
+      skipped: 0,
+      failedAfter: null,
+      failure: null,
+    })
   })
 
   it('refusesACheckedLineWithoutACategory', async () => {

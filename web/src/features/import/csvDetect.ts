@@ -231,7 +231,8 @@ export function detectCsv(parsed: { separator: CsvSeparator; rows: string[][] })
 
 /** The amount the row's cells give, or null when they give none. */
 function rowCents(row: string[], mapping: CsvMapping): bigint | null {
-  if (mapping.amount.kind === 'signed') return parseCents(row[mapping.amount.column], mapping.decimal)
+  if (mapping.amount.kind === 'signed')
+    return parseCents(row[mapping.amount.column], mapping.decimal)
   const out = (row[mapping.amount.debit] ?? '').trim()
   const into = (row[mapping.amount.credit] ?? '').trim()
   if (out === '' && into === '') return null

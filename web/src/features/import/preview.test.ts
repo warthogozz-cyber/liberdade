@@ -214,7 +214,11 @@ describe('buildPreview', () => {
   it('confirmPlannedCarriesThePlannedCategory', () => {
     const p = planned('2026-11-03')
     const [out] = buildPreview([line()], ['a'], [p], true, newId)
-    expect(out).toMatchObject({ state: 'confirmPlanned', categoryId: CATEGORY, confirmsPlannedId: p.id })
+    expect(out).toMatchObject({
+      state: 'confirmPlanned',
+      categoryId: CATEGORY,
+      confirmsPlannedId: p.id,
+    })
   })
 
   it('plannedWithoutCategoryIsNoCandidate', () => {

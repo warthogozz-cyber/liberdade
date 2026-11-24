@@ -11,7 +11,8 @@ const ENTITIES: Record<string, string> = {
 
 /** The character a numeric reference names, or the reference as written when it names none. */
 function fromCodePoint(reference: string, code: number): string {
-  const valid = Number.isInteger(code) && code > 0 && code <= 0x10ffff && (code < 0xd800 || code > 0xdfff)
+  const valid =
+    Number.isInteger(code) && code > 0 && code <= 0x10ffff && (code < 0xd800 || code > 0xdfff)
   return valid ? String.fromCodePoint(code) : reference
 }
 

@@ -4,12 +4,7 @@ import type { KindedLine } from './kinds'
 import { normalizeDescription } from './normalize'
 
 export type PreviewState =
-  | 'alreadyImported'
-  | 'balance'
-  | 'confirmPlanned'
-  | 'possibleRepeat'
-  | 'billPayment'
-  | 'normal'
+  'alreadyImported' | 'balance' | 'confirmPlanned' | 'possibleRepeat' | 'billPayment' | 'normal'
 
 export type PreviewLine = KindedLine & {
   id: string

@@ -104,7 +104,9 @@ export function ColumnMapping({ rows, initial, onConfirm, onCancel }: ColumnMapp
         {intl.formatMessage({ id: 'import.columns.title' })}
       </h2>
       <p className="text-text-muted">
-        {intl.formatMessage({ id: onCancel ? 'import.columns.introAdjust' : 'import.columns.intro' })}
+        {intl.formatMessage({
+          id: onCancel ? 'import.columns.introAdjust' : 'import.columns.intro',
+        })}
       </p>
       {select('import.columns.date', date, setDate)}
       {select('import.columns.description', description, setDescription)}

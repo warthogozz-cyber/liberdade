@@ -89,12 +89,8 @@ describe('readOfx', () => {
   })
 
   it('dateNotOnTheCalendarIsUnreadable', () => {
-    expect(reasonOf(() => readOfx(wrap(trn('<DTPOSTED>20260231<TRNAMT>-1.00'))))).toBe(
-      'unreadable',
-    )
-    expect(reasonOf(() => readOfx(wrap(trn('<DTPOSTED>20261301<TRNAMT>-1.00'))))).toBe(
-      'unreadable',
-    )
+    expect(reasonOf(() => readOfx(wrap(trn('<DTPOSTED>20260231<TRNAMT>-1.00'))))).toBe('unreadable')
+    expect(reasonOf(() => readOfx(wrap(trn('<DTPOSTED>20261301<TRNAMT>-1.00'))))).toBe('unreadable')
     const leap = readOfx(wrap(trn('<DTPOSTED>20280229<TRNAMT>-1.00<MEMO>X')))
     expect(leap[0]?.occurredOn).toBe('2028-02-29')
   })
