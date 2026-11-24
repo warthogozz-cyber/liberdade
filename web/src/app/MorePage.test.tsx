@@ -90,18 +90,9 @@ describe('MorePage', () => {
     )
   })
 
-  it('linksToRecurrencesOnlyWithThePlanningModuleOn', async () => {
+  it('no recurrences entry', async () => {
     const workspace = seedMockFamily()
     mockState.modules[workspace.id] = { planning: true }
-    const { unmount } = renderWithProviders(<MorePage />, { path: '/mais' })
-
-    expect(await screen.findByRole('link', { name: 'Recorrências' })).toHaveAttribute(
-      'href',
-      '/mais/recorrencias',
-    )
-    unmount()
-
-    mockState.modules[workspace.id] = { planning: false }
     renderWithProviders(<MorePage />, { path: '/mais' })
 
     expect(await screen.findByText(workspace.name)).toBeInTheDocument()

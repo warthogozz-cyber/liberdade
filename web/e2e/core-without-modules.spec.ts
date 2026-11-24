@@ -47,8 +47,9 @@ test('coreWorksWithEveryModuleOff: the core is whole when no module is on (S2)',
   await createFamily(page)
   await setModules(page, false)
 
-  // The planning module is off: Mais has no Recorrências.
+  // The planning module is off: the bar has no Planejar, and Mais has no Recorrências.
   await visit(page, '/mais', 'Mais')
+  await expect(page.getByRole('link', { name: 'Planejar' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Recorrências' })).toHaveCount(0)
 
   await visit(page, '/mais/modulos', 'Módulos')

@@ -293,12 +293,12 @@ export type RuleDraft = {
 }
 
 /**
- * Creates a monthly expense rule that starts today (the form's own default) through Mais >
+ * Creates a monthly expense rule that starts today (the form's own default) through Planejar >
  * Recorrências, and returns its start date as the form showed it (`YYYY-MM-DD`, the family's today).
  */
 export async function createRule(page: Page, draft: RuleDraft): Promise<string> {
-  await page.goto('/mais')
-  await page.getByRole('link', { name: 'Recorrências' }).click()
+  await page.goto('/planejar')
+  await page.getByRole('link', { name: /^Recorrências/ }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Recorrências' })).toBeVisible()
   await page.getByRole('button', { name: 'Nova recorrência' }).click()
   const form = page.getByRole('dialog', { name: 'Nova recorrência' })
