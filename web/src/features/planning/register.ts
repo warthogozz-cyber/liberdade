@@ -42,3 +42,17 @@ registerSlot('home', {
   roles: ['OWNER', 'ADULT', 'VIEWER'],
   Component: lazy(() => import('./ReserveHomeCard')),
 })
+
+registerSlot('home', {
+  key: 'planning-projection-card',
+  module: 'planning',
+  roles: ['OWNER', 'ADULT', 'VIEWER'],
+  Component: lazy(() => import('./ProjectionHomeCard')),
+})
+
+registerSlot('home', {
+  key: 'planning-spending-split-card',
+  module: 'planning',
+  roles: ['OWNER', 'ADULT', 'VIEWER'],
+  Component: lazy(() => import('./SpendingSplitHomeCard')),
+})

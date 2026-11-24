@@ -288,4 +288,30 @@ describe('HomePage slot', () => {
 
     expect(await screen.findByText('Card de teste')).toBeInTheDocument()
   })
+
+  it('youth sees no planning cards', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    mockState.modules[workspace.id] = { planning: true }
+    // Stand-ins for the four planning cards, registered as the planning module does.
+    const titles = [
+      'Orçamento do mês',
+      'Reserva de emergência',
+      'Saldo previsto · estimativa',
+      'Gastos fixos',
+    ]
+    titles.forEach((title, index) => {
+      const Card = lazy(() => Promise.resolve({ default: () => <h2>{title}</h2> }))
+      registerSlot('home', {
+        key: `planning-card-${index}`,
+        module: 'planning',
+        roles: ['OWNER', 'ADULT', 'VIEWER'],
+        Component: Card,
+      })
+    })
+    renderHome()
+
+    expect(await screen.findByText('Sua carteira')).toBeInTheDocument()
+    for (const title of titles) expect(screen.queryByText(title)).not.toBeInTheDocument()
+  })
 })
