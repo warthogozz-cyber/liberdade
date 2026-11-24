@@ -13,6 +13,7 @@ const button =
 /** The states that carry a badge; a bill payment carries its notice instead. */
 const BADGES: Partial<Record<PreviewState, keyof typeof importMessages>> = {
   alreadyImported: 'import.state.alreadyImported',
+  balance: 'import.state.balance',
   confirmPlanned: 'import.state.confirmPlanned',
   possibleRepeat: 'import.state.possibleRepeat',
 }
@@ -25,13 +26,17 @@ interface ImportPreviewProps {
   setLines: Dispatch<SetStateAction<PreviewLine[]>>
   online: boolean
   sending: boolean
+  /** How many CSV rows were skipped for having no readable date or amount. */
+  skipped?: number
+  /** Set for a CSV: goes back to the column screen with the mapping in use. */
+  onAdjustColumns?: () => void
   onImport: () => void
 }
 
 /**
  * The file's lines before anything is sent: a labelled checkbox each, the state as text, the category
- * and, on a card, the bill-payment notice. The button stays off with nothing checked, with a checked
- * line still without a category, and offline.
+ * (read-only on a line that confirms a planned one) and the bill-payment or balance notice. The button stays
+ * off with nothing checked, with a checked line still without a category, and offline, and says why.
  */
 export function ImportPreview({
   expense,
@@ -40,6 +45,8 @@ export function ImportPreview({
   setLines,
   online,
   sending,
+  skipped = 0,
+  onAdjustColumns,
   onImport,
 }: ImportPreviewProps) {
   const titleId = useId()
@@ -47,7 +54,7 @@ export function ImportPreview({
   const [lastPicked, setLastPicked] = useState<string | null>(null)
 
   const checked = lines.filter((line) => line.checked)
-  const missing = checked.filter((line) => line.categoryId === null).length
+  const missing = checked.filter(needsCategory).length
   const disabled = checked.length === 0 || missing > 0 || !online || sending
   const picked = lines.find((line) => line.id === lastPicked)
   const bulkCount =
@@ -89,6 +96,21 @@ export function ImportPreview({
       <p>
         <FormattedMessage id="import.preview.intro" />
       </p>
+      {skipped > 0 && (
+        <p className="text-text-muted">
+          <FormattedMessage id="import.skippedRows" values={{ n: skipped }} />
+        </p>
+      )}
+      {onAdjustColumns && (
+        <button
+          type="button"
+          onClick={onAdjustColumns}
+          disabled={sending}
+          className={`${button} self-start border border-primary text-primary`}
+        >
+          <FormattedMessage id="import.adjustColumns" />
+        </button>
+      )}
       <ul aria-labelledby={titleId} className="flex flex-col gap-3">
         {lines.map((line) => (
           <PreviewRow
@@ -106,6 +128,11 @@ export function ImportPreview({
         {!online && (
           <p role="status" className="rounded-card bg-surface p-4">
             <FormattedMessage id="import.offline" />
+          </p>
+        )}
+        {online && checked.length === 0 && (
+          <p className="text-text-muted">
+            <FormattedMessage id="import.nothingChecked" />
           </p>
         )}
         {online && missing > 0 && (
@@ -131,11 +158,14 @@ export function ImportPreview({
   )
 }
 
+/** A checked line the person still has to give a category; one that confirms a planned one keeps its own. */
+function needsCategory(line: PreviewLine): boolean {
+  return line.categoryId === null && line.confirmsPlannedId === null
+}
+
 /** Another checked line of the same kind still without a category. */
 function isBulkTarget(line: PreviewLine, source: PreviewLine): boolean {
-  return (
-    line.id !== source.id && line.checked && line.categoryId === null && line.kind === source.kind
-  )
+  return line.id !== source.id && line.checked && needsCategory(line) && line.kind === source.kind
 }
 
 interface PreviewRowProps {
@@ -165,6 +195,10 @@ const PreviewRow = memo(function PreviewRow({
   })
   const amount = line.kind === 'INCOME' ? `+${format(line.absCents)}` : format(-line.absCents)
   const badge = BADGES[line.state]
+  const plannedName =
+    line.confirmsPlannedId !== null
+      ? categories.find((category) => category.id === line.categoryId)?.name
+      : undefined
 
   return (
     <li className="flex flex-col gap-3 rounded-card bg-surface p-4">
@@ -193,7 +227,21 @@ const PreviewRow = memo(function PreviewRow({
           <FormattedMessage id="import.billPaymentNotice" />
         </p>
       )}
-      {line.checked && (
+      {line.state === 'balance' && (
+        <p className="text-sm text-text-muted">
+          <FormattedMessage id="import.balanceNotice" />
+        </p>
+      )}
+      {line.checked && line.confirmsPlannedId !== null && (
+        <p className="text-sm">
+          {plannedName ? (
+            <FormattedMessage id="import.plannedCategory" values={{ name: plannedName }} />
+          ) : (
+            <FormattedMessage id="import.plannedCategoryUnknown" />
+          )}
+        </p>
+      )}
+      {line.checked && line.confirmsPlannedId === null && (
         <CategoryPicker
           categories={categories}
           value={line.categoryId ?? undefined}

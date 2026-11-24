@@ -31,7 +31,7 @@ export { selectWorkspace }
 const accountsQuery = (ws: string) =>
   queryOptions({ queryKey: queryKeys.accounts(ws), queryFn: () => listAccounts(ws) })
 
-const categoriesQuery = (ws: string, kind: CategoryKind) =>
+export const categoriesQuery = (ws: string, kind: CategoryKind) =>
   queryOptions({
     queryKey: queryKeys.categories(ws, kind),
     queryFn: () => listCategories(ws, kind),

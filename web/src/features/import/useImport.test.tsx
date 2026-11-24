@@ -6,7 +6,8 @@ import { seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
 import { renderHookWithProviders } from '@/shared/testing'
-import { useImport, type ImportTotals } from './useImport'
+import { ApiError } from '@/shared/api'
+import { failureOf, useImport, type ImportTotals } from './useImport'
 import type { PreviewLine } from './preview'
 
 const ACCOUNT = '0192f5a0-0000-7000-8000-000000000001'
@@ -64,7 +65,7 @@ describe('useImport', () => {
     })
 
     expect(calls.map((c) => c.rows.length)).toEqual([500, 500, 200])
-    expect(totals).toEqual({ created: 1197, confirmed: 3, skipped: 0, failedAfter: null })
+    expect(totals).toEqual({ created: 1197, confirmed: 3, skipped: 0, failedAfter: null, failure: null })
     expect(calls[0].rows[0].id).toBe('id-0')
     expect(calls[2].rows[199].id).toBe('id-1199')
   })
@@ -80,7 +81,48 @@ describe('useImport', () => {
     })
 
     expect(calls).toHaveLength(2)
-    expect(totals).toEqual({ created: 499, confirmed: 1, skipped: 0, failedAfter: 500 })
+    expect(totals).toEqual({
+      created: 499,
+      confirmed: 1,
+      skipped: 0,
+      failedAfter: 500,
+      failure: { retryable: true, detail: null },
+    })
+  })
+
+  it('aRefusalKeepsTheReasonAndIsNotRetryable', async () => {
+    const ws = seedMockFamily().id
+    server.use(
+      http.post(`${API_URL}/v1/workspaces/:ws/accounts/:accountId/imports`, () =>
+        HttpResponse.json(
+          { status: 422, code: 'import.category-kind', detail: 'A categoria não é deste tipo.' },
+          { status: 422 },
+        ),
+      ),
+    )
+    const { result } = renderHookWithProviders(() => useImport(ws, ACCOUNT))
+
+    let totals: ImportTotals | undefined
+    await act(async () => {
+      totals = await result.current.send(many(3))
+    })
+
+    expect(totals?.failedAfter).toBe(0)
+    expect(totals?.failure).toEqual({ retryable: false, detail: 'A categoria não é deste tipo.' })
+  })
+
+  it('failureOfTellsRetryableFromRefused', () => {
+    for (const status of [0, 408, 409, 429, 500, 503]) {
+      expect(failureOf(new ApiError(status, 'x')).retryable).toBe(true)
+    }
+    for (const status of [400, 403, 404, 422]) {
+      expect(failureOf(new ApiError(status, 'x')).retryable).toBe(false)
+    }
+    expect(failureOf(new TypeError('boom'))).toEqual({ retryable: true, detail: null })
+    expect(failureOf(new ApiError(400, 'x', 'Motivo'))).toEqual({
+      retryable: false,
+      detail: 'Motivo',
+    })
   })
 
   it('sendsOnlyCheckedRows', async () => {
@@ -121,7 +163,7 @@ describe('useImport', () => {
     })
 
     expect(calls).toHaveLength(0)
-    expect(totals).toEqual({ created: 0, confirmed: 0, skipped: 0, failedAfter: null })
+    expect(totals).toEqual({ created: 0, confirmed: 0, skipped: 0, failedAfter: null, failure: null })
   })
 
   it('refusesACheckedLineWithoutACategory', async () => {

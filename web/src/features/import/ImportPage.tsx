@@ -8,12 +8,13 @@ import {
   useCategories,
   useCurrentWorkspace,
   type AccountView,
+  type CategoryView,
   type MeWorkspace,
   type TransactionView,
 } from '@/shared/api'
 import { usePlan } from '@/shared/api/billing'
 import { categoryHints } from '@/shared/api/imports'
-import { transactionsQuery } from '@/shared/api/hooks'
+import { categoriesQuery, transactionsQuery } from '@/shared/api/hooks'
 import { addMonths, maxMonth, MIN_MONTH } from '@/shared/i18n'
 import { useModuleEnabled } from '@/shared/modules'
 import { useOnline } from '@/shared/offline'
@@ -36,8 +37,8 @@ import './register'
 
 /** The largest file read (D11). */
 const MAX_FILE_BYTES = 5 * 1024 * 1024
-/** How much of the file is looked at to tell an OFX from a CSV. */
-const SNIFF_BYTES = 4096
+/** How much of the decoded file is looked at to tell an OFX from a CSV. */
+const SNIFF_CHARS = 4096
 /** The API takes at most this many hints per call and keys of at most this length. */
 const HINT_BATCH = 500
 const MAX_DESCRIPTION_LENGTH = 140
@@ -50,13 +51,22 @@ type FailReason = StatementReadReason | 'existing'
 /** The account's existing transactions could not be fetched, so the preview could not tell repeats apart. */
 class ExistingLoadError extends Error {}
 
-type CsvSource = { signature: string; mapping: CsvMapping }
+/** A CSV in the preview: its rows, the mapping that read them and how many rows that mapping skipped. */
+type CsvSource = { rows: string[][]; signature: string; mapping: CsvMapping; skipped: number }
 
 type Step =
   | { kind: 'idle' }
   | { kind: 'reading' }
   | { kind: 'error'; reason: FailReason }
-  | { kind: 'columns'; rows: string[][]; detection: CsvDetection; fileKey: string }
+  | {
+      kind: 'columns'
+      rows: string[][]
+      signature: string
+      initial: CsvMapping
+      fileKey: string
+      /** Set when the person came back from this preview to adjust the columns; cancelling returns to it. */
+      back: CsvSource | null
+    }
   | { kind: 'preview'; csv: CsvSource | null }
   | { kind: 'result'; sent: PreviewLine[]; totals: ImportTotals }
 
@@ -116,11 +126,26 @@ function ImportFlow({ workspace }: { workspace: MeWorkspace }) {
     const keys = await importKeys(target.id, kinded)
     const existing = await loadExisting(queryClient, workspace, target.id, kinded)
     const hints = await loadHints(ws, kinded)
-    const built = buildPreview(kinded, keys, existing, planningOn, v7).map((line) => ({
-      ...line,
-      categoryId: hints.get(hintId(line.kind, hintKey(line.description))) ?? null,
-    }))
+    const usable = await usableCategories(queryClient, ws)
+    const built = buildPreview(kinded, keys, existing, planningOn, v7).map((line) => {
+      // A line that confirms a planned one keeps the planned category, which the API keeps too.
+      if (line.confirmsPlannedId !== null) return line
+      const hinted = hints.get(hintId(line.kind, hintKey(line.description))) ?? null
+      // A hint for a category that is gone, archived or of the other kind is no suggestion at all.
+      const categoryId = hinted !== null && usable.get(hinted) === line.kind ? hinted : null
+      return { ...line, categoryId }
+    })
     return { built, csv }
+  }
+
+  function previewCsv(
+    rows: string[][],
+    signature: string,
+    mapping: CsvMapping,
+    target: AccountView,
+  ) {
+    const { lines: statement, skipped } = linesFromCsv(rows, mapping)
+    return preview(statement, target, { rows, signature, mapping, skipped })
   }
 
   async function run(work: () => Promise<Step | { built: PreviewLine[]; csv: CsvSource | null }>) {
@@ -146,25 +171,37 @@ function ImportFlow({ workspace }: { workspace: MeWorkspace }) {
       const source = await readStatement(chosen)
       if (source.kind === 'ofx') return preview(source.lines, target, null)
       const { rows, detection } = source
-      const stored = loadMapping(target.id, detection.signature)
+      const { signature } = detection
+      const stored = loadMapping(target.id, signature)
       if (stored) {
-        const mapping = applyStoredMapping(detection.mapping, stored)
-        const csv = { signature: detection.signature, mapping }
-        return preview(linesFromCsv(rows, mapping), target, csv)
+        return previewCsv(rows, signature, applyStoredMapping(detection.mapping, stored), target)
       }
       if (!detection.certain) {
         const fileKey = `${chosen.name}-${chosen.size}-${chosen.lastModified}`
-        return { kind: 'columns', rows, detection, fileKey }
+        return { kind: 'columns', rows, signature, initial: detection.mapping, fileKey, back: null }
       }
-      const csv = { signature: detection.signature, mapping: detection.mapping }
-      return preview(linesFromCsv(rows, detection.mapping), target, csv)
+      return previewCsv(rows, signature, detection.mapping, target)
     })
   }
 
   function confirmColumns(rows: string[][], signature: string, mapping: CsvMapping) {
     if (!account) return
     const target = account
-    void run(() => preview(linesFromCsv(rows, mapping), target, { signature, mapping }))
+    // The mapping is saved for the account when the import starts, as for one detected or stored.
+    void run(() => previewCsv(rows, signature, mapping, target))
+  }
+
+  /** Back from the preview to the columns, with the mapping in use; nothing changes until they confirm. */
+  function adjustColumns(csv: CsvSource) {
+    readCount.current++
+    setStep({
+      kind: 'columns',
+      rows: csv.rows,
+      signature: csv.signature,
+      initial: csv.mapping,
+      fileKey: `adjust-${readCount.current}`,
+      back: csv,
+    })
   }
 
   function chooseAccount(id: string) {
@@ -209,6 +246,7 @@ function ImportFlow({ workspace }: { workspace: MeWorkspace }) {
           confirmed: before.confirmed + again.confirmed,
           skipped: before.skipped + again.skipped,
           failedAfter: again.failedAfter === null ? null : failedAfter + again.failedAfter,
+          failure: again.failure,
         },
       })
     } finally {
@@ -238,6 +276,7 @@ function ImportFlow({ workspace }: { workspace: MeWorkspace }) {
   }
 
   const formDisabled = !online || !account || sending
+  const csvInPreview = step.kind === 'preview' ? step.csv : null
   return (
     <>
       <p>
@@ -295,8 +334,9 @@ function ImportFlow({ workspace }: { workspace: MeWorkspace }) {
         <ColumnMapping
           key={step.fileKey}
           rows={step.rows}
-          initial={step.detection.mapping}
-          onConfirm={(mapping) => confirmColumns(step.rows, step.detection.signature, mapping)}
+          initial={step.initial}
+          onConfirm={(mapping) => confirmColumns(step.rows, step.signature, mapping)}
+          onCancel={step.back ? () => setStep({ kind: 'preview', csv: step.back }) : undefined}
         />
       )}
       {step.kind === 'preview' && (!expense || !income) && (
@@ -312,6 +352,8 @@ function ImportFlow({ workspace }: { workspace: MeWorkspace }) {
           setLines={setLines}
           online={online}
           sending={sending}
+          skipped={step.csv?.skipped ?? 0}
+          onAdjustColumns={csvInPreview ? () => adjustColumns(csvInPreview) : undefined}
           onImport={() => void startImport(step.csv)}
         />
       )}
@@ -326,14 +368,15 @@ type StatementSource =
 /** Reads the file on the device: OFX when its head says so, CSV otherwise. Nothing of it is logged. */
 async function readStatement(file: File): Promise<StatementSource> {
   if (file.size > MAX_FILE_BYTES) throw new StatementReadError('tooLarge')
-  const bytes = new Uint8Array(await file.arrayBuffer())
-  // Text statements never hold a NUL byte; images, PDFs and spreadsheets do.
-  if (bytes.includes(0)) throw new StatementReadError('unreadable')
-  const head = new TextDecoder('windows-1252').decode(bytes.subarray(0, SNIFF_BYTES))
-  if (/OFXHEADER|<OFX[\s>]/i.test(head))
-    return { kind: 'ofx', lines: readOfx(decode(bytes, 'ofx')) }
+  // Decoded first, so a UTF-16 file (whose bytes are full of NULs) is read as text.
+  const text = decode(new Uint8Array(await file.arrayBuffer()))
+  // Text statements never hold a NUL character; images, PDFs and spreadsheets do.
+  if (text.includes('\0')) throw new StatementReadError('unreadable')
+  if (/OFXHEADER|<OFX[\s>]/i.test(text.slice(0, SNIFF_CHARS))) {
+    return { kind: 'ofx', lines: readOfx(text) }
+  }
 
-  const parsed = parseCsv(decode(bytes, 'csv'))
+  const parsed = parseCsv(text)
   if (parsed.rows.length === 0) throw new StatementReadError('empty')
   if (parsed.rows.every((row) => row.length < 3)) throw new StatementReadError('unreadable')
   return { kind: 'csv', rows: parsed.rows, detection: detectCsv(parsed) }
@@ -365,6 +408,29 @@ async function loadExisting(
   } catch {
     throw new ExistingLoadError()
   }
+}
+
+/**
+ * The kind of every category a line may take: the family's active ones. When they cannot be fetched no hint is
+ * kept, and the person picks every category.
+ */
+async function usableCategories(
+  queryClient: QueryClient,
+  ws: string,
+): Promise<Map<string, CategoryView['kind']>> {
+  const usable = new Map<string, CategoryView['kind']>()
+  try {
+    const lists = await Promise.all([
+      queryClient.fetchQuery(categoriesQuery(ws, 'EXPENSE')),
+      queryClient.fetchQuery(categoriesQuery(ws, 'INCOME')),
+    ])
+    for (const category of lists.flat()) {
+      if (category.archivedAt === null) usable.set(category.id, category.kind)
+    }
+  } catch {
+    // Without the list no hint can be trusted.
+  }
+  return usable
 }
 
 function hintKey(description: string): string {

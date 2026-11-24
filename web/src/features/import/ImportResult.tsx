@@ -26,6 +26,8 @@ export function ImportResult({
   onAnother,
 }: ImportResultProps) {
   const partial = totals.failedAfter !== null
+  const retryable = totals.failure?.retryable ?? true
+  const detail = totals.failure?.detail ?? null
   return (
     <section className="flex flex-col gap-4">
       <h2 className="text-xl font-semibold">
@@ -49,19 +51,31 @@ export function ImportResult({
               values={{ sent: totals.failedAfter, total }}
             />
           </p>
-          {!online && (
-            <p>
-              <FormattedMessage id="import.offline" />
+          {retryable ? (
+            <>
+              {!online && (
+                <p>
+                  <FormattedMessage id="import.offline" />
+                </p>
+              )}
+              <button
+                type="button"
+                disabled={!online || retrying}
+                onClick={onRetry}
+                className={`${button} bg-primary text-on-primary`}
+              >
+                <FormattedMessage id="import.result.retry" />
+              </button>
+            </>
+          ) : (
+            <p role="alert">
+              {detail ? (
+                <FormattedMessage id="import.result.rejected" values={{ detail }} />
+              ) : (
+                <FormattedMessage id="import.result.rejectedGeneric" />
+              )}
             </p>
           )}
-          <button
-            type="button"
-            disabled={!online || retrying}
-            onClick={onRetry}
-            className={`${button} bg-primary text-on-primary`}
-          >
-            <FormattedMessage id="import.result.retry" />
-          </button>
         </>
       )}
       <Link
