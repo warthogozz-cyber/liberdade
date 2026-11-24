@@ -154,8 +154,17 @@ describe('planning routes', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Planejar' })).toBeInTheDocument()
   })
 
+  it('sends a family without the planning module home from every planning address', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: false }
+    const { router } = renderWithProviders(null, { routes, route: '/planejar/metas' })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
+  })
+
   it('adult opens the budget placeholder', async () => {
-    seedMockFamily()
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: true }
     renderWithProviders(null, { routes, route: '/planejar/orcamento' })
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Orçamento' })).toBeInTheDocument()
