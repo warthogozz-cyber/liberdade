@@ -99,4 +99,14 @@ describe('IndicatorsPage', () => {
     expect(await screen.findByText('Não deu para carregar. Tente de novo.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
   })
+
+  it('footerLinksToTheRobotPage', async () => {
+    seedOn()
+    render()
+
+    expect(await screen.findByRole('link', { name: 'Como coletamos' })).toHaveAttribute(
+      'href',
+      '/robo',
+    )
+  })
 })

@@ -158,6 +158,18 @@ usa chama o pacote raiz (`Plans`, `@RequiresPlan`, `BillingExport`) ou ouve os e
   por janela de alarme:** um segundo alerta enquanto o alarme já está em `ALARM` não manda e-mail
   novo, então quem lê o e-mail confere os logs de todos os tipos daquela janela. Veja o
   [runbook do sandbox](runbooks/billing-sandbox.md).
+- **Indicadores (Plano 8.1).** O módulo `indicators` coleta cinco séries públicas do Banco Central
+  (Selic meta, CDI, IPCA do mês e em 12 meses pelo SGS em `api.bcb.gov.br`, dólar PTAX pelo Olinda
+  em `olinda.bcb.gov.br`). O `IndicatorJob` roda às 8h30 e às 19h30 (`America/Sao_Paulo`), com
+  `User-Agent: LiberdadeBot/1.0 (+<página /robo>)`, timeout de 10 s, até 2 novas tentativas e 1 s
+  entre séries; na primeira partida, coleta uma vez se alguma série nunca teve sucesso. A coleta
+  roda ligado ou não o módulo; só `GET /v1/workspaces/{ws}/indicators` fica atrás dele (403
+  `module.disabled`). O navegador nunca chama o Banco Central. Os dados são públicos e não têm
+  `workspace_id`. Os logs são `INDICATOR_RUN ok=<n> failed=<n>` (INFO) e
+  `INDICATOR_ALERT type=<FETCH_FAILED|STALE> series=<CÓDIGO>` (WARN), nunca com valor. Em
+  `infra/live/indicator_alerts.tf`, um alarme por ambiente conta `INDICATOR_ALERT` e, só na
+  produção, outro avisa quando 24 h passam sem `INDICATOR_RUN`. Veja o
+  [runbook](runbooks/indicator-alerts.md). A página pública `/robo` explica o robô.
 - **Retrato do mês.** É só do front: o cartão é desenhado e compartilhado no aparelho, sem chamada
   de rede e sem dado novo no servidor.
 

@@ -6,6 +6,7 @@ export const indicatorsMessages = {
   'indicators.noData': 'Sem dados ainda',
   'indicators.dataOf': 'dado de {date}',
   'indicators.calculator': 'Calcular rendimento real',
+  'indicators.howWeCollect': 'Como coletamos',
   'indicators.loading': 'Carregando os indicadores…',
   'indicators.calc.title': 'Rendimento real',
   'indicators.calc.nominal': 'Rendimento ao ano (%)',

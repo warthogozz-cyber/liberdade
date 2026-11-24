@@ -42,6 +42,11 @@ export const routes: RouteObject[] = [
     lazy: () => import('@/features/legal/TermsPage').then((m) => ({ Component: m.TermsPage })),
   },
   {
+    // Public: the address in the indicator robot's User-Agent. Not in More.
+    path: '/robo',
+    lazy: () => import('@/features/legal/BotPage').then((m) => ({ Component: m.BotPage })),
+  },
+  {
     element: <SessionLayout />,
     children: [
       { index: true, element: <RootRedirect /> },

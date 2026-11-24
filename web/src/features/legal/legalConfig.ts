@@ -2,9 +2,11 @@ import type { LegalText } from './legalText'
 import { privacy202611 } from './texts/privacy-2026-11'
 import { privacy2026111 } from './texts/privacy-2026-11.1'
 import { privacy2026112 } from './texts/privacy-2026-11.2'
+import { privacy2026113 } from './texts/privacy-2026-11.3'
 import { privacy202612 } from './texts/privacy-2026-12'
 import { privacy2026121 } from './texts/privacy-2026-12.1'
 import { privacy2026122 } from './texts/privacy-2026-12.2'
+import { privacy2026123 } from './texts/privacy-2026-12.3'
 import { terms202611 } from './texts/terms-2026-11'
 import { terms202612 } from './texts/terms-2026-12'
 
@@ -48,11 +50,13 @@ export const legalConfig = {
     'privacy-2026-11': privacy202611,
     'privacy-2026-11.1': privacy2026111,
     'privacy-2026-11.2': privacy2026112,
+    'privacy-2026-11.3': privacy2026113,
     'privacy-2026-12': privacy202612,
     'privacy-2026-12.1': privacy2026121,
     'privacy-2026-12.2': privacy2026122,
+    'privacy-2026-12.3': privacy2026123,
   } as Record<string, LegalText>,
-  latest: { terms: 'terms-2026-12', privacy: 'privacy-2026-12.2' },
+  latest: { terms: 'terms-2026-12', privacy: 'privacy-2026-12.3' },
 }
 
 /** The text of `version`, or the latest one of its kind when this build does not know it. */

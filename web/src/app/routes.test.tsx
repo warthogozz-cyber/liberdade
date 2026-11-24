@@ -20,6 +20,7 @@ describe('routes', () => {
   it.each([
     ['/privacidade', 'Política de privacidade'],
     ['/termos', 'Termos de uso'],
+    ['/robo', 'Robô de indicadores do Liberdade'],
   ])('legalPagesArePublic: %s opens without a session', async (path, heading) => {
     mockState.signedIn = false
     // A lazy route loads only under a data router.

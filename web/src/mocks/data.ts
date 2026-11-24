@@ -119,7 +119,7 @@ export interface MockOrder {
 /** The versions in force, as LegalDocuments.java picks them with billing on (as in staging and the e2e). */
 const CURRENT_DOCUMENTS: MockState['currentDocuments'] = {
   TERMS: 'terms-2026-12',
-  PRIVACY: 'privacy-2026-12.2',
+  PRIVACY: 'privacy-2026-12.3',
 }
 
 /** `LegalDocuments.KEEPS_ACCEPTANCE`: a version keeps the acceptance of the one it continues. */
@@ -127,7 +127,9 @@ export const KEEPS_ACCEPTANCE: Record<string, string> = {
   'privacy-2026-11.1': 'privacy-2026-11',
   'privacy-2026-11.2': 'privacy-2026-11.1',
   'privacy-2026-12.1': 'privacy-2026-12',
+  'privacy-2026-11.3': 'privacy-2026-11.2',
   'privacy-2026-12.2': 'privacy-2026-12.1',
+  'privacy-2026-12.3': 'privacy-2026-12.2',
 }
 
 /** Whether `accepted` is `current` or a version `current` continues, down the chain (`LegalDocuments.KEEPS_ACCEPTANCE`). */

@@ -57,6 +57,12 @@ export function IndicatorsPage() {
         <Link to="/mais/indicadores/calculadora" className={outline}>
           <FormattedMessage id="indicators.calculator" />
         </Link>
+        <Link
+          to="/robo"
+          className="min-h-12 self-start py-3 font-medium text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <FormattedMessage id="indicators.howWeCollect" />
+        </Link>
       </main>
     </>
   )
