@@ -229,13 +229,15 @@ outros aparelhos se atualizarem sem recarregar. Ele lê de `identity`, `workspac
 - **Batida a cada 25 s** (`LiveHeartbeat`). Manda um comentário e fecha o stream de quem perdeu a
   sessão (`SessionLiveness`) ou a participação (`Memberships.activeAmong`). Mudar o papel ou remover
   o membro fecha os streams dele na hora; pedir a exclusão da família fecha os da família.
-- **Limites.** 5 streams por pessoa e 1.000 por processo; acima disso, `429 rate.limited` com
-  `Retry-After: 60`. O fim do stream passa de novo pelos filtros, por isso o `SecurityConfig` e o
-  `WorkspaceGuardInterceptor` deixam passar o despacho `ASYNC`.
+- **Limites.** 5 streams por pessoa e 1.000 por processo. O sexto da mesma pessoa substitui o mais
+  antigo, que recebe `replaced` e fecha (a página recarregada deixa o antigo aberto até a próxima
+  batida); acima do limite do processo, `429 rate.limited` com `Retry-After: 60`. O fim do stream
+  passa de novo pelos filtros, por isso o `SecurityConfig` e o `WorkspaceGuardInterceptor` deixam
+  passar o despacho `ASYNC`.
 - **Web** (`shared/live`). O `LiveSync`, montado no `WorkspaceLayout`, abre o stream só com a aba
   visível e com rede, junta os avisos por 250 ms e busca de novo as consultas afetadas. Reconectar
-  busca tudo. Sem stream (429, 204, 401), o app busca de novo ao voltar à aba ou à rede, e tenta
-  abrir no máximo uma vez por minuto, ao voltar à aba ou à rede.
+  busca tudo. Sem stream (429, 204, 401 ou `replaced`), o app busca de novo ao voltar à aba ou à
+  rede, e tenta abrir no máximo uma vez por minuto, ao voltar à aba ou à rede.
 - **Som e movimento.** `shared/sound` toca um som curto de conquista, desligado por padrão e ligado
   em Mais > Ajustes (`/mais/ajustes`, no aparelho). O sintetizador carrega sob demanda e o
   `check:chunks` confere que ele fica fora do carregamento inicial. As animações usam os tokens de
@@ -303,7 +305,7 @@ trafega como texto decimal: `{"amount": "1234.56", "currency": "BRL"}`.
 | Categorias | `GET`, `POST`, `PATCH .../categories/{id}`, `POST .../categories/{id}/archive`, `POST .../categories/{id}/unarchive` |
 | Lançamentos | `GET .../transactions?month=2026-11&accountId=&categoryId=`, `GET .../transactions/{id}`, `POST` (com `Idempotency-Key`), `PATCH .../transactions/{id}` (com `version`), `DELETE .../transactions/{id}`, `POST .../transactions/{id}/restore` |
 | Painel | `GET /v1/workspaces/{ws}/dashboard?month=2026-11` |
-| Avisos ao vivo (Plano 7.3) | `GET /v1/workspaces/{ws}/events` (SSE; só ids; 429 acima de 5 por pessoa ou 1.000 no processo) |
+| Avisos ao vivo (Plano 7.3) | `GET /v1/workspaces/{ws}/events` (SSE; só ids; o sexto da pessoa substitui o mais antigo; 429 acima de 1.000 no processo) |
 | Cobrança (Plano 6) | `POST /v1/workspaces/{ws}/billing/checkout`, `POST .../billing/orders/{id}/refresh`, `POST .../billing/orders/{id}/refund`, `GET .../billing/plan`, `PUT .../billing/plan/theme`; o gateway chama `POST /v1/billing/webhooks/asaas` (público, com o cabeçalho `asaas-access-token`) |
 
 As páginas `/privacidade` e `/termos` são públicas e ficam só no front, com a versão e a data no

@@ -43,6 +43,10 @@ class FakeEventSource {
     this.fire('changed', new MessageEvent('changed', { data }))
   }
 
+  emitReplaced() {
+    this.fire('replaced', new MessageEvent('replaced', { data: '{}' }))
+  }
+
   emitError(readyState: number) {
     this.readyState = readyState
     this.fire('error', new Event('error'))
@@ -231,6 +235,24 @@ describe('useLiveSync', () => {
     setVisibility('hidden')
     setVisibility('visible')
     expect(invalidatedKeys(invalidate)).toEqual([['ws', WS]])
+  })
+
+  it('stopsReconnectingWhenReplaced', () => {
+    const { invalidate } = mount()
+    const first = latest()
+    first.emitOpen()
+    first.emitReplaced()
+    expect(first.closed).toBe(true)
+
+    setVisibility('hidden')
+    setVisibility('visible')
+    expect(FakeEventSource.instances).toHaveLength(1)
+    expect(invalidatedKeys(invalidate)).toEqual([['ws', WS]])
+
+    vi.advanceTimersByTime(MINUTE)
+    setVisibility('hidden')
+    setVisibility('visible')
+    expect(FakeEventSource.instances).toHaveLength(2)
   })
 
   it('keepsTheStreamWhenTheBrowserRetries', () => {

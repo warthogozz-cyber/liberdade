@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * <p>Sending happens on virtual threads the bean owns, one task per stream, so a slow browser never holds the thread
  * that committed a write nor the other streams. A stream whose send fails is taken out and completed. At shutdown
  * every emitter is completed, so a deploy does not wait for open streams.
+ *
+ * <p>A person over their limit gives up their oldest stream instead of being refused: a reloaded page leaves its
+ * stream behind until the next write fails, and refusing would leave the new page without one.
  */
 @Component
 @EnableConfigurationProperties(LiveProperties.class)
@@ -54,21 +58,30 @@ public class InMemoryLiveStreams implements LiveStreams, SmartLifecycle, Disposa
     @Override
     public Optional<LiveStream> open(LiveStream stream) {
         AtomicBoolean accepted = new AtomicBoolean();
+        AtomicReference<LiveStream> replaced = new AtomicReference<>();
         byWorkspace.compute(stream.workspaceId(), (key, current) -> {
             List<LiveStream> streams = current == null ? List.of() : current;
-            long ofPerson = streams.stream()
+            List<LiveStream> ofPerson = streams.stream()
                     .filter(s -> s.membershipId().equals(stream.membershipId()))
-                    .count();
-            if (ofPerson >= properties.maxPerPerson() || !reserveSlot()) {
+                    .toList();
+            List<LiveStream> next = new ArrayList<>(streams);
+            if (!ofPerson.isEmpty() && ofPerson.size() >= properties.maxPerPerson()) {
+                // A page that reloaded or closed keeps its stream until the next write shows it gone, so the
+                // person's oldest stream makes room; the slot passes from one to the other.
+                next.remove(ofPerson.getFirst());
+                replaced.set(ofPerson.getFirst());
+            } else if (!reserveSlot()) {
                 return current;
             }
             accepted.set(true);
-            List<LiveStream> next = new ArrayList<>(streams);
             next.add(stream);
             return List.copyOf(next);
         });
         if (!accepted.get()) {
             return Optional.empty();
+        }
+        if (replaced.get() != null) {
+            replace(replaced.get());
         }
         stream.emitter().onCompletion(() -> remove(stream));
         stream.emitter().onTimeout(() -> close(stream));
@@ -154,6 +167,25 @@ public class InMemoryLiveStreams implements LiveStreams, SmartLifecycle, Disposa
         } catch (IOException | RuntimeException failure) {
             // A closed or broken connection: the browser reconnects and refetches everything.
             close(stream);
+        }
+    }
+
+    /**
+     * Tells the replaced stream's page to stop reconnecting, so a person with more open tabs than the limit does not
+     * see them take each other's place, and completes it. Off the opening request's thread, like every other send.
+     */
+    private void replace(LiveStream stream) {
+        try {
+            executor.execute(() -> {
+                try {
+                    stream.emitter().send(SseEmitter.event().name("replaced").data("{}", MediaType.APPLICATION_JSON));
+                } catch (IOException | RuntimeException gone) {
+                    // The page is already gone, which is the usual case.
+                }
+                complete(List.of(stream));
+            });
+        } catch (RejectedExecutionException closed) {
+            complete(List.of(stream));
         }
     }
 

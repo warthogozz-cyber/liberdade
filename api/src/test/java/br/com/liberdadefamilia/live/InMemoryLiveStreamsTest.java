@@ -43,16 +43,56 @@ class InMemoryLiveStreamsTest {
     }
 
     @Test
-    void sixthForSamePersonRefused() {
+    void sixthForSamePersonReplacesTheOldest() {
         UUID person = TestIds.v7();
-        for (int i = 0; i < 5; i++) {
+        TestEmitter oldest = new TestEmitter();
+        LiveStream first = stream(ws, person, oldest);
+        streams.open(first);
+        for (int i = 0; i < 4; i++) {
             assertThat(streams.open(stream(ws, person, new TestEmitter()))).isPresent();
         }
 
-        assertThat(streams.open(stream(ws, person, new TestEmitter()))).isEmpty();
-        assertThat(streams.all()).hasSize(5);
+        LiveStream sixth = stream(ws, person, new TestEmitter());
+        assertThat(streams.open(sixth)).isPresent();
+
+        assertThat(streams.all()).hasSize(5).contains(sixth).doesNotContain(first);
+        Eventually.within(WAIT, () -> assertThat(oldest.completed).isTrue());
+        assertThat(String.join("", oldest.sent)).contains("replaced");
         // Another person of the same family is not held back by it.
         assertThat(streams.open(stream(ws, TestIds.v7(), new TestEmitter()))).isPresent();
+    }
+
+    @Test
+    void replacingAGoneStreamStillCompletesIt() {
+        UUID person = TestIds.v7();
+        TestEmitter gone = new TestEmitter();
+        gone.failOnSend = true;
+        streams.open(stream(ws, person, gone));
+        for (int i = 0; i < 4; i++) {
+            streams.open(stream(ws, person, new TestEmitter()));
+        }
+
+        assertThat(streams.open(stream(ws, person, new TestEmitter()))).isPresent();
+
+        Eventually.within(WAIT, () -> assertThat(gone.completed).isTrue());
+        assertThat(streams.all()).hasSize(5);
+    }
+
+    @Test
+    void replacingKeepsTheProcessCount() {
+        InMemoryLiveStreams small = streams(2, 2);
+        try {
+            UUID person = TestIds.v7();
+            small.open(stream(ws, person, new TestEmitter()));
+            small.open(stream(ws, person, new TestEmitter()));
+
+            assertThat(small.open(stream(ws, person, new TestEmitter()))).isPresent();
+            assertThat(small.all()).hasSize(2);
+            // The process is still full, so someone else is refused.
+            assertThat(small.open(stream(ws, TestIds.v7(), new TestEmitter()))).isEmpty();
+        } finally {
+            small.destroy();
+        }
     }
 
     @Test
@@ -72,18 +112,19 @@ class InMemoryLiveStreamsTest {
 
     @Test
     void closedStreamFreesTheSlot() {
-        UUID person = TestIds.v7();
-        TestEmitter first = new TestEmitter();
-        streams.open(stream(ws, person, first));
-        for (int i = 0; i < 4; i++) {
-            streams.open(stream(ws, person, new TestEmitter()));
+        InMemoryLiveStreams small = streams(5, 1);
+        try {
+            TestEmitter first = new TestEmitter();
+            small.open(stream(ws, TestIds.v7(), first));
+            assertThat(small.open(stream(ws, TestIds.v7(), new TestEmitter()))).isEmpty();
+
+            first.complete();
+
+            assertThat(small.all()).isEmpty();
+            assertThat(small.open(stream(ws, TestIds.v7(), new TestEmitter()))).isPresent();
+        } finally {
+            small.destroy();
         }
-        assertThat(streams.open(stream(ws, person, new TestEmitter()))).isEmpty();
-
-        first.complete();
-
-        assertThat(streams.all()).hasSize(4);
-        assertThat(streams.open(stream(ws, person, new TestEmitter()))).isPresent();
     }
 
     @Test

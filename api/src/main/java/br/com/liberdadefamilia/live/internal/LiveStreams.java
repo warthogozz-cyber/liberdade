@@ -10,7 +10,10 @@ import java.util.UUID;
  */
 public interface LiveStreams {
 
-    /** Registers the stream; empty when the person or the process is over its limit. */
+    /**
+     * Registers the stream. A person at their limit gives up their oldest stream, which is told it was replaced and
+     * completed; empty only when the process is over its limit.
+     */
     Optional<LiveStream> open(LiveStream stream);
 
     /** Sends the notice, off the calling thread, to the family's streams the audience includes. */

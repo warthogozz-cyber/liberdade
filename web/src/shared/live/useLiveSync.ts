@@ -109,6 +109,12 @@ export function useLiveSync(workspaceId: string, options?: Options): void {
         clearTimeout(debounceTimer)
         debounceTimer = setTimeout(flush, DEBOUNCE_MS)
       })
+      // A newer tab of the same person took this stream's place; reconnecting would take another's.
+      next.addEventListener('replaced', () => {
+        next.close()
+        if (source === next) source = null
+        noStream = true
+      })
       next.addEventListener('error', () => {
         // Still connecting means the browser is retrying by itself; closed means it gave up (429, 204, 401).
         if (next.readyState !== CLOSED) return

@@ -19,7 +19,6 @@ import br.com.liberdadefamilia.support.TestLedger;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
 import br.com.liberdadefamilia.workspace.Role;
-import com.jayway.jsonpath.JsonPath;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
@@ -281,24 +280,18 @@ class LiveStreamIT {
     }
 
     @Test
-    void sixthStreamIsRateLimited() throws Exception {
-        for (int i = 0; i < 5; i++) {
-            assertThat(SseStreams.open(mockMvc, ws, anaSession, TestUsers.signedIn(ana, null))
-                            .getRequest()
-                            .isAsyncStarted())
-                    .isTrue();
+    void sixthStreamReplacesTheOldest() throws Exception {
+        MvcResult oldest = SseStreams.open(mockMvc, ws, anaSession, TestUsers.signedIn(ana, null));
+        for (int i = 0; i < 4; i++) {
+            SseStreams.open(mockMvc, ws, anaSession, TestUsers.signedIn(ana, null));
         }
 
         MvcResult sixth = SseStreams.open(mockMvc, ws, anaSession, TestUsers.signedIn(ana, null));
 
-        assertThat(sixth.getResponse().getStatus()).isEqualTo(429);
-        assertThat(JsonPath.<String>read(SseStreams.content(sixth), "$.code")).isEqualTo("rate.limited");
-        assertThat(sixth.getResponse().getHeader("Retry-After")).isEqualTo("60");
-        // Another person is not held back by Ana's streams.
-        assertThat(SseStreams.open(mockMvc, ws, biaSession, TestUsers.signedIn(bia, null))
-                        .getRequest()
-                        .isAsyncStarted())
-                .isTrue();
+        assertThat(sixth.getRequest().isAsyncStarted()).isTrue();
+        assertThat(sixth.getResponse().getStatus()).isEqualTo(200);
+        Eventually.within(WAIT, () -> assertThat(SseStreams.content(oldest)).contains("event:replaced"));
+        assertThat(streams.all()).hasSize(5);
     }
 
     @Test

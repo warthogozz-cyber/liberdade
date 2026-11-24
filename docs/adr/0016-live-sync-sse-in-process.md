@@ -31,9 +31,12 @@
 - **Refetch no cliente.** O app junta os avisos por 250 ms e busca de novo as consultas afetadas
   pelo caminho de sempre, com as mesmas regras de acesso. Se o stream não abrir, o app busca tudo
   de novo quando a pessoa volta à aba ou à rede.
-- **Limites.** No máximo 5 streams por pessoa e 1.000 por processo. Passou disso, a API responde
-  `429` com `Retry-After: 60` e o app segue sem stream. Cada stream dura até 30 min; ao fim, o
-  navegador reconecta.
+- **Limites.** No máximo 5 streams por pessoa e 1.000 por processo. O sexto stream da mesma pessoa
+  toma o lugar do mais antigo, que recebe o evento `replaced` e fecha; a aba que o recebe para de
+  reconectar e segue sem stream. É assim porque a página recarregada deixa o stream antigo aberto
+  até a próxima escrita mostrar que ele caiu, e recusar o novo deixaria a página nova sem avisos.
+  Acima do limite do processo, a API responde `429` com `Retry-After: 60` e o app segue sem stream.
+  Cada stream dura até 30 min; ao fim, o navegador reconecta.
 - **`LiveStreams` é o ponto de troca.** A interface (`open`, `publish`, `closeMember`,
   `closeWorkspace`, `all`, `close`) não expõe o mapa em memória. Se a API passar a rodar em mais de
   um processo, uma implementação com `LISTEN/NOTIFY` do PostgreSQL entra no lugar de
