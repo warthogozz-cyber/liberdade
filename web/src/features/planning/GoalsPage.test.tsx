@@ -111,6 +111,38 @@ describe('GoalsPage', () => {
     expect(mockState.goals).toHaveLength(1)
   })
 
+  it('removes a deadline with "Sem prazo"', async () => {
+    setUp()
+    addGoal('Viagem', '250.00', { dueOn: '2027-08' })
+    render()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Viagem/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByText(/Não dá para tirar um prazo/)).not.toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Sem prazo' }))
+    expect(within(dialog).getByLabelText('Prazo')).toBeDisabled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }))
+
+    await vi.waitFor(() => expect(mockState.goals[0].dueOn).toBeNull())
+    expect(mockState.goals[0].version).toBe(1)
+  })
+
+  it('leaves the deadline alone when nothing about it changes', async () => {
+    setUp()
+    addGoal('Viagem', '250.00', { dueOn: '2027-08' })
+    render()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Viagem/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Nome'), { target: { value: 'Viagem longa' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }))
+
+    await vi.waitFor(() => expect(mockState.goals[0].name).toBe('Viagem longa'))
+    expect(mockState.goals[0].dueOn).toBe('2027-08')
+  })
+
   it('youth sees no actions', async () => {
     setUp('YOUTH')
     addGoal('Viagem', '100.00', { linkedAccountId: mockState.accounts[0].id })

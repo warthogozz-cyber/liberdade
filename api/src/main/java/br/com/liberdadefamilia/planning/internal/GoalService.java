@@ -149,6 +149,9 @@ class GoalService {
                 ? checkedTarget(request.targetAmount(), Currency.getInstance(row.currency()))
                 : row.targetAmount();
         YearMonth due = request.dueOn();
+        if (request.clearsDueOn() && due != null) {
+            throw GoalRejectedException.invalid();
+        }
         if (due != null && due.isBefore(current)) {
             throw GoalRejectedException.dueInPast();
         }
@@ -157,7 +160,7 @@ class GoalService {
                 id,
                 name,
                 target,
-                due != null ? due.atDay(1) : row.dueOn(),
+                request.clearsDueOn() ? null : due != null ? due.atDay(1) : row.dueOn(),
                 icon,
                 request.version(),
                 clock.instant())) {

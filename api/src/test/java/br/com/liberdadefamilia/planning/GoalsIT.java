@@ -236,6 +236,43 @@ class GoalsIT {
     }
 
     @Test
+    void clearDueOnRemovesTheDeadlineAndAbsentFlagKeepsIt() {
+        UUID goal = idOf(create(ana, "Viagem", "12000.00", "2027-08", "travel", null));
+
+        var renamed = send(ana, HttpMethod.PATCH, "/goals/" + goal, """
+                {"name":"Viagem longa","version":0}""");
+        assertThat(renamed).hasStatusOk();
+        assertThat(renamed).bodyJson().extractingPath("$.dueOn").isEqualTo("2027-08");
+
+        var notCleared = send(ana, HttpMethod.PATCH, "/goals/" + goal, """
+                {"name":"Viagem curta","clearDueOn":false,"version":1}""");
+        assertThat(notCleared).hasStatusOk();
+        assertThat(notCleared).bodyJson().extractingPath("$.dueOn").isEqualTo("2027-08");
+
+        var cleared = send(ana, HttpMethod.PATCH, "/goals/" + goal, """
+                {"clearDueOn":true,"version":2}""");
+        assertThat(cleared).hasStatusOk();
+        assertThat(cleared).bodyJson().extractingPath("$.dueOn").isNull();
+        assertThat(send(ana, HttpMethod.GET, "/goals", null))
+                .bodyJson()
+                .extractingPath("$.goals[0].dueOn")
+                .isNull();
+    }
+
+    @Test
+    void clearDueOnTogetherWithDueOnIsInvalid() {
+        UUID goal = idOf(create(ana, "Viagem", "12000.00", "2027-08", "travel", null));
+
+        var both = send(ana, HttpMethod.PATCH, "/goals/" + goal, """
+                {"clearDueOn":true,"dueOn":"2027-11","version":0}""");
+
+        assertThat(both).hasStatus(400);
+        assertThat(both).bodyJson().extractingPath("$.code").isEqualTo("request.invalid");
+        var unchanged = send(ana, HttpMethod.GET, "/goals", null);
+        assertThat(unchanged).bodyJson().extractingPath("$.goals[0].dueOn").isEqualTo("2027-08");
+    }
+
+    @Test
     void linkedGoalFollowsBalanceAndRejectsContributions() {
         UUID reserva = account("Reserva", "BRL", "4000.00", false);
         UUID goal = idOf(create(ana, "Reserva da casa", "10000.00", null, "home", reserva));

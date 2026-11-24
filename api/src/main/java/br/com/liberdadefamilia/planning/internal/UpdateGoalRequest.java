@@ -12,8 +12,8 @@ import java.time.YearMonth;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A partial change to a goal, with the version the caller read: what is null stays as it is, so the due month can be
- * moved but not removed. The linked account never changes after the goal is created. The name is stripped before
+ * A partial change to a goal, with the version the caller read: what is null stays as it is. The due month can be
+ * moved, or removed with {@code clearDueOn} (which the service rejects together with a {@code dueOn}). The linked account never changes after the goal is created. The name is stripped before
  * validation. Not a {@code PartialRequest}: the version is required, so the contract lists it and leaves every other
  * field optional.
  */
@@ -27,6 +27,7 @@ record UpdateGoalRequest(
         @Nullable @Schema(nullable = true) Money targetAmount,
         @Nullable @Schema(nullable = true) YearMonth dueOn,
         @Nullable @Schema(nullable = true) String icon,
+        @Nullable @Schema(nullable = true) Boolean clearDueOn,
         @NotNull Long version) {
 
     UpdateGoalRequest {
@@ -35,10 +36,15 @@ record UpdateGoalRequest(
         }
     }
 
+    /** True when the caller asked to remove the due month. */
+    boolean clearsDueOn() {
+        return Boolean.TRUE.equals(clearDueOn);
+    }
+
     @JsonIgnore
     @Schema(hidden = true)
     @AssertTrue
     boolean isNotEmpty() {
-        return name != null || targetAmount != null || dueOn != null || icon != null;
+        return name != null || targetAmount != null || dueOn != null || icon != null || clearsDueOn();
     }
 }

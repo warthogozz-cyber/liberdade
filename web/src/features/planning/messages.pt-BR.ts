@@ -32,7 +32,7 @@ export const planningMessages = {
   'planning.goals.form.target': 'Valor da meta',
   'planning.goals.form.due': 'Prazo (opcional)',
   'planning.goals.form.dueKeep': 'Prazo',
-  'planning.goals.form.dueRequired': 'Escolha um mês. Não dá para tirar um prazo que já existe.',
+  'planning.goals.form.noDeadline': 'Sem prazo',
   'planning.goals.form.linked': 'Acompanhar o saldo de uma conta',
   'planning.goals.form.noAccount': 'Nenhuma, vou guardar à mão',
   'planning.goals.form.invalid': 'Dê um nome e digite um valor maior que zero, como 12.000,00.',

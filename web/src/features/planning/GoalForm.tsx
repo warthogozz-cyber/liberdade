@@ -27,8 +27,8 @@ interface GoalFormProps {
 }
 
 /**
- * The fields of a goal. A goal that already has a deadline keeps one: the API cannot clear it, so
- * the form does not offer to (and never sends an empty one).
+ * The fields of a goal. A goal that already has a deadline can lose it: "Sem prazo" sends
+ * `clearDueOn`, since an empty month alone means "leave it as it is".
  */
 export function GoalForm({
   workspace,
@@ -46,22 +46,19 @@ export function GoalForm({
     goal ? typedAmount(parseCents(goal.targetAmount.amount)) : '',
   )
   const [due, setDue] = useState(goal?.dueOn ?? '')
+  const [noDeadline, setNoDeadline] = useState(false)
   const [linkedAccountId, setLinkedAccountId] = useState('')
   const [invalid, setInvalid] = useState<string>()
   const followable = accounts.filter(
     (each) => each.archivedAt === null && each.currency === workspace.currency,
   )
-  const keepsDeadline = goal?.dueOn != null
+  const hasDeadline = goal?.dueOn != null
 
   function save() {
     const cents = parseTypedAmount(target)
     const trimmed = name.trim()
     if (trimmed === '' || trimmed.length > MAX_NAME_LENGTH || cents === undefined) {
       setInvalid(intl.formatMessage({ id: 'planning.goals.form.invalid' }))
-      return
-    }
-    if (keepsDeadline && due === '') {
-      setInvalid(intl.formatMessage({ id: 'planning.goals.form.dueRequired' }))
       return
     }
     setInvalid(undefined)
@@ -81,8 +78,12 @@ export function GoalForm({
       name: trimmed,
       icon,
       targetAmount,
-      // Only a changed deadline goes out; an unchanged or cleared one stays as it is.
-      ...(due !== '' && due !== goal.dueOn ? { dueOn: due } : {}),
+      // Only a changed deadline goes out; an unchanged one stays as it is, and "Sem prazo" clears it.
+      ...(noDeadline
+        ? { clearDueOn: true }
+        : due !== '' && due !== goal.dueOn
+          ? { dueOn: due }
+          : {}),
     })
   }
 
@@ -128,17 +129,29 @@ export function GoalForm({
       <label className="flex flex-col gap-1">
         <span className="font-medium">
           {intl.formatMessage({
-            id: keepsDeadline ? 'planning.goals.form.dueKeep' : 'planning.goals.form.due',
+            id: hasDeadline ? 'planning.goals.form.dueKeep' : 'planning.goals.form.due',
           })}
         </span>
         <input
           type="month"
-          value={due}
+          value={noDeadline ? '' : due}
+          disabled={noDeadline}
           min={currentMonth(new Date(), workspace.timezone)}
           onChange={(event) => setDue(event.target.value)}
           className={field}
         />
       </label>
+      {hasDeadline && (
+        <label className="flex min-h-12 items-center gap-3">
+          <input
+            type="checkbox"
+            checked={noDeadline}
+            onChange={(event) => setNoDeadline(event.target.checked)}
+            className="size-5 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          />
+          <span>{intl.formatMessage({ id: 'planning.goals.form.noDeadline' })}</span>
+        </label>
+      )}
       {!goal && followable.length > 0 && (
         <label className="flex flex-col gap-1">
           <span className="font-medium">

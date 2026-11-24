@@ -2743,7 +2743,12 @@ export const handlers = [
         (body.icon != null && !GOAL_ICONS.includes(body.icon)) ||
         (body.dueOn != null && !MONTH.test(body.dueOn)) ||
         targetCents === undefined ||
-        (name === null && targetCents === null && body.dueOn == null && body.icon == null)
+        (body.clearDueOn === true && body.dueOn != null) ||
+        (name === null &&
+          targetCents === null &&
+          body.dueOn == null &&
+          body.icon == null &&
+          body.clearDueOn !== true)
       ) {
         return budgetInvalid()
       }
@@ -2762,7 +2767,8 @@ export const handlers = [
       }
       if (name !== null) goal.name = name
       if (targetCents !== null) goal.targetCents = targetCents
-      if (body.dueOn != null) goal.dueOn = body.dueOn
+      if (body.clearDueOn === true) goal.dueOn = null
+      else if (body.dueOn != null) goal.dueOn = body.dueOn
       if (body.icon != null) goal.icon = body.icon
       goal.version += 1
       return HttpResponse.json(goalView(goal, workspace))

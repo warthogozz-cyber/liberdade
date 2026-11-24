@@ -1537,6 +1537,7 @@ export interface components {
             name?: string | null;
         };
         UpdateGoalRequest: {
+            clearDueOn?: boolean | null;
             /** @example 2026-11 */
             dueOn?: string | null;
             icon?: string | null;
