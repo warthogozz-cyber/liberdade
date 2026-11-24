@@ -59,3 +59,8 @@ export function saveMapping(accountId: string, signature: string, mapping: CsvMa
     // Without storage the person maps the columns again next time, which is the safe side.
   }
 }
+
+/** A remembered mapping's columns and decimal on top of this file's own header row, which moves with the title rows. */
+export function applyStoredMapping(detected: CsvMapping, stored: CsvMapping): CsvMapping {
+  return { ...stored, headerRow: detected.headerRow }
+}

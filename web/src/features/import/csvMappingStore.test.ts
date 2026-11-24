@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CsvMapping } from './csvDetect'
-import { loadMapping, saveMapping } from './csvMappingStore'
+import { detectCsv, linesFromCsv } from './csvDetect'
+import { applyStoredMapping, loadMapping, saveMapping } from './csvMappingStore'
 
 const mapping: CsvMapping = {
   headerRow: 1,
@@ -57,5 +58,28 @@ describe('csvMappingStore', () => {
     saveMapping('A', 'S', mapping)
     expect(loadMapping('constructor', 'S')).toBeNull()
     expect(loadMapping('A', 'toString')).toBeNull()
+  })
+
+  it('applyStoredMappingKeepsTheFreshHeaderRow', () => {
+    const stored: CsvMapping = { ...mapping, headerRow: 3, date: 1, decimal: '.' }
+    const applied = applyStoredMapping({ ...mapping, headerRow: 1 }, stored)
+    expect(applied).toEqual({ ...stored, headerRow: 1 })
+  })
+
+  it('fewerTitleRowsStillYieldEveryRow', () => {
+    const data = [
+      ['03/11/2026', 'A', '-1,00'],
+      ['04/11/2026', 'B', '-2,00'],
+    ]
+    const header = ['Data', 'Descricao', 'Valor']
+    const before = [['Extrato', '', ''], ['Periodo', '', ''], ['Conta', '', ''], header, ...data]
+    const after = [['Extrato', '', ''], header, ...data]
+    const saved = detectCsv({ separator: ';', rows: before }).mapping
+    expect(saved.headerRow).toBe(3)
+    const fresh = detectCsv({ separator: ';', rows: after }).mapping
+    expect(fresh.headerRow).toBe(1)
+    const applied = applyStoredMapping(fresh, saved)
+    expect(linesFromCsv(after, applied)).toHaveLength(2)
+    expect(() => linesFromCsv(after, saved)).toThrow()
   })
 })

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useIntl } from 'react-intl'
-import type { CsvMapping } from './csvDetect'
+import { detectDecimal, type CsvMapping } from './csvDetect'
 import type { importMessages } from './messages.pt-BR'
 import './register'
 
@@ -66,6 +66,7 @@ export function ColumnMapping({ rows, initial, onConfirm }: ColumnMappingProps) 
 
   function confirm() {
     if (!complete) return
+    const amountColumns = split ? [Number(debit), Number(credit)] : [Number(value)]
     onConfirm({
       headerRow: initial.headerRow,
       date: Number(date),
@@ -73,7 +74,7 @@ export function ColumnMapping({ rows, initial, onConfirm }: ColumnMappingProps) 
       amount: split
         ? { kind: 'split', debit: Number(debit), credit: Number(credit) }
         : { kind: 'signed', column: Number(value) },
-      decimal: initial.decimal,
+      decimal: detectDecimal(rows.slice(initial.headerRow + 1), amountColumns),
     })
   }
 

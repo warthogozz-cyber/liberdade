@@ -98,6 +98,12 @@ function findDates(rows: string[][], width: number) {
   return found
 }
 
+/** Comma when any cell of these columns looks like 12,34; the same rule for detection and for the column screen. */
+export function detectDecimal(dataRows: string[][], columns: number[]): ',' | '.' {
+  const found = columns.some((c) => dataRows.some((r) => /\d,\d{2}$/.test((r[c] ?? '').trim())))
+  return found ? ',' : '.'
+}
+
 export function detectCsv(parsed: { separator: CsvSeparator; rows: string[][] }): CsvDetection {
   const { separator, rows } = parsed
   const width = modalLength(rows)
@@ -132,8 +138,7 @@ export function detectCsv(parsed: { separator: CsvSeparator; rows: string[][] })
   }
 
   const amountColumns = amount.kind === 'signed' ? [amount.column] : [amount.debit, amount.credit]
-  const decimalCells = amountColumns.flatMap((c) => data.map((r) => (r[c] ?? '').trim()))
-  const decimal: ',' | '.' = decimalCells.some((cell) => /\d,\d{2}$/.test(cell)) ? ',' : '.'
+  const decimal = detectDecimal(data, amountColumns)
 
   let description: number
   let descriptionSure: boolean

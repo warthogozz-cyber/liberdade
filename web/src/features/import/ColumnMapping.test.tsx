@@ -3,7 +3,7 @@ import { IntlProvider } from 'react-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { appMessages, locale } from '@/shared/i18n'
 import { ColumnMapping } from './ColumnMapping'
-import type { CsvMapping } from './csvDetect'
+import { linesFromCsv, type CsvMapping } from './csvDetect'
 
 afterEach(cleanup)
 
@@ -62,6 +62,20 @@ describe('ColumnMapping', () => {
     expect(onConfirm).toHaveBeenCalledWith(
       expect.objectContaining({ amount: { kind: 'split', debit: 2, credit: 3 } }),
     )
+  })
+
+  it('recomputesTheDecimalFromTheChosenColumn', () => {
+    const wrongGuess: CsvMapping = {
+      ...initial,
+      decimal: '.',
+      amount: { kind: 'signed', column: 0 },
+    }
+    const onConfirm = renderScreen(wrongGuess)
+    fireEvent.change(screen.getByLabelText('Valor'), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+    const confirmed = onConfirm.mock.calls[0]?.[0] as CsvMapping
+    expect(confirmed.decimal).toBe(',')
+    expect(linesFromCsv(rows, confirmed)[0]?.cents).toBe(-4590n)
   })
 
   it('showsTheFirstRowsAsASample', () => {
