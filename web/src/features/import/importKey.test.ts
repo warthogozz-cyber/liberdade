@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { detectCsv, linesFromCsv } from './csvDetect'
 import { parseCsv } from './readers/csv'
 import { decode } from './readers/decode'
 import { fixtureBytes } from './readers/fixtures.test-util'
@@ -19,20 +20,9 @@ const expense = (absCents: bigint, description: string): KindedLine => ({
   billPayment: false,
 })
 
-// Test-local CSV mapping until the detection exists: date;description;value;balance, dd/MM/yyyy, decimal comma.
-function csvLines(rows: string[][]): StatementLine[] {
-  return rows
-    .filter((r) => /^\d{2}\/\d{2}\/\d{4}$/.test(r[0] ?? ''))
-    .map((r) => {
-      const [dd, mm, yyyy] = (r[0] ?? '').split('/')
-      const value = r[2] ?? ''
-      const cents = BigInt(value.replace('-', '').replace(',', ''))
-      return {
-        occurredOn: `${yyyy}-${mm}-${dd}`,
-        cents: value.startsWith('-') ? -cents : cents,
-        description: r[1] ?? '',
-      }
-    })
+function csvLines(text: string): StatementLine[] {
+  const parsed = parseCsv(text)
+  return linesFromCsv(parsed.rows, detectCsv(parsed).mapping)
 }
 
 describe('importKeys', () => {
@@ -58,9 +48,7 @@ describe('importKeys', () => {
 
   it('sameKeyFromOfxAndCsv', async () => {
     const ofx = readOfx(decode(await fixtureBytes('ofx-sgml-1252.ofx'), 'ofx'))
-    const csv = csvLines(
-      parseCsv(decode(await fixtureBytes('csv-semicolon-comma-decimal.csv'), 'csv')).rows,
-    )
+    const csv = csvLines(decode(await fixtureBytes('csv-semicolon-comma-decimal.csv'), 'csv'))
     expect(csv).toHaveLength(4)
     const fromOfx = await importKeys(ACCOUNT, assignKinds(ofx, false))
     const fromCsv = await importKeys(ACCOUNT, assignKinds(csv, false))

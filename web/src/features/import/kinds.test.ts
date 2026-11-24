@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { detectCsv, linesFromCsv } from './csvDetect'
+import { parseCsv } from './readers/csv'
 import { decode } from './readers/decode'
 import { fixtureBytes } from './readers/fixtures.test-util'
 import { readOfx } from './readers/ofx'
@@ -11,22 +13,9 @@ const line = (cents: bigint, description = 'X'): StatementLine => ({
   description,
 })
 
-// Test-local reading of the card CSV: date;description;value with a header row, decimal comma.
 function cardCsvLines(text: string): StatementLine[] {
-  return text
-    .split(/\r?\n/)
-    .slice(1)
-    .filter((r) => r.length > 0)
-    .map((r) => {
-      const [d = '', desc = '', v = ''] = r.split(';')
-      const [dd, mm, yyyy] = d.split('/')
-      const digits = BigInt(v.replace('-', '').replace(',', ''))
-      return {
-        occurredOn: `${yyyy}-${mm}-${dd}`,
-        cents: v.startsWith('-') ? -digits : digits,
-        description: desc,
-      }
-    })
+  const parsed = parseCsv(text)
+  return linesFromCsv(parsed.rows, detectCsv(parsed).mapping)
 }
 
 describe('assignKinds', () => {
