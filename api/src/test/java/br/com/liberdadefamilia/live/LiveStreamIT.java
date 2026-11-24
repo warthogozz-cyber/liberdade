@@ -22,6 +22,7 @@ import br.com.liberdadefamilia.workspace.Role;
 import com.jayway.jsonpath.JsonPath;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
@@ -357,12 +358,30 @@ class LiveStreamIT {
     }
 
     @Test
+    void removedMemberStreamEndsCleanly() throws Exception {
+        MvcResult adult = SseStreams.open(mockMvc, ws, biaSession, TestUsers.signedIn(bia, null));
+        assertThat(send(HttpMethod.DELETE, "/members/" + biaMembership, null)
+                        .getResponse()
+                        .getStatus())
+                .isEqualTo(204);
+        Eventually.within(WAIT, () -> assertThat(isComplete(adult)).isTrue());
+
+        // The member is gone now: a guard that ran again on the end of the stream would answer 404.
+        MvcResult ended = mockMvc.perform(asyncDispatch(adult)).andReturn();
+
+        assertThat(ended.getResolvedException()).isNull();
+        assertThat(ended.getResponse().getStatus()).isEqualTo(200);
+    }
+
+    @Test
     void signedOutStreamEndsCleanly() throws Exception {
         MvcResult adult = SseStreams.open(mockMvc, ws, biaSession, TestUsers.signedIn(bia, null));
         signOut(biaSession);
         heartbeat.beat();
         Eventually.within(WAIT, () -> assertThat(isComplete(adult)).isTrue());
 
+        // The test sign-in lives on the request; drop it so the context has to load from the deleted session.
+        clearTestSecurityContext(adult);
         MvcResult ended = mockMvc.perform(asyncDispatch(adult)).andReturn();
 
         assertThat(ended.getResolvedException()).isNull();
@@ -389,6 +408,13 @@ class LiveStreamIT {
 
     private CsrfSession session(UUID user) {
         return CsrfSession.start(mvc, TestUsers.signedIn(user, null));
+    }
+
+    private static void clearTestSecurityContext(MvcResult stream) {
+        var request = stream.getRequest();
+        Collections.list(request.getAttributeNames()).stream()
+                .filter(name -> name.contains("ecurityContext"))
+                .forEach(request::removeAttribute);
     }
 
     private void signOut(CsrfSession session) {
