@@ -10,6 +10,7 @@ export default function ReserveHomeCard() {
   const workspace = useCurrentWorkspace()
   const reserve = useReserve(workspace?.id ?? '')
   if (!reserve.data) return null
+  const editable = workspace?.role === 'OWNER' || workspace?.role === 'ADULT'
 
   return (
     <section className="flex flex-col gap-3 rounded-card bg-surface p-4">
@@ -20,7 +21,9 @@ export default function ReserveHomeCard() {
         <ReserveSummary reserve={reserve.data} />
       ) : (
         <p className="text-text-muted">
-          <FormattedMessage id="planning.reserve.askCost" />
+          <FormattedMessage
+            id={editable ? 'planning.reserve.askCost' : 'planning.reserve.costViewer'}
+          />
         </p>
       )}
       {!reserve.data.hasReserveAccounts && (

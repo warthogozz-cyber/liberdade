@@ -35,4 +35,47 @@ describe('ReserveHomeCard', () => {
       '/planejar/reserva',
     )
   })
+
+  describe('without a monthly cost', () => {
+    function serveUnknownCost(role: 'OWNER' | 'VIEWER') {
+      const workspace = seedMockFamily()
+      workspace.role = role
+      mockState.modules[workspace.id] = { planning: true }
+      server.use(
+        http.get(`${API_URL}/v1/workspaces/${workspace.id}/reserve`, () =>
+          HttpResponse.json({
+            balance: { amount: '0.00', currency: 'BRL' },
+            hasReserveAccounts: true,
+            averageMonthlyCost: null,
+            costSource: 'NONE',
+            months: null,
+            targetMonths: 6,
+            missing: null,
+            manualMonthlyCost: null,
+          }),
+        ),
+      )
+    }
+
+    it('asks the owner how much the family spends', async () => {
+      serveUnknownCost('OWNER')
+      renderWithProviders(<ReserveHomeCard />, { path: '/' })
+
+      expect(
+        await screen.findByText('Quanto a família gasta por mês, mais ou menos?'),
+      ).toBeInTheDocument()
+    })
+
+    it('tells a viewer it is still missing instead of asking', async () => {
+      serveUnknownCost('VIEWER')
+      renderWithProviders(<ReserveHomeCard />, { path: '/' })
+
+      expect(
+        await screen.findByText('Ainda falta informar quanto a família gasta por mês.'),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText('Quanto a família gasta por mês, mais ou menos?'),
+      ).not.toBeInTheDocument()
+    })
+  })
 })

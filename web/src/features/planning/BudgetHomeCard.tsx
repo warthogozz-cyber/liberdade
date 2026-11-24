@@ -5,6 +5,7 @@ import { useCategories, useCurrentWorkspace, type MeWorkspace } from '@/shared/a
 import { useBudgets, useCopyBudgets } from '@/shared/api/planning'
 import { addMonths, currentMonth } from '@/shared/i18n'
 import { useOnline } from '@/shared/offline'
+import { useToast } from '@/shared/ui'
 import { BudgetLine } from './BudgetLine'
 import {
   markSummaryAnswered,
@@ -28,6 +29,7 @@ export default function BudgetHomeCard() {
 function Card({ workspace }: { workspace: MeWorkspace }) {
   const intl = useIntl()
   const online = useOnline()
+  const toast = useToast()
   const month = currentMonth(new Date(), workspace.timezone)
   const previousMonth = addMonths(month, -1)
   const budgets = useBudgets(workspace.id, month)
@@ -59,6 +61,7 @@ function Card({ workspace }: { workspace: MeWorkspace }) {
     } catch (error) {
       // The card stays, so the person can try again.
       console.error(error)
+      toast.show({ message: intl.formatMessage({ id: 'planning.budget.failed' }) })
       return
     }
     answer()

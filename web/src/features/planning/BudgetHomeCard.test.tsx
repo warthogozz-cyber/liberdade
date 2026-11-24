@@ -1,6 +1,9 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { http, HttpResponse } from 'msw'
 import { mockState, seedMockFamily } from '@/mocks/data'
+import { server } from '@/mocks/server'
+import { API_URL } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
 import BudgetHomeCard from './BudgetHomeCard'
 
@@ -70,6 +73,25 @@ describe('BudgetHomeCard', () => {
     )
     expect(mockState.budgets.filter((each) => each.month === '2026-12')).toHaveLength(8)
     expect(localStorage.getItem(`liberdade.budget-summary:${workspace.id}:2026-12`)).not.toBeNull()
+  })
+
+  it('toasts and keeps the card when copying fails', async () => {
+    const workspace = setUp()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    server.use(
+      http.post(
+        `${API_URL}/v1/workspaces/${workspace.id}/budgets/2026-12/copy-previous`,
+        () => new HttpResponse(null, { status: 500 }),
+      ),
+    )
+    render()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Copiar limites' }))
+
+    expect(
+      await screen.findByText('Não deu para salvar o limite. Tente de novo.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/categorias dentro do limite/)).toBeInTheDocument()
   })
 
   it('viewer sees summary without copy', async () => {
