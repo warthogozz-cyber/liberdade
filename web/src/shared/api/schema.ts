@@ -596,6 +596,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getGoals"];
+        put?: never;
+        post: operations["createGoal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/goals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateGoal"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/goals/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveGoal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/goals/{id}/contributions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getContributions"];
+        put?: never;
+        post: operations["createContribution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/invitations": {
         parameters: {
             query?: never;
@@ -1000,6 +1064,15 @@ export interface components {
             workspaceId: string;
             workspaceName: string;
         };
+        ContributionView: {
+            amount: components["schemas"]["Money"];
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            memberId: string | null;
+            /** Format: date */
+            occurredOn: string;
+        };
         CopyBudgetsView: {
             /** Format: int32 */
             copied: number;
@@ -1021,6 +1094,20 @@ export interface components {
             name: string;
             /** Format: uuid */
             parentId?: string | null;
+        };
+        CreateContributionRequest: {
+            amount: components["schemas"]["Money"];
+            /** Format: date */
+            occurredOn: string;
+        };
+        CreateGoalRequest: {
+            /** @example 2026-11 */
+            dueOn?: string | null;
+            icon: string;
+            /** Format: uuid */
+            linkedAccountId?: string | null;
+            name: string;
+            targetAmount: components["schemas"]["Money"];
         };
         CreateInvitationRequest: {
             nickname: string;
@@ -1111,6 +1198,30 @@ export interface components {
             currentVersion: string;
             /** @enum {string} */
             purpose: "TERMS" | "PRIVACY" | "PARENTAL";
+        };
+        GoalView: {
+            /** Format: date-time */
+            achievedAt: string | null;
+            /** @example 2026-11 */
+            dueOn: string | null;
+            icon: string;
+            /** Format: uuid */
+            id: string;
+            linked: boolean;
+            /** Format: uuid */
+            linkedAccountId: string | null;
+            name: string;
+            /** Format: int32 */
+            percent: number;
+            saved: components["schemas"]["Money"];
+            suggestedMonthly: components["schemas"]["Money"] | null;
+            targetAmount: components["schemas"]["Money"];
+            /** Format: int64 */
+            version: number;
+        };
+        GoalsView: {
+            goals: components["schemas"]["GoalView"][];
+            limitReached: boolean;
         };
         InvitationPreview: {
             invitedBy: string | null;
@@ -1343,6 +1454,15 @@ export interface components {
             icon?: string | null;
             isFixed?: boolean | null;
             name?: string | null;
+        };
+        UpdateGoalRequest: {
+            /** @example 2026-11 */
+            dueOn?: string | null;
+            icon?: string | null;
+            name?: string | null;
+            targetAmount?: components["schemas"]["Money"] | null;
+            /** Format: int64 */
+            version: number;
         };
         UpdateMemberRequest: {
             nickname?: string | null;
@@ -2397,6 +2517,158 @@ export interface operations {
                 };
                 content: {
                     "application/zip": string;
+                };
+            };
+        };
+    };
+    getGoals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalsView"];
+                };
+            };
+        };
+    };
+    createGoal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGoalRequest"];
+            };
+        };
+        responses: {
+            /** @description The goal was created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalView"];
+                };
+            };
+        };
+    };
+    updateGoal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGoalRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalView"];
+                };
+            };
+        };
+    };
+    archiveGoal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived, or it already was */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getContributions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionView"][];
+                };
+            };
+        };
+    };
+    createContribution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContributionRequest"];
+            };
+        };
+        responses: {
+            /** @description The contribution was recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionView"];
                 };
             };
         };

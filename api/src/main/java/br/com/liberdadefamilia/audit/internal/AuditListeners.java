@@ -8,6 +8,7 @@ import br.com.liberdadefamilia.billing.PlanEnded;
 import br.com.liberdadefamilia.billing.RefundRequested;
 import br.com.liberdadefamilia.identity.PasskeyRemoved;
 import br.com.liberdadefamilia.identity.SignedIn;
+import br.com.liberdadefamilia.planning.GoalArchived;
 import br.com.liberdadefamilia.planning.RecurringRuleArchived;
 import br.com.liberdadefamilia.planning.RecurringRuleCreated;
 import br.com.liberdadefamilia.planning.RecurringRuleEdited;
@@ -126,6 +127,11 @@ class AuditListeners {
                 "RECURRING_RULE",
                 event.ruleId(),
                 Map.of());
+    }
+
+    @EventListener
+    void on(GoalArchived event) {
+        record(event.workspaceId(), event.actorUserId(), "goal.archived", "GOAL", event.goalId(), Map.of());
     }
 
     @EventListener

@@ -29,6 +29,24 @@ export interface MockBudget {
   version: number
 }
 
+/**
+ * A goal as stored: the target in cents, the due month as `YYYY-MM`. An archived one stays, out of the list; its
+ * contributions are newest first.
+ */
+export interface MockGoal {
+  id: string
+  name: string
+  icon: string
+  targetCents: bigint
+  currency: string
+  dueOn: string | null
+  linkedAccountId: string | null
+  achievedAt: string | null
+  archived: boolean
+  version: number
+  contributions: Schemas['ContributionView'][]
+}
+
 /** A consent as the API lists it, plus whether the signed-in person is the one who gave it. */
 export type MockConsent = Schemas['ConsentView'] & { grantedByMe: boolean }
 
@@ -58,6 +76,8 @@ export interface MockState {
   rules: MockRule[]
   /** The family's monthly limits per category. */
   budgets: MockBudget[]
+  /** The family's goals, in creation order, archived ones included. */
+  goals: MockGoal[]
   /** The signed-in person's own history, newest first (LGPD audit trail). */
   activity: Schemas['ActivityItem'][]
   /** The signed-in person's own passkeys, newest first. */
@@ -230,6 +250,7 @@ function initialState(): MockState {
     modules: {},
     rules: [],
     budgets: [],
+    goals: [],
     activity: initialActivity(),
     passkeys: initialPasskeys(),
     hasGoogle: true,
