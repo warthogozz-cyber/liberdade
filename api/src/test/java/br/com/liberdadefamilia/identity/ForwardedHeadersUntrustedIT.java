@@ -15,7 +15,11 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"liberdade.billing.gateway=asaas", "liberdade.billing.enabled=false"})
+        properties = {
+            "liberdade.billing.gateway=asaas",
+            "liberdade.indicators.source=bcb",
+            "liberdade.billing.enabled=false"
+        })
 @ActiveProfiles({"test", "prod"})
 @Import(TestcontainersConfiguration.class)
 class ForwardedHeadersUntrustedIT {
