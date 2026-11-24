@@ -7,6 +7,7 @@ describe('realReturn', () => {
     expect(parseRate('4,5')).toBe(45000n)
     expect(parseRate('4.5')).toBe(45000n)
     expect(parseRate('-1,25')).toBe(-12500n)
+    expect(parseRate('−1,25')).toBe(-12500n)
   })
 
   it('rejectsGarbage', () => {

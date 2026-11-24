@@ -103,6 +103,19 @@ describe('RealReturnPage', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('acceptsANegativeIpca', async () => {
+    render(() => {
+      const index = mockState.indicators.findIndex((item) => item.code === 'IPCA_12M')
+      mockState.indicators[index] = { ...mockState.indicators[index]!, value: '-0.50' }
+    })
+    await screen.findByDisplayValue('−0,50')
+
+    expect(screen.getByText(/^Fonte:/)).toBeInTheDocument()
+    expect(screen.queryByText('Use um número entre −99,99 e 1000')).not.toBeInTheDocument()
+    fireEvent.change(nominalField(), { target: { value: '10' } })
+    expect(screen.getByRole('status')).toHaveTextContent('10,55%')
+  })
+
   it('noIpcaLeavesFieldEmpty', async () => {
     render(() => {
       const index = mockState.indicators.findIndex((item) => item.code === 'IPCA_12M')

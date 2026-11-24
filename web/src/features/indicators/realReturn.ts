@@ -7,15 +7,15 @@ const MINUS = '−'
 const MIN_RATE = -999_900n // −99,99%
 const MAX_RATE = 10_000_000n // 1000%
 
-const RATE_PATTERN = /^(-?)(\d+)(?:[.,](\d{1,4}))?$/
+const RATE_PATTERN = /^([-−]?)(\d+)(?:[.,](\d{1,4}))?$/
 
-/** "4,5" or "4.5" as 45000n; null for empty, letters or more than 4 decimals. */
+/** "4,5" or "4.5" as 45000n; the sign may be "-" or the true minus U+2212. Null if unreadable. */
 export function parseRate(text: string): bigint | null {
   const match = RATE_PATTERN.exec(text.trim())
   if (match === null) return null
   const [, sign, whole, fraction = ''] = match
   const value = BigInt(whole! + fraction.padEnd(4, '0'))
-  return sign === '-' ? -value : value
+  return sign === '' ? value : -value
 }
 
 /** From −99,99% to 1000%. The floor keeps inflation away from −100%, so the divisor is positive. */
