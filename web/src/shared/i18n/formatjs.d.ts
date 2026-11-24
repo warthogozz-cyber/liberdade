@@ -26,6 +26,8 @@ import type { transactionsMoreMessages } from '@/features/transactions/more.mess
 // eslint-disable-next-line no-restricted-imports
 import type { portraitMessages } from '@/features/portrait/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
+import type { settingsMessages } from '@/features/settings/messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
 import type { planningMessages } from '@/features/planning/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { recurrencesMessages } from '@/features/recurrences/messages.pt-BR'
@@ -50,6 +52,7 @@ declare global {
         | keyof typeof planningMessages
         | keyof typeof portraitMessages
         | keyof typeof privacyMessages
+        | keyof typeof settingsMessages
         | keyof typeof recurrencesMessages
         | keyof typeof reauthMessages
         | keyof typeof signInMessages

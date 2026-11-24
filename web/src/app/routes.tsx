@@ -139,6 +139,13 @@ export const routes: RouteObject[] = [
                   })),
               },
               {
+                path: '/mais/ajustes',
+                lazy: () =>
+                  import('@/features/settings/SettingsPage').then((m) => ({
+                    Component: m.SettingsPage,
+                  })),
+              },
+              {
                 path: '/mais/categorias',
                 lazy: () =>
                   import('@/features/categories/CategoriesPage').then((m) => ({

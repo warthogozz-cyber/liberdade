@@ -4,7 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { emitLocalAction } from '@/shared/events'
 import { renderWithProviders } from '@/shared/testing'
+import { playAchievement } from '@/shared/sound/playAchievement'
 import GoalCelebrationWatcher from './GoalCelebrationWatcher'
+
+vi.mock('@/shared/sound/playAchievement', () => ({
+  playAchievement: vi.fn(() => Promise.resolve()),
+}))
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -15,6 +20,8 @@ afterEach(() => {
   cleanup()
   vi.useRealTimers()
   vi.restoreAllMocks()
+  vi.mocked(playAchievement).mockClear()
+  localStorage.clear()
 })
 
 /** A family with a goal whose contributions already reach its target. */
@@ -70,5 +77,23 @@ describe('GoalCelebrationWatcher', () => {
     await pause(250)
 
     expect(screen.queryByText(/Meta atingida/)).not.toBeInTheDocument()
+  })
+
+  it('soundOnlyWhenEnabled', async () => {
+    const workspace = setUp()
+    renderWithProviders(<GoalCelebrationWatcher />)
+
+    saved(workspace.id, false)
+    await screen.findByText('Meta atingida: Viagem!')
+    expect(playAchievement).not.toHaveBeenCalled()
+
+    mockState.goals[0].achievedAt = null
+    localStorage.clear()
+    localStorage.setItem('liberdade.sound', 'on')
+    // A new goal reached by the next save.
+    mockState.goals.push({ ...mockState.goals[0], id: crypto.randomUUID(), name: 'Reforma' })
+    saved(workspace.id, false)
+    await screen.findByText('Meta atingida: Reforma!')
+    expect(playAchievement).toHaveBeenCalledOnce()
   })
 })

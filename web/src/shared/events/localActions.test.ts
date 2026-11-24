@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { emitLocalAction, onLocalAction, type LocalAction } from './localActions'
+import { emitLocalAction, lastLocalActionAt, onLocalAction, type LocalAction } from './localActions'
 
 const action: LocalAction = {
   type: 'transaction-saved',
@@ -36,5 +36,21 @@ describe('local actions', () => {
     offBad()
     offAfter()
     error.mockRestore()
+  })
+
+  it('lastLocalActionSkipsQueue', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(5_000)
+    try {
+      expect(lastLocalActionAt('ws-last')).toBeNull()
+
+      emitLocalAction({ ...action, workspaceId: 'ws-last', fromQueue: true })
+      expect(lastLocalActionAt('ws-last')).toBeNull()
+
+      emitLocalAction({ ...action, workspaceId: 'ws-last', fromQueue: false })
+      expect(lastLocalActionAt('ws-last')).toBe(5_000)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

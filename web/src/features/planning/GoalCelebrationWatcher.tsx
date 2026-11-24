@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { getGoals, planningKeys } from '@/shared/api/planning'
 import { onLocalAction } from '@/shared/events'
+import { celebrationSound } from '@/shared/sound'
 import { celebrateNew, useCelebrationQueue } from './celebration'
 import { GoalCelebrations } from './GoalCelebration'
 import './register'
@@ -29,7 +30,10 @@ export default function GoalCelebrationWatcher() {
             staleTime: 0,
           })
           const reached = celebrateNew(ws, view.goals, new Date())
-          if (reached.length > 0) add(reached)
+          if (reached.length > 0) {
+            add(reached)
+            celebrationSound(ws)
+          }
         })
         // A failed call (offline, the module off) only means no celebration this time.
         .catch(() => undefined)

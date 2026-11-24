@@ -4,6 +4,7 @@ import { useIntl } from 'react-intl'
 import { getReserve, planningKeys } from '@/shared/api/planning'
 import { onLocalAction } from '@/shared/events'
 import { Celebration, CelebrationStack } from '@/shared/motion'
+import { celebrationSound } from '@/shared/sound'
 import { shouldCelebrateReserve } from './reserveCelebration'
 import './register'
 
@@ -32,6 +33,7 @@ export default function ReserveCelebrationWatcher() {
           })
           if (shouldCelebrateReserve(ws, view) && view.months !== null) {
             setMonths(Math.floor(view.months))
+            celebrationSound(ws)
           }
         })
         // A failed call (offline, the module off) only means no celebration this time.

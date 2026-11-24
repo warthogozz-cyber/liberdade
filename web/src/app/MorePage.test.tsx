@@ -12,6 +12,16 @@ afterEach(() => {
 })
 
 describe('MorePage', () => {
+  it('linksToSettings', async () => {
+    seedMockFamily()
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByRole('link', { name: 'Ajustes' })).toHaveAttribute(
+      'href',
+      '/mais/ajustes',
+    )
+  })
+
   it('linksToTheFamily', async () => {
     seedMockFamily()
     renderWithProviders(<MorePage />, { path: '/mais' })

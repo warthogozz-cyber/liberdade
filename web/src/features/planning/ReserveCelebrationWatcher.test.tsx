@@ -8,10 +8,16 @@ import { API_URL } from '@/shared/api'
 import { emitLocalAction } from '@/shared/events'
 import { ModuleSlot } from '@/shared/modules'
 import { renderWithProviders } from '@/shared/testing'
+import { playAchievement } from '@/shared/sound/playAchievement'
 import ReserveCelebrationWatcher from './ReserveCelebrationWatcher'
 import './register'
 
+vi.mock('@/shared/sound/playAchievement', () => ({
+  playAchievement: vi.fn(() => Promise.resolve()),
+}))
+
 afterEach(() => {
+  vi.mocked(playAchievement).mockClear()
   cleanup()
   localStorage.clear()
 })
@@ -44,6 +50,27 @@ const saved = (workspaceId: string, fromQueue: boolean) =>
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 describe('ReserveCelebrationWatcher', () => {
+  it('soundOnlyWhenEnabled', async () => {
+    const workspace = setUp()
+    localStorage.setItem('liberdade.sound', 'on')
+    renderWithProviders(<ReserveCelebrationWatcher />)
+
+    saved(workspace.id, false)
+
+    expect(await screen.findByText(/Reserva completa/)).toBeInTheDocument()
+    expect(playAchievement).toHaveBeenCalledOnce()
+  })
+
+  it('silentWhenSoundIsOff', async () => {
+    const workspace = setUp()
+    renderWithProviders(<ReserveCelebrationWatcher />)
+
+    saved(workspace.id, false)
+
+    expect(await screen.findByText(/Reserva completa/)).toBeInTheDocument()
+    expect(playAchievement).not.toHaveBeenCalled()
+  })
+
   it('celebratesAfterLocalSave', async () => {
     const workspace = setUp()
     renderWithProviders(<ReserveCelebrationWatcher />)
