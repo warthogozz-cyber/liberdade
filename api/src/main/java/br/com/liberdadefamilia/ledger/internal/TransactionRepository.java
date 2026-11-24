@@ -539,13 +539,21 @@ class TransactionRepository {
      */
     int purgeDeletedBefore(Instant cutoff, LocalDate ruleRowsBefore) {
         return jdbc.sql("""
-                        delete from transactions
-                        where deleted_at is not null
-                          and deleted_at < :cutoff
-                          and (recurring_rule_id is null or scheduled_on < :ruleRowsBefore)""")
+                        with gone as (
+                            delete from transactions
+                            where deleted_at is not null
+                              and deleted_at < :cutoff
+                              and (recurring_rule_id is null or scheduled_on < :ruleRowsBefore)
+                            returning workspace_id, account_id, import_key),
+                        kept as (
+                            insert into import_tombstones (workspace_id, account_id, import_key)
+                            select workspace_id, account_id, import_key from gone where import_key is not null
+                            on conflict do nothing)
+                        select count(*) from gone""")
                 .param("cutoff", OffsetDateTime.ofInstant(cutoff, ZoneOffset.UTC))
                 .param("ruleRowsBefore", ruleRowsBefore)
-                .update();
+                .query(Integer.class)
+                .single();
     }
 
     private static TransactionView view(ResultSet rs, int row) throws SQLException {
