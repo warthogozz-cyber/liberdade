@@ -23,7 +23,11 @@ if (existsSync(modulesPath)) {
   }
 }
 // The achievement sound's synthesizer loads only when a sound plays (D13).
-const lazy = lazyOnly(manifest, ['src/shared/sound/synth.ts'])
+const lazy = lazyOnly(
+  manifest,
+  ['src/shared/sound/synth.ts'],
+  existsSync(modulesPath) ? JSON.parse(readFileSync(modulesPath, 'utf8')) : {},
+)
 if (!lazy.ok)
   console.error('Loaded in the first load, must be on demand: ' + lazy.offenders.join(', '))
 if (!ok) console.error('A chunk is over its budget (gzip, KB).')

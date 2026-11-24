@@ -101,13 +101,25 @@ export function composition(manifest, modulesByFile, gzipSize) {
 }
 
 /**
- * Sources that must load on demand only. An offender is a source whose own chunk is part of the
- * initial load (`initialFiles`), so something static pulls it in.
+ * Sources that must load on demand only. An offender is a source that is part of the initial load:
+ * either its own chunk is (a static import pulled it in), or it is a module inside an initial chunk
+ * (the bundler inlined it, so the manifest has no entry for it). The second check needs
+ * `modulesByFile` (the `chunk-modules.json` the build writes); without it only the first runs.
  */
-export function lazyOnly(manifest, sources) {
-  const initial = new Set(initialFiles(manifest))
-  const offenders = Object.values(manifest)
-    .filter((chunk) => sources.includes(chunk.src) && initial.has(chunk.file))
-    .map((chunk) => chunk.src)
-  return { ok: offenders.length === 0, offenders: [...new Set(offenders)] }
+export function lazyOnly(manifest, sources, modulesByFile = {}) {
+  const initial = initialFiles(manifest)
+  const initialSet = new Set(initial)
+  const offenders = new Set(
+    Object.values(manifest)
+      .filter((chunk) => sources.includes(chunk.src) && initialSet.has(chunk.file))
+      .map((chunk) => chunk.src),
+  )
+  for (const file of initial) {
+    for (const id of Object.keys(modulesByFile[file] ?? {})) {
+      const path = id.replaceAll('\\', '/').replace(/\?.*$/, '')
+      const source = sources.find((s) => path === s || path.endsWith('/' + s))
+      if (source) offenders.add(source)
+    }
+  }
+  return { ok: offenders.size === 0, offenders: [...offenders] }
 }
