@@ -1600,6 +1600,7 @@ export const handlers = [
       presaleOpen: true,
       canPurchase: workspace.role === 'OWNER' && !running,
       canRefund: workspace.role === 'OWNER' && paid !== undefined,
+      importAllowed: running,
       refundDeadline:
         workspace.role === 'OWNER' && paid !== undefined ? refundDeadline(Date.now()) : null,
       paidOrderId: paid?.id ?? null,

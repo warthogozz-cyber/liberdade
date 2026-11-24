@@ -134,6 +134,7 @@ class RoleMatrixIT {
                         exportRows(),
                         deletionRows(),
                         billingRows(),
+                        importRows(),
                         liveRows())
                 .flatMap(group -> group);
     }
@@ -528,6 +529,17 @@ class RoleMatrixIT {
                 .flatMap(group -> group);
     }
 
+    static Stream<Row> importRows() {
+        return each(
+                "POST " + W + "/imports/category-hints",
+                W + "/imports/category-hints",
+                "{\"items\":[{\"kind\":\"EXPENSE\",\"key\":\"padaria\"}]}",
+                Outcome.OK,
+                Outcome.OK,
+                Outcome.OK,
+                Outcome.FORBIDDEN);
+    }
+
     static Stream<Row> billingRows() {
         return Stream.of(
                         ownerOnly("POST " + W + "/billing/checkout", W + "/billing/checkout", null),
@@ -679,7 +691,9 @@ class RoleMatrixIT {
      * the day after the payment. The shared family has none, since a plan makes the owner's checkout a 409.
      */
     private void runningPlanFor(Family family, Row row) {
-        if (row.path().contains("{paidOrder}") || row.path().endsWith("/billing/plan/theme")) {
+        if (row.path().contains("{paidOrder}")
+                || row.path().endsWith("/billing/plan/theme")
+                || row.path().endsWith("/imports/category-hints")) {
             jdbc.sql("""
                             insert into workspace_plans (workspace_id, plan_key, founder, source_order_id, starts_at, ends_at)
                             values (:ws, 'FAMILY', true, :order, now() - interval '1 minute', now() + interval '1 year')""")

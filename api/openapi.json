@@ -1736,6 +1736,48 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/imports/category-hints": {
+      "post": {
+        "operationId": "categoryHints",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryHintsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryHintsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "import-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/indicators": {
       "get": {
         "operationId": "listIndicators",
@@ -3149,6 +3191,65 @@
           }
         }
       },
+      "CategoryHint": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "CategoryHintItem": {
+        "required": [
+          "key",
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "maxLength": 140,
+            "minLength": 0,
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          }
+        }
+      },
+      "CategoryHintsRequest": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "maxItems": 500,
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryHintItem"
+            }
+          }
+        }
+      },
+      "CategoryHintsResponse": {
+        "type": "object",
+        "properties": {
+          "hints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryHint"
+            }
+          }
+        }
+      },
       "CategoryView": {
         "type": "object",
         "properties": {
@@ -4237,6 +4338,9 @@
             "nullable": true
           },
           "founder": {
+            "type": "boolean"
+          },
+          "importAllowed": {
             "type": "boolean"
           },
           "key": {

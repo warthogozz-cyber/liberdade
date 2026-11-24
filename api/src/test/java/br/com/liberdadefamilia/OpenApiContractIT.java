@@ -169,8 +169,9 @@ class OpenApiContractIT {
         DocumentContext contract = contractDocument();
         List<String> requestBodies = contract.read("$.paths.*.*.requestBody.content.*.schema['$ref']");
         Map<String, Map<String, Object>> schemas = contract.read(SCHEMAS);
-        // Money and NewUser are shared with request bodies: NewUser only ever nests inside AcceptInvitationRequest.
-        Set<String> exempt = new HashSet<>(Set.of("Money", "NewUser"));
+        // Money, NewUser and CategoryHintItem are shared with request bodies: NewUser only ever nests inside
+        // AcceptInvitationRequest, and CategoryHintItem inside CategoryHintsRequest.
+        Set<String> exempt = new HashSet<>(Set.of("Money", "NewUser", "CategoryHintItem"));
         requestBodies.forEach(ref -> exempt.add(ref.substring(ref.lastIndexOf('/') + 1)));
 
         List<String> withRequired = schemas.entrySet().stream()

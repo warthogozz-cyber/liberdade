@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.billing.internal;
 
 import br.com.liberdadefamilia.billing.PlanKey;
+import br.com.liberdadefamilia.billing.Plans;
 import br.com.liberdadefamilia.billing.domain.FounderTheme;
 import br.com.liberdadefamilia.billing.domain.RefundWindow;
 import br.com.liberdadefamilia.workspace.Role;
@@ -20,14 +21,21 @@ class PlanDetailsService {
     private final OrderRepository orders;
     private final RefundService refunds;
     private final BillingStatus status;
+    private final Plans selling;
     private final Clock clock;
 
     PlanDetailsService(
-            PlanRepository plans, OrderRepository orders, RefundService refunds, BillingStatus status, Clock clock) {
+            PlanRepository plans,
+            OrderRepository orders,
+            RefundService refunds,
+            BillingStatus status,
+            Plans selling,
+            Clock clock) {
         this.plans = plans;
         this.orders = orders;
         this.refunds = refunds;
         this.status = status;
+        this.selling = selling;
         this.clock = clock;
     }
 
@@ -49,6 +57,7 @@ class PlanDetailsService {
                     presaleOpen,
                     canPurchase,
                     false,
+                    !selling.legalSetEnabled(),
                     null,
                     null,
                     open.orElse(null));
@@ -69,6 +78,7 @@ class PlanDetailsService {
                 presaleOpen,
                 false,
                 canRefund,
+                true,
                 deadline,
                 plan.sourceOrderId(),
                 open.orElse(null));

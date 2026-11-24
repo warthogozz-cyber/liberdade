@@ -392,6 +392,43 @@ class YouthScopeIT {
         assertThat(listedIds(leo)).containsExactly(allowance.toString());
     }
 
+    /** A category used only in an account outside his scope never reaches him as a hint. */
+    @Test
+    void hintsIgnoreAccountsOutsideTheScope() {
+        UUID transporte = ledger.categoryOf(ws, "EXPENSE", "Transporte");
+        Map<String, Object> outside = expense(corrente, "20.00", null);
+        outside.put("categoryId", transporte.toString());
+        outside.put("description", "Posto Central");
+        record(ana, outside);
+        Map<String, Object> inside = expense(wallet, "5.00", null);
+        inside.put("description", "Padaria Pao Quente");
+        record(leo, inside);
+        jdbc.sql("""
+                        insert into workspace_plans (workspace_id, plan_key, founder, starts_at, ends_at)
+                        values (:ws, 'FAMILY', false, now() - interval '1 minute', now() + interval '1 year')""").param("ws", ws).update();
+        String body = """
+                {"items":[{"kind":"EXPENSE","key":"posto central"},{"kind":"EXPENSE","key":"padaria pao quente"}]}""";
+
+        for (UUID caller : List.of(leo, ana)) {
+            var result = mvc.post()
+                    .uri("/v1/workspaces/" + ws + "/imports/category-hints")
+                    .with(TestUsers.signedIn(caller, null))
+                    .with(CsrfSession.start(mvc, TestUsers.signedIn(caller, null)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body)
+                    .exchange();
+            assertThat(result).hasStatusOk();
+            assertThat(result)
+                    .bodyJson()
+                    .extractingPath("$.hints[0].categoryId")
+                    .isEqualTo(caller == leo ? null : transporte.toString());
+            assertThat(result)
+                    .bodyJson()
+                    .extractingPath("$.hints[1].categoryId")
+                    .isEqualTo(mercado.toString());
+        }
+    }
+
     // --- helpers ---
 
     /** Dona sends R$ 50,00 from the Corrente to the wallet. */

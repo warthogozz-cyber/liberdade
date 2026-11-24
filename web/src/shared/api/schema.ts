@@ -676,6 +676,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/imports/category-hints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["categoryHints"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/indicators": {
         parameters: {
             query?: never;
@@ -1095,6 +1111,21 @@ export interface components {
             /** @example 2026-11 */
             month: string;
         };
+        CategoryHint: {
+            /** Format: uuid */
+            categoryId: string | null;
+        };
+        CategoryHintItem: {
+            key: string;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE" | "TRANSFER";
+        };
+        CategoryHintsRequest: {
+            items: components["schemas"]["CategoryHintItem"][];
+        };
+        CategoryHintsResponse: {
+            hints: components["schemas"]["CategoryHint"][];
+        };
         CategoryView: {
             /** Format: date-time */
             archivedAt: string | null;
@@ -1431,6 +1462,7 @@ export interface components {
             /** Format: date-time */
             endsAt: string | null;
             founder: boolean;
+            importAllowed: boolean;
             /** @enum {string} */
             key: "FREE" | "FAMILY";
             openOrder: components["schemas"]["OrderView"] | null;
@@ -2842,6 +2874,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContributionView"];
+                };
+            };
+        };
+    };
+    categoryHints: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryHintsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryHintsResponse"];
                 };
             };
         };
