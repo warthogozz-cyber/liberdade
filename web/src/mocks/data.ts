@@ -80,6 +80,8 @@ export interface MockState {
   goals: MockGoal[]
   /** The emergency reserve settings: the target in months and the monthly cost the family typed in. */
   reserve: { targetMonths: number; manualMonthlyCost: Schemas['ReserveView']['manualMonthlyCost'] }
+  /** The family's average monthly spending over its history, in cents; null while it has none. */
+  spendingHistoryCents: bigint | null
   /** The signed-in person's own history, newest first (LGPD audit trail). */
   activity: Schemas['ActivityItem'][]
   /** The signed-in person's own passkeys, newest first. */
@@ -266,6 +268,7 @@ function initialState(): MockState {
     budgets: [],
     goals: [],
     reserve: { targetMonths: 6, manualMonthlyCost: null },
+    spendingHistoryCents: null,
     activity: initialActivity(),
     passkeys: initialPasskeys(),
     hasGoogle: true,
@@ -398,4 +401,72 @@ export function createFamily(name: string, timezone: string): MeWorkspace {
 /** Creates "Família Teste" with its seed and returns the membership. Every test with a family starts here. */
 export function seedMockFamily(): MeWorkspace {
   return createFamily('Família Teste', 'America/Fortaleza')
+}
+
+/**
+ * Fills the planning data the screens read, for a family that already has its seed: one limit on
+ * Mercado that is near (R$ 400,00 spent of R$ 500,00 this month), two goals (one with a due month),
+ * and a spending history, so the reserve takes its cost from it and the projection has an average.
+ */
+export function seedPlanningFixture(workspace: MeWorkspace): void {
+  const month = new Date().toISOString().slice(0, 7)
+  const account = mockState.accounts[0]
+  const mercado = mockState.categories.find((each) => each.name === 'Mercado')
+  if (!account || !mercado) throw new Error('Seed the family before the planning fixture')
+  mockState.transactions.push({
+    id: crypto.randomUUID(),
+    kind: 'EXPENSE',
+    amount: { amount: '400.00', currency: workspace.currency },
+    occurredOn: `${month}-02`,
+    accountId: account.id,
+    toAccountId: null,
+    categoryId: mercado.id,
+    description: null,
+    paymentMethod: null,
+    tags: [],
+    status: 'CONFIRMED',
+    scheduledOn: null,
+    recurringRuleId: null,
+    createdAt: new Date().toISOString(),
+    memberId: workspace.membershipId,
+    version: 0,
+  })
+  mockState.budgets.push({ month, categoryId: mercado.id, limitCents: 50_000n, version: 0 })
+  const dueYear = Number(month.slice(0, 4)) + 1
+  mockState.goals.push(
+    {
+      id: crypto.randomUUID(),
+      name: 'Viagem',
+      icon: 'travel',
+      targetCents: 500_000n,
+      currency: workspace.currency,
+      dueOn: `${dueYear}-${month.slice(5)}`,
+      linkedAccountId: null,
+      achievedAt: null,
+      archived: false,
+      version: 0,
+      contributions: [
+        {
+          id: crypto.randomUUID(),
+          amount: { amount: '1000.00', currency: workspace.currency },
+          memberId: workspace.membershipId,
+          occurredOn: `${month}-01`,
+        },
+      ],
+    },
+    {
+      id: crypto.randomUUID(),
+      name: 'Notebook',
+      icon: 'tech',
+      targetCents: 300_000n,
+      currency: workspace.currency,
+      dueOn: null,
+      linkedAccountId: null,
+      achievedAt: null,
+      archived: false,
+      version: 0,
+      contributions: [],
+    },
+  )
+  mockState.spendingHistoryCents = 300_000n
 }

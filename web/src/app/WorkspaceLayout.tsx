@@ -4,6 +4,7 @@ import { Navigate, Outlet } from 'react-router'
 import { PendingGate } from '@/app/PendingGate'
 import { prefetchWorkspace, useCurrentWorkspace } from '@/shared/api'
 import { currentMonth } from '@/shared/i18n'
+import { ModuleSlot } from '@/shared/modules'
 import { saveQueryCacheNow } from '@/shared/offline'
 
 /** The screens that need a family. Without one, the person goes to the welcome page first. */
@@ -26,5 +27,10 @@ export function WorkspaceLayout() {
   if (!workspace) return <Navigate to="/boas-vindas" replace />
   // Every route of the family gives way to the card while its deletion is pending.
   if (workspace.deletionScheduledFor) return <PendingGate workspace={workspace} />
-  return <Outlet />
+  return (
+    <>
+      <Outlet />
+      <ModuleSlot name="workspace" />
+    </>
+  )
 }

@@ -721,15 +721,17 @@ const goalLimitReached = () =>
   )
 const thisMonth = () => new Date().toISOString().slice(0, 7)
 
-/** The reserve as the mock knows it: no reserve accounts, so the balance is zero and the cost is the typed one. */
+/** The reserve as the mock knows it: no reserve accounts, so the balance is zero; the typed cost wins over the history's. */
 function reserveView(): Schemas['ReserveView'] {
   const { targetMonths, manualMonthlyCost } = mockState.reserve
-  const cents = manualMonthlyCost ? parseCents(manualMonthlyCost.amount) : null
+  const history = mockState.spendingHistoryCents
+  const average = manualMonthlyCost ?? (history === null ? null : money(history, 'BRL'))
+  const cents = average ? parseCents(average.amount) : null
   return {
     balance: money(0n, 'BRL'),
     hasReserveAccounts: false,
-    averageMonthlyCost: manualMonthlyCost,
-    costSource: manualMonthlyCost ? 'MANUAL' : 'NONE',
+    averageMonthlyCost: average,
+    costSource: manualMonthlyCost ? 'MANUAL' : history === null ? 'NONE' : 'HISTORY',
     months: cents === null ? null : 0,
     targetMonths,
     missing: cents === null ? null : money(cents * BigInt(targetMonths), 'BRL'),
@@ -743,7 +745,7 @@ function monthEnd(iso: string, months: number): string {
   return new Date(Date.UTC(year, month + months, 0)).toISOString().slice(0, 10)
 }
 
-/** The projection as the mock knows it: no history and nothing scheduled, so the balance stays flat (D13). */
+/** The projection as the mock knows it: nothing scheduled; with a history the balance falls by its average each month (D13). */
 function projectionView(workspace: MeWorkspace): Schemas['ProjectionView'] {
   const today = familyToday(workspace)
   const balance = money(
@@ -752,16 +754,18 @@ function projectionView(workspace: MeWorkspace): Schemas['ProjectionView'] {
       .reduce((sum, account) => sum + balanceCents(account), 0n),
     'BRL',
   )
+  const history = mockState.spendingHistoryCents
+  const balanceCentsToday = parseCents(balance.amount)
   return {
     today,
     balanceToday: balance,
-    hasHistory: false,
-    averageSpending: null,
+    hasHistory: history !== null,
+    averageSpending: history === null ? null : money(history, 'BRL'),
     points: [0, 1, 2, 3].map((months) => ({
       monthEnd: monthEnd(today, months),
-      balance,
+      balance: money(balanceCentsToday - (history ?? 0n) * BigInt(months), 'BRL'),
       scheduled: money(0n, 'BRL'),
-      estimatedSpending: money(0n, 'BRL'),
+      estimatedSpending: money(history === null ? 0n : history * BigInt(months), 'BRL'),
     })),
   }
 }

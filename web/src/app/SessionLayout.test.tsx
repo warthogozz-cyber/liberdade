@@ -7,6 +7,7 @@ import { mockState, seedMockFamily, seedPendingDocuments } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
+import { onLocalAction, type LocalAction } from '@/shared/events'
 import { countOutboxForUser, db } from '@/shared/offline'
 import { outboxItem, outboxPayload, renderWithProviders } from '@/shared/testing'
 
@@ -81,6 +82,44 @@ describe('SessionLayout', () => {
 
     await waitFor(() => expect(mockState.transactions.map((row) => row.id)).toEqual([ID]))
     await waitFor(async () => expect(await countOutboxForUser(mockState.user.id)).toBe(0))
+  })
+
+  it('fromQueueWhenRetriedOrOld', async () => {
+    const workspace = seedMockFamily()
+    const retried = '0192f3a4-5b6c-7d8e-9f01-23456789ab01'
+    const old = '0192f3a4-5b6c-7d8e-9f01-23456789ab02'
+    const fresh = '0192f3a4-5b6c-7d8e-9f01-23456789ab03'
+    const categoryId = mockState.categories[0].id
+    const accountId = mockState.accounts[0].id
+    const make = (id: string, createdAt: number, attempts: number, occurredOn: string) =>
+      outboxItem(id, {
+        userId: mockState.user.id,
+        workspaceId: workspace.id,
+        payload: outboxPayload(id, { accountId, categoryId, occurredOn }),
+        createdAt,
+        attempts,
+        sendAfter: 0,
+      })
+    const now = Date.now()
+    await db.outbox.bulkAdd([
+      make(retried, now - 3000, 1, '2026-10-05'),
+      make(old, now - 120_000, 0, '2026-11-05'),
+      make(fresh, now, 0, '2026-12-05'),
+    ])
+    const actions: LocalAction[] = []
+    const off = onLocalAction((action) => actions.push(action))
+
+    renderWithProviders(<App />, { path: '/*', route: '/inicio' })
+
+    await waitFor(() => expect(actions).toHaveLength(3))
+    off()
+    const base = { type: 'transaction-saved', workspaceId: workspace.id, categoryId }
+    // The queue sends the oldest item first: the two-minute-old one, then the retried one.
+    expect(actions).toEqual([
+      { ...base, month: '2026-11', fromQueue: true },
+      { ...base, month: '2026-10', fromQueue: true },
+      { ...base, month: '2026-12', fromQueue: false },
+    ])
   })
 
   it('shows loading, then the error with a retry that recovers', async () => {
