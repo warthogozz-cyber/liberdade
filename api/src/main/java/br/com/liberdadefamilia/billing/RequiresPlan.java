@@ -15,4 +15,7 @@ import java.lang.annotation.Target;
 public @interface RequiresPlan {
 
     PlanKey value();
+
+    /** When true, the route is open to every plan while selling is off, since nothing can be bought to unlock it. */
+    boolean openWhileBillingOff() default false;
 }

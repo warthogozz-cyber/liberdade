@@ -11,19 +11,21 @@ import java.util.Map;
 final class LegalDocuments {
 
     private static final Map<ConsentPurpose, String> WITHOUT_BILLING =
-            Map.of(ConsentPurpose.TERMS, "terms-2026-11", ConsentPurpose.PRIVACY, "privacy-2026-11.3");
+            Map.of(ConsentPurpose.TERMS, "terms-2026-11", ConsentPurpose.PRIVACY, "privacy-2026-11.4");
 
     private static final Map<ConsentPurpose, String> WITH_BILLING =
-            Map.of(ConsentPurpose.TERMS, "terms-2026-12", ConsentPurpose.PRIVACY, "privacy-2026-12.3");
+            Map.of(ConsentPurpose.TERMS, "terms-2026-12", ConsentPurpose.PRIVACY, "privacy-2026-12.4");
 
     /**
      * A version that only adds to what the person already accepted keeps that acceptance: it maps to the version it
      * continues, and anyone who accepted that one is told about the change without being asked to accept again (D18).
      */
     static final Map<String, String> KEEPS_ACCEPTANCE = Map.of(
+            "privacy-2026-11.4", "privacy-2026-11.3",
             "privacy-2026-11.3", "privacy-2026-11.2",
             "privacy-2026-11.2", "privacy-2026-11.1",
             "privacy-2026-11.1", "privacy-2026-11",
+            "privacy-2026-12.4", "privacy-2026-12.3",
             "privacy-2026-12.3", "privacy-2026-12.2",
             "privacy-2026-12.2", "privacy-2026-12.1",
             "privacy-2026-12.1", "privacy-2026-12");

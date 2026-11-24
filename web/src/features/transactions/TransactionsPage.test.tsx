@@ -3,7 +3,7 @@ import { onlineManager } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TransactionsPage } from '@/features/transactions/TransactionsPage'
-import { mockState, seedMockFamily } from '@/mocks/data'
+import { mockState, seedFamilyPlan, seedMockFamily } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL, queryKeys, type CreateTransactionRequest, type MeWorkspace } from '@/shared/api'
@@ -654,5 +654,42 @@ describe('TransactionsPage live arrivals', () => {
     act(() => markRemoteArrival(THIRD_ID))
     await waitFor(() => expect(region().firstElementChild).not.toBe(first))
     expect(region()).toHaveTextContent(ANNOUNCEMENT)
+  })
+})
+
+describe('TransactionsPage, statement import', () => {
+  const IMPORT = 'Importar extrato'
+
+  it('importButtonForAdults', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'ADULT'
+    seedFamilyPlan()
+    const { router } = renderTransactions()
+
+    const link = await screen.findByRole('link', { name: IMPORT })
+    expect(link).toHaveAttribute('href', '/lancamentos/importar')
+    fireEvent.click(link)
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancamentos/importar'))
+  })
+
+  it('noImportButtonForViewerOrFreePlan', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'VIEWER'
+    seedFamilyPlan()
+    renderTransactions()
+    await screen.findByText('Nenhum lançamento neste mês.')
+    expect(screen.queryByRole('link', { name: IMPORT })).not.toBeInTheDocument()
+    cleanup()
+
+    workspace.role = 'ADULT'
+    mockState.billing.plan = { key: 'FREE', endsAt: null }
+    const queryClient = createTestQueryClient()
+    renderWithProviders(<TransactionsPage />, { path: '/lancamentos', queryClient })
+    await waitFor(() =>
+      expect(queryClient.getQueryData(['ws', workspace.id, 'billing', 'plan'])).toMatchObject({
+        importAllowed: false,
+      }),
+    )
+    expect(screen.queryByRole('link', { name: IMPORT })).not.toBeInTheDocument()
   })
 })

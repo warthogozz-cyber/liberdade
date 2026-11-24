@@ -32,6 +32,9 @@ class PlanGuardInterceptor implements HandlerInterceptor {
         }
         WorkspaceMember member = WorkspaceRequests.member(request)
                 .orElseThrow(() -> new IllegalStateException("The plan guard ran before the family guard"));
+        if (required.openWhileBillingOff() && !plans.legalSetEnabled()) {
+            return true;
+        }
         if (plans.current(member.workspaceId()).key().compareTo(required.value()) < 0) {
             throw new PlanRequiredException();
         }

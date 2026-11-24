@@ -431,6 +431,22 @@ export async function stubCheckoutHost(page: Page): Promise<void> {
   )
 }
 
+/**
+ * The Owner buys the Família Fundadora plan through the fake checkout and the webhook, the way
+ * `billing.spec.ts` does, and ends on the plan screen once it shows the plan.
+ */
+export async function buyFamilyPlan(page: Page, request: APIRequestContext): Promise<void> {
+  await stubCheckoutHost(page)
+  await page.goto('/mais/plano')
+  await page.getByRole('button', { name: 'Ser Família Fundadora' }).click()
+  await page.waitForURL(/checkout\.e2e\.test/)
+  const checkoutId = /\/c\/(chk_fake_[^/?#]+)/.exec(page.url())?.[1]
+  expect(checkoutId).toBeTruthy()
+  await postAsaasWebhook(request, { event: 'CHECKOUT_PAID', checkout: { id: checkoutId } })
+  await page.goto(`/mais/plano?pedido=${checkoutId!.slice('chk_fake_'.length)}`)
+  await expect(page.getByRole('heading', { name: '★ Família Fundadora' })).toBeVisible()
+}
+
 const API = 'http://localhost:8080'
 
 /** The page's own family: its id and the time zone its months are counted in. */

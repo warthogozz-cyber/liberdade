@@ -248,6 +248,29 @@ como `GOAL` (`goal.archived`), sem nome nem valor.
 Na exportação (v4), `reserveSettings.manualMonthlyCost` vem sem moeda: o valor está na moeda base da
 família (`workspaces.currency`), a mesma do resto do cálculo da reserva.
 
+### Plano 8.2 (migrações V19 e V20)
+
+**V19: importação de extrato** (`V19__statement_import.sql`)
+
+| Tabela | O que muda |
+|---|---|
+| `transactions` | Ganha `import_key` (`text`, nulo, 64 hexadecimais): o SHA-256 de `conta\|data\|valor\|descrição normalizada\|n`. Índice único `(workspace_id, import_key)` onde a chave não é nula, valendo também para os excluídos |
+| `import_tombstones` | `workspace_id`, `account_id`, `import_key`, `purged_at`; chave primária `(workspace_id, account_id, import_key)`. Guarda só o hash de um lançamento apagado de vez, sem valor, data nem descrição. Apaga em cascata com a conta e com a família |
+
+Quando o `TransactionPurgeJob` apaga um lançamento importado, copia a chave para
+`import_tombstones` na mesma instrução, e o mesmo job apaga os tombstones com mais de 13 meses
+(contados em `America/Sao_Paulo`). Assim, uma linha excluída de propósito não volta numa
+importação seguinte do mesmo extrato. Editar um lançamento importado mantém a `import_key`.
+
+**V20: auditoria da importação** (`V20__audit_account_target.sql`)
+
+| Tabela | O que muda |
+|---|---|
+| `audit_events` | `target_type` ganha `ACCOUNT` (`transactions.imported`, alvo = a conta, só as contagens `created`, `confirmed` e `skipped` em `metadata`, sem valores nem descrições) |
+
+Na exportação (v5), cada lançamento ganha `importKey` (nulo quando não veio de um extrato). Os
+tombstones não entram: não identificam nada.
+
 ### Regras no banco
 
 | Tabela | Regra |
@@ -342,6 +365,7 @@ têm `workspace_id`.
 | Família excluída | 30 dias de carência e depois apagamento definitivo |
 | Lançamento excluído | Apagado de vez após 30 dias; o de uma recorrência (excluído ou pulado) espera também até o segundo mês depois da data prevista |
 | Convites usados ou vencidos | Apagados após 90 dias |
+| `import_tombstones` | 13 meses depois do apagamento definitivo do lançamento (só o hash); apagados junto com a conta bancária ou a família |
 | `billing_webhook_events` | 180 dias |
 | `billing_orders` | Nunca pagos: 180 dias. Pagos: 5 anos (contabilidade), mesmo sem a família |
 | `audit_events` | 12 meses |

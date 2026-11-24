@@ -249,6 +249,26 @@ class TransactionService {
                 null);
     }
 
+    /**
+     * Applies the rules of a new transaction to a statement line for the account, recorded by and for the member, with
+     * no payment method: the same checks, the same codes. The caller has already checked the account.
+     */
+    void checkImportRow(WorkspaceMember member, AccountScope scope, UUID accountId, ImportRow row) {
+        checkAgainstFamily(
+                member,
+                scope,
+                new Proposed(
+                        row.kind(),
+                        row.amount(),
+                        row.occurredOn(),
+                        accountId,
+                        null,
+                        row.categoryId(),
+                        member.membershipId(),
+                        null),
+                null);
+    }
+
     /** The answer for a confirm or a skip whose conditional update found no row: what the row is now. */
     private LedgerConflictException lostRace(UUID workspaceId, UUID id, AccountScope scope, long version) {
         StoredTransaction now = transactions.findHeld(workspaceId, id, scope).orElseThrow(TransactionService::notFound);
