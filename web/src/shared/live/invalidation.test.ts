@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { invalidationPrefixes } from './invalidation'
+import { invalidatesMe, invalidationPrefixes } from './invalidation'
 
 describe('invalidationPrefixes', () => {
   it.each([
@@ -22,5 +22,13 @@ describe('invalidationPrefixes', () => {
     ['unknown', [[]]],
   ])('mapsEveryEntity: %s', (entity, expected) => {
     expect(invalidationPrefixes(entity)).toEqual(expected)
+  })
+})
+
+describe('invalidatesMe', () => {
+  it('refreshesTheSignedInMemberOnMembersOnly', () => {
+    expect(invalidatesMe('members')).toBe(true)
+    expect(invalidatesMe('transaction')).toBe(false)
+    expect(invalidatesMe('unknown')).toBe(false)
   })
 })

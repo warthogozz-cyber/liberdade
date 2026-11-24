@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
-import { API_URL } from '@/shared/api'
-import { invalidationPrefixes } from './invalidation'
+import { API_URL, queryKeys } from '@/shared/api'
+import { invalidatesMe, invalidationPrefixes } from './invalidation'
 import { emitLiveChange } from './liveChanges'
 import { isLocalChange, markRemoteArrival } from './localChanges'
 
@@ -66,6 +66,9 @@ export function useLiveSync(workspaceId: string, options?: Options): void {
       debounceTimer = undefined
       const entities = [...pending]
       pending.clear()
+      // The role in `['me']` follows a members change; that key sits outside the family's.
+      if (entities.some(invalidatesMe))
+        void queryClient.invalidateQueries({ queryKey: queryKeys.me })
       const seen = new Set<string>()
       for (const entity of entities) {
         for (const prefix of invalidationPrefixes(entity)) {

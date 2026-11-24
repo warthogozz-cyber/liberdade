@@ -43,3 +43,8 @@ const PREFIXES: Record<string, (readonly string[])[]> = {
 export function invalidationPrefixes(entity: string): (readonly string[])[] {
   return PREFIXES[entity]?.map((prefix) => [...prefix]) ?? [[]]
 }
+
+/** Whether an `entity` change also makes the signed-in person's own view stale (the role in `['me']`). */
+export function invalidatesMe(entity: string): boolean {
+  return entity === 'members'
+}

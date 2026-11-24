@@ -140,6 +140,18 @@ describe('useLiveSync', () => {
     expect(invalidatedKeys(invalidate)).not.toContainEqual(['ws', WS, 'members'])
   })
 
+  it('refreshesTheSignedInMemberOnAMembersNotice', () => {
+    const { invalidate } = mount()
+    const source = latest()
+    source.emitOpen()
+
+    source.emitChanged('{"entity":"members"}')
+    vi.advanceTimersByTime(250)
+
+    expect(invalidatedKeys(invalidate)).toContainEqual(['me'])
+    expect(invalidatedKeys(invalidate)).toContainEqual(['ws', WS, 'members'])
+  })
+
   it('tellsListenersEachChange', () => {
     mount()
     const listener = vi.fn()
