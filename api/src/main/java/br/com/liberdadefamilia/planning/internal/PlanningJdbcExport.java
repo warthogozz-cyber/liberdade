@@ -18,7 +18,10 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
-/** Reads the recurring rules for the data export. */
+/**
+ * Reads what planning owns for the data export: recurring rules, budgets, goals, contributions and reserve
+ * settings.
+ */
 @Component
 class PlanningJdbcExport implements PlanningExport {
 

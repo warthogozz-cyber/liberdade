@@ -245,6 +245,9 @@ O progresso de uma meta com conta vinculada é o saldo dessa conta; sem conta, �
 Limites, aportes e valores de meta não vão para a auditoria: só o arquivamento de uma meta aparece,
 como `GOAL` (`goal.archived`), sem nome nem valor.
 
+Na exportação (v4), `reserveSettings.manualMonthlyCost` vem sem moeda: o valor está na moeda base da
+família (`workspaces.currency`), a mesma do resto do cálculo da reserva.
+
 ### Regras no banco
 
 | Tabela | Regra |

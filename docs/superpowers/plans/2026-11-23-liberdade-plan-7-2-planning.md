@@ -279,6 +279,10 @@ A seção 11 do spec deixa estes pontos ao construtor, e o plano decide:
     mês atual, `soma × dias depois de hoje ÷ (3 × dias do mês)`; nos seguintes, `soma ÷ 3`; cada
     parcela meia para cima ao centavo.
   - Sem histórico (mesma definição da reserva): gasto estimado 0 e `hasHistory = false`.
+  - **Emenda de 2026-11-24:** a transferência conta pelo efeito nas contas não arquivadas, nos fluxos
+    gravados e nos calculados. Com as duas pontas ativas, vale 0; com uma ponta arquivada, conta como
+    receita ou gasto na ponta ativa. Isso substitui o texto "cuja conta e conta destino não estão
+    arquivadas" acima.
 - **D14. Fixo e variável** (`GET /v1/workspaces/{ws}/spending-split?month=YYYY-MM`, `OWNER`,
   `ADULT`, `VIEWER`) → `SpendingSplitView(YearMonth month, Money fixed, Money variable)`. Fixo = tem
   `recurring_rule_id`, ou a categoria ou a mãe dela tem `is_fixed`.

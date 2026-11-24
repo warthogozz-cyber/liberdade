@@ -2,7 +2,7 @@ import type { LegalText } from '../legalText'
 
 /**
  * The privacy policy `privacy-2026-12.2`: the `privacy-2026-12.1` text, with budgets, goals and contributions, the
- * emergency reserve and the fixed-cost mark named among the data, and a new date. People who accepted
+ * emergency reserve and the fixed-cost mark named among the data. The date is unchanged. People who accepted
  * `privacy-2026-12` or `privacy-2026-12.1` keep that acceptance and are told of the change
  * (`LegalDocuments.KEEPS_ACCEPTANCE`).
  */
