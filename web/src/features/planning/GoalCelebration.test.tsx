@@ -34,7 +34,7 @@ describe('GoalCelebration', () => {
     show()
 
     const status = screen.getByRole('status')
-    expect(status).toHaveTextContent('Meta atingida!')
+    expect(status).toHaveTextContent('Meta atingida: Viagem!')
     expect(status.outerHTML).not.toContain('animate')
   })
 })

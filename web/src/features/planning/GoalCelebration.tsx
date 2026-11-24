@@ -19,7 +19,7 @@ interface GoalCelebrationProps {
 /**
  * A short, calm acknowledgement that a goal was reached: no sound and no confetti. It fades in for
  * under a second with `opacity` and `transform`; with `prefers-reduced-motion` the icon stands still
- * and the text is just "Meta atingida!" (D20). It leaves by itself.
+ * and the text stays whole (D20). It leaves by itself.
  */
 export function GoalCelebration({ name, icon, onDone }: GoalCelebrationProps) {
   const intl = useIntl()
@@ -37,9 +37,7 @@ export function GoalCelebration({ name, icon, onDone }: GoalCelebrationProps) {
         {goalEmoji(icon)}
       </span>
       <span className="font-medium">
-        {still
-          ? intl.formatMessage({ id: 'planning.goals.celebrationStill' })
-          : intl.formatMessage({ id: 'planning.goals.celebration' }, { name })}
+        {intl.formatMessage({ id: 'planning.goals.celebration' }, { name })}
       </span>
     </div>
   )

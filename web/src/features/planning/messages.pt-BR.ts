@@ -69,7 +69,6 @@ export const planningMessages = {
   'planning.goals.icon.tech': 'Tecnologia',
   'planning.goals.icon.other': 'Outro',
   'planning.goals.celebration': 'Meta atingida: {name}!',
-  'planning.goals.celebrationStill': 'Meta atingida!',
   'planning.reserve.title': 'Reserva',
   'planning.reserve.description': 'Quantos meses de gastos estão guardados',
   'planning.budget.of': '{spent} de {limit}',
