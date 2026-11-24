@@ -10,7 +10,7 @@ import { centsToApi, MAX_CENTS, parseCents } from '@/shared/money'
 import type { components } from '@/shared/api/schema'
 import {
   createFamily,
-  KEEPS_ACCEPTANCE,
+  keepsAcceptance,
   type MockAccount,
   type MockBudget,
   type MockGoal,
@@ -1179,9 +1179,10 @@ export const handlers = [
           currentVersion: mockState.currentDocuments[purpose],
           acceptedVersion: accepted?.version ?? null,
           acceptedAt: accepted?.at ?? null,
-          acceptanceRequired:
-            accepted?.version !== mockState.currentDocuments[purpose] &&
-            accepted?.version !== KEEPS_ACCEPTANCE[mockState.currentDocuments[purpose]],
+          acceptanceRequired: !keepsAcceptance(
+            mockState.currentDocuments[purpose],
+            accepted?.version,
+          ),
         }
       }),
     )

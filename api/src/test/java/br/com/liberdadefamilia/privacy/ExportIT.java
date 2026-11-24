@@ -88,9 +88,9 @@ class ExportIT {
                 .matches("attachment; filename=\"" + FILE_NAME + "\"");
         assertThat(result.getResponse().getHeader(HttpHeaders.CACHE_CONTROL)).contains("no-store");
         Map<String, byte[]> files = unzip(result);
-        assertThat(files).containsOnlyKeys("dados.json", "lancamentos.csv", "atividade.csv");
+        assertThat(files).containsOnlyKeys("dados.json", "lancamentos.csv", "atividade.csv", "aportes.csv");
         String json = text(files.get("dados.json"));
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(3);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(4);
         assertThat(JsonPath.<String>read(json, "$.profile.email")).isEqualTo("bia@example.com");
         assertThat(JsonPath.<String>read(json, "$.profile.displayName")).isEqualTo("Bia Teste");
         assertThat(JsonPath.<List<?>>read(json, "$.memberships")).hasSize(2);
@@ -208,7 +208,10 @@ class ExportIT {
                         "categorias.csv",
                         "membros.csv",
                         "recorrencias.csv",
-                        "tags.csv");
+                        "tags.csv",
+                        "orcamentos.csv",
+                        "metas.csv",
+                        "aportes.csv");
         String csv = text(files.get("lancamentos.csv"));
         assertThat(csv)
                 .startsWith(
@@ -217,12 +220,12 @@ class ExportIT {
         assertThat(csv).contains(";Transferência;100,00;BRL;Corrente;Carteira;;;Aninha;");
         assertThat(csv).contains("So da Dona").contains("Para a Bia");
         String accounts = text(files.get("contas.csv"));
-        assertThat(accounts).contains("nome;tipo;saldo_inicial;saldo;moeda;titular;arquivada_em");
+        assertThat(accounts).contains("nome;tipo;saldo_inicial;saldo;moeda;titular;arquivada_em;reserva");
         assertThat(accounts)
-                .contains("Corrente;Conta corrente;10,00;-1352,56;BRL;;")
+                .contains("Corrente;Conta corrente;10,00;-1352,56;BRL;;;false")
                 .contains("Carteira;Dinheiro;");
         assertThat(text(files.get("categorias.csv")))
-                .contains("nome;tipo;categoria_pai;arquivada_em")
+                .contains("nome;tipo;categoria_pai;arquivada_em;fixa")
                 .contains("Mercado;Gasto");
         assertThat(text(files.get("membros.csv")))
                 .contains("apelido;papel;situacao")
@@ -249,7 +252,7 @@ class ExportIT {
 
         String json = text(unzip(exportFamily(f.ana, f.ws)).get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(3);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(4);
         assertThat(JsonPath.<List<?>>read(json, "$.orders")).hasSize(1);
         assertThat(JsonPath.<String>read(json, "$.orders[0].status")).isEqualTo("PAID");
         assertThat(JsonPath.<String>read(json, "$.orders[0].amount")).isEqualTo("89.00");
@@ -415,7 +418,7 @@ class ExportIT {
     }
 
     @Test
-    void formatVersion3WithPlanningData() {
+    void formatVersion4WithPlanningData() {
         Family f = family();
         UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
         UUID checking = idOf("accounts", f.ws, "Corrente");
@@ -431,7 +434,7 @@ class ExportIT {
 
         String json = text(unzip(exportFamily(f.ana, f.ws)).get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(3);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(4);
         assertThat(JsonPath.<String>read(json, "$.workspace.country")).isEqualTo("BR");
         assertThat(JsonPath.<String>read(json, "$.workspace.locale")).isEqualTo("pt-BR");
         assertThat(JsonPath.<List<?>>read(json, "$.recurringRules")).hasSize(1);
@@ -448,6 +451,93 @@ class ExportIT {
                 .containsExactly("2026-12-05");
         assertThat(JsonPath.<List<String>>read(json, "$.transactions[?(@.status=='PLANNED')].recurringRuleId"))
                 .containsExactly(rule.toString());
+    }
+
+    @Test
+    void familyExportV4() {
+        Family f = family();
+        UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
+        UUID market = idOf("categories", f.ws, "Mercado");
+        UUID reserve = account(f.ws, "Colchao", "SAVINGS", "500.00");
+        jdbc.sql("update accounts set is_reserve = true where id = :id")
+                .param("id", reserve)
+                .update();
+        jdbc.sql("update categories set is_fixed = true where id = :id")
+                .param("id", market)
+                .update();
+        jdbc.sql("update workspaces set manual_monthly_cost = 4500.50 where id = :id")
+                .param("id", f.ws)
+                .update();
+        budget(f.ws, market, "2026-11-01", "1500.5");
+        UUID goal = goal(f.ws, "Viagem", "12000", anaMember);
+        contribution(f.ws, goal, "250.5", "2026-11-12", anaMember);
+
+        Map<String, byte[]> files = unzip(exportFamily(f.ana, f.ws));
+
+        String json = text(files.get("dados.json"));
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(4);
+        assertThat(JsonPath.<Integer>read(json, "$.reserveTargetMonths")).isEqualTo(6);
+        assertThat(JsonPath.<Number>read(json, "$.manualMonthlyCost").doubleValue())
+                .isEqualTo(4500.5);
+        assertThat(JsonPath.<List<?>>read(json, "$.budgets")).hasSize(1);
+        assertThat(JsonPath.<List<?>>read(json, "$.goals")).hasSize(1);
+        assertThat(JsonPath.<List<?>>read(json, "$.goalContributions")).hasSize(1);
+        assertThat(text(files.get("orcamentos.csv")))
+                .startsWith("\uFEFFcategoria;mes;limite;moeda\r\n")
+                .contains("Mercado;2026-11;1500,50;BRL");
+        assertThat(text(files.get("metas.csv")))
+                .contains("nome;valor_alvo;moeda;vencimento;icone;conta_vinculada;atingida_em;arquivada_em")
+                .contains("Viagem;12000,00;BRL;;savings;;;");
+        assertThat(text(files.get("aportes.csv")))
+                .contains("meta;data;valor;moeda;quem")
+                .contains("Viagem;2026-11-12;250,50;BRL;Aninha");
+        assertThat(text(files.get("contas.csv"))).contains("Colchao;Poupança;500,00;500,00;BRL;;;true");
+        assertThat(text(files.get("categorias.csv"))).contains("Mercado;Gasto;;;true");
+    }
+
+    @Test
+    void personalExportHasOwnContributions() {
+        Family f = family();
+        UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
+        UUID biaMember = workspaces.membershipOf(f.ws, f.bia);
+        UUID market = idOf("categories", f.ws, "Mercado");
+        UUID goal = goal(f.ws, "Casa", "90000", anaMember);
+        contribution(f.ws, goal, "100", "2026-11-03", anaMember);
+        contribution(f.ws, goal, "40", "2026-11-04", biaMember);
+        budget(f.ws, market, "2026-11-01", "800");
+
+        Map<String, byte[]> biaFiles = unzip(exportMine(f.bia));
+        Map<String, byte[]> anaFiles = unzip(exportMine(f.ana));
+
+        String biaJson = text(biaFiles.get("dados.json"));
+        assertThat(JsonPath.<List<String>>read(biaJson, "$.goalContributions[*].memberId"))
+                .containsExactly(biaMember.toString());
+        assertThat(JsonPath.<String>read(biaJson, "$.goalContributions[0].goalName"))
+                .isEqualTo("Casa");
+        assertThat(text(biaFiles.get("aportes.csv")))
+                .contains("Casa;2026-11-04;40,00;BRL")
+                .doesNotContain("100,00");
+        assertThat(text(anaFiles.get("aportes.csv")))
+                .contains("Casa;2026-11-03;100,00;BRL")
+                .doesNotContain("40,00");
+        assertThat(biaJson).doesNotContain("budgets").doesNotContain("reserveTargetMonths");
+    }
+
+    @Test
+    void moneyColumnsFormatted() {
+        Family f = family();
+        UUID anaMember = workspaces.membershipOf(f.ws, f.ana);
+        UUID market = idOf("categories", f.ws, "Mercado");
+        budget(f.ws, market, "2026-12-01", "1234.5");
+        UUID goal = goal(f.ws, "Reforma", "99999.9", anaMember);
+        contribution(f.ws, goal, "-7.005", "2026-11-12", anaMember);
+
+        Map<String, byte[]> files = unzip(exportFamily(f.ana, f.ws));
+
+        assertThat(text(files.get("orcamentos.csv"))).contains(";1234,50;BRL");
+        assertThat(text(files.get("metas.csv"))).contains("Reforma;99999,90;BRL");
+        // A negative amount is a number, not a formula: it is not prefixed.
+        assertThat(text(files.get("aportes.csv"))).contains("Reforma;2026-11-12;-7,00;BRL");
     }
 
     @Test
@@ -603,6 +693,41 @@ class ExportIT {
     }
 
     // --- data ---
+
+    private void budget(UUID ws, UUID category, String month, String limit) {
+        jdbc.sql("""
+                        insert into budgets (workspace_id, category_id, month, limit_amount, currency)
+                        values (:ws, :category, :month::date, :limit, 'BRL')""")
+                .param("ws", ws)
+                .param("category", category)
+                .param("month", month)
+                .param("limit", new BigDecimal(limit))
+                .update();
+    }
+
+    private UUID goal(UUID ws, String name, String target, UUID createdBy) {
+        return jdbc.sql("""
+                        insert into goals (workspace_id, name, target_amount, currency, icon, created_by)
+                        values (:ws, :name, :target, 'BRL', 'savings', :by) returning id""")
+                .param("ws", ws)
+                .param("name", name)
+                .param("target", new BigDecimal(target))
+                .param("by", createdBy)
+                .query(UUID.class)
+                .single();
+    }
+
+    private void contribution(UUID ws, UUID goal, String amount, String on, UUID member) {
+        jdbc.sql("""
+                        insert into goal_contributions (workspace_id, goal_id, amount, occurred_on, member_id)
+                        values (:ws, :goal, :amount, :on::date, :member)""")
+                .param("ws", ws)
+                .param("goal", goal)
+                .param("amount", new BigDecimal(amount))
+                .param("on", on)
+                .param("member", member)
+                .update();
+    }
 
     private record Family(UUID ana, UUID bia, UUID ws) {}
 

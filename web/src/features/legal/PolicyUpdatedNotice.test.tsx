@@ -4,7 +4,7 @@ import { mockState, seedMockFamily } from '@/mocks/data'
 import { renderWithProviders } from '@/shared/testing'
 import { PolicyUpdatedNotice } from './PolicyUpdatedNotice'
 
-const KEY = 'liberdade.policyNotice.privacy-2026-12.1'
+const KEY = 'liberdade.policyNotice.privacy-2026-12.2'
 
 afterEach(() => {
   cleanup()

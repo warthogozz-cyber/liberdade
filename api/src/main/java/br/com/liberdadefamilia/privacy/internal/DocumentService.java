@@ -82,11 +82,22 @@ class DocumentService {
         }
     }
 
-    /** Whether the accepted version no longer covers the current one: it is neither the same nor the one it keeps. */
+    /**
+     * Whether the accepted version no longer covers the current one: it is neither the same nor one the current one
+     * continues, walking the chain of {@link LegalDocuments#KEEPS_ACCEPTANCE} until it finds it or the chain ends.
+     */
     private static boolean acceptanceRequired(String currentVersion, String acceptedVersion) {
-        return acceptedVersion == null
-                || !(acceptedVersion.equals(currentVersion)
-                        || acceptedVersion.equals(LegalDocuments.KEEPS_ACCEPTANCE.get(currentVersion)));
+        if (acceptedVersion == null) {
+            return true;
+        }
+        String version = currentVersion;
+        while (version != null) {
+            if (acceptedVersion.equals(version)) {
+                return false;
+            }
+            version = LegalDocuments.KEEPS_ACCEPTANCE.get(version);
+        }
+        return true;
     }
 
     private Map<ConsentPurpose, String> inForce() {

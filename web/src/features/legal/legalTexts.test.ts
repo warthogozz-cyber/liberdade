@@ -20,8 +20,10 @@ describe('legal texts', () => {
     expect(Object.keys(legalConfig.texts).sort()).toEqual([
       'privacy-2026-11',
       'privacy-2026-11.1',
+      'privacy-2026-11.2',
       'privacy-2026-12',
       'privacy-2026-12.1',
+      'privacy-2026-12.2',
       'terms-2026-11',
       'terms-2026-12',
     ])
@@ -39,9 +41,22 @@ describe('legal texts', () => {
   })
 
   it('latestIsEmbedded', () => {
-    expect(legalConfig.latest).toEqual({ terms: 'terms-2026-12', privacy: 'privacy-2026-12.1' })
+    expect(legalConfig.latest).toEqual({ terms: 'terms-2026-12', privacy: 'privacy-2026-12.2' })
     expect(legalConfig.texts).toHaveProperty([legalConfig.latest.terms])
     expect(legalConfig.texts).toHaveProperty([legalConfig.latest.privacy])
+  })
+
+  it('privacy 12.2 lists planning data', () => {
+    for (const version of ['privacy-2026-11.2', 'privacy-2026-12.2']) {
+      const text = legalConfig.texts[version]
+      const shown = idsOf(text)
+        .map((id) => legalMessages[id as keyof typeof legalMessages])
+        .join(' ')
+        .toLowerCase()
+      for (const word of ['orçamentos', 'metas', 'aportes', 'reserva']) {
+        expect(shown).toContain(word)
+      }
+    }
   })
 
   it('everyIdHasItsText', () => {

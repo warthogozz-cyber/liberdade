@@ -92,7 +92,7 @@ describe('DocumentsGate', () => {
     expect(
       await screen.findByRole('navigation', { name: 'Navegação principal' }),
     ).toBeInTheDocument()
-    expect(sent).toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12.1' }])
+    expect(sent).toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12.2' }])
   })
 
   it('postsTheVersionsTheApiListsEvenWhenOlder', async () => {
