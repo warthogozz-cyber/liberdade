@@ -179,6 +179,9 @@ describe('SessionLayout across tabs', () => {
   it('signedOutElsewhere', async () => {
     const { router, queryClient } = await openHome()
     expect(queryClient.getQueryData(['me'])).toBeDefined()
+    // The other tab's sign-out ended the session on the server too, so a screen still mounted that
+    // fetches `/v1/me` again before the clear gets a 401 instead of refilling the cache.
+    mockState.signedIn = false
 
     new FakeBroadcastChannel('liberdade-session').postMessage({ type: 'signed-out' })
 
