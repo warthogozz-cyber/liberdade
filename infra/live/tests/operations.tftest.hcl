@@ -356,3 +356,73 @@ run "billing_alarms_notify_alerts" {
     error_message = "Each billing alarm must watch the metric its environment's filter writes."
   }
 }
+
+run "indicator_alert_filters" {
+  command = plan
+
+  assert {
+    condition     = toset([for f in aws_cloudwatch_log_metric_filter.indicator_alert : f.log_group_name]) == toset(["/liberdade/staging", "/liberdade/production"])
+    error_message = "Indicator alert filters must watch the staging and production API log groups."
+  }
+
+  assert {
+    condition     = length(aws_cloudwatch_log_metric_filter.indicator_alert) == 2 && alltrue([for f in aws_cloudwatch_log_metric_filter.indicator_alert : f.pattern == "\"INDICATOR_ALERT\""])
+    error_message = "Each filter must match the quoted INDICATOR_ALERT term."
+  }
+}
+
+run "indicator_alarms_notify_alerts" {
+  command = plan
+
+  assert {
+    condition     = length(aws_cloudwatch_metric_alarm.indicator_alert) == 2
+    error_message = "There must be one indicator alarm per environment."
+  }
+
+  assert {
+    condition = alltrue([
+      for a in aws_cloudwatch_metric_alarm.indicator_alert :
+      toset(a.alarm_actions) == toset([aws_sns_topic.alerts.arn]) && toset(a.ok_actions) == toset([aws_sns_topic.alerts.arn])
+    ])
+    error_message = "Indicator alarms must notify the alerts topic on alarm and on return to OK."
+  }
+
+  assert {
+    condition = alltrue([
+      for env, a in aws_cloudwatch_metric_alarm.indicator_alert :
+      a.metric_name == one(aws_cloudwatch_log_metric_filter.indicator_alert[env].metric_transformation).name &&
+      a.namespace == one(aws_cloudwatch_log_metric_filter.indicator_alert[env].metric_transformation).namespace
+    ])
+    error_message = "Each indicator alarm must watch the metric its environment's filter writes."
+  }
+}
+
+run "indicator_run_missing_only_production" {
+  command = plan
+
+  assert {
+    condition     = keys(aws_cloudwatch_log_metric_filter.indicator_run) == ["production"] && keys(aws_cloudwatch_metric_alarm.indicator_run_missing) == ["production"]
+    error_message = "The run-missing filter and alarm must exist in production only."
+  }
+
+  assert {
+    condition     = aws_cloudwatch_log_metric_filter.indicator_run["production"].log_group_name == "/liberdade/production" && aws_cloudwatch_log_metric_filter.indicator_run["production"].pattern == "\"INDICATOR_RUN\""
+    error_message = "The run filter must match the quoted INDICATOR_RUN term in the production log group."
+  }
+
+  assert {
+    condition = (
+      aws_cloudwatch_metric_alarm.indicator_run_missing["production"].period == 3600 &&
+      aws_cloudwatch_metric_alarm.indicator_run_missing["production"].evaluation_periods == 24 &&
+      aws_cloudwatch_metric_alarm.indicator_run_missing["production"].treat_missing_data == "breaching" &&
+      aws_cloudwatch_metric_alarm.indicator_run_missing["production"].comparison_operator == "LessThanThreshold" &&
+      aws_cloudwatch_metric_alarm.indicator_run_missing["production"].threshold == 1
+    )
+    error_message = "Run-missing alarm: Sum < 1 over 24 hourly periods, missing data breaching."
+  }
+
+  assert {
+    condition     = toset(aws_cloudwatch_metric_alarm.indicator_run_missing["production"].alarm_actions) == toset([aws_sns_topic.alerts.arn]) && toset(aws_cloudwatch_metric_alarm.indicator_run_missing["production"].ok_actions) == toset([aws_sns_topic.alerts.arn])
+    error_message = "The run-missing alarm must notify the alerts topic on alarm and on return to OK."
+  }
+}
