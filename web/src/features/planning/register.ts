@@ -22,6 +22,13 @@ registerSlot('workspace', {
   Component: lazy(() => import('./BudgetToastWatcher')),
 })
 
+registerSlot('workspace', {
+  key: 'planning-goal-celebration',
+  module: 'planning',
+  roles: ['OWNER', 'ADULT', 'YOUTH'],
+  Component: lazy(() => import('./GoalCelebrationWatcher')),
+})
+
 registerSlot('home', {
   key: 'planning-budget-card',
   module: 'planning',
