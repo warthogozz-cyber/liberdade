@@ -341,6 +341,51 @@ test('Recorrências, Previstos and the Tags tab meet WCAG 2.2 AA in both themes'
   await expectNoViolationsOpen(page, page.getByRole('dialog', { name: 'Renomear Escola' }))
 })
 
+test('the indicators screens and the robot page meet WCAG 2.2 AA in both themes', async ({
+  page,
+}) => {
+  await signInWithGoogle(page, newUser())
+  await createFamily(page)
+  await page.goto('/mais/modulos')
+  await page.getByRole('switch', { name: 'Indicadores' }).click()
+  await expect(page.getByRole('switch', { name: 'Indicadores' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  )
+
+  // Reached through Mais, as a person does: a reload right after the switch could still read the
+  // persisted module list from before it. The startup collection runs a few seconds after the API
+  // is up, so the data may take a moment.
+  await page.goto('/mais')
+  await page.getByRole('link', { name: 'Indicadores' }).click()
+  await expectNoViolations(
+    page,
+    'Indicadores',
+    page.getByRole('main').getByText('15,00% a.a.').first(),
+  )
+
+  await page.getByRole('link', { name: 'Calcular rendimento real' }).click()
+  await expectNoViolations(
+    page,
+    'Rendimento real',
+    page.getByRole('main').getByText('Fonte:', { exact: false }).first(),
+  )
+  await page.getByLabel('Rendimento ao ano (%)').fill('10')
+  await expect(page.getByRole('main').getByText('5,77%', { exact: true })).toBeVisible()
+  await expectNoViolations(
+    page,
+    'Rendimento real',
+    page.getByRole('main').getByText('5,77%', { exact: true }),
+  )
+
+  await page.goto('/robo')
+  await expectNoViolations(
+    page,
+    'Robô de indicadores do Liberdade',
+    page.getByRole('heading', { level: 1 }),
+  )
+})
+
 test('the planning screens and the home cards meet WCAG 2.2 AA in both themes', async ({
   page,
 }) => {
