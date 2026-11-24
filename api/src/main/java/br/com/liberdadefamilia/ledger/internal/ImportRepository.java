@@ -8,6 +8,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -38,8 +39,20 @@ class ImportRepository {
     /**
      * Confirms the planned transaction with the line: its date, value and key, entered by the member, one version up.
      * Only while it is still planned, not deleted, of the same kind, in the account and in the scope; whether it was.
+     * When another import stored the same key in the meantime, the key index refuses the update and the whole batch
+     * answers 409: sending it again skips the line by its key. The problem carries no line data.
      */
     boolean confirmPlanned(
+            UUID workspaceId, UUID plannedId, UUID accountId, AccountScope scope, UUID memberId, ImportRow row) {
+        try {
+            return updatePlanned(workspaceId, plannedId, accountId, scope, memberId, row);
+        } catch (DuplicateKeyException race) {
+            throw new LedgerConflictException(
+                    "import.concurrent", "Outra importação do mesmo extrato terminou antes. Tente de novo.");
+        }
+    }
+
+    private boolean updatePlanned(
             UUID workspaceId, UUID plannedId, UUID accountId, AccountScope scope, UUID memberId, ImportRow row) {
         return jdbc.sql("""
                         update transactions
