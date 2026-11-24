@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
+import { server } from '@/mocks/server'
 import { renderWithProviders } from '@/shared/testing'
 import { GoalsPage } from './GoalsPage'
 
@@ -113,6 +114,8 @@ describe('GoalsPage', () => {
   it('youth sees no actions', async () => {
     setUp('YOUTH')
     addGoal('Viagem', '100.00', { linkedAccountId: mockState.accounts[0].id })
+    const urls: string[] = []
+    server.events.on('request:start', ({ request }) => urls.push(request.url))
     render()
 
     expect(await screen.findByText('Viagem')).toBeInTheDocument()
@@ -121,6 +124,8 @@ describe('GoalsPage', () => {
     expect(screen.queryByRole('button', { name: 'Nova meta' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Arquivar' })).not.toBeInTheDocument()
+    expect(urls.filter((each) => each.includes('/accounts'))).toEqual([])
+    server.events.removeAllListeners()
   })
 
   it('offline turns the actions off and says why', async () => {

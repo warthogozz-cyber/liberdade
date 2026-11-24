@@ -40,7 +40,7 @@ function GoalsContent({ workspace }: { workspace: MeWorkspace }) {
   const goals = useGoals(workspace.id)
   const editable = workspace.role === 'OWNER' || workspace.role === 'ADULT'
   // A Youth never gets the linked account (US-10), so the accounts are not even asked for.
-  const accounts = useAccounts(editable ? workspace.id : '')
+  const accounts = useAccounts(workspace.id, { enabled: editable })
   const [opened, setOpened] = useState<Opened>()
   const { items, add, remove } = useCelebrationQueue()
 

@@ -92,8 +92,9 @@ export function useModules(ws: string | undefined) {
   })
 }
 
-export function useAccounts(ws: string) {
-  return useQuery(accountsQuery(ws))
+/** The family's accounts; `enabled: false` makes no request (for roles that may not read them). */
+export function useAccounts(ws: string, { enabled = true }: { enabled?: boolean } = {}) {
+  return useQuery({ ...accountsQuery(ws), enabled })
 }
 
 export function useCategories(ws: string, kind: CategoryKind) {
