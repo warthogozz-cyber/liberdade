@@ -81,7 +81,7 @@ describe('IndicatorsPage', () => {
     seedOn()
     render()
 
-    for (const text of ['+0,25 p.p. em 05/11', '−0,10 p.p. em relação a 01/09']) {
+    for (const text of ['+0,25 p.p. em 05/11', '−0,10 p.p. em relação a setembro de 2026']) {
       const element = await screen.findByText(text)
       expect(element.className).not.toMatch(/danger|success|red|green/)
     }

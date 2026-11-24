@@ -33,6 +33,12 @@ describe('SourceStamp', () => {
     expect(screen.getByText(/ainda sem atualização/)).toBeTruthy()
   })
 
+  it('unparseableDateIsTreatedAsNever', () => {
+    renderStamp({ updatedAt: 'not-a-date' })
+    expect(screen.getByText(/ainda sem atualização/)).toBeTruthy()
+    expect(screen.queryByText(/Invalid Date/)).toBeNull()
+  })
+
   it('staleBadgeIsText', () => {
     renderStamp({ stale: true })
     expect(screen.getByText('desatualizado')).toBeTruthy()

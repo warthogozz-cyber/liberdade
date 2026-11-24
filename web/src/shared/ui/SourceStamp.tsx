@@ -31,19 +31,19 @@ export function SourceStamp({ source, url, updatedAt, stale }: SourceStampProps)
       source
     )
   // The update date is the source's, so it ignores the family's time zone.
-  const date =
-    updatedAt === null
-      ? ''
-      : intl.formatDate(updatedAt, {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          timeZone: 'America/Sao_Paulo',
-        })
+  const known = updatedAt !== null && !Number.isNaN(Date.parse(updatedAt))
+  const date = !known
+    ? ''
+    : intl.formatDate(updatedAt, {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'America/Sao_Paulo',
+      })
   return (
     <p className="text-sm text-text-muted">
       <FormattedMessage
-        id={updatedAt === null ? 'sourceStamp.never' : 'sourceStamp.updated'}
+        id={!known ? 'sourceStamp.never' : 'sourceStamp.updated'}
         values={{ source: name, date }}
       />
       {stale ? (

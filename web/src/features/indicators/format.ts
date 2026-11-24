@@ -1,4 +1,5 @@
 import type { components } from '@/shared/api/schema'
+import { locale } from '@/shared/i18n'
 
 type IndicatorView = components['schemas']['IndicatorView']
 type VariationView = components['schemas']['VariationView']
@@ -42,8 +43,17 @@ function dayAndMonth(date: string): string {
   return `${day}/${month}`
 }
 
+/** "2026-10-01" as "outubro de 2026", the way the card writes the reference of a monthly series. */
+function monthAndYear(date: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: 'UTC',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(`${date}T00:00:00Z`))
+}
+
 /** "+0,50 p.p. em 05/11": positive gets a plus sign, zero has none. Neutral text, no colour. */
-export function formatVariation(variation: VariationView): string {
+export function formatVariation(variation: VariationView, code?: string): string {
   const zero = /^-?0+(\.0+)?$/.test(variation.value)
   const signed = zero
     ? formatDecimal(variation.value.replace('-', ''))
@@ -51,7 +61,10 @@ export function formatVariation(variation: VariationView): string {
       ? formatDecimal(variation.value)
       : `+${formatDecimal(variation.value)}`
   const amount = variation.unit === 'PP' ? `${signed} p.p.` : `${signed}%`
-  const when = dayAndMonth(variation.since)
+  const when =
+    code !== undefined && isMonthly(code)
+      ? monthAndYear(variation.since)
+      : dayAndMonth(variation.since)
   return variation.basis === 'LAST_CHANGE'
     ? `${amount} em ${when}`
     : `${amount} em relação a ${when}`

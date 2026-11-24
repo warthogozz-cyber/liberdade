@@ -47,6 +47,21 @@ describe('format', () => {
     ).toBe('0,00 p.p. em relação a 21/11')
   })
 
+  it('monthlyVariationNamesTheMonth', () => {
+    expect(
+      formatVariation(
+        { basis: 'PREVIOUS', since: '2026-10-01', unit: 'PP', value: '0.10' },
+        'IPCA_MONTH',
+      ),
+    ).toBe('+0,10 p.p. em relação a outubro de 2026')
+    expect(
+      formatVariation(
+        { basis: 'PREVIOUS', since: '2026-10-01', unit: 'PP', value: '0.10' },
+        'SELIC_TARGET',
+      ),
+    ).toBe('+0,10 p.p. em relação a 01/10')
+  })
+
   it('tellsMonthlySeriesFromDaily', () => {
     expect(isMonthly('IPCA_MONTH')).toBe(true)
     expect(isMonthly('IPCA_12M')).toBe(true)

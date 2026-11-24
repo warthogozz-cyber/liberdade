@@ -30,7 +30,9 @@ export function IndicatorCard({ indicator }: { indicator: IndicatorView }) {
         <>
           <p className="text-2xl font-semibold tabular-nums">{value}</p>
           {indicator.variation !== null && (
-            <p className="text-sm text-text-muted">{formatVariation(indicator.variation)}</p>
+            <p className="text-sm text-text-muted">
+              {formatVariation(indicator.variation, indicator.code)}
+            </p>
           )}
           {referenceDate !== null && (
             <p className="text-sm text-text-muted">

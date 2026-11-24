@@ -55,6 +55,6 @@ export function formatRate(hundredths: bigint): string {
 export function formatInputRate(rate: bigint): string {
   const negative = rate < 0n
   const abs = negative ? -rate : rate
-  const fraction = (abs % 10_000n).toString().padStart(4, '0').replace(/00$/, '')
+  const fraction = (abs % 10_000n).toString().padStart(4, '0').replace(/0+$/, '')
   return withSign(negative, `${abs / 10_000n},${fraction.padEnd(2, '0')}`)
 }

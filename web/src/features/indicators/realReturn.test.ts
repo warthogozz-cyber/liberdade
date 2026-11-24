@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatRate, isRateInRange, parseRate, realReturn } from './realReturn'
+import { formatInputRate, formatRate, isRateInRange, parseRate, realReturn } from './realReturn'
 
 describe('realReturn', () => {
   it('parsesCommaAndDot', () => {
@@ -14,6 +14,24 @@ describe('realReturn', () => {
     for (const text of ['', 'abc', '1,23456', '1,2,3']) {
       expect(parseRate(text)).toBeNull()
     }
+  })
+
+  it('rejectsLoneAndDoubleSigns', () => {
+    for (const text of ['−', '-', '--1', '−−1', '-−1']) {
+      expect(parseRate(text)).toBeNull()
+    }
+  })
+
+  it('acceptsDotDecimal', () => {
+    expect(parseRate('12.34')).toBe(123400n)
+  })
+
+  it('formatsInputRatesWithoutLosingTypedDigits', () => {
+    expect(formatInputRate(40000n)).toBe('4,00')
+    expect(formatInputRate(41000n)).toBe('4,10')
+    expect(formatInputRate(41250n)).toBe('4,125')
+    expect(formatInputRate(parseRate('4,1250')!)).toBe('4,125')
+    expect(formatInputRate(-41250n)).toBe('−4,125')
   })
 
   it('acceptsOnlyTheDocumentedRange', () => {
