@@ -120,6 +120,7 @@ class RoleMatrixIT {
                         recurringRuleRows(),
                         budgetRows(),
                         goalRows(),
+                        reserveRows(),
                         memberRows(),
                         invitationRows(),
                         workspaceRows(),
@@ -253,6 +254,20 @@ class RoleMatrixIT {
                                 Outcome.OK,
                                 Outcome.OK,
                                 Outcome.OK))
+                .flatMap(group -> group);
+    }
+
+    static Stream<Row> reserveRows() {
+        return Stream.of(
+                        each(
+                                "GET " + W + "/reserve",
+                                W + "/reserve",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK),
+                        ownerAndAdult("PATCH " + W + "/reserve", W + "/reserve", "{\"targetMonths\":12}"))
                 .flatMap(group -> group);
     }
 

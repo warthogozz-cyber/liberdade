@@ -2223,6 +2223,78 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/reserve": {
+      "get": {
+        "operationId": "getReserve",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReserveView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "reserve-controller"
+        ]
+      },
+      "patch": {
+        "operationId": "updateReserve",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReserveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReserveView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "reserve-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/tags": {
       "get": {
         "operationId": "listTags",
@@ -4143,6 +4215,57 @@
           }
         }
       },
+      "ReserveView": {
+        "type": "object",
+        "properties": {
+          "averageMonthlyCost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "balance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "costSource": {
+            "type": "string",
+            "enum": [
+              "HISTORY",
+              "MANUAL",
+              "NONE"
+            ]
+          },
+          "hasReserveAccounts": {
+            "type": "boolean"
+          },
+          "manualMonthlyCost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "missing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "months": {
+            "type": "number",
+            "nullable": true
+          },
+          "targetMonths": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "SetBudgetRequest": {
         "required": [
           "limitAmount"
@@ -4531,6 +4654,27 @@
           "version": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "UpdateReserveRequest": {
+        "required": [],
+        "type": "object",
+        "properties": {
+          "manualMonthlyCost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "targetMonths": {
+            "maximum": 24,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
           }
         }
       },

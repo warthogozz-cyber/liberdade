@@ -32,6 +32,9 @@ public interface LedgerFigures {
     /** The balance of the reserve accounts that are not archived, counting transactions dated up to {@code day}. */
     BigDecimal reserveBalanceOn(UUID workspaceId, LocalDate day);
 
+    /** Whether any account that is not archived is marked as part of the reserve. */
+    boolean hasReserveAccounts(UUID workspaceId);
+
     /**
      * The confirmed spending of each month from {@code from} to {@code to} that has any, oldest first. Transfers never
      * count. With {@code withoutRuleOnly}, only the spending that came from no recurring rule.

@@ -721,6 +721,22 @@ const goalLimitReached = () =>
   )
 const thisMonth = () => new Date().toISOString().slice(0, 7)
 
+/** The reserve as the mock knows it: no reserve accounts, so the balance is zero and the cost is the typed one. */
+function reserveView(): Schemas['ReserveView'] {
+  const { targetMonths, manualMonthlyCost } = mockState.reserve
+  const cents = manualMonthlyCost ? parseCents(manualMonthlyCost.amount) : null
+  return {
+    balance: money(0n, 'BRL'),
+    hasReserveAccounts: false,
+    averageMonthlyCost: manualMonthlyCost,
+    costSource: manualMonthlyCost ? 'MANUAL' : 'NONE',
+    months: cents === null ? null : 0,
+    targetMonths,
+    missing: cents === null ? null : money(cents * BigInt(targetMonths), 'BRL'),
+    manualMonthlyCost,
+  }
+}
+
 /** Not zero (above zero unless `signed`), at most 999,999,999.99 and with at most 2 decimal places. */
 function goalCents(value: unknown, signed = false): bigint | undefined {
   const read = readMoney(value)
@@ -2527,6 +2543,42 @@ export const handlers = [
       return HttpResponse.json({ copied: copies.length })
     },
   ),
+
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/reserve'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    if (workspace.role === 'YOUTH') return roleDenied()
+    return HttpResponse.json(reserveView())
+  }),
+
+  http.patch<{ ws: string }>(url('/v1/workspaces/:ws/reserve'), async ({ request, params }) => {
+    if (withoutToken(request)) return csrfInvalid()
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    if (!canManageRules(workspace)) return roleDenied()
+    const body = (await readJson(request)) as Schemas['UpdateReserveRequest'] | undefined
+    if (!body || typeof body !== 'object') return malformed()
+    const hasCost = 'manualMonthlyCost' in body
+    const cost = hasCost ? readMoney(body.manualMonthlyCost) : null
+    if (
+      (body.targetMonths === undefined && !hasCost) ||
+      (body.targetMonths != null &&
+        (!Number.isInteger(body.targetMonths) ||
+          body.targetMonths < 1 ||
+          body.targetMonths > 24)) ||
+      cost === undefined ||
+      (cost !== null && (cost.cents <= 0n || cost.cents > MAX_CENTS))
+    ) {
+      return budgetInvalid()
+    }
+    if (body.targetMonths != null) mockState.reserve.targetMonths = body.targetMonths
+    if (hasCost) {
+      mockState.reserve.manualMonthlyCost = cost ? money(cost.cents, cost.currency) : null
+    }
+    return HttpResponse.json(reserveView())
+  }),
 
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/goals'), ({ params }) => {
     const workspace = guard(params.ws)

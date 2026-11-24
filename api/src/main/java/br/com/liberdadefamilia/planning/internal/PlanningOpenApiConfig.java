@@ -18,7 +18,11 @@ class PlanningOpenApiConfig {
     private static final List<NullableRef> NULLABLE_REFS = List.of(
             new NullableRef("BudgetLineView", "overBy"),
             new NullableRef("GoalView", "suggestedMonthly"),
-            new NullableRef("UpdateGoalRequest", "targetAmount"));
+            new NullableRef("UpdateGoalRequest", "targetAmount"),
+            new NullableRef("ReserveView", "averageMonthlyCost"),
+            new NullableRef("ReserveView", "missing"),
+            new NullableRef("ReserveView", "manualMonthlyCost"),
+            new NullableRef("UpdateReserveRequest", "manualMonthlyCost"));
 
     /**
      * The month properties that may be null. A month is described by one shared schema, which carries no

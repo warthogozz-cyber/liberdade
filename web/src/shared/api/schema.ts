@@ -820,6 +820,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/reserve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getReserve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateReserve"];
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/tags": {
         parameters: {
             query?: never;
@@ -1385,6 +1401,18 @@ export interface components {
         RenameWorkspaceRequest: {
             name: string;
         };
+        ReserveView: {
+            averageMonthlyCost: components["schemas"]["Money"] | null;
+            balance: components["schemas"]["Money"];
+            /** @enum {string} */
+            costSource: "HISTORY" | "MANUAL" | "NONE";
+            hasReserveAccounts: boolean;
+            manualMonthlyCost: components["schemas"]["Money"] | null;
+            missing: components["schemas"]["Money"] | null;
+            months: number | null;
+            /** Format: int32 */
+            targetMonths: number;
+        };
         SetBudgetRequest: {
             limitAmount: components["schemas"]["Money"];
             /** Format: int64 */
@@ -1496,6 +1524,11 @@ export interface components {
             toAccountId?: string | null;
             /** Format: int64 */
             version: number;
+        };
+        UpdateReserveRequest: {
+            manualMonthlyCost?: components["schemas"]["Money"] | null;
+            /** Format: int32 */
+            targetMonths?: number | null;
         };
         UpdateTransactionRequest: {
             /** Format: uuid */
@@ -2990,6 +3023,56 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getReserve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReserveView"];
+                };
+            };
+        };
+    };
+    updateReserve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateReserveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReserveView"];
+                };
             };
         };
     };

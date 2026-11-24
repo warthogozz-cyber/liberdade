@@ -78,6 +78,8 @@ export interface MockState {
   budgets: MockBudget[]
   /** The family's goals, in creation order, archived ones included. */
   goals: MockGoal[]
+  /** The emergency reserve settings: the target in months and the monthly cost the family typed in. */
+  reserve: { targetMonths: number; manualMonthlyCost: Schemas['ReserveView']['manualMonthlyCost'] }
   /** The signed-in person's own history, newest first (LGPD audit trail). */
   activity: Schemas['ActivityItem'][]
   /** The signed-in person's own passkeys, newest first. */
@@ -251,6 +253,7 @@ function initialState(): MockState {
     rules: [],
     budgets: [],
     goals: [],
+    reserve: { targetMonths: 6, manualMonthlyCost: null },
     activity: initialActivity(),
     passkeys: initialPasskeys(),
     hasGoogle: true,

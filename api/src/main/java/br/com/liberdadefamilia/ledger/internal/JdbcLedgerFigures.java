@@ -141,6 +141,17 @@ class JdbcLedgerFigures implements LedgerFigures {
         return balanceOn(workspaceId, day, "a.is_reserve");
     }
 
+    @Override
+    public boolean hasReserveAccounts(UUID workspaceId) {
+        return jdbc.sql("""
+                        select exists (
+                            select 1 from accounts
+                            where workspace_id = :workspaceId and is_reserve and archived_at is null)""")
+                .param("workspaceId", workspaceId)
+                .query(Boolean.class)
+                .single();
+    }
+
     private BigDecimal balanceOn(UUID workspaceId, LocalDate day, String accountCondition) {
         return jdbc.sql(BALANCE_ON.formatted(accountCondition))
                 .param("workspaceId", workspaceId)
