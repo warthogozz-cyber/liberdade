@@ -168,6 +168,13 @@ export const routes: RouteObject[] = [
                         Component: m.IndicatorsPage,
                       })),
                   },
+                  {
+                    path: '/mais/indicadores/calculadora',
+                    lazy: () =>
+                      import('@/features/indicators/RealReturnPage').then((m) => ({
+                        Component: m.RealReturnPage,
+                      })),
+                  },
                 ],
               },
               {
