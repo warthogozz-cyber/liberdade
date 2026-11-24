@@ -22,7 +22,8 @@ class PlanningOpenApiConfig {
             new NullableRef("ReserveView", "averageMonthlyCost"),
             new NullableRef("ReserveView", "missing"),
             new NullableRef("ReserveView", "manualMonthlyCost"),
-            new NullableRef("UpdateReserveRequest", "manualMonthlyCost"));
+            new NullableRef("UpdateReserveRequest", "manualMonthlyCost"),
+            new NullableRef("ProjectionView", "averageSpending"));
 
     /**
      * The month properties that may be null. A month is described by one shared schema, which carries no

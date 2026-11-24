@@ -49,7 +49,11 @@ public interface LedgerFigures {
 
     /**
      * The money still to come: the open planned transactions dated up to {@code until}, overdue ones included, and the
-     * confirmed ones dated after {@code today} and up to {@code until}. By date.
+     * confirmed ones dated after {@code today} and up to {@code until}. By date. Each comes as what it does to the
+     * accounts that are not archived, the same ones {@link #activeBalanceOn} counts: an income or expense on an
+     * archived account is left out; a transfer between two counted accounts nets to zero and is left out; a transfer
+     * with one archived end comes as an {@code INCOME} into, or an {@code EXPENSE} out of, its counted end. So the kind
+     * is never {@code TRANSFER}.
      */
     List<ScheduledFlow> openFlowsAfter(UUID workspaceId, LocalDate today, LocalDate until);
 

@@ -772,6 +772,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/projection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getProjection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/recurring-rules": {
         parameters: {
             query?: never;
@@ -834,6 +850,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["updateReserve"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/spending-split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getSpendingSplit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/workspaces/{ws}/tags": {
@@ -1365,6 +1397,21 @@ export interface components {
         PreviewInvitationRequest: {
             token: string;
         };
+        ProjectionPointView: {
+            balance: components["schemas"]["Money"];
+            estimatedSpending: components["schemas"]["Money"];
+            /** Format: date */
+            monthEnd: string;
+            scheduled: components["schemas"]["Money"];
+        };
+        ProjectionView: {
+            averageSpending: components["schemas"]["Money"] | null;
+            balanceToday: components["schemas"]["Money"];
+            hasHistory: boolean;
+            points: components["schemas"]["ProjectionPointView"][];
+            /** Format: date */
+            today: string;
+        };
         RecurringRuleView: {
             /** Format: uuid */
             accountId: string;
@@ -1421,6 +1468,12 @@ export interface components {
         SkipTransactionRequest: {
             /** Format: int64 */
             version: number;
+        };
+        SpendingSplitView: {
+            fixed: components["schemas"]["Money"];
+            /** @example 2026-11 */
+            month: string;
+            variable: components["schemas"]["Money"];
         };
         TagView: {
             /** Format: date-time */
@@ -2926,6 +2979,29 @@ export interface operations {
             };
         };
     };
+    getProjection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectionView"];
+                };
+            };
+        };
+    };
     listRecurringRules: {
         parameters: {
             query?: never;
@@ -3072,6 +3148,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReserveView"];
+                };
+            };
+        };
+    };
+    getSpendingSplit: {
+        parameters: {
+            query?: {
+                month?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpendingSplitView"];
                 };
             };
         };

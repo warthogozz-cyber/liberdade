@@ -121,6 +121,7 @@ class RoleMatrixIT {
                         budgetRows(),
                         goalRows(),
                         reserveRows(),
+                        projectionRows(),
                         memberRows(),
                         invitationRows(),
                         workspaceRows(),
@@ -268,6 +269,27 @@ class RoleMatrixIT {
                                 Outcome.FORBIDDEN,
                                 Outcome.OK),
                         ownerAndAdult("PATCH " + W + "/reserve", W + "/reserve", "{\"targetMonths\":12}"))
+                .flatMap(group -> group);
+    }
+
+    static Stream<Row> projectionRows() {
+        return Stream.of(
+                        each(
+                                "GET " + W + "/projection",
+                                W + "/projection",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK),
+                        each(
+                                "GET " + W + "/spending-split",
+                                W + "/spending-split?month=2026-11",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK))
                 .flatMap(group -> group);
     }
 

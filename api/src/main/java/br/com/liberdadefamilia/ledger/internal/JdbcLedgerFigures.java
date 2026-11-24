@@ -217,21 +217,31 @@ class JdbcLedgerFigures implements LedgerFigures {
 
     @Override
     public List<ScheduledFlow> openFlowsAfter(UUID workspaceId, LocalDate today, LocalDate until) {
+        // One row per transaction: the sum of what it moves on each of its accounts that is not archived.
         return jdbc.sql("""
-                        select occurred_on, kind, amount
-                        from transactions
-                        where workspace_id = :workspaceId
-                          and deleted_at is null
-                          and occurred_on <= :until
-                          and (status = 'PLANNED' or (status = 'CONFIRMED' and occurred_on > :today))
-                        order by occurred_on, id""")
+                        select t.occurred_on, sum(%s) as movement
+                        from transactions t
+                        join accounts a
+                          on a.workspace_id = t.workspace_id
+                         and (a.id = t.account_id or a.id = t.to_account_id)
+                        where t.workspace_id = :workspaceId
+                          and t.deleted_at is null
+                          and t.occurred_on <= :until
+                          and (t.status = 'PLANNED' or (t.status = 'CONFIRMED' and t.occurred_on > :today))
+                          and a.archived_at is null
+                        group by t.id, t.occurred_on
+                        having sum(%1$s) <> 0
+                        order by t.occurred_on, t.id""".formatted(AccountRepository.MOVEMENT))
                 .param("workspaceId", workspaceId)
                 .param("today", today)
                 .param("until", until)
-                .query((rs, row) -> new ScheduledFlow(
-                        rs.getObject("occurred_on", LocalDate.class),
-                        TransactionKind.valueOf(rs.getString("kind")),
-                        rs.getBigDecimal("amount")))
+                .query((rs, row) -> {
+                    BigDecimal movement = rs.getBigDecimal("movement");
+                    return new ScheduledFlow(
+                            rs.getObject("occurred_on", LocalDate.class),
+                            movement.signum() > 0 ? TransactionKind.INCOME : TransactionKind.EXPENSE,
+                            movement.abs());
+                })
                 .list();
     }
 

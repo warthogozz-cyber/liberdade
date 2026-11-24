@@ -737,6 +737,56 @@ function reserveView(): Schemas['ReserveView'] {
   }
 }
 
+/** The last day of the month `months` after the one `iso` is in, as `YYYY-MM-DD`. */
+function monthEnd(iso: string, months: number): string {
+  const [year, month] = iso.split('-').map(Number)
+  return new Date(Date.UTC(year, month + months, 0)).toISOString().slice(0, 10)
+}
+
+/** The projection as the mock knows it: no history and nothing scheduled, so the balance stays flat (D13). */
+function projectionView(workspace: MeWorkspace): Schemas['ProjectionView'] {
+  const today = familyToday(workspace)
+  const balance = money(
+    mockState.accounts
+      .filter((account) => account.archivedAt === null)
+      .reduce((sum, account) => sum + balanceCents(account), 0n),
+    'BRL',
+  )
+  return {
+    today,
+    balanceToday: balance,
+    hasHistory: false,
+    averageSpending: null,
+    points: [0, 1, 2, 3].map((months) => ({
+      monthEnd: monthEnd(today, months),
+      balance,
+      scheduled: money(0n, 'BRL'),
+      estimatedSpending: money(0n, 'BRL'),
+    })),
+  }
+}
+
+/** The month's confirmed spending: fixed when it came from a rule or its category (or the parent) is fixed (D14). */
+function spendingSplitView(month: string): Schemas['SpendingSplitView'] {
+  const byId = new Map(mockState.categories.map((category) => [category.id, category]))
+  const fixedCategory = (id: string | null) => {
+    const category = id ? byId.get(id) : undefined
+    if (!category) return false
+    const parent = category.parentId ? byId.get(category.parentId) : undefined
+    return category.isFixed || parent?.isFixed === true
+  }
+  let fixed = 0n
+  let variable = 0n
+  for (const transaction of activeTransactions()) {
+    if (transaction.kind !== 'EXPENSE' || !transaction.occurredOn.startsWith(`${month}-`)) continue
+    const cents = parseCents(transaction.amount.amount)
+    if (transaction.recurringRuleId !== null || fixedCategory(transaction.categoryId))
+      fixed += cents
+    else variable += cents
+  }
+  return { month, fixed: money(fixed, 'BRL'), variable: money(variable, 'BRL') }
+}
+
 /** Not zero (above zero unless `signed`), at most 999,999,999.99 and with at most 2 decimal places. */
 function goalCents(value: unknown, signed = false): bigint | undefined {
   const read = readMoney(value)
@@ -2543,6 +2593,24 @@ export const handlers = [
       return HttpResponse.json({ copied: copies.length })
     },
   ),
+
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/projection'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    if (workspace.role === 'YOUTH') return roleDenied()
+    return HttpResponse.json(projectionView(workspace))
+  }),
+
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/spending-split'), ({ request, params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (!planningOn(workspace)) return planningOff()
+    if (workspace.role === 'YOUTH') return roleDenied()
+    const month = new URL(request.url).searchParams.get('month')
+    if (!month || !MONTH.test(month)) return budgetInvalid()
+    return HttpResponse.json(spendingSplitView(month))
+  }),
 
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/reserve'), ({ params }) => {
     const workspace = guard(params.ws)

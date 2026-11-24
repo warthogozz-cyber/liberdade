@@ -7,6 +7,7 @@ import br.com.liberdadefamilia.support.TestIds;
 import br.com.liberdadefamilia.support.TestLedger;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -157,6 +158,35 @@ class LedgerFiguresIT {
                 .extracting(ScheduledFlow::kind)
                 .containsExactly(TransactionKind.EXPENSE, TransactionKind.EXPENSE, TransactionKind.INCOME);
         assertThat(flows.get(2).amount()).isEqualByComparingTo("3000");
+    }
+
+    /**
+     * Flows count by what they do to the accounts that are not archived: a transfer between two of them nets to zero
+     * and is left out, a transfer with one archived end moves money in or out, and a flow only on an archived account
+     * is left out.
+     */
+    @Test
+    void openFlowsAreTheEffectOnActiveAccounts() {
+        Family a = family();
+        UUID mercado = category(a, "Mercado");
+        UUID banco = account(a, "Banco", false, false);
+        UUID antiga = account(a, "Antiga", true, false);
+        insert(a, "TRANSFER", "500", day(24), a.wallet(), banco, null, "PLANNED", null, false);
+        insert(a, "TRANSFER", "300", day(25), a.wallet(), antiga, null, "PLANNED", null, false);
+        insert(a, "TRANSFER", "200", day(26), antiga, banco, null, "CONFIRMED", null, false);
+        insert(a, "EXPENSE", "80", day(27), antiga, null, mercado, "PLANNED", null, false);
+        insert(a, "INCOME", "60", day(28), antiga, null, salary(a), "CONFIRMED", null, false);
+
+        List<ScheduledFlow> flows = figures.openFlowsAfter(a.workspaceId(), TODAY, NOV_30);
+
+        assertThat(flows).extracting(ScheduledFlow::on).containsExactly(day(25), day(26));
+        assertThat(flows)
+                .extracting(ScheduledFlow::kind)
+                .containsExactly(TransactionKind.EXPENSE, TransactionKind.INCOME);
+        assertThat(flows)
+                .extracting(ScheduledFlow::amount)
+                .usingElementComparator(BigDecimal::compareTo)
+                .containsExactly(new BigDecimal("300"), new BigDecimal("200"));
     }
 
     @Test
