@@ -6,6 +6,7 @@ const PEAK_GAIN = 0.08
 
 let shared: AudioContext | undefined
 
+/** The shared context, created on first use. */
 function audioContext(): AudioContext {
   if (!shared) {
     // Mixes with other audio instead of interrupting it, where the browser supports it.
@@ -16,9 +17,25 @@ function audioContext(): AudioContext {
   return shared
 }
 
-/** Plays the notes; the context is created on the first call, which is a person's gesture. */
+/**
+ * Creates the shared context and resumes it. It must run inside a person's gesture (a tap or key),
+ * because WebKit keeps a context suspended when it is created or resumed outside one. After that,
+ * `play` can run at any time, such as after a network round trip.
+ */
+export function unlock(): void {
+  audioContext()
+    .resume()
+    .catch(() => {})
+}
+
+/** Whether the shared context exists and is running. */
+export function isRunning(): boolean {
+  return shared?.state === 'running'
+}
+
+/** Plays the notes on the shared context, which `unlock` readied on an earlier gesture. */
 export function play(context: AudioContext = audioContext()): void {
-  if (context.state === 'suspended') void context.resume()
+  if (context.state === 'suspended') context.resume().catch(() => {})
   const begin = context.currentTime
   NOTES.forEach((frequency, index) => {
     const start = begin + index * NOTE_SECONDS

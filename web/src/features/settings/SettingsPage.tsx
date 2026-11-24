@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { useIntl } from 'react-intl'
-import { playAchievement, useSoundEnabled } from '@/shared/sound'
+import { playAchievement, unlockSound, useSoundEnabled } from '@/shared/sound'
 import { useDocumentTitle } from '@/shared/ui'
 import './register'
 
@@ -26,7 +26,10 @@ export function SettingsPage() {
           aria-checked={enabled}
           aria-label={intl.formatMessage({ id: 'settings.sound.label' })}
           aria-describedby={helpId}
-          onClick={() => setEnabled(!enabled)}
+          onClick={() => {
+            if (!enabled) unlockSound()
+            setEnabled(!enabled)
+          }}
           className={`relative h-8 w-14 shrink-0 rounded-full border border-primary ${
             enabled ? 'bg-primary' : 'bg-surface'
           } ${focus}`}
@@ -44,7 +47,10 @@ export function SettingsPage() {
       </p>
       <button
         type="button"
-        onClick={() => void playAchievement()}
+        onClick={() => {
+          unlockSound()
+          void playAchievement()
+        }}
         className={`flex min-h-12 items-center justify-center rounded-field border border-primary px-4 font-medium text-primary ${focus}`}
       >
         {intl.formatMessage({ id: 'settings.sound.listen' })}

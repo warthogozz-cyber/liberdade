@@ -1,3 +1,5 @@
 export { celebrationSound } from './celebrationSound'
 export { playAchievement } from './playAchievement'
 export { isSoundEnabled, useSoundEnabled } from './soundPreference'
+export { SoundUnlock } from './SoundUnlock'
+export { unlockSound } from './unlockSound'

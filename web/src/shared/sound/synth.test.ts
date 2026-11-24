@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { play } from './synth'
 
 function fakeContext() {
@@ -63,5 +63,51 @@ describe('synth', () => {
     )
     expect(Math.max(...peaks)).toBeLessThanOrEqual(0.1)
     expect(Math.max(...peaks)).toBeGreaterThan(0)
+  })
+})
+
+describe('unlock', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  async function freshSynth(resume: () => Promise<void>) {
+    const resumeSpy = vi.fn(resume)
+    const created = vi.fn()
+    class FakeAudioContext {
+      state = 'suspended'
+      resume = resumeSpy
+      constructor() {
+        created()
+      }
+    }
+    vi.stubGlobal('AudioContext', FakeAudioContext)
+    vi.resetModules()
+    return { ...(await import('./synth')), resumeSpy, created }
+  }
+
+  it('createsAndResumesTheContextThenReusesIt', async () => {
+    const { unlock, isRunning, resumeSpy, created } = await freshSynth(() => Promise.resolve())
+
+    unlock()
+    unlock()
+
+    expect(created).toHaveBeenCalledOnce()
+    expect(resumeSpy).toHaveBeenCalledTimes(2)
+    expect(isRunning()).toBe(false)
+  })
+
+  it('swallowsAResumeRejection', async () => {
+    const unhandled = vi.fn()
+    window.addEventListener('unhandledrejection', unhandled)
+    const { unlock } = await freshSynth(() => Promise.reject(new Error('blocked')))
+
+    expect(() => {
+      unlock()
+    }).not.toThrow()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    window.removeEventListener('unhandledrejection', unhandled)
+    expect(unhandled).not.toHaveBeenCalled()
   })
 })

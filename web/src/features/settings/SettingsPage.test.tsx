@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { playAchievement } from '@/shared/sound/playAchievement'
+import { unlockSound } from '@/shared/sound/unlockSound'
 import { renderWithProviders } from '@/shared/testing'
 import { SettingsPage } from './SettingsPage'
 
@@ -8,10 +9,16 @@ vi.mock('@/shared/sound/playAchievement', () => ({
   playAchievement: vi.fn(() => Promise.resolve()),
 }))
 
+vi.mock('@/shared/sound/unlockSound', () => ({
+  unlockSound: vi.fn(),
+  armSoundUnlock: vi.fn(),
+}))
+
 afterEach(() => {
   cleanup()
   localStorage.clear()
   vi.mocked(playAchievement).mockClear()
+  vi.mocked(unlockSound).mockClear()
 })
 
 describe('SettingsPage', () => {
@@ -47,5 +54,22 @@ describe('SettingsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ouvir' }))
     expect(playAchievement).toHaveBeenCalledOnce()
+  })
+
+  it('unlocksTheSoundOnTheGestureThatTurnsItOn', () => {
+    renderWithProviders(<SettingsPage />, { path: '/mais/ajustes' })
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Sons de conquista' }))
+    expect(unlockSound).toHaveBeenCalledOnce()
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Sons de conquista' }))
+    expect(unlockSound).toHaveBeenCalledOnce()
+  })
+
+  it('unlocksTheSoundWhenListening', () => {
+    renderWithProviders(<SettingsPage />, { path: '/mais/ajustes' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvir' }))
+    expect(unlockSound).toHaveBeenCalledOnce()
   })
 })
