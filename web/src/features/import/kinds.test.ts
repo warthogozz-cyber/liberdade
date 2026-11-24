@@ -15,7 +15,7 @@ const line = (cents: bigint, description = 'X'): StatementLine => ({
 
 function cardCsvLines(text: string): StatementLine[] {
   const parsed = parseCsv(text)
-  return linesFromCsv(parsed.rows, detectCsv(parsed).mapping)
+  return linesFromCsv(parsed.rows, detectCsv(parsed).mapping).lines
 }
 
 describe('assignKinds', () => {
@@ -28,7 +28,7 @@ describe('assignKinds', () => {
   })
 
   it('cardPositivePurchases', async () => {
-    const lines = cardCsvLines(decode(await fixtureBytes('csv-card-positive-purchases.csv'), 'csv'))
+    const lines = cardCsvLines(decode(await fixtureBytes('csv-card-positive-purchases.csv')))
     const out = assignKinds(lines, true)
     expect(out.map((l) => l.kind)).toEqual(['EXPENSE', 'EXPENSE', 'EXPENSE', 'INCOME'])
     expect(out.map((l) => l.billPayment)).toEqual([false, false, false, true])
@@ -42,7 +42,7 @@ describe('assignKinds', () => {
   })
 
   it('cardOppositeSignComesUncheckedAsIncome', async () => {
-    const lines = readOfx(decode(await fixtureBytes('ofx-card-negative-purchases.ofx'), 'ofx'))
+    const lines = readOfx(decode(await fixtureBytes('ofx-card-negative-purchases.ofx')))
     const out = assignKinds(lines, true)
     expect(out.map((l) => l.kind)).toEqual(['EXPENSE', 'EXPENSE', 'EXPENSE', 'INCOME'])
     expect(out[3]?.billPayment).toBe(true)

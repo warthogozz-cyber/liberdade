@@ -2,7 +2,8 @@
 export const importMessages = {
   'import.columns.title': 'Quais colunas são quais?',
   'import.columns.intro':
-    'Não deu para reconhecer as colunas deste arquivo. Escolha a de cada uma.',
+    'Não deu para reconhecer com certeza as colunas deste arquivo. Confira cada uma e como os centavos aparecem.',
+  'import.columns.introAdjust': 'Confira qual coluna é qual e como os centavos aparecem.',
   'import.columns.choose': 'Escolha a coluna',
   'import.columns.column': 'Coluna {n}',
   'import.columns.date': 'Data',
@@ -14,7 +15,11 @@ export const importMessages = {
   'import.columns.modeSigned': 'Uma coluna, com sinal',
   'import.columns.modeSplit': 'Duas colunas, débito e crédito',
   'import.columns.sample': 'Primeiras linhas do arquivo',
+  'import.columns.decimal': 'Como os centavos aparecem',
+  'import.columns.decimalComma': 'Depois da vírgula (1.234,56)',
+  'import.columns.decimalDot': 'Depois do ponto (1,234.56)',
   'import.columns.continue': 'Continuar',
+  'import.columns.back': 'Voltar sem mudar',
   'import.title': 'Importar extrato',
   'import.intro':
     'Escolha a conta e o arquivo OFX ou CSV que o banco exporta. O arquivo é lido aqui no aparelho.',
@@ -36,6 +41,15 @@ export const importMessages = {
   'import.state.confirmPlanned': 'Confirmar o previsto',
   'import.state.possibleRepeat': 'Possível repetido',
   'import.state.billPayment': 'Pagamento da fatura?',
+  'import.state.balance': 'Saldo?',
+  'import.balanceNotice':
+    'Parece uma linha de saldo, não um lançamento, por isso ficou desmarcada.',
+  'import.adjustColumns': 'Ajustar colunas',
+  'import.skippedRows':
+    '{n, plural, one {# linha ignorada} other {# linhas ignoradas}} (sem data ou valor)',
+  'import.plannedCategory': 'Categoria do previsto: {name}',
+  'import.plannedCategoryUnknown': 'Mantém a categoria do previsto',
+  'import.nothingChecked': 'Marque ao menos um lançamento.',
   'import.billPaymentNotice':
     'Pagamento da fatura? Ele já aparece como saída na conta de onde saiu o dinheiro.',
   'import.bulk':
@@ -51,6 +65,10 @@ export const importMessages = {
   'import.result.partial':
     '{sent, plural, one {# lançamento foi enviado} other {# lançamentos foram enviados}} de {total}. Você pode tentar de novo: o que já entrou não se repete.',
   'import.result.retry': 'Tentar de novo',
+  'import.result.rejected':
+    'O servidor recusou o envio, então tentar de novo não resolve: {detail}',
+  'import.result.rejectedGeneric':
+    'O servidor recusou o envio, então tentar de novo não resolve. Confira a conta e as categorias escolhidas.',
   'import.result.list': 'Ver os lançamentos',
   'import.result.another': 'Importar outro arquivo',
 } as const

@@ -79,7 +79,7 @@ describe('csvMappingStore', () => {
     const fresh = detectCsv({ separator: ';', rows: after }).mapping
     expect(fresh.headerRow).toBe(1)
     const applied = applyStoredMapping(fresh, saved)
-    expect(linesFromCsv(after, applied)).toHaveLength(2)
+    expect(linesFromCsv(after, applied).lines).toHaveLength(2)
     expect(() => linesFromCsv(after, saved)).toThrow()
   })
 })

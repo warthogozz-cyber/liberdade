@@ -14,25 +14,30 @@ interface ColumnMappingProps {
   rows: string[][]
   initial: CsvMapping
   onConfirm: (mapping: CsvMapping) => void
+  /** Set when the person came back from the preview to adjust a mapping that was already in use. */
+  onCancel?: () => void
 }
 
-/** Lets the person say which column is which when the file's own header was not enough. */
-export function ColumnMapping({ rows, initial, onConfirm }: ColumnMappingProps) {
+type AmountColumns = { split: boolean; value: string; debit: string; credit: string }
+
+/**
+ * Lets the person say which column is which, and how the cents are written, when the file's own header was not
+ * enough or when they came back from the preview to adjust it.
+ */
+export function ColumnMapping({ rows, initial, onConfirm, onCancel }: ColumnMappingProps) {
   const intl = useIntl()
   const columns = rows.reduce((most, row) => Math.max(most, row.length), 0)
   const pick = (column: number) => (column >= 0 && column < columns ? String(column) : NONE)
   const [date, setDate] = useState(pick(initial.date))
   const [description, setDescription] = useState(pick(initial.description))
-  const [split, setSplit] = useState(initial.amount.kind === 'split')
-  const [value, setValue] = useState(
-    initial.amount.kind === 'signed' ? pick(initial.amount.column) : NONE,
-  )
-  const [debit, setDebit] = useState(
-    initial.amount.kind === 'split' ? pick(initial.amount.debit) : NONE,
-  )
-  const [credit, setCredit] = useState(
-    initial.amount.kind === 'split' ? pick(initial.amount.credit) : NONE,
-  )
+  const [amount, setAmount] = useState<AmountColumns>({
+    split: initial.amount.kind === 'split',
+    value: initial.amount.kind === 'signed' ? pick(initial.amount.column) : NONE,
+    debit: initial.amount.kind === 'split' ? pick(initial.amount.debit) : NONE,
+    credit: initial.amount.kind === 'split' ? pick(initial.amount.credit) : NONE,
+  })
+  const [decimal, setDecimal] = useState<CsvMapping['decimal']>(initial.decimal)
+  const { split, value, debit, credit } = amount
 
   const header = initial.headerRow >= 0 ? rows[initial.headerRow] : undefined
   const sample = rows.slice(initial.headerRow + 1, initial.headerRow + 1 + SAMPLE_ROWS)
@@ -47,6 +52,16 @@ export function ColumnMapping({ rows, initial, onConfirm }: ColumnMappingProps) 
     date !== NONE &&
     description !== NONE &&
     (split ? debit !== NONE && credit !== NONE : value !== NONE)
+
+  /** A new amount column brings the decimal its cells show; the person can still change it afterwards. */
+  function changeAmount(change: Partial<AmountColumns>) {
+    const next = { ...amount, ...change }
+    setAmount(next)
+    const chosen = next.split ? [next.debit, next.credit] : [next.value]
+    if (chosen.every((column) => column !== NONE)) {
+      setDecimal(detectDecimal(rows.slice(initial.headerRow + 1), chosen.map(Number)))
+    }
+  }
 
   function select(id: keyof typeof importMessages, current: string, set: (v: string) => void) {
     return (
@@ -66,7 +81,6 @@ export function ColumnMapping({ rows, initial, onConfirm }: ColumnMappingProps) 
 
   function confirm() {
     if (!complete) return
-    const amountColumns = split ? [Number(debit), Number(credit)] : [Number(value)]
     onConfirm({
       headerRow: initial.headerRow,
       date: Number(date),
@@ -74,7 +88,7 @@ export function ColumnMapping({ rows, initial, onConfirm }: ColumnMappingProps) 
       amount: split
         ? { kind: 'split', debit: Number(debit), credit: Number(credit) }
         : { kind: 'signed', column: Number(value) },
-      decimal: detectDecimal(rows.slice(initial.headerRow + 1), amountColumns),
+      decimal,
     })
   }
 
@@ -89,14 +103,16 @@ export function ColumnMapping({ rows, initial, onConfirm }: ColumnMappingProps) 
       <h2 className="text-lg font-semibold">
         {intl.formatMessage({ id: 'import.columns.title' })}
       </h2>
-      <p className="text-text-muted">{intl.formatMessage({ id: 'import.columns.intro' })}</p>
+      <p className="text-text-muted">
+        {intl.formatMessage({ id: onCancel ? 'import.columns.introAdjust' : 'import.columns.intro' })}
+      </p>
       {select('import.columns.date', date, setDate)}
       {select('import.columns.description', description, setDescription)}
       <label className="flex flex-col gap-1">
         <span className="font-medium">{intl.formatMessage({ id: 'import.columns.mode' })}</span>
         <select
           value={split ? 'split' : 'signed'}
-          onChange={(event) => setSplit(event.target.value === 'split')}
+          onChange={(event) => changeAmount({ split: event.target.value === 'split' })}
           className={field}
         >
           <option value="signed">{intl.formatMessage({ id: 'import.columns.modeSigned' })}</option>
@@ -105,12 +121,23 @@ export function ColumnMapping({ rows, initial, onConfirm }: ColumnMappingProps) 
       </label>
       {split ? (
         <>
-          {select('import.columns.debit', debit, setDebit)}
-          {select('import.columns.credit', credit, setCredit)}
+          {select('import.columns.debit', debit, (v) => changeAmount({ debit: v }))}
+          {select('import.columns.credit', credit, (v) => changeAmount({ credit: v }))}
         </>
       ) : (
-        select('import.columns.amount', value, setValue)
+        select('import.columns.amount', value, (v) => changeAmount({ value: v }))
       )}
+      <label className="flex flex-col gap-1">
+        <span className="font-medium">{intl.formatMessage({ id: 'import.columns.decimal' })}</span>
+        <select
+          value={decimal}
+          onChange={(event) => setDecimal(event.target.value === '.' ? '.' : ',')}
+          className={field}
+        >
+          <option value=",">{intl.formatMessage({ id: 'import.columns.decimalComma' })}</option>
+          <option value=".">{intl.formatMessage({ id: 'import.columns.decimalDot' })}</option>
+        </select>
+      </label>
       <div
         role="region"
         tabIndex={0}
@@ -148,6 +175,15 @@ export function ColumnMapping({ rows, initial, onConfirm }: ColumnMappingProps) 
       <button type="submit" disabled={!complete} className={`${button} bg-primary text-on-primary`}>
         {intl.formatMessage({ id: 'import.columns.continue' })}
       </button>
+      {onCancel && (
+        <button
+          type="button"
+          onClick={onCancel}
+          className={`${button} border border-primary text-primary`}
+        >
+          {intl.formatMessage({ id: 'import.columns.back' })}
+        </button>
+      )}
     </form>
   )
 }

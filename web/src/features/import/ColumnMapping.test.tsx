@@ -21,10 +21,10 @@ const initial: CsvMapping = {
   decimal: ',',
 }
 
-function renderScreen(start: CsvMapping, onConfirm = vi.fn()) {
+function renderScreen(start: CsvMapping, onConfirm = vi.fn(), onCancel?: () => void) {
   render(
     <IntlProvider locale={locale} messages={appMessages()}>
-      <ColumnMapping rows={rows} initial={start} onConfirm={onConfirm} />
+      <ColumnMapping rows={rows} initial={start} onConfirm={onConfirm} onCancel={onCancel} />
     </IntlProvider>,
   )
   return onConfirm
@@ -75,7 +75,40 @@ describe('ColumnMapping', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
     const confirmed = onConfirm.mock.calls[0]?.[0] as CsvMapping
     expect(confirmed.decimal).toBe(',')
-    expect(linesFromCsv(rows, confirmed)[0]?.cents).toBe(-4590n)
+    expect(linesFromCsv(rows, confirmed).lines[0]?.cents).toBe(-4590n)
+  })
+
+  it('letsThePersonChooseTheDecimal', () => {
+    const thousands = [
+      ['Quando', 'Quem', 'Quanto'],
+      ['03/11/2026', 'ALUGUEL', '-1,234'],
+    ]
+    const onConfirm = vi.fn()
+    render(
+      <IntlProvider locale={locale} messages={appMessages()}>
+        <ColumnMapping rows={thousands} initial={initial} onConfirm={onConfirm} />
+      </IntlProvider>,
+    )
+    const decimal = screen.getByLabelText('Como os centavos aparecem')
+    expect(decimal).toHaveProperty('value', ',')
+    fireEvent.change(decimal, { target: { value: '.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+    const confirmed = onConfirm.mock.calls[0]?.[0] as CsvMapping
+    expect(confirmed.decimal).toBe('.')
+    expect(linesFromCsv(thousands, confirmed).lines[0]?.cents).toBe(-123400n)
+  })
+
+  it('backOnlyWhenAdjusting', () => {
+    renderScreen(initial)
+    expect(screen.queryByRole('button', { name: 'Voltar sem mudar' })).toBeNull()
+    cleanup()
+
+    const onCancel = vi.fn()
+    const onConfirm = renderScreen(initial, vi.fn(), onCancel)
+    expect(screen.getByText('Confira qual coluna é qual e como os centavos aparecem.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar sem mudar' }))
+    expect(onCancel).toHaveBeenCalledOnce()
+    expect(onConfirm).not.toHaveBeenCalled()
   })
 
   it('showsTheFirstRowsAsASample', () => {

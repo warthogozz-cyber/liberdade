@@ -4,15 +4,29 @@ import type { KindedLine } from './kinds'
 import { normalizeDescription } from './normalize'
 
 export type PreviewState =
-  'alreadyImported' | 'confirmPlanned' | 'possibleRepeat' | 'billPayment' | 'normal'
+  | 'alreadyImported'
+  | 'balance'
+  | 'confirmPlanned'
+  | 'possibleRepeat'
+  | 'billPayment'
+  | 'normal'
 
 export type PreviewLine = KindedLine & {
   id: string
   importKey: string
   state: PreviewState
   checked: boolean
+  /** On a `confirmPlanned` line, the planned transaction's category, which the API keeps (read-only here). */
   categoryId: string | null
   confirmsPlannedId: string | null
+}
+
+/**
+ * A running balance printed as a line (SALDO ANTERIOR, SALDO DO DIA, S A L D O): its normalized description,
+ * spaces removed, starts with "saldo". It is no transaction, so it never starts checked.
+ */
+export function looksLikeBalance(description: string): boolean {
+  return normalizeDescription(description).replace(/ /g, '').startsWith('saldo')
 }
 
 /** A planned transaction confirms a line dated at most this many days away. */
@@ -48,7 +62,7 @@ function matchPlanned(
   lines: KindedLine[],
   candidates: number[],
   planned: TransactionView[],
-): Map<number, string> {
+): Map<number, TransactionView> {
   const pairs: Array<{ line: number; planned: number; gap: number }> = []
   planned.forEach((p, pi) => {
     const plannedDay = dayNumber(p.scheduledOn ?? p.occurredOn)
@@ -62,21 +76,22 @@ function matchPlanned(
   })
   pairs.sort((a, b) => a.gap - b.gap || a.line - b.line || a.planned - b.planned)
 
-  const matched = new Map<number, string>()
+  const matched = new Map<number, TransactionView>()
   const used = new Set<number>()
   for (const pair of pairs) {
     if (matched.has(pair.line) || used.has(pair.planned)) continue
-    matched.set(pair.line, planned[pair.planned].id)
+    matched.set(pair.line, planned[pair.planned])
     used.add(pair.planned)
   }
   return matched
 }
 
 /**
- * Gives each line its state, in this precedence: already imported (its key is on a transaction), confirms a
- * planned one (only with planning on), possible repeat (a manual confirmed transaction with the same date,
- * amount, kind and description), bill payment, normal. Only `normal` and `confirmPlanned` start checked.
- * `existing` holds the account's transactions around the file's dates, planned ones included.
+ * Gives each line its state, in this precedence: already imported (its key is on a transaction), a balance line,
+ * confirms a planned one (only with planning on, and only a planned one with a category, which it keeps),
+ * possible repeat (a manual confirmed transaction with the same date, amount, kind and description), bill
+ * payment, normal. Only `normal` and `confirmPlanned` start checked. `existing` holds the account's transactions
+ * around the file's dates, planned ones included.
  */
 export function buildPreview(
   lines: KindedLine[],
@@ -91,7 +106,7 @@ export function buildPreview(
   for (const t of existing) {
     if (t.importKey) importedKeys.add(t.importKey)
     if (t.status === 'PLANNED') {
-      planned.push(t)
+      if (t.categoryId !== null) planned.push(t)
     } else if (!t.importKey) {
       manual.add(
         repeatSignature(
@@ -105,17 +120,29 @@ export function buildPreview(
   }
 
   const imported = lines.map((_, i) => importedKeys.has(keys[i]))
-  const candidates = lines.map((_, i) => i).filter((i) => !imported[i])
-  const confirms = planningOn ? matchPlanned(lines, candidates, planned) : new Map<number, string>()
+  const balance = lines.map((l) => looksLikeBalance(l.description))
+  const candidates = lines.map((_, i) => i).filter((i) => !imported[i] && !balance[i])
+  const confirms = planningOn
+    ? matchPlanned(lines, candidates, planned)
+    : new Map<number, TransactionView>()
 
   return lines.map((l, i) => {
     const base = { ...l, id: newId(), importKey: keys[i], categoryId: null }
     if (imported[i]) {
       return { ...base, state: 'alreadyImported', checked: false, confirmsPlannedId: null }
     }
-    const plannedId = confirms.get(i)
-    if (plannedId !== undefined) {
-      return { ...base, state: 'confirmPlanned', checked: true, confirmsPlannedId: plannedId }
+    if (balance[i]) {
+      return { ...base, state: 'balance', checked: false, confirmsPlannedId: null }
+    }
+    const confirmed = confirms.get(i)
+    if (confirmed !== undefined) {
+      return {
+        ...base,
+        state: 'confirmPlanned',
+        checked: true,
+        categoryId: confirmed.categoryId,
+        confirmsPlannedId: confirmed.id,
+      }
     }
     const repeat = manual.has(
       repeatSignature(l.occurredOn, l.absCents, l.kind, normalizeDescription(l.description)),

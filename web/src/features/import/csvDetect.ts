@@ -1,5 +1,6 @@
 import { normalizeDescription } from './normalize'
 import type { CsvSeparator } from './readers/csv'
+import { calendarDate } from './readers/dates'
 import { MAX_STATEMENT_LINES, StatementReadError, type StatementLine } from './readers/types'
 
 export type CsvMapping = {
@@ -13,7 +14,12 @@ export type CsvMapping = {
 
 export type CsvDetection = { mapping: CsvMapping; certain: boolean; signature: string }
 
-const DATE = /^(\d{2})\/(\d{2})\/(\d{4})$|^(\d{4})-(\d{2})-(\d{2})$/
+/**
+ * dd/MM/yyyy or dd/MM/yy, optionally followed by a time, or yyyy-MM-dd, optionally followed by a time (and zone).
+ * Only the date part is kept.
+ */
+const DATE =
+  /^(\d{2})\/(\d{2})\/(\d{4}|\d{2})(?:\s+\d{2}:\d{2}(?::\d{2})?)?$|^(\d{4})-(\d{2})-(\d{2})(?:[T\s]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/i
 const MIN_DATE_SHARE = 0.9
 const SIGNED_NAMES = ['valor', 'amount', 'value']
 const DEBIT_NAMES = ['debito', 'saida']
@@ -21,34 +27,40 @@ const CREDIT_NAMES = ['credito', 'entrada']
 const DESCRIPTION_NAMES = ['descricao', 'historico', 'lancamento', 'memo', 'description']
 const NUMERIC = /^[-+]?\s*(?:R\$)?\s*[-+]?[\d.,\s]*\d[\d.,\s]*$/i
 
-/** The cell as yyyy-MM-dd, or null when it is not a real calendar date in one of the two accepted layouts. */
+/**
+ * The cell as yyyy-MM-dd, or null when it is not a real calendar date in one of the accepted layouts. A two-digit
+ * year is 20yy.
+ */
 function parseDate(cell: string | undefined): string | null {
   const match = DATE.exec((cell ?? '').trim())
   if (!match) return null
-  const [year = '', month = '', day = ''] = match[1]
-    ? [match[3], match[2], match[1]]
-    : [match[4], match[5], match[6]]
-  const probe = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)))
-  const real =
-    probe.getUTCFullYear() === Number(year) &&
-    probe.getUTCMonth() === Number(month) - 1 &&
-    probe.getUTCDate() === Number(day)
-  return real ? `${year}-${month}-${day}` : null
+  if (match[1]) {
+    const year = match[3]?.length === 2 ? `20${match[3]}` : (match[3] ?? '')
+    return calendarDate(year, match[2] ?? '', match[1])
+  }
+  return calendarDate(match[4] ?? '', match[5] ?? '', match[6] ?? '')
 }
 
+/** The cell without currency symbol, spaces and sign, and whether it was negative. */
+function unsignedDigits(cell: string | undefined): { negative: boolean; digits: string } {
+  const bare = (cell ?? '').replace(/R\$/gi, '').replace(/\s+/g, '')
+  return { negative: bare.startsWith('-'), digits: bare.replace(/^[-+]/, '') }
+}
+
+const COMMA_DECIMAL = /^(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{0,2}))?$/
+const DOT_DECIMAL = /^(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{0,2}))?$/
+
 /**
- * Cents of an amount cell, or null when it is not an amount (the row is then no data row). The thousands
- * character is the one that is not the decimal; at most two fraction digits are accepted, padded.
+ * Cents of an amount cell, or null when it is not an amount (the row is then skipped). The thousands character is
+ * the one that is not the decimal and counts only before groups of exactly three digits; at most two fraction
+ * digits are accepted, padded. Anything else (1.23 in a comma file, 12,345 as a fraction) is refused, never guessed.
  */
 function parseCents(cell: string | undefined, decimal: ',' | '.'): bigint | null {
-  const bare = (cell ?? '').replace(/R\$/gi, '').replace(/\s+/g, '')
-  const negative = bare.startsWith('-')
-  const unsigned = bare.replace(/^[-+]/, '')
-  const thousands = decimal === ',' ? '.' : ','
-  const plain = unsigned.split(thousands).join('')
-  const match = (decimal === ',' ? /^(\d+)(?:,(\d{0,2}))?$/ : /^(\d+)(?:\.(\d{0,2}))?$/).exec(plain)
+  const { negative, digits } = unsignedDigits(cell)
+  const match = (decimal === ',' ? COMMA_DECIMAL : DOT_DECIMAL).exec(digits)
   if (!match) return null
-  const cents = BigInt(match[1] ?? '0') * 100n + BigInt(((match[2] ?? '') + '00').slice(0, 2))
+  const whole = (match[1] ?? '0').replace(/[.,]/g, '')
+  const cents = BigInt(whole) * 100n + BigInt(((match[2] ?? '') + '00').slice(0, 2))
   return negative ? -cents : cents
 }
 
@@ -98,10 +110,61 @@ function findDates(rows: string[][], width: number) {
   return found
 }
 
-/** Comma when any cell of these columns looks like 12,34; the same rule for detection and for the column screen. */
+/**
+ * What one amount cell says about the decimal character. Sure: the last separator is followed by one or two digits
+ * (45,9 or 1.234,56), or the same separator splits several groups of three (1.234.567), which makes it the
+ * thousands one. Leaning: a single separator before exactly three digits (1.234), most likely thousands but
+ * possibly a fraction. Null: no separator, or no number.
+ */
+function decimalVote(cell: string | undefined): { decimal: ',' | '.'; sure: boolean } | null {
+  const { digits } = unsignedDigits(cell)
+  if (!/^\d[\d.,]*$/.test(digits)) return null
+  const last = Math.max(digits.lastIndexOf(','), digits.lastIndexOf('.'))
+  if (last < 0) return null
+  const separator = digits[last] === ',' ? ',' : '.'
+  const other = separator === ',' ? '.' : ','
+  const tail = digits.slice(last + 1)
+  const count = digits.split(separator).length - 1
+  if (/^\d{1,2}$/.test(tail) && (count === 1 || digits.includes(other))) {
+    return { decimal: separator, sure: true }
+  }
+  if (/^\d{3}$/.test(tail) && !digits.includes(other)) {
+    return { decimal: other, sure: count > 1 }
+  }
+  return null
+}
+
+/**
+ * The decimal character of these columns, voted on every cell. It is certain when some cell is sure of it and no
+ * cell points the other way; a file of whole numbers is certain too (the character changes no value). With only
+ * leaning cells (1.234) or conflicting ones, the likelier character comes back uncertain, so the person confirms
+ * it; without any evidence the Brazilian comma is the default.
+ */
+export function decimalEvidence(
+  dataRows: string[][],
+  columns: number[],
+): { decimal: ',' | '.'; certain: boolean } {
+  const sure = { ',': 0, '.': 0 }
+  const all = { ',': 0, '.': 0 }
+  for (const row of dataRows) {
+    for (const column of columns) {
+      const vote = decimalVote(row[column])
+      if (!vote) continue
+      all[vote.decimal]++
+      if (vote.sure) sure[vote.decimal]++
+    }
+  }
+  if (all[','] === 0 && all['.'] === 0) return { decimal: ',', certain: true }
+  let decimal: ',' | '.'
+  if (sure[','] !== sure['.']) decimal = sure[','] > sure['.'] ? ',' : '.'
+  else decimal = all[','] >= all['.'] ? ',' : '.'
+  const against = all[decimal === ',' ? '.' : ',']
+  return { decimal, certain: sure[decimal] > 0 && against === 0 }
+}
+
+/** The likelier decimal character of these columns; the same rule for detection and for the column screen. */
 export function detectDecimal(dataRows: string[][], columns: number[]): ',' | '.' {
-  const found = columns.some((c) => dataRows.some((r) => /\d,\d{2}$/.test((r[c] ?? '').trim())))
-  return found ? ',' : '.'
+  return decimalEvidence(dataRows, columns).decimal
 }
 
 export function detectCsv(parsed: { separator: CsvSeparator; rows: string[][] }): CsvDetection {
@@ -138,7 +201,7 @@ export function detectCsv(parsed: { separator: CsvSeparator; rows: string[][] })
   }
 
   const amountColumns = amount.kind === 'signed' ? [amount.column] : [amount.debit, amount.credit]
-  const decimal = detectDecimal(data, amountColumns)
+  const { decimal, certain: decimalSure } = decimalEvidence(data, amountColumns)
 
   let description: number
   let descriptionSure: boolean
@@ -155,7 +218,7 @@ export function detectCsv(parsed: { separator: CsvSeparator; rows: string[][] })
     descriptionSure = texts.length > 0 && (texts[0]?.distinct ?? 0) > (texts[1]?.distinct ?? 0)
   }
 
-  const certain = dates.length === 1 && amountSure && descriptionSure && width >= 3
+  const certain = dates.length === 1 && amountSure && descriptionSure && decimalSure && width >= 3
   const signature = header
     ? `${header.map((cell) => normalizeDescription(cell)).join('|')}|${separator}`
     : `#cols:${width}|${separator}`
@@ -166,25 +229,34 @@ export function detectCsv(parsed: { separator: CsvSeparator; rows: string[][] })
   }
 }
 
-/** The statement lines the mapping reads. Rows whose date or amount cannot be read (titles, balances, footers) are skipped. */
-export function linesFromCsv(rows: string[][], mapping: CsvMapping): StatementLine[] {
+/** The amount the row's cells give, or null when they give none. */
+function rowCents(row: string[], mapping: CsvMapping): bigint | null {
+  if (mapping.amount.kind === 'signed') return parseCents(row[mapping.amount.column], mapping.decimal)
+  const out = (row[mapping.amount.debit] ?? '').trim()
+  const into = (row[mapping.amount.credit] ?? '').trim()
+  if (out === '' && into === '') return null
+  const debit = out === '' ? 0n : parseCents(out, mapping.decimal)
+  const credit = into === '' ? 0n : parseCents(into, mapping.decimal)
+  if (debit === null || credit === null) return null
+  return (credit < 0n ? -credit : credit) - (debit < 0n ? -debit : debit)
+}
+
+/**
+ * The statement lines the mapping reads, and how many rows after the header were skipped because their date or
+ * amount could not be read (titles, footers, or a wrong mapping), so the preview can say so.
+ */
+export function linesFromCsv(
+  rows: string[][],
+  mapping: CsvMapping,
+): { lines: StatementLine[]; skipped: number } {
   const lines: StatementLine[] = []
+  let skipped = 0
   for (const row of rows.slice(mapping.headerRow + 1)) {
     const occurredOn = parseDate(row[mapping.date])
-    if (occurredOn === null) continue
-    let cents: bigint
-    if (mapping.amount.kind === 'signed') {
-      const value = parseCents(row[mapping.amount.column], mapping.decimal)
-      if (value === null) continue
-      cents = value
-    } else {
-      const out = (row[mapping.amount.debit] ?? '').trim()
-      const into = (row[mapping.amount.credit] ?? '').trim()
-      if (out === '' && into === '') continue
-      const debit = out === '' ? 0n : parseCents(out, mapping.decimal)
-      const credit = into === '' ? 0n : parseCents(into, mapping.decimal)
-      if (debit === null || credit === null) continue
-      cents = (credit < 0n ? -credit : credit) - (debit < 0n ? -debit : debit)
+    const cents = occurredOn === null ? null : rowCents(row, mapping)
+    if (occurredOn === null || cents === null) {
+      skipped++
+      continue
     }
     lines.push({
       occurredOn,
@@ -194,5 +266,5 @@ export function linesFromCsv(rows: string[][], mapping: CsvMapping): StatementLi
   }
   if (lines.length > MAX_STATEMENT_LINES) throw new StatementReadError('tooLarge')
   if (lines.length === 0) throw new StatementReadError('empty')
-  return lines
+  return { lines, skipped }
 }

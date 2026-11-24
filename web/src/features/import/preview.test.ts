@@ -183,6 +183,51 @@ describe('buildPreview', () => {
     expect(out.state).toBe('confirmPlanned')
   })
 
+  it('balanceLinesComeUnchecked', () => {
+    const out = buildPreview(
+      [
+        line({ description: 'SALDO ANTERIOR', kind: 'INCOME' }),
+        line({ description: 'Saldo do dia' }),
+        line({ description: 'S A L D O' }),
+        line({ description: 'PAGTO SALDO DEVEDOR' }),
+      ],
+      ['a', 'b', 'c', 'd'],
+      [planned('2026-11-03')],
+      true,
+      newId,
+    )
+    expect(out.map((l) => l.state)).toEqual(['balance', 'balance', 'balance', 'confirmPlanned'])
+    expect(out.map((l) => l.checked)).toEqual([false, false, false, true])
+  })
+
+  it('alreadyImportedOutranksBalance', () => {
+    const [out] = buildPreview(
+      [line({ description: 'SALDO ANTERIOR' })],
+      ['k1'],
+      [confirmed({}, 'k1')],
+      true,
+      newId,
+    )
+    expect(out.state).toBe('alreadyImported')
+  })
+
+  it('confirmPlannedCarriesThePlannedCategory', () => {
+    const p = planned('2026-11-03')
+    const [out] = buildPreview([line()], ['a'], [p], true, newId)
+    expect(out).toMatchObject({ state: 'confirmPlanned', categoryId: CATEGORY, confirmsPlannedId: p.id })
+  })
+
+  it('plannedWithoutCategoryIsNoCandidate', () => {
+    const [out] = buildPreview(
+      [line()],
+      ['a'],
+      [planned('2026-11-03', { categoryId: null })],
+      true,
+      newId,
+    )
+    expect(out.state).toBe('normal')
+  })
+
   it('carriesKeyIdAndEmptyCategory', () => {
     const [out] = buildPreview([line()], ['key-x'], [], true, () => 'fresh-id')
     expect(out).toMatchObject({

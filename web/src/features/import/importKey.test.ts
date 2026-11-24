@@ -22,7 +22,7 @@ const expense = (absCents: bigint, description: string): KindedLine => ({
 
 function csvLines(text: string): StatementLine[] {
   const parsed = parseCsv(text)
-  return linesFromCsv(parsed.rows, detectCsv(parsed).mapping)
+  return linesFromCsv(parsed.rows, detectCsv(parsed).mapping).lines
 }
 
 describe('importKeys', () => {
@@ -47,8 +47,8 @@ describe('importKeys', () => {
   })
 
   it('sameKeyFromOfxAndCsv', async () => {
-    const ofx = readOfx(decode(await fixtureBytes('ofx-sgml-1252.ofx'), 'ofx'))
-    const csv = csvLines(decode(await fixtureBytes('csv-semicolon-comma-decimal.csv'), 'csv'))
+    const ofx = readOfx(decode(await fixtureBytes('ofx-sgml-1252.ofx')))
+    const csv = csvLines(decode(await fixtureBytes('csv-semicolon-comma-decimal.csv')))
     expect(csv).toHaveLength(4)
     const fromOfx = await importKeys(ACCOUNT, assignKinds(ofx, false))
     const fromCsv = await importKeys(ACCOUNT, assignKinds(csv, false))
