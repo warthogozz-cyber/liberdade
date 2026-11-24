@@ -127,6 +127,14 @@ class CategoryHintsIT {
         assertThat(call(List.of())).hasStatus(422);
     }
 
+    @Test
+    void rejectsANullItem() {
+        MvcTestResult result = call(List.of("null"));
+
+        assertThat(result).hasStatus(422);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("request.invalid");
+    }
+
     private static String item(String kind, String key) {
         return "{\"kind\":\"" + kind + "\",\"key\":\"" + key + "\"}";
     }

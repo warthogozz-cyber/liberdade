@@ -530,14 +530,19 @@ class RoleMatrixIT {
     }
 
     static Stream<Row> importRows() {
-        return each(
-                "POST " + W + "/imports/category-hints",
-                W + "/imports/category-hints",
-                "{\"items\":[{\"kind\":\"EXPENSE\",\"key\":\"padaria\"}]}",
-                Outcome.OK,
-                Outcome.OK,
-                Outcome.OK,
-                Outcome.FORBIDDEN);
+        String imports = "POST " + W + "/accounts/{accountId}/imports";
+        return Stream.of(
+                        each(
+                                "POST " + W + "/imports/category-hints",
+                                W + "/imports/category-hints",
+                                "{\"items\":[{\"kind\":\"EXPENSE\",\"key\":\"padaria\"}]}",
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN),
+                        notYouth(imports, W + "/accounts/{corrente}/imports", importBody(), Outcome.FORBIDDEN),
+                        Stream.of(new Row(YOUTH, imports, W + "/accounts/{wallet}/imports", importBody(), Outcome.OK)))
+                .flatMap(group -> group);
     }
 
     static Stream<Row> billingRows() {
@@ -629,6 +634,14 @@ class RoleMatrixIT {
                  "accountId":"%s","toAccountId":"%s"}""".formatted(from, to);
     }
 
+    /** One statement line, under a fixed key: each row runs against a family of its own. */
+    private static String importBody() {
+        return """
+                {"rows":[{"id":"{newId}","kind":"EXPENSE","amount":{"amount":"10.00","currency":"BRL"},
+                 "occurredOn":"2026-11-03","description":"Padaria","categoryId":"{mercado}",
+                 "importKey":"%s","confirmsPlannedId":null}]}""".formatted("ab".repeat(32));
+    }
+
     private static String edit(String account) {
         return """
                 {"version":0,"kind":"EXPENSE","amount":{"amount":"20.00","currency":"BRL"},"occurredOn":"2026-11-03",
@@ -693,7 +706,8 @@ class RoleMatrixIT {
     private void runningPlanFor(Family family, Row row) {
         if (row.path().contains("{paidOrder}")
                 || row.path().endsWith("/billing/plan/theme")
-                || row.path().endsWith("/imports/category-hints")) {
+                || row.path().endsWith("/imports/category-hints")
+                || row.path().endsWith("/imports")) {
             jdbc.sql("""
                             insert into workspace_plans (workspace_id, plan_key, founder, source_order_id, starts_at, ends_at)
                             values (:ws, 'FAMILY', true, :order, now() - interval '1 minute', now() + interval '1 year')""")

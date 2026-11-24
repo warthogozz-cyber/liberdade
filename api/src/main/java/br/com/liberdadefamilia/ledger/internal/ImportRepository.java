@@ -36,6 +36,73 @@ class ImportRepository {
     }
 
     /**
+     * Confirms the planned transaction with the line: its date, value and key, entered by the member, one version up.
+     * Only while it is still planned, not deleted, of the same kind, in the account and in the scope; whether it was.
+     */
+    boolean confirmPlanned(
+            UUID workspaceId, UUID plannedId, UUID accountId, AccountScope scope, UUID memberId, ImportRow row) {
+        return jdbc.sql("""
+                        update transactions
+                        set status = 'CONFIRMED',
+                            occurred_on = :occurredOn,
+                            amount = :amount,
+                            member_id = :memberId,
+                            import_key = :importKey,
+                            version = version + 1,
+                            updated_at = now()
+                        where workspace_id = :ws
+                          and id = :id
+                          and account_id = :accountId
+                          and kind = :kind
+                          and status = 'PLANNED'
+                          and deleted_at is null
+                          and """ + AccountScope.sqlIncludes("account_id"))
+                        .param("occurredOn", row.occurredOn())
+                        .param("amount", row.amount().amount())
+                        .param("memberId", memberId)
+                        .param("importKey", row.importKey())
+                        .param("ws", workspaceId)
+                        .param("id", plannedId)
+                        .param("accountId", accountId)
+                        .param("kind", row.kind().name())
+                        .param("scopeIds", scope.sqlArray())
+                        .update()
+                == 1;
+    }
+
+    /**
+     * Inserts the line as a confirmed transaction in the account, recorded by and for the member, with no payment
+     * method. Nothing happens when the id or the key is already taken (deleted rows included) or the key has a
+     * tombstone; whether it was inserted.
+     */
+    boolean insertImported(UUID workspaceId, UUID accountId, UUID memberId, ImportRow row) {
+        return jdbc.sql("""
+                        insert into transactions
+                            (id, workspace_id, kind, amount, currency, occurred_on, account_id, category_id,
+                             description, member_id, created_by, import_key)
+                        select :id, :ws, :kind, :amount, :currency, :occurredOn, :accountId, :categoryId,
+                               :description, :memberId, :memberId, :importKey
+                        where not exists (
+                            select 1 from import_tombstones where workspace_id = :ws and import_key = :importKey)
+                        on conflict do nothing
+                        returning id""")
+                .param("id", row.id())
+                .param("ws", workspaceId)
+                .param("kind", row.kind().name())
+                .param("amount", row.amount().amount())
+                .param("currency", row.amount().currency().getCurrencyCode())
+                .param("occurredOn", row.occurredOn())
+                .param("accountId", accountId)
+                .param("categoryId", row.categoryId())
+                .param("description", row.description())
+                .param("memberId", memberId)
+                .param("importKey", row.importKey())
+                .query(UUID.class)
+                .optional()
+                .isPresent();
+    }
+
+    /**
      * The confirmed income and expenses on or after {@code since}, not deleted, in accounts of the scope and in a
      * category that is not archived; the newest first.
      */

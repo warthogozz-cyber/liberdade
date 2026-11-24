@@ -524,6 +524,57 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/accounts/{accountId}/imports": {
+      "post": {
+        "operationId": "importStatement",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "accountId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description": "Stored: how many lines became transactions, confirmed a planned one or were already in"
+          }
+        },
+        "tags": [
+          "import-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/accounts/{id}": {
       "patch": {
         "operationId": "updateAccount",
@@ -3932,6 +3983,91 @@
           }
         }
       },
+      "ImportRequest": {
+        "required": [
+          "rows"
+        ],
+        "type": "object",
+        "properties": {
+          "rows": {
+            "maxItems": 500,
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportRow"
+            }
+          }
+        }
+      },
+      "ImportResult": {
+        "type": "object",
+        "properties": {
+          "confirmed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "created": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skipped": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ImportRow": {
+        "required": [
+          "amount",
+          "categoryId",
+          "id",
+          "importKey",
+          "kind",
+          "occurredOn"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "confirmsPlannedId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "description": {
+            "maxLength": 140,
+            "minLength": 0,
+            "pattern": "[^\\x00]*",
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "importKey": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
       "IndicatorView": {
         "type": "object",
         "properties": {
@@ -4731,6 +4867,10 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "importKey": {
+            "type": "string",
+            "nullable": true
           },
           "kind": {
             "type": "string",

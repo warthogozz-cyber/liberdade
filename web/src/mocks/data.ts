@@ -485,6 +485,7 @@ export function seedPlanningFixture(workspace: MeWorkspace): void {
     status: 'CONFIRMED',
     scheduledOn: null,
     recurringRuleId: null,
+    importKey: null,
     createdAt: new Date().toISOString(),
     memberId: workspace.membershipId,
     version: 0,

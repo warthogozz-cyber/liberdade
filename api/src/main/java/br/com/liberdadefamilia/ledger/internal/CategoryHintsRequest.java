@@ -8,7 +8,7 @@ import java.util.List;
 /** The descriptions of a statement, up to {@value #MAX_ITEMS} a call. */
 record CategoryHintsRequest(
         @NotNull @Size(min = 1, max = CategoryHintsRequest.MAX_ITEMS)
-        List<@Valid CategoryHintItem> items) {
+        List<@NotNull @Valid CategoryHintItem> items) {
 
     static final int MAX_ITEMS = 500;
 }

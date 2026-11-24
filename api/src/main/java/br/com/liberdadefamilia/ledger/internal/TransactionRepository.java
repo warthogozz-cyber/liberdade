@@ -35,7 +35,7 @@ class TransactionRepository {
      */
     private static final String COLUMNS = """
             id, kind, amount, currency, occurred_on, account_id, to_account_id, category_id, description, payment_method,
-            status, scheduled_on, recurring_rule_id, member_id, created_at, version,
+            status, scheduled_on, recurring_rule_id, import_key, member_id, created_at, version,
             (select coalesce(array_agg(tg.name order by lower(tg.name), tg.id), cast('{}' as text[]))
              from transaction_tags tt
              join tags tg on tg.workspace_id = tt.workspace_id and tg.id = tt.tag_id
@@ -571,6 +571,7 @@ class TransactionRepository {
                 rs.getString("status"),
                 rs.getObject("scheduled_on", LocalDate.class),
                 rs.getObject("recurring_rule_id", UUID.class),
+                rs.getString("import_key"),
                 rs.getObject("member_id", UUID.class),
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
                 rs.getLong("version"));

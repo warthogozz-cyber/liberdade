@@ -292,6 +292,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/accounts/{accountId}/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["importStatement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/accounts/{id}": {
         parameters: {
             query?: never;
@@ -1334,6 +1350,32 @@ export interface components {
             goals: components["schemas"]["GoalView"][];
             limitReached: boolean;
         };
+        ImportRequest: {
+            rows: components["schemas"]["ImportRow"][];
+        };
+        ImportResult: {
+            /** Format: int32 */
+            confirmed: number;
+            /** Format: int32 */
+            created: number;
+            /** Format: int32 */
+            skipped: number;
+        };
+        ImportRow: {
+            amount: components["schemas"]["Money"];
+            /** Format: uuid */
+            categoryId: string;
+            /** Format: uuid */
+            confirmsPlannedId?: string | null;
+            description?: string | null;
+            /** Format: uuid */
+            id: string;
+            importKey: string;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            /** Format: date */
+            occurredOn: string;
+        };
         IndicatorView: {
             code: string;
             name: string;
@@ -1585,6 +1627,7 @@ export interface components {
             description: string | null;
             /** Format: uuid */
             id: string;
+            importKey: string | null;
             /** @enum {string} */
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
             /** Format: uuid */
@@ -2143,6 +2186,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccountView"];
+                };
+            };
+        };
+    };
+    importStatement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Stored: how many lines became transactions, confirmed a planned one or were already in */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
                 };
             };
         };
