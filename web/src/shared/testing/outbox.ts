@@ -45,6 +45,7 @@ export function transactionView(
     status: 'CONFIRMED',
     scheduledOn: null,
     recurringRuleId: null,
+    importKey: null,
     createdAt,
     memberId: 'member',
     version: 0,

@@ -80,6 +80,13 @@ export const routes: RouteObject[] = [
                   })),
               },
               {
+                path: '/lancamentos/importar',
+                lazy: () =>
+                  import('@/features/import/ImportPage').then((m) => ({
+                    Component: m.ImportPage,
+                  })),
+              },
+              {
                 path: '/painel',
                 lazy: () =>
                   import('@/features/dashboard/DashboardPage').then((m) => ({

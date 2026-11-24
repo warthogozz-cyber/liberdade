@@ -24,6 +24,7 @@ const FREE: PlanDetails = {
   presaleOpen: true,
   canPurchase: true,
   canRefund: false,
+  importAllowed: false,
   refundDeadline: null,
   paidOrderId: null,
   openOrder: null,
@@ -36,6 +37,7 @@ const FOUNDER: PlanDetails = {
   endsAt: '2027-11-17T15:00:00Z',
   canPurchase: false,
   canRefund: true,
+  importAllowed: true,
   refundDeadline: '2026-11-25T03:00:00Z',
   paidOrderId: 'o1',
 }

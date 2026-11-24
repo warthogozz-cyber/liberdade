@@ -31,13 +31,13 @@ export { selectWorkspace }
 const accountsQuery = (ws: string) =>
   queryOptions({ queryKey: queryKeys.accounts(ws), queryFn: () => listAccounts(ws) })
 
-const categoriesQuery = (ws: string, kind: CategoryKind) =>
+export const categoriesQuery = (ws: string, kind: CategoryKind) =>
   queryOptions({
     queryKey: queryKeys.categories(ws, kind),
     queryFn: () => listCategories(ws, kind),
   })
 
-const transactionsQuery = (ws: string, month: string, filters?: TransactionFilters) =>
+export const transactionsQuery = (ws: string, month: string, filters?: TransactionFilters) =>
   queryOptions({
     queryKey: queryKeys.transactions(ws, month, filters),
     queryFn: () => listTransactions(ws, month, filters),

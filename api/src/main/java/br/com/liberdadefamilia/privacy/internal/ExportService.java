@@ -67,7 +67,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 class ExportService {
 
-    private static final int FORMAT_VERSION = 4;
+    private static final int FORMAT_VERSION = 5;
     private static final ZoneId FORTALEZA = ZoneId.of("America/Fortaleza");
     private static final List<String> TRANSACTION_HEADER = List.of(
             "data",
@@ -135,7 +135,8 @@ class ExportService {
             @Nullable PaymentMethod paymentMethod,
             List<String> tags,
             @Nullable LocalDate scheduledOn,
-            @Nullable UUID recurringRuleId) {}
+            @Nullable UUID recurringRuleId,
+            @Nullable String importKey) {}
 
     /** A tag the person created, with the family it belongs to. */
     private record PersonalTag(
@@ -320,7 +321,8 @@ class ExportService {
                         t.paymentMethod(),
                         t.tags(),
                         t.scheduledOn(),
-                        t.recurringRuleId()));
+                        t.recurringRuleId(),
+                        t.importKey()));
             }
             for (ExportedTag t : ledger.tagsCreatedBy(m.workspaceId(), m.membershipId())) {
                 tags.add(new PersonalTag(m.workspaceId(), family, t.id(), t.name(), t.createdAt(), t.archivedAt()));

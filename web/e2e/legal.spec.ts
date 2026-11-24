@@ -168,7 +168,7 @@ test('newVersionAsksAgain: whoever accepted the texts from before billing accept
         (window as unknown as { acceptBodies: string[] }).acceptBodies.map((b) => JSON.parse(b)),
       ),
     )
-    .toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12.3' }])
+    .toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12.4' }])
   await expect(page.getByRole('heading', GATE)).toHaveCount(0)
   await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible()
 })

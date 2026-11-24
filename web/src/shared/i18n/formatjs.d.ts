@@ -28,6 +28,8 @@ import type { portraitMessages } from '@/features/portrait/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { settingsMessages } from '@/features/settings/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
+import type { importMessages } from '@/features/import/messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
 import type { indicatorsMessages } from '@/features/indicators/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { planningMessages } from '@/features/planning/messages.pt-BR'
@@ -48,6 +50,7 @@ declare global {
         | keyof typeof categoriesMessages
         | keyof typeof dashboardMessages
         | keyof typeof gettingStartedMessages
+        | keyof typeof importMessages
         | keyof typeof indicatorsMessages
         | keyof typeof legalLabelsMessages
         | keyof typeof legalMessages
