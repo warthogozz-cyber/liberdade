@@ -170,6 +170,17 @@ usa chama o pacote raiz (`Plans`, `@RequiresPlan`, `BillingExport`) ou ouve os e
   `infra/live/indicator_alerts.tf`, um alarme por ambiente conta `INDICATOR_ALERT` e, só na
   produção, outro avisa quando 24 h passam sem `INDICATOR_RUN`. Veja o
   [runbook](runbooks/indicator-alerts.md). A página pública `/robo` explica o robô.
+- **Importação de extrato (Plano 8.2).** O arquivo OFX ou CSV é lido e interpretado no aparelho
+  e nunca sai dele; a API só recebe as linhas que a pessoa confirmou. `POST
+  /v1/workspaces/{ws}/imports/category-hints` sugere categorias pelo histórico da própria família
+  (últimos 365 dias) e `POST /v1/workspaces/{ws}/accounts/{accountId}/imports` grava até 500
+  linhas por chamada, numa transação, pulando as que já existem (`import_key`, ver o
+  [modelo de dados](data-model.md#plano-82-migrações-v19-e-v20)) e confirmando previstos quando a
+  pessoa pede. As duas rotas são para Dono, Adulto e Jovem (nas contas do escopo dele), ficam
+  abertas com a cobrança desligada e, ligada, exigem o plano Família. A API publica
+  `StatementImported` e grava `transactions.imported` na auditoria só com contagens. Nenhum log
+  leva valor, data ou descrição de linha importada. A política em vigor passa a ser a
+  `privacy-2026-11.4` (ou a `2026-12.4` com a cobrança ligada), que só avisa, sem novo aceite.
 - **Retrato do mês.** É só do front: o cartão é desenhado e compartilhado no aparelho, sem chamada
   de rede e sem dado novo no servidor.
 

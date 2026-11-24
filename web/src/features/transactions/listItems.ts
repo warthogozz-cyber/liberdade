@@ -30,6 +30,7 @@ function fromOutbox(item: OutboxItem): ListItem {
     status: 'CONFIRMED',
     scheduledOn: null,
     recurringRuleId: null,
+    importKey: null,
     // Not stored yet, so at no version of the API's.
     version: 0,
     // Without a chosen member the API credits the signed-in one; '' stands for that here.

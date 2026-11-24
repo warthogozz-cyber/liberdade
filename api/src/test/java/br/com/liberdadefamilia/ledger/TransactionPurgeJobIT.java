@@ -37,6 +37,7 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 class TransactionPurgeJobIT {
 
     private static final Instant NOW = Instant.parse("2026-11-16T06:30:00Z");
+    private static final String KEY = "c".repeat(64);
 
     @Autowired
     MockMvcTester mvc;
@@ -173,21 +174,81 @@ class TransactionPurgeJobIT {
         assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("transaction.not-found");
     }
 
-    /** An expense of Ana's written by SQL, deleted at the given instant or not deleted. */
+    @Test
+    void purgeCopiesTheImportKey() {
+        UUID id = stored(NOW.minus(Duration.ofDays(31)), KEY);
+
+        job.purge();
+
+        assertThat(exists(id)).isFalse();
+        assertThat(jdbc.sql("select account_id from import_tombstones where workspace_id = :ws and import_key = :key")
+                        .param("ws", workspaceId)
+                        .param("key", KEY)
+                        .query(UUID.class)
+                        .list())
+                .containsExactly(ledger.walletOf(workspaceId));
+    }
+
+    @Test
+    void purgeWithoutKeyLeavesNoTombstone() {
+        stored(NOW.minus(Duration.ofDays(31)));
+
+        job.purge();
+
+        assertThat(jdbc.sql("select count(*) from import_tombstones where workspace_id = :ws")
+                        .param("ws", workspaceId)
+                        .query(Long.class)
+                        .single())
+                .isZero();
+    }
+
+    @Test
+    void oldTombstonesGo() {
+        UUID account = ledger.walletOf(workspaceId);
+        // Today is 2026-11-16 in Sao Paulo: the 13 months end on 2025-10-16 (13 months and 1 day vs 12 months and 29).
+        tombstone(account, "a".repeat(64), "2025-10-15T12:00:00Z");
+        tombstone(account, "b".repeat(64), "2025-10-18T12:00:00Z");
+
+        job.purge();
+
+        assertThat(jdbc.sql("select import_key from import_tombstones where workspace_id = :ws")
+                        .param("ws", workspaceId)
+                        .query(String.class)
+                        .list())
+                .containsExactly("b".repeat(64));
+    }
+
+    private void tombstone(UUID account, String key, String purgedAt) {
+        jdbc.sql("""
+                        insert into import_tombstones (workspace_id, account_id, import_key, purged_at)
+                        values (:ws, :account, :key, :at)""")
+                .param("ws", workspaceId)
+                .param("account", account)
+                .param("key", key)
+                .param("at", OffsetDateTime.parse(purgedAt))
+                .update();
+    }
+
     private UUID stored(@Nullable Instant deletedAt) {
+        return stored(deletedAt, null);
+    }
+
+    /** An expense of Ana's written by SQL, deleted at the given instant or not deleted. */
+    private UUID stored(@Nullable Instant deletedAt, @Nullable String importKey) {
         UUID id = TestIds.v7();
         jdbc.sql("""
                         insert into transactions
                             (id, workspace_id, kind, amount, currency, occurred_on,
-                             account_id, category_id, member_id, created_by, deleted_at)
+                             account_id, category_id, member_id, created_by, deleted_at, import_key)
                         values (:id, :workspaceId, 'EXPENSE', 12.34, 'BRL', '2026-10-02',
-                                :accountId, :categoryId, :membershipId, :membershipId, :deletedAt)""")
+                                :accountId, :categoryId, :membershipId, :membershipId, :deletedAt, :importKey)""")
                 .param("id", id)
                 .param("workspaceId", workspaceId)
                 .param("accountId", ledger.walletOf(workspaceId))
                 .param("categoryId", ledger.categoryOf(workspaceId, "EXPENSE", "Mercado"))
                 .param("membershipId", membershipId)
                 .param("deletedAt", deletedAt == null ? null : OffsetDateTime.ofInstant(deletedAt, ZoneOffset.UTC))
+                .param("importKey", importKey)
                 .update();
         return id;
     }

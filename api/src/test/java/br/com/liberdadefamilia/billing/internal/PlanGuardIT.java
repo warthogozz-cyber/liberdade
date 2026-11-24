@@ -1,8 +1,10 @@
 package br.com.liberdadefamilia.billing.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
+import br.com.liberdadefamilia.billing.Plans;
 import br.com.liberdadefamilia.billing.domain.FounderOffer;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestClock;
@@ -21,6 +23,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
@@ -52,10 +55,13 @@ class PlanGuardIT {
     OrderPayments payments;
 
     @Autowired
-    PlanRepository plans;
+    PlanRepository planRows;
 
     @Autowired
     FakePaymentGateway gateway;
+
+    @MockitoSpyBean
+    Plans plans;
 
     @Autowired
     TestUsers users;
@@ -189,6 +195,64 @@ class PlanGuardIT {
         assertThat(result).bodyJson().extractingPath("$.key").isEqualTo("FREE");
         assertThat(result).bodyJson().extractingPath("$.theme").isEqualTo("TEAL");
         // Only the view falls back to TEAL; the stored choice stays for a later purchase.
-        assertThat(plans.find(f.ws).orElseThrow().theme()).isEqualTo("FOREST");
+        assertThat(planRows.find(f.ws).orElseThrow().theme()).isEqualTo("FOREST");
+    }
+
+    private static final String HINTS = "{\"items\":[{\"kind\":\"EXPENSE\",\"key\":\"padaria\"}]}";
+
+    private MvcTestResult postHints(UUID user, UUID ws) {
+        var session = TestUsers.signedIn(user, null);
+        return mvc.post()
+                .uri("/v1/workspaces/" + ws + "/imports/category-hints")
+                .with(session)
+                .with(CsrfSession.start(mvc, session))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(HINTS)
+                .exchange();
+    }
+
+    @Test
+    void importOpenWhileBillingOff() {
+        Family f = family();
+        doReturn(false).when(plans).legalSetEnabled();
+
+        assertThat(postHints(f.owner, f.ws)).hasStatus(200);
+        assertThat(getPlan(f.owner, f.ws))
+                .bodyJson()
+                .extractingPath("$.importAllowed")
+                .isEqualTo(true);
+    }
+
+    @Test
+    void importNeedsFamilyWhileBillingOn() {
+        Family f = family();
+        doReturn(true).when(plans).legalSetEnabled();
+
+        MvcTestResult free = postHints(f.owner, f.ws);
+        assertThat(free).hasStatus(403);
+        assertThat(free).bodyJson().extractingPath("$.code").isEqualTo("plan.required");
+        assertThat(getPlan(f.owner, f.ws))
+                .bodyJson()
+                .extractingPath("$.importAllowed")
+                .isEqualTo(false);
+
+        paidOrder(f);
+
+        assertThat(postHints(f.owner, f.ws)).hasStatus(200);
+        assertThat(getPlan(f.owner, f.ws))
+                .bodyJson()
+                .extractingPath("$.importAllowed")
+                .isEqualTo(true);
+    }
+
+    @Test
+    void otherPlanRoutesUnchanged() {
+        Family f = family();
+        doReturn(false).when(plans).legalSetEnabled();
+
+        MvcTestResult result = putTheme(f.owner, f.ws, "{\"theme\":\"OCEAN\"}");
+
+        assertThat(result).hasStatus(403);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("plan.required");
     }
 }

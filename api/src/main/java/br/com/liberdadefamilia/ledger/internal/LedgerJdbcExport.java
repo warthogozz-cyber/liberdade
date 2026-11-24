@@ -25,7 +25,7 @@ class LedgerJdbcExport implements LedgerExport {
     private static final String TRANSACTIONS = """
             select t.id, t.kind, t.amount, t.currency, t.occurred_on, a.name as account_name,
                    ta.name as to_account_name, c.name as category_name, t.description, t.member_id, t.created_at,
-                   t.status, t.payment_method, t.scheduled_on, t.recurring_rule_id,
+                   t.status, t.payment_method, t.scheduled_on, t.recurring_rule_id, t.import_key,
                    array(select g.name from transaction_tags tt
                          join tags g on g.workspace_id = tt.workspace_id and g.id = tt.tag_id
                          where tt.workspace_id = t.workspace_id and tt.transaction_id = t.id
@@ -154,6 +154,7 @@ class LedgerJdbcExport implements LedgerExport {
                 paymentMethod == null ? null : PaymentMethod.valueOf(paymentMethod),
                 List.of((String[]) rs.getArray("tag_names").getArray()),
                 rs.getObject("scheduled_on", LocalDate.class),
-                rs.getObject("recurring_rule_id", UUID.class));
+                rs.getObject("recurring_rule_id", UUID.class),
+                rs.getString("import_key"));
     }
 }

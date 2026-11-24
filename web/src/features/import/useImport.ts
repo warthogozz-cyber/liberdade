@@ -1,0 +1,104 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { ApiError } from '@/shared/api'
+import { importStatement } from '@/shared/api/imports'
+import { queryKeys } from '@/shared/api/queryKeys'
+import { planningKeys } from '@/shared/api/planning'
+import { useWorkspaces } from '@/shared/api/hooks'
+import type { ImportRow } from '@/shared/api/types'
+import { centsToApi, DEFAULT_CURRENCY } from '@/shared/money/money'
+import type { PreviewLine } from './preview'
+
+/** The API takes at most this many lines per call. */
+const BATCH_SIZE = 500
+const MAX_DESCRIPTION_LENGTH = 140
+
+export type ImportTotals = {
+  created: number
+  confirmed: number
+  skipped: number
+  /** How many lines were already sent when a batch failed; `null` when every batch went through. */
+  failedAfter: number | null
+  /** Why the failed batch failed; `null` when every batch went through. */
+  failure: ImportFailure | null
+}
+
+export type ImportFailure = {
+  /**
+   * Whether sending again can help: no answer, a server error, a timeout, a conflict with a concurrent import or
+   * a rate limit. Any other refusal (a 4xx) would only be refused again.
+   */
+  retryable: boolean
+  /** The API's reason (it never carries statement data), or `null` when it gave none. */
+  detail: string | null
+}
+
+const RETRYABLE_STATUSES = new Set([0, 408, 409, 429])
+
+/** What a failed batch means for the person: retry, or read the reason. */
+export function failureOf(error: unknown): ImportFailure {
+  if (!(error instanceof ApiError)) return { retryable: true, detail: null }
+  const retryable = RETRYABLE_STATUSES.has(error.status) || error.status >= 500
+  return { retryable, detail: error.detail ?? null }
+}
+
+function toRow(line: PreviewLine, currency: string): ImportRow {
+  // The screen keeps the button off while a checked line has no category; this is the last guard.
+  if (line.categoryId === null) throw new Error('A checked line has no category')
+  return {
+    id: line.id,
+    kind: line.kind,
+    amount: { amount: centsToApi(line.absCents), currency },
+    occurredOn: line.occurredOn,
+    description: line.description.trim().slice(0, MAX_DESCRIPTION_LENGTH),
+    categoryId: line.categoryId,
+    importKey: line.importKey,
+    confirmsPlannedId: line.confirmsPlannedId,
+  }
+}
+
+/**
+ * Sends the checked lines in batches of 500, one after the other, with the typed client (never the offline
+ * queue). A failed batch stops the rest and `failedAfter` says how many lines had gone; sending again is safe,
+ * the API counts what it already has as skipped. The family's transactions, accounts, dashboard and planning
+ * are refetched at the end, whatever happened.
+ */
+export function useImport(ws: string, accountId: string) {
+  const queryClient = useQueryClient()
+  const workspaces = useWorkspaces()
+  const currency = workspaces.find((w) => w.id === ws)?.currency ?? DEFAULT_CURRENCY
+
+  async function send(lines: PreviewLine[]): Promise<ImportTotals> {
+    const rows = lines.filter((l) => l.checked).map((l) => toRow(l, currency))
+    const totals: ImportTotals = {
+      created: 0,
+      confirmed: 0,
+      skipped: 0,
+      failedAfter: null,
+      failure: null,
+    }
+    for (let start = 0; start < rows.length; start += BATCH_SIZE) {
+      try {
+        const result = await importStatement(ws, accountId, rows.slice(start, start + BATCH_SIZE))
+        totals.created += result.created
+        totals.confirmed += result.confirmed
+        totals.skipped += result.skipped
+      } catch (error) {
+        totals.failedAfter = start
+        totals.failure = failureOf(error)
+        break
+      }
+    }
+    if (rows.length > 0) {
+      const family = queryKeys.workspace(ws)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.accounts(ws) }),
+        queryClient.invalidateQueries({ queryKey: [...family, 'transactions'] }),
+        queryClient.invalidateQueries({ queryKey: [...family, 'dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: planningKeys.all(ws) }),
+      ])
+    }
+    return totals
+  }
+
+  return { send }
+}
