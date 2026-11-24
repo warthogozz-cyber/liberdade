@@ -10,6 +10,7 @@ import {
   type UpdateAccountRequest,
 } from '@/shared/api'
 import { useSetAccountOwner } from '@/shared/api/detail'
+import { useModuleEnabled } from '@/shared/modules'
 import { centsToApi } from '@/shared/money'
 import { useOnline } from '@/shared/offline'
 import { useToast } from '@/shared/ui'
@@ -50,6 +51,11 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
   const typeLegendId = `${ids}-type-legend`
   // Only an Owner or an Adult chooses who an account belongs to; the API still answers for it.
   const canChooseOwner = workspace.role === 'OWNER' || workspace.role === 'ADULT'
+  // The reserve flag is the planning module's: with it off, or for another role, the field stays out
+  // of the request and the stored flag is kept.
+  const planningOn = useModuleEnabled('planning')
+  const showReserve = planningOn && canChooseOwner && account !== undefined
+  const [isReserve, setIsReserve] = useState(account?.isReserve ?? false)
   const pending = create.isPending || update.isPending || setOwner.isPending
 
   const trimmed = name.trim()
@@ -58,7 +64,8 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
     ...(account && trimmed !== account.name && { name: trimmed }),
     ...(account && type !== account.type && { type }),
   }
-  const changed = Object.keys(changes).length > 0
+  const reserveChanged = showReserve && isReserve !== account.isReserve
+  const changed = Object.keys(changes).length > 0 || reserveChanged
   // The owner has its own call: it goes after the account is saved, and only when it changed.
   const ownerChanged =
     canChooseOwner && account !== undefined && ownerId !== (account.ownerMembershipId ?? null)
@@ -71,7 +78,11 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
     setError(undefined)
     try {
       if (account) {
-        if (changed) await update.mutateAsync({ id: account.id, body: changes })
+        if (changed)
+          await update.mutateAsync({
+            id: account.id,
+            body: showReserve ? { ...changes, isReserve } : changes,
+          })
         if (ownerChanged) await setOwner.mutateAsync({ id: account.id, membershipId: ownerId })
       } else {
         await create.mutateAsync({
@@ -161,6 +172,24 @@ export function AccountForm({ workspace, account, onDone }: AccountFormProps) {
           onChange={setOwnerId}
           disabled={!online}
         />
+      )}
+      {showReserve && (
+        <div className="flex flex-col gap-1">
+          <label className="flex min-h-12 items-center gap-3 font-medium">
+            <input
+              type="checkbox"
+              checked={isReserve}
+              disabled={!online}
+              aria-describedby={`${ids}-isReserve-hint`}
+              onChange={(event) => setIsReserve(event.target.checked)}
+              className="size-5"
+            />
+            {intl.formatMessage({ id: 'accounts.field.reserve' })}
+          </label>
+          <p id={`${ids}-isReserve-hint`} className="text-text-muted">
+            {intl.formatMessage({ id: 'accounts.field.reserveHint' })}
+          </p>
+        </div>
       )}
       {!account && (
         <fieldset className="flex flex-col gap-2">

@@ -3,7 +3,7 @@ import { http } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
-import { API_URL } from '@/shared/api'
+import { API_URL, type AccountView } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
 import { AccountForm } from './AccountForm'
 
@@ -107,5 +107,75 @@ describe('AccountForm owner', () => {
     renderWithProviders(<AccountForm workspace={workspace} onDone={() => {}} />)
 
     expect(screen.queryByRole('group', { name: 'Titular' })).not.toBeInTheDocument()
+  })
+})
+
+describe('AccountForm reserve toggle', () => {
+  const edited = () => {
+    const workspace = seedMockFamily()
+    const stored = mockState.accounts[0]
+    const account: AccountView = {
+      ...stored,
+      balance: stored.initialBalance,
+    }
+    return { workspace, account }
+  }
+
+  function capture() {
+    const bodies: Record<string, unknown>[] = []
+    server.use(
+      http.patch(`${API_URL}/v1/workspaces/:ws/accounts/:id`, async ({ request }) => {
+        bodies.push((await request.clone().json()) as Record<string, unknown>)
+        return undefined
+      }),
+    )
+    return bodies
+  }
+
+  it('showsTheToggleWithTheModuleOnForAnAdult', async () => {
+    const { workspace, account } = edited()
+    workspace.role = 'ADULT'
+    mockState.modules[workspace.id] = { planning: true }
+    renderWithProviders(<AccountForm workspace={workspace} account={account} onDone={() => {}} />)
+
+    expect(await screen.findByRole('checkbox', { name: 'Esta conta é reserva' })).not.toBeChecked()
+  })
+
+  it('hidesTheToggleWithTheModuleOff', async () => {
+    const { workspace, account } = edited()
+    renderWithProviders(<AccountForm workspace={workspace} account={account} onDone={() => {}} />)
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.queryByRole('checkbox', { name: 'Esta conta é reserva' })).not.toBeInTheDocument()
+  })
+
+  it('alwaysSendsTheFlagWhenShown', async () => {
+    const { workspace, account } = edited()
+    mockState.modules[workspace.id] = { planning: true }
+    const bodies = capture()
+    renderWithProviders(<AccountForm workspace={workspace} account={account} onDone={() => {}} />)
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Esta conta é reserva' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), {
+      target: { value: 'Outro nome' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => expect(bodies).toHaveLength(1))
+    expect(bodies[0]).toEqual({ name: 'Outro nome', isReserve: true })
+  })
+
+  it('sendsNoFlagWhenTheToggleIsHidden', async () => {
+    const { workspace, account } = edited()
+    const bodies = capture()
+    renderWithProviders(<AccountForm workspace={workspace} account={account} onDone={() => {}} />)
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), {
+      target: { value: 'Outro nome' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => expect(bodies).toHaveLength(1))
+    expect(bodies[0]).toEqual({ name: 'Outro nome' })
   })
 })

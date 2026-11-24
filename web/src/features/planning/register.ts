@@ -35,3 +35,10 @@ registerSlot('home', {
   roles: ['OWNER', 'ADULT', 'VIEWER'],
   Component: lazy(() => import('./BudgetHomeCard')),
 })
+
+registerSlot('home', {
+  key: 'planning-reserve-card',
+  module: 'planning',
+  roles: ['OWNER', 'ADULT', 'VIEWER'],
+  Component: lazy(() => import('./ReserveHomeCard')),
+})
