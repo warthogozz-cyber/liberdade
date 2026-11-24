@@ -1,4 +1,9 @@
 import { FormattedMessage, useIntl } from 'react-intl'
+import { registerMessages } from '@/shared/i18n'
+import { sourceStampMessages } from './sourceStamp.messages.pt-BR'
+
+// The text loads with the first lazy chunk that uses the stamp, not with the app.
+registerMessages(sourceStampMessages)
 
 interface SourceStampProps {
   source: string

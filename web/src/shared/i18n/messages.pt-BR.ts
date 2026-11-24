@@ -103,9 +103,6 @@ export const messages = {
   'home.addAccountsHint': 'Adicione suas contas para ver o saldo real.',
   'home.openDashboard': 'Ver painel do mês',
   'offline.dataAsOf': 'Mostrando dados de {when}.',
-  'sourceStamp.updated': 'Fonte: {source} · atualizado em {date}',
-  'sourceStamp.never': 'Fonte: {source} · ainda sem atualização',
-  'sourceStamp.stale': 'desatualizado',
   'home.offlineNoData': 'Sem conexão. Os totais aparecem quando o sinal voltar.',
   'home.needsAttention':
     '{count, plural, one {# gasto precisa de atenção} other {# gastos precisam de atenção}}',

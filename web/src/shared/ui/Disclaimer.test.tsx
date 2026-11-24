@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Disclaimer } from '@/shared/ui'
+import { Disclaimer } from '@/shared/ui/Disclaimer'
 
 afterEach(cleanup)
 

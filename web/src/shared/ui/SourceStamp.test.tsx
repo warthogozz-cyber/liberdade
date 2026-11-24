@@ -2,7 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { IntlProvider } from 'react-intl'
 import { afterEach, describe, expect, it } from 'vitest'
 import { appMessages, locale } from '@/shared/i18n'
-import { SourceStamp } from '@/shared/ui'
+import { SourceStamp } from '@/shared/ui/SourceStamp'
 
 afterEach(cleanup)
 
