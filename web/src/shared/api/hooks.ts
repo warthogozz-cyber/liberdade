@@ -37,7 +37,7 @@ const categoriesQuery = (ws: string, kind: CategoryKind) =>
     queryFn: () => listCategories(ws, kind),
   })
 
-const transactionsQuery = (ws: string, month: string, filters?: TransactionFilters) =>
+export const transactionsQuery = (ws: string, month: string, filters?: TransactionFilters) =>
   queryOptions({
     queryKey: queryKeys.transactions(ws, month, filters),
     queryFn: () => listTransactions(ws, month, filters),
