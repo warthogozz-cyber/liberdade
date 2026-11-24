@@ -1736,6 +1736,38 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/indicators": {
+      "get": {
+        "operationId": "listIndicators",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndicatorsView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "indicator-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/invitations": {
       "get": {
         "operationId": "listInvitations",
@@ -3799,6 +3831,59 @@
           }
         }
       },
+      "IndicatorView": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "referenceDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceView"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "value": {
+            "type": "string",
+            "nullable": true
+          },
+          "variation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VariationView"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "IndicatorsView": {
+        "type": "object",
+        "properties": {
+          "indicators": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IndicatorView"
+            }
+          }
+        }
+      },
       "InvitationPreview": {
         "type": "object",
         "properties": {
@@ -4445,6 +4530,18 @@
           }
         }
       },
+      "SourceView": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "SpendingSplitView": {
         "type": "object",
         "properties": {
@@ -4932,6 +5029,24 @@
           "version": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "VariationView": {
+        "type": "object",
+        "properties": {
+          "basis": {
+            "type": "string"
+          },
+          "since": {
+            "type": "string",
+            "format": "date"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
           }
         }
       },

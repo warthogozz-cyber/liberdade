@@ -126,6 +126,7 @@ class RoleMatrixIT {
                         goalRows(),
                         reserveRows(),
                         projectionRows(),
+                        indicatorRows(),
                         memberRows(),
                         invitationRows(),
                         workspaceRows(),
@@ -275,6 +276,11 @@ class RoleMatrixIT {
                                 Outcome.OK),
                         ownerAndAdult("PATCH " + W + "/reserve", W + "/reserve", "{\"targetMonths\":12}"))
                 .flatMap(group -> group);
+    }
+
+    static Stream<Row> indicatorRows() {
+        return each(
+                "GET " + W + "/indicators", W + "/indicators", null, Outcome.OK, Outcome.OK, Outcome.OK, Outcome.OK);
     }
 
     static Stream<Row> projectionRows() {
@@ -722,6 +728,10 @@ class RoleMatrixIT {
         UUID leoMembership = workspaces.addMember(ws, leo, YOUTH, "Leo");
         workspaces.addMember(ws, vera, VIEWER, "Vera");
         UUID tiaMembership = workspaces.addMember(ws, tia, VIEWER, "Tia");
+        // The indicators module starts off; the matrix reads the route with it on.
+        jdbc.sql("insert into workspace_modules (workspace_id, module_key, enabled) values (:ws, 'indicators', true)")
+                .param("ws", ws)
+                .update();
 
         Map<String, UUID> ids = new HashMap<>();
         ids.put("ws", ws);
