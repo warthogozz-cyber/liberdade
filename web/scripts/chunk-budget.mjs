@@ -99,3 +99,15 @@ export function composition(manifest, modulesByFile, gzipSize) {
     }))
     .sort((a, b) => b.gzipKb - a.gzipKb || a.group.localeCompare(b.group))
 }
+
+/**
+ * Sources that must load on demand only. An offender is a source whose own chunk is part of the
+ * initial load (`initialFiles`), so something static pulls it in.
+ */
+export function lazyOnly(manifest, sources) {
+  const initial = new Set(initialFiles(manifest))
+  const offenders = Object.values(manifest)
+    .filter((chunk) => sources.includes(chunk.src) && initial.has(chunk.file))
+    .map((chunk) => chunk.src)
+  return { ok: offenders.length === 0, offenders: [...new Set(offenders)] }
+}

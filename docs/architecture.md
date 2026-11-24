@@ -70,12 +70,15 @@ flowchart LR
     gamification[gamification · v0.3<br/>sequências, conquistas]
     ventures[ventures · v0.4<br/>Novo Projeto]
   end
+  live[live · Plano 7.3<br/>avisos ao vivo por SSE]
   shared[(shared<br/>Money, erros, relógio,<br/>limitador de taxa)]
   workspace --> identity
   ledger --> workspace
   planning --> ledger
   gamification --> ledger
   ventures --> ledger
+  live --> identity & workspace & ledger & planning
+  live -. ouve eventos .-> ledger & planning & workspace
   audit -. ouve eventos .-> identity & workspace
   audit --> identity & workspace
   privacy --> ledger & audit & workspace & identity & billing
@@ -204,6 +207,40 @@ saldo e a divisão entre gastos fixos e variáveis. Mesmo com mais coisa, ele co
 - **Navegação.** A barra inferior ganha Planejar entre "+ Novo gasto" e Mais enquanto o módulo está
   ligado (cinco itens; quatro quando desligado). Recorrências passou para `/planejar/recorrencias`.
 
+### Avisos ao vivo (módulo `live`, Plano 7.3)
+
+O módulo `live` leva ao navegador o aviso de que algo mudou na família, para as telas abertas em
+outros aparelhos se atualizarem sem recarregar. Ele lê de `identity`, `workspace`, `ledger` e
+`planning`, e ninguém depende dele (o Modulith confere). A decisão está no
+[ADR-0016](adr/0016-live-sync-sse-in-process.md).
+
+- **Rota.** `GET /v1/workspaces/{ws}/events` (`text/event-stream`, os quatro papéis). Manda `retry:
+  5000` e um comentário de abertura, e depois um evento `changed` por mudança, com só ids:
+  `{"entity":"transaction","id":"…"}`. Cada stream dura até 30 min.
+- **Registro.** `LiveStreams` é a interface (`open`, `publish`, `closeMember`, `closeWorkspace`,
+  `all`, `close`); `InMemoryLiveStreams` a implementa com um mapa por família. É o ponto de troca
+  por `LISTEN/NOTIFY` se a API passar a ter mais de um processo.
+- **Eventos novos.** Para o `live` ouvir, saem `AccountOwnerChanged`, `CategoryChanged` e
+  `TagChanged` (`ledger`), `BudgetChanged` e `GoalChanged` (`planning`) e `MemberProfileChanged`
+  (`workspace`); `AccountService.create` passa a publicar `AccountChanged`. O `LiveRelay` ouve todos
+  depois do commit e escolhe a audiência: todos, todos menos o Jovem (orçamento, reserva e
+  recorrências) ou quem enxerga a conta (`AccountVisibility`). Os avisos do planejamento só saem com o
+  módulo ligado.
+- **Batida a cada 25 s** (`LiveHeartbeat`). Manda um comentário e fecha o stream de quem perdeu a
+  sessão (`SessionLiveness`) ou a participação (`Memberships.activeAmong`). Mudar o papel ou remover
+  o membro fecha os streams dele na hora; pedir a exclusão da família fecha os da família.
+- **Limites.** 5 streams por pessoa e 1.000 por processo; acima disso, `429 rate.limited` com
+  `Retry-After: 60`. O fim do stream passa de novo pelos filtros, por isso o `SecurityConfig` e o
+  `WorkspaceGuardInterceptor` deixam passar o despacho `ASYNC`.
+- **Web** (`shared/live`). O `LiveSync`, montado no `WorkspaceLayout`, abre o stream só com a aba
+  visível e com rede, junta os avisos por 250 ms e busca de novo as consultas afetadas. Reconectar
+  busca tudo. Sem stream (429, 204, 401), o app busca de novo ao voltar à aba ou à rede, e tenta
+  abrir uma vez por minuto.
+- **Som e movimento.** `shared/sound` toca um som curto de conquista, desligado por padrão e ligado
+  em Mais > Ajustes (`/mais/ajustes`, no aparelho). O sintetizador carrega sob demanda e o
+  `check:chunks` confere que ele fica fora do carregamento inicial. As animações usam os tokens de
+  movimento e param com movimento reduzido.
+
 ### Família, Jovem e exclusão
 
 - **Sempre um Dono ativo.** Uma família nunca fica sem Dono ativo: pedir a exclusão da conta do
@@ -266,6 +303,7 @@ trafega como texto decimal: `{"amount": "1234.56", "currency": "BRL"}`.
 | Categorias | `GET`, `POST`, `PATCH .../categories/{id}`, `POST .../categories/{id}/archive`, `POST .../categories/{id}/unarchive` |
 | Lançamentos | `GET .../transactions?month=2026-11&accountId=&categoryId=`, `GET .../transactions/{id}`, `POST` (com `Idempotency-Key`), `PATCH .../transactions/{id}` (com `version`), `DELETE .../transactions/{id}`, `POST .../transactions/{id}/restore` |
 | Painel | `GET /v1/workspaces/{ws}/dashboard?month=2026-11` |
+| Avisos ao vivo (Plano 7.3) | `GET /v1/workspaces/{ws}/events` (SSE; só ids; 429 acima de 5 por pessoa ou 1.000 no processo) |
 | Cobrança (Plano 6) | `POST /v1/workspaces/{ws}/billing/checkout`, `POST .../billing/orders/{id}/refresh`, `POST .../billing/orders/{id}/refund`, `GET .../billing/plan`, `PUT .../billing/plan/theme`; o gateway chama `POST /v1/billing/webhooks/asaas` (público, com o cabeçalho `asaas-access-token`) |
 
 As páginas `/privacidade` e `/termos` são públicas e ficam só no front, com a versão e a data no
