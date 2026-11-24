@@ -7,7 +7,7 @@ import { ProjectionSheet } from './ProjectionSheet'
 import { useMonthEndLabel } from './projectionLabel'
 import './register'
 
-/** The projected balance on Início: four estimates, each at the end of a month; a tap explains them. */
+/** The projected balance on Início: four estimates, each at the end of a month; a button explains them. */
 export default function ProjectionHomeCard() {
   const intl = useIntl()
   const format = useFormatMoney()
@@ -19,11 +19,7 @@ export default function ProjectionHomeCard() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex flex-col gap-3 rounded-card bg-surface p-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      >
+      <section className="flex flex-col gap-3 rounded-card bg-surface p-4">
         <h2 className="text-lg font-semibold">
           {intl.formatMessage({ id: 'planning.projection.title' })}
         </h2>
@@ -38,7 +34,14 @@ export default function ProjectionHomeCard() {
             </li>
           ))}
         </ul>
-      </button>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="self-start rounded-card px-1 text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          {intl.formatMessage({ id: 'planning.projection.sheetTitle' })}
+        </button>
+      </section>
       {open && <ProjectionSheet projection={projection.data} onClose={() => setOpen(false)} />}
     </>
   )

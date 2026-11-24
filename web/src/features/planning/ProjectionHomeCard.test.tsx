@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen } from '@testing-library/react'
+import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
@@ -51,6 +51,19 @@ describe('ProjectionHomeCard', () => {
     expect(screen.getByText('fim de dez')).toBeInTheDocument()
   })
 
+  it('keeps the heading and the list outside the button', async () => {
+    serve(['4000.00', '3000.00'])
+    renderWithProviders(<ProjectionHomeCard />, { path: '/' })
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Saldo previsto · estimativa' }),
+    ).toBeInTheDocument()
+    const card = screen.getByRole('heading', { level: 2 }).closest('section')
+    expect(card).not.toBeNull()
+    expect(within(card as HTMLElement).getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Como chegamos nesses valores' })).toBeInTheDocument()
+  })
+
   it('negative is not red', async () => {
     serve(['100.00', '-900.00'])
     renderWithProviders(<ProjectionHomeCard />, { path: '/' })
@@ -63,7 +76,7 @@ describe('ProjectionHomeCard', () => {
     serve(['4000.00'])
     renderWithProviders(<ProjectionHomeCard />, { path: '/' })
 
-    fireEvent.click(await screen.findByRole('button', { name: /Saldo previsto/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Como chegamos nesses valores' }))
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 })
