@@ -1412,6 +1412,38 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/events": {
+      "get": {
+        "operationId": "events",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/SseEmitter"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "live-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/export": {
       "post": {
         "operationId": "exportFamilyData",
@@ -4426,6 +4458,15 @@
           },
           "variable": {
             "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "SseEmitter": {
+        "type": "object",
+        "properties": {
+          "timeout": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

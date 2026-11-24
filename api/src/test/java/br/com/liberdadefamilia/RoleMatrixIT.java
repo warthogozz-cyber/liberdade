@@ -6,6 +6,7 @@ import static br.com.liberdadefamilia.workspace.Role.VIEWER;
 import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import br.com.liberdadefamilia.live.internal.LiveStreams;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestIds;
 import br.com.liberdadefamilia.support.TestUsers;
@@ -62,6 +63,9 @@ class RoleMatrixIT {
 
     @Autowired
     JdbcClient jdbc;
+
+    @Autowired
+    LiveStreams streams;
 
     @Autowired
     TestUsers users;
@@ -128,7 +132,8 @@ class RoleMatrixIT {
                         moduleRows(),
                         exportRows(),
                         deletionRows(),
-                        billingRows())
+                        billingRows(),
+                        liveRows())
                 .flatMap(group -> group);
     }
 
@@ -545,6 +550,11 @@ class RoleMatrixIT {
                 .flatMap(group -> group);
     }
 
+    /** The stream opens for every role; the row checks the status of the request that went async. */
+    static Stream<Row> liveRows() {
+        return each("GET " + W + "/events", W + "/events", null, Outcome.OK, Outcome.OK, Outcome.OK, Outcome.OK);
+    }
+
     static Stream<Row> exportRows() {
         return ownerOnly("POST " + W + "/export", W + "/export", null);
     }
@@ -685,6 +695,12 @@ class RoleMatrixIT {
         }
         if (row.route().equals("POST " + W + "/transactions")) {
             request.header("Idempotency-Key", family.ids.get("newId").toString());
+        }
+        if (row.route().equals("GET " + W + "/events")) {
+            // The stream stays open: look at the request that went async, then free its slot.
+            MvcTestResult opened = request.asyncExchange();
+            streams.closeWorkspace(family.ids.get("ws"));
+            return opened;
         }
         return request.exchange();
     }

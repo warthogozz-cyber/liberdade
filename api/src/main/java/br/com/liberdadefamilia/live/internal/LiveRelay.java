@@ -23,6 +23,7 @@ import br.com.liberdadefamilia.workspace.MemberRoleChanged;
 import br.com.liberdadefamilia.workspace.ModuleKey;
 import br.com.liberdadefamilia.workspace.ModuleToggled;
 import br.com.liberdadefamilia.workspace.Modules;
+import br.com.liberdadefamilia.workspace.WorkspaceDeletionRequested;
 import java.util.Set;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
@@ -140,12 +141,32 @@ class LiveRelay {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(MemberRemoved event) {
+        closeMember(event.workspaceId(), event.membershipId());
+        send(event.workspaceId(), "members", null, new Everyone(), false);
+    }
+
+    /** The streams of the person close, so they reconnect with the new role (or are turned away if gone). */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void on(MemberRoleChanged event) {
+        closeMember(event.workspaceId(), event.membershipId());
         send(event.workspaceId(), "members", null, new Everyone(), false);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    void on(MemberRoleChanged event) {
-        send(event.workspaceId(), "members", null, new Everyone(), false);
+    void on(WorkspaceDeletionRequested event) {
+        try {
+            streams.closeWorkspace(event.workspaceId());
+        } catch (RuntimeException failure) {
+            log.warn("live close failed ({})", failure.getClass().getName());
+        }
+    }
+
+    private void closeMember(UUID workspaceId, UUID membershipId) {
+        try {
+            streams.closeMember(workspaceId, membershipId);
+        } catch (RuntimeException failure) {
+            log.warn("live close failed ({})", failure.getClass().getName());
+        }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
