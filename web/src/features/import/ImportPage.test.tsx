@@ -265,6 +265,7 @@ describe('ImportPage', () => {
     expect(screen.queryByText('Marque ao menos um lançamento.')).toBeNull()
     fireEvent.click(line(/LOJA A/).getByRole('checkbox'))
     expect(importButton()).toBeDisabled()
+    expect(importButton()).toHaveAccessibleName('Importar 0 lançamentos')
     expect(screen.getByText('Marque ao menos um lançamento.')).toBeInTheDocument()
   })
 

@@ -56,14 +56,15 @@ export const importMessages = {
     'Usar a mesma categoria {n, plural, one {na # sem categoria} other {nas # sem categoria}}',
   'import.needsCategory':
     'Falta escolher a categoria de {n, plural, one {# linha marcada} other {# linhas marcadas}}.',
-  'import.submit': 'Importar {n, plural, one {# lançamento} other {# lançamentos}}',
+  'import.submit':
+    'Importar {n, plural, =0 {# lançamentos} one {# lançamento} other {# lançamentos}}',
   'import.sending': 'Importando…',
   'import.result.title': 'Importação concluída',
   'import.result.partialTitle': 'Parte da importação não entrou',
   'import.result.counts':
     '{created, plural, =0 {# entraram} one {# entrou} other {# entraram}}, {confirmed, plural, =0 {# confirmaram um previsto} one {# confirmou um previsto} other {# confirmaram um previsto}}, {skipped, plural, =0 {# já existiam} one {# já existia} other {# já existiam}}',
   'import.result.partial':
-    '{sent, plural, one {# lançamento foi enviado} other {# lançamentos foram enviados}} de {total}. Você pode tentar de novo: o que já entrou não se repete.',
+    '{sent, plural, =0 {# lançamentos foram enviados} one {# lançamento foi enviado} other {# lançamentos foram enviados}} de {total}. Você pode tentar de novo: o que já entrou não se repete.',
   'import.result.retry': 'Tentar de novo',
   'import.result.rejected':
     'O servidor recusou o envio, então tentar de novo não resolve: {detail}',
