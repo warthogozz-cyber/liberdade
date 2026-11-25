@@ -35,7 +35,10 @@ public class NominatimGeocoder implements Geocoder {
     private final String baseUrl;
 
     public NominatimGeocoder(MarketsProperties properties) {
-        this(RestClient.builder().requestFactory(requestFactory(properties.geocoding().timeout())), properties);
+        this(
+                RestClient.builder()
+                        .requestFactory(requestFactory(properties.geocoding().timeout())),
+                properties);
     }
 
     /** For tests: the builder is bound to a mock server and keeps its request factory. */
@@ -141,7 +144,9 @@ public class NominatimGeocoder implements Geocoder {
     }
 
     private static String firstWords(JsonNode displayName) {
-        if (displayName == null || !displayName.isString() || displayName.stringValue().isBlank()) {
+        if (displayName == null
+                || !displayName.isString()
+                || displayName.stringValue().isBlank()) {
             return null;
         }
         String[] parts = displayName.stringValue().split(",");

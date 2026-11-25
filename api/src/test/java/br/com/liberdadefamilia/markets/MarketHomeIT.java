@@ -74,14 +74,12 @@ class MarketHomeIT {
         assertThat(read).bodyJson().extractingPath("$.lat").isEqualTo("-23.123");
         assertThat(read).bodyJson().extractingPath("$.lon").isEqualTo("-46.456");
         assertThat(read).bodyJson().extractingPath("$.label").isEqualTo("Casa");
-        assertThat(events.stream(MarketHomeSet.class))
-                .containsExactly(new MarketHomeSet(ws, ana));
+        assertThat(events.stream(MarketHomeSet.class)).containsExactly(new MarketHomeSet(ws, ana));
 
         assertThat(delete()).hasStatus(204);
 
         assertThat(get()).hasStatus(204);
-        assertThat(events.stream(MarketHomeCleared.class))
-                .containsExactly(new MarketHomeCleared(ws, ana));
+        assertThat(events.stream(MarketHomeCleared.class)).containsExactly(new MarketHomeCleared(ws, ana));
         assertThat(count()).isZero();
     }
 

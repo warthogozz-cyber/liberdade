@@ -15,6 +15,8 @@ import br.com.liberdadefamilia.workspace.ModuleKey;
 import br.com.liberdadefamilia.workspace.RequiresModule;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -41,9 +43,15 @@ class MarketHomeController {
     @RequiresModule(ModuleKey.MARKETS)
     @WorkspaceScoped(allow = {OWNER, ADULT})
     @RequiresPlan(value = PlanKey.FAMILY, openWhileBillingOff = true)
-    @ApiResponse(responseCode = "204", description = "No address yet")
+    @ApiResponse(
+            responseCode = "200",
+            description = "The family's address",
+            content = @Content(schema = @Schema(implementation = HomeView.class)))
+    @ApiResponse(responseCode = "204", description = "No address yet", content = @Content)
     ResponseEntity<HomeView> getHome(WorkspaceMember member) {
-        return home.get(member).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
+        return home.get(member)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PutMapping("/v1/workspaces/{ws}/markets/home")

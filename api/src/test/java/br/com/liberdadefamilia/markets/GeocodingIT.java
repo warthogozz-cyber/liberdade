@@ -9,8 +9,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.billing.Plans;
 import br.com.liberdadefamilia.markets.internal.GeocodedPlace;
-import br.com.liberdadefamilia.markets.internal.GeocodingException;
 import br.com.liberdadefamilia.markets.internal.Geocoder;
+import br.com.liberdadefamilia.markets.internal.GeocodingException;
 import br.com.liberdadefamilia.markets.internal.MarketsProperties;
 import br.com.liberdadefamilia.markets.internal.NominatimGeocoder;
 import br.com.liberdadefamilia.markets.internal.Sleeper;
@@ -100,7 +100,11 @@ class GeocodingIT {
                             properties.botUrl(),
                             properties.osm(),
                             new MarketsProperties.Geocoding(
-                                    true, "nominatim", BASE, geocoding.minInterval(), geocoding.dailyLimit(),
+                                    true,
+                                    "nominatim",
+                                    BASE,
+                                    geocoding.minInterval(),
+                                    geocoding.dailyLimit(),
                                     geocoding.timeout()),
                             properties.instagram())));
         }
@@ -225,15 +229,16 @@ class GeocodingIT {
 
         assertThat(geocode("Rua Exemplo 10")).hasStatus(200);
 
-        assertThat(geocoder.calls.get() - before).as("the query went to the service, not to the cache").isOne();
+        assertThat(geocoder.calls.get() - before)
+                .as("the query went to the service, not to the cache")
+                .isOne();
         assertThat(logs.list)
                 .as("the debug logs of the web client are on")
                 .anyMatch(event -> event.getLoggerName().startsWith("org.springframework.web.client"));
-        assertThat(everythingLogged(logs))
-                .noneMatch(line -> {
-                    String lower = line.toLowerCase(Locale.ROOT);
-                    return lower.contains("exemplo") || lower.contains("rua%20") || lower.contains("rua+");
-                });
+        assertThat(everythingLogged(logs)).noneMatch(line -> {
+            String lower = line.toLowerCase(Locale.ROOT);
+            return lower.contains("exemplo") || lower.contains("rua%20") || lower.contains("rua+");
+        });
     }
 
     @Test
@@ -243,8 +248,11 @@ class GeocodingIT {
         assertThat(geocode("nomes Rua Exemplo 11")).hasStatus(200);
 
         assertThat(everythingLogged(logs))
-                .noneMatch(line -> line.contains("Bairro") || line.contains("Cidade") || line.contains("-23.0")
-                        || line.contains("-46.0") || line.contains("Ana Teste"));
+                .noneMatch(line -> line.contains("Bairro")
+                        || line.contains("Cidade")
+                        || line.contains("-23.0")
+                        || line.contains("-46.0")
+                        || line.contains("Ana Teste"));
     }
 
     /** DEBUG on the web client and on the markets module (the geocoder's own logger), or the check proves nothing. */

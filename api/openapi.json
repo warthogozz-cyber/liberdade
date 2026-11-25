@@ -2157,7 +2157,7 @@
           }
         ],
         "responses": {
-          "204": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
@@ -2165,6 +2165,9 @@
                 }
               }
             },
+            "description": "The family's address"
+          },
+          "204": {
             "description": "No address yet"
           }
         },
@@ -5449,12 +5452,12 @@
           "lat": {
             "type": "string",
             "nullable": true,
-            "example": "-10.0"
+            "example": "-23.123"
           },
           "lon": {
             "type": "string",
             "nullable": true,
-            "example": "-50.0"
+            "example": "-46.123"
           }
         }
       },

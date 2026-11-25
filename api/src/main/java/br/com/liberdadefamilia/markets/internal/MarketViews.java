@@ -132,12 +132,19 @@ final class MarketViews {
 
     /** The family's address: both coordinates with at most 3 decimals; the label has up to 40 characters. */
     record HomeRequest(
-            @Nullable @Schema(nullable = true, example = "-10.000") String lat,
-            @Nullable @Schema(nullable = true, example = "-50.000") String lon,
-            @Nullable @Schema(nullable = true, maxLength = 40, example = "Casa") String label) {}
+            @Nullable @Schema(nullable = true, example = "-23.123")
+            String lat,
+
+            @Nullable @Schema(nullable = true, example = "-46.123")
+            String lon,
+
+            @Nullable @Schema(nullable = true, maxLength = 40, example = "Casa")
+            String label) {}
 
     /** An address to look for, 1 to 120 characters. */
-    record GeocodeRequest(@NotNull @Schema(maxLength = 120, example = "Rua Exemplo 10") String query) {}
+    record GeocodeRequest(
+            @NotNull @Schema(maxLength = 120, example = "Rua Exemplo 10")
+            String query) {}
 
     /** A place the address search found, rounded to 3 decimals. */
     record PlaceView(String lat, String lon, String label) {}

@@ -1794,9 +1794,9 @@ export interface components {
         HomeRequest: {
             /** @example Casa */
             label: string | null;
-            /** @example -10.0 */
+            /** @example -23.123 */
             lat: string | null;
-            /** @example -50.0 */
+            /** @example -46.123 */
             lon: string | null;
         };
         HomeView: {
@@ -3969,14 +3969,21 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No address yet */
-            204: {
+            /** @description The family's address */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["HomeView"];
                 };
+            };
+            /** @description No address yet */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
