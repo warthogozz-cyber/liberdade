@@ -90,7 +90,7 @@ class ExportIT {
         Map<String, byte[]> files = unzip(result);
         assertThat(files).containsOnlyKeys("dados.json", "lancamentos.csv", "atividade.csv", "aportes.csv");
         String json = text(files.get("dados.json"));
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(5);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(6);
         assertThat(JsonPath.<String>read(json, "$.profile.email")).isEqualTo("bia@example.com");
         assertThat(JsonPath.<String>read(json, "$.profile.displayName")).isEqualTo("Bia Teste");
         assertThat(JsonPath.<List<?>>read(json, "$.memberships")).hasSize(2);
@@ -105,6 +105,69 @@ class ExportIT {
         assertThat(text(files.get("atividade.csv"))).contains("quando;acao;quem;navegador;sistema");
         assertThat(json).doesNotContain("ana@example.com").doesNotContain("cris@example.com");
         assertThat(text(files.get("lancamentos.csv"))).doesNotContain("@example.com");
+    }
+
+    @Test
+    void myExportHasMyAchievementsFromEveryFamily() {
+        Family f = family();
+        UUID biaHere = workspaces.membershipOf(f.ws, f.bia);
+        UUID biaOld = jdbc.sql("select id from memberships where user_id = :u and workspace_id <> :ws")
+                .param("u", f.bia)
+                .param("ws", f.ws)
+                .query(UUID.class)
+                .single();
+        UUID oldWs = jdbc.sql("select workspace_id from memberships where id = :id")
+                .param("id", biaOld)
+                .query(UUID.class)
+                .single();
+        achievement(f.ws, biaHere, "FIRST_TRANSACTION", "2026-11-10T12:00:00Z", false);
+        achievement(f.ws, biaHere, "FIRST_GOAL", "2026-11-09T12:00:00Z", true);
+        achievement(oldWs, biaOld, "FIRST_TRANSACTION", "2026-01-05T12:00:00Z", false);
+        achievement(f.ws, workspaces.membershipOf(f.ws, f.ana), "FIRST_TRANSACTION", "2026-11-11T12:00:00Z", false);
+
+        String json = text(unzip(exportMine(f.bia)).get("dados.json"));
+
+        assertThat(JsonPath.<List<?>>read(json, "$.achievements")).hasSize(3);
+        assertThat(JsonPath.<List<String>>read(json, "$.achievements[*].workspaceId"))
+                .containsExactlyInAnyOrder(oldWs.toString(), f.ws.toString(), f.ws.toString());
+        assertThat(JsonPath.<List<String>>read(json, "$.achievements[?(@.workspaceId=='" + f.ws + "')].key"))
+                .containsExactly("FIRST_GOAL", "FIRST_TRANSACTION");
+        assertThat(JsonPath.<List<String>>read(json, "$.achievements[?(@.workspaceId=='" + oldWs + "')].earnedAt"))
+                .containsExactly("2026-01-05T12:00:00Z");
+        assertThat(JsonPath.<Map<String, Object>>read(json, "$.achievements[0]"))
+                .containsOnlyKeys("workspaceId", "key", "earnedAt");
+    }
+
+    @Test
+    void myExportHasNoOneElsesAchievements() {
+        Family f = family();
+        achievement(f.ws, workspaces.membershipOf(f.ws, f.ana), "FIRST_TRANSACTION", "2026-11-11T12:00:00Z", false);
+
+        String json = text(unzip(exportMine(f.bia)).get("dados.json"));
+
+        assertThat(JsonPath.<List<?>>read(json, "$.achievements")).isEmpty();
+    }
+
+    @Test
+    void theFamilyExportDoesNotCarryAchievements() {
+        Family f = family();
+        achievement(f.ws, workspaces.membershipOf(f.ws, f.ana), "FIRST_TRANSACTION", "2026-11-11T12:00:00Z", false);
+
+        String json = text(unzip(exportFamily(f.ana, f.ws)).get("dados.json"));
+
+        assertThat(json).doesNotContain("achievements");
+    }
+
+    private void achievement(UUID ws, UUID membership, String key, String at, boolean silent) {
+        jdbc.sql("""
+                        insert into achievements (workspace_id, membership_id, achievement_key, earned_at, silent)
+                        values (:ws, :m, :key, :at::timestamptz, :silent)""")
+                .param("ws", ws)
+                .param("m", membership)
+                .param("key", key)
+                .param("at", at)
+                .param("silent", silent)
+                .update();
     }
 
     @Test
@@ -252,7 +315,7 @@ class ExportIT {
 
         String json = text(unzip(exportFamily(f.ana, f.ws)).get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(5);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(6);
         assertThat(JsonPath.<List<?>>read(json, "$.orders")).hasSize(1);
         assertThat(JsonPath.<String>read(json, "$.orders[0].status")).isEqualTo("PAID");
         assertThat(JsonPath.<String>read(json, "$.orders[0].amount")).isEqualTo("89.00");
@@ -434,7 +497,7 @@ class ExportIT {
 
         String json = text(unzip(exportFamily(f.ana, f.ws)).get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(5);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(6);
         assertThat(JsonPath.<String>read(json, "$.workspace.country")).isEqualTo("BR");
         assertThat(JsonPath.<String>read(json, "$.workspace.locale")).isEqualTo("pt-BR");
         assertThat(JsonPath.<List<?>>read(json, "$.recurringRules")).hasSize(1);
@@ -472,7 +535,7 @@ class ExportIT {
         String mine = text(unzip(exportMine(f.ana)).get("dados.json"));
 
         for (String json : List.of(family, mine)) {
-            assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(5);
+            assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(6);
             assertThat(JsonPath.<List<Map<String, Object>>>read(json, "$.transactions[?(@.description=='Importada')]"))
                     .singleElement()
                     .satisfies(row -> assertThat(row).containsEntry("importKey", key));
@@ -504,7 +567,7 @@ class ExportIT {
         Map<String, byte[]> files = unzip(exportFamily(f.ana, f.ws));
 
         String json = text(files.get("dados.json"));
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(5);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(6);
         assertThat(JsonPath.<Integer>read(json, "$.reserveTargetMonths")).isEqualTo(6);
         assertThat(JsonPath.<Number>read(json, "$.manualMonthlyCost").doubleValue())
                 .isEqualTo(4500.5);

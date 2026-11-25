@@ -6,6 +6,7 @@ import br.com.liberdadefamilia.ledger.AccountVisibility;
 import br.com.liberdadefamilia.live.internal.Audience;
 import br.com.liberdadefamilia.live.internal.Audience.AccountViewers;
 import br.com.liberdadefamilia.live.internal.Audience.Everyone;
+import br.com.liberdadefamilia.live.internal.Audience.Member;
 import br.com.liberdadefamilia.live.internal.Audience.NoYouth;
 import br.com.liberdadefamilia.live.internal.LiveStream;
 import br.com.liberdadefamilia.support.TestIds;
@@ -13,6 +14,7 @@ import br.com.liberdadefamilia.workspace.Role;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -57,6 +59,18 @@ class AudienceTest {
         assertThat(audience.includes(stream(Role.YOUTH), visibility(true))).isTrue();
         assertThat(audience.includes(stream(Role.YOUTH), visibility(false))).isFalse();
         assertThat(asked).hasValue(2);
+    }
+
+    @Test
+    @DisplayName("Member inclui só a participação")
+    void memberIncludesOnlyThatMembership() {
+        LiveStream earner = stream(Role.ADULT);
+        LiveStream other = stream(Role.ADULT);
+        Audience audience = new Member(earner.membershipId());
+
+        assertThat(audience.includes(earner, visibility(true))).isTrue();
+        assertThat(audience.includes(other, visibility(true))).isFalse();
+        assertThat(asked).hasValue(0);
     }
 
     @Test

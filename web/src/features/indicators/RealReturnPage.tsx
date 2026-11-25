@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { useCurrentWorkspace } from '@/shared/api'
 import { registerMessages } from '@/shared/i18n'
+import { PageTip } from '@/shared/tips'
 import { useDocumentTitle } from '@/shared/ui'
 import { Disclaimer } from '@/shared/ui/Disclaimer'
 import { SourceStamp } from '@/shared/ui/SourceStamp'
@@ -83,6 +84,7 @@ export function RealReturnPage() {
         <h1 className="text-2xl font-semibold">
           <FormattedMessage id="indicators.calc.title" />
         </h1>
+        <PageTip id="calculator" />
         <RateField
           label={intl.formatMessage({ id: 'indicators.calc.nominal' })}
           value={nominalText}

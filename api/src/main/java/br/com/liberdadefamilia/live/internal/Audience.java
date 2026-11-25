@@ -49,4 +49,13 @@ public sealed interface Audience {
                     stream.workspaceId(), stream.membershipId(), stream.role(), accountId, toAccountId);
         }
     }
+
+    /** One person: the streams of that membership and nobody else's. */
+    record Member(UUID membershipId) implements Audience {
+
+        @Override
+        public boolean includes(LiveStream stream, AccountVisibility visibility) {
+            return stream.membershipId().equals(membershipId);
+        }
+    }
 }

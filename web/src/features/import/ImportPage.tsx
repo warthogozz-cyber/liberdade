@@ -18,6 +18,7 @@ import { categoriesQuery, transactionsQuery } from '@/shared/api/hooks'
 import { addMonths, maxMonth, MIN_MONTH } from '@/shared/i18n'
 import { useModuleEnabled } from '@/shared/modules'
 import { useOnline } from '@/shared/offline'
+import { PageTip } from '@/shared/tips'
 import { useDocumentTitle } from '@/shared/ui'
 import { ColumnMapping } from './ColumnMapping'
 import { detectCsv, linesFromCsv, type CsvDetection, type CsvMapping } from './csvDetect'
@@ -86,6 +87,7 @@ export function ImportPage() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
+      <PageTip id="import" />
       {workspace && plan.data ? (
         <ImportFlow workspace={workspace} />
       ) : (

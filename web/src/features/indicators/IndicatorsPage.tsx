@@ -2,6 +2,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
 import { useCurrentWorkspace } from '@/shared/api'
 import { registerMessages } from '@/shared/i18n'
+import { PageTour } from '@/shared/tips'
 import { useDocumentTitle } from '@/shared/ui'
 import { Disclaimer } from '@/shared/ui/Disclaimer'
 import { IndicatorCard } from './IndicatorCard'
@@ -29,13 +30,13 @@ export function IndicatorsPage() {
           <FormattedMessage id="indicators.title" />
         </h1>
         {indicators.data !== undefined ? (
-          <ul className="flex flex-col gap-3">
+          <ul data-tour="indicators-cards" className="flex flex-col gap-3">
             {indicators.data.indicators.map((indicator) => (
               <IndicatorCard key={indicator.code} indicator={indicator} />
             ))}
           </ul>
         ) : indicators.isError ? (
-          <div className="flex flex-col items-start gap-2">
+          <div data-tour="indicators-cards" className="flex flex-col items-start gap-2">
             <p>
               <FormattedMessage id="common.error" />
             </p>
@@ -45,6 +46,7 @@ export function IndicatorsPage() {
           </div>
         ) : (
           <ul
+            data-tour="indicators-cards"
             aria-busy="true"
             aria-label={intl.formatMessage({ id: 'indicators.loading' })}
             className="flex flex-col gap-3"
@@ -54,7 +56,11 @@ export function IndicatorsPage() {
             ))}
           </ul>
         )}
-        <Link to="/mais/indicadores/calculadora" className={outline}>
+        <Link
+          to="/mais/indicadores/calculadora"
+          data-tour="indicators-calculator"
+          className={outline}
+        >
           <FormattedMessage id="indicators.calculator" />
         </Link>
         <Link
@@ -63,6 +69,7 @@ export function IndicatorsPage() {
         >
           <FormattedMessage id="indicators.howWeCollect" />
         </Link>
+        <PageTour id="indicators" />
       </main>
     </>
   )

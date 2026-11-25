@@ -7,6 +7,7 @@ import { SessionLayout } from '@/app/SessionLayout'
 import { WorkspaceLayout } from '@/app/WorkspaceLayout'
 import { WelcomePage } from '@/features/onboarding/WelcomePage'
 // Registers the planning module and its messages; the screens load on demand.
+import '@/features/gamification/register'
 import '@/features/indicators/register'
 import '@/features/planning/register'
 import '@/features/recurrences/register'
@@ -185,6 +186,23 @@ export const routes: RouteObject[] = [
                     lazy: () =>
                       import('@/features/indicators/RealReturnPage').then((m) => ({
                         Component: m.RealReturnPage,
+                      })),
+                  },
+                ],
+              },
+              {
+                // With the gamification module off, its screen does not open either.
+                element: (
+                  <ModuleRoute module="gamification">
+                    <Outlet />
+                  </ModuleRoute>
+                ),
+                children: [
+                  {
+                    path: '/mais/conquistas',
+                    lazy: () =>
+                      import('@/features/gamification/AchievementsPage').then((m) => ({
+                        Component: m.AchievementsPage,
                       })),
                   },
                 ],

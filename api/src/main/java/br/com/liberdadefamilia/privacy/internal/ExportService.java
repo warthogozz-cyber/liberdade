@@ -6,6 +6,8 @@ import br.com.liberdadefamilia.audit.AuditTrail;
 import br.com.liberdadefamilia.billing.BillingExport;
 import br.com.liberdadefamilia.billing.ExportedOrder;
 import br.com.liberdadefamilia.billing.ExportedPlan;
+import br.com.liberdadefamilia.gamification.AchievementExport;
+import br.com.liberdadefamilia.gamification.ExportedAchievement;
 import br.com.liberdadefamilia.identity.UserDirectory;
 import br.com.liberdadefamilia.identity.UserProfile;
 import br.com.liberdadefamilia.identity.UserSummary;
@@ -67,7 +69,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 class ExportService {
 
-    private static final int FORMAT_VERSION = 5;
+    private static final int FORMAT_VERSION = 6;
     private static final ZoneId FORTALEZA = ZoneId.of("America/Fortaleza");
     private static final List<String> TRANSACTION_HEADER = List.of(
             "data",
@@ -161,6 +163,9 @@ class ExportService {
             String familyName,
             @JsonUnwrapped ExportedContribution contribution) {}
 
+    /** An achievement the person earned, with the family it belongs to. */
+    private record PersonalAchievement(UUID workspaceId, String key, Instant earnedAt) {}
+
     private record PersonalData(
             UserProfile profile,
             List<PersonalMembership> memberships,
@@ -170,6 +175,7 @@ class ExportService {
             List<PersonalTag> tags,
             List<PersonalRule> recurringRules,
             List<PersonalContribution> goalContributions,
+            List<PersonalAchievement> achievements,
             Map<UUID, Map<UUID, String>> names) {}
 
     /** An order as written in the export: the amount as decimal text, like the rest of it. */
@@ -216,6 +222,7 @@ class ExportService {
     private final Modules modules;
     private final LedgerExport ledger;
     private final PlanningExport planning;
+    private final AchievementExport achievements;
     private final BillingExport billing;
     private final AuditTrail audit;
     private final ConsentService consents;
@@ -230,6 +237,7 @@ class ExportService {
             Modules modules,
             LedgerExport ledger,
             PlanningExport planning,
+            AchievementExport achievements,
             BillingExport billing,
             AuditTrail audit,
             ConsentService consents,
@@ -241,6 +249,7 @@ class ExportService {
         this.modules = modules;
         this.ledger = ledger;
         this.planning = planning;
+        this.achievements = achievements;
         this.billing = billing;
         this.audit = audit;
         this.consents = consents;
@@ -296,6 +305,7 @@ class ExportService {
         List<PersonalTag> tags = new ArrayList<>();
         List<PersonalRule> rules = new ArrayList<>();
         List<PersonalContribution> contributions = new ArrayList<>();
+        List<PersonalAchievement> earned = new ArrayList<>();
         Map<UUID, Map<UUID, String>> names = new HashMap<>();
         for (MemberSummary m : mine) {
             String family = familyNames.getOrDefault(m.workspaceId(), "");
@@ -332,6 +342,9 @@ class ExportService {
             }
             for (ExportedContribution c : planning.contributionsBy(m.workspaceId(), m.membershipId())) {
                 contributions.add(new PersonalContribution(m.workspaceId(), family, c));
+            }
+            for (ExportedAchievement a : achievements.of(m.workspaceId(), m.membershipId())) {
+                earned.add(new PersonalAchievement(m.workspaceId(), a.key(), a.earnedAt()));
             }
         }
         transactions.sort(Comparator.comparing(PersonalTransaction::occurredOn)
@@ -371,6 +384,7 @@ class ExportService {
                 tags,
                 rules,
                 contributions,
+                earned,
                 names);
     }
 
@@ -450,6 +464,7 @@ class ExportService {
         root.put("tags", data.tags());
         root.put("recurringRules", data.recurringRules());
         root.put("goalContributions", data.goalContributions());
+        root.put("achievements", data.achievements());
 
         List<List<String>> rows = new ArrayList<>();
         for (PersonalTransaction t : data.transactions()) {

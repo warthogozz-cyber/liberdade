@@ -22,6 +22,7 @@ import { useMembers } from '@/shared/api/family'
 import { addDays, localDate, maxMonth, monthFromParam } from '@/shared/i18n'
 import { isRecentArrival, onArrival } from '@/shared/live/localChanges'
 import { useOnline, useOutbox, type OutboxItem } from '@/shared/offline'
+import { PageTip } from '@/shared/tips'
 import { DataAsOf, useDocumentTitle, useToast } from '@/shared/ui'
 import { MonthSwitcher } from '@/shared/ui/MonthSwitcher'
 import { groupByDay, mergeTransactions, plannedOf } from './listItems'
@@ -50,6 +51,7 @@ export function TransactionsPage() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
+      <PageTip id="transactions" />
       {user && workspace ? (
         <TransactionsScreen userId={user.id} displayName={user.displayName} workspace={workspace} />
       ) : (

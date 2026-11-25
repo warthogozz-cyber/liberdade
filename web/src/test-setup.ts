@@ -1,7 +1,7 @@
 // The fake IndexedDB loads before anything opens the Dexie `db`.
 import 'fake-indexeddb/auto'
 import '@testing-library/jest-dom/vitest'
-import { afterAll, afterEach, beforeAll } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest'
 import { resetMockData } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { resetCsrf } from '@/shared/api'
@@ -9,6 +9,11 @@ import { db } from '@/shared/offline'
 
 // MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`: a call no handler answers fails the test.
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
+
+// The first visit tips stay off so the screen tests keep their layout; the tip tests turn them on.
+beforeEach(() => {
+  if (typeof window !== 'undefined') localStorage.setItem('liberdade.tips', 'off')
+})
 
 afterEach(async () => {
   server.resetHandlers()

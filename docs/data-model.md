@@ -271,6 +271,18 @@ importação seguinte do mesmo extrato. Editar um lançamento importado mantém 
 Na exportação (v5), cada lançamento ganha `importKey` (nulo quando não veio de um extrato). Os
 tombstones não entram: não identificam nada.
 
+### Plano 8.3 (migração V21)
+
+**V21: conquistas** (`V21__achievements.sql`)
+
+| Tabela | O que muda |
+|---|---|
+| `achievements` | `workspace_id`, `membership_id`, `achievement_key` (o nome da conquista), `earned_at`, `silent` (verdadeiro quando a conquista é concedida sem aviso ao vivo). Chave primária `(membership_id, achievement_key)`: cada participação ganha cada conquista uma vez. Chave composta para `memberships` com `ON DELETE CASCADE`, e para `workspaces` também |
+| `transactions` | Índice `transactions_by_creator` em `(workspace_id, created_by, created_at)`, para ler as semanas com lançamentos de cada pessoa |
+
+Na exportação pessoal (v6), `achievements` traz `workspaceId`, `key` e `earnedAt` de cada conquista de
+cada participação da pessoa, as silenciosas também. A exportação da família não muda.
+
 ### Regras no banco
 
 | Tabela | Regra |
@@ -365,6 +377,7 @@ têm `workspace_id`.
 | Família excluída | 30 dias de carência e depois apagamento definitivo |
 | Lançamento excluído | Apagado de vez após 30 dias; o de uma recorrência (excluído ou pulado) espera também até o segundo mês depois da data prevista |
 | Convites usados ou vencidos | Apagados após 90 dias |
+| `achievements` | Somem com a participação: ao sair da família, ao excluir a conta ou com a família |
 | `import_tombstones` | 13 meses depois do apagamento definitivo do lançamento (só o hash); apagados junto com a conta bancária ou a família |
 | `billing_webhook_events` | 180 dias |
 | `billing_orders` | Nunca pagos: 180 dias. Pagos: 5 anos (contabilidade), mesmo sem a família |

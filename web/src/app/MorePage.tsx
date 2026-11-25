@@ -1,5 +1,6 @@
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
+import { gamificationMessages } from '@/features/gamification/messages.pt-BR'
 import { indicatorsMessages } from '@/features/indicators/messages.pt-BR'
 import { LegalLinks } from '@/features/legal/LegalLinks'
 import { WorkspaceSwitcher } from '@/features/members/WorkspaceSwitcher'
@@ -12,6 +13,7 @@ import { useDocumentTitle } from '@/shared/ui'
 
 // The Mais screen is lazy, so the entry's label loads here and not with the app.
 registerMessages(indicatorsMessages)
+registerMessages(gamificationMessages)
 
 /** The person, their family, the passkey and sign-out. */
 export function MorePage() {
@@ -21,6 +23,7 @@ export function MorePage() {
   // A Youth sees only their own accounts, and the categories are the adults' to arrange.
   const youth = workspace?.role === 'YOUTH'
   const indicatorsOn = useModuleEnabled('indicators')
+  const gamificationOn = useModuleEnabled('gamification')
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold">
@@ -70,6 +73,14 @@ export function MorePage() {
           className="flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <FormattedMessage id="more.indicators" />
+        </Link>
+      )}
+      {gamificationOn && (
+        <Link
+          to="/mais/conquistas"
+          className="flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <FormattedMessage id="gamification.title" />
         </Link>
       )}
       <Link

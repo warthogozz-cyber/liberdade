@@ -40,6 +40,21 @@ function watchContext(context: BrowserContext, findings: string[]): void {
   })
 }
 
+/** Whether the test running now asked for the first visit tips (`tips: true`); false in a hook. */
+let activeTips = false
+
+/** Turns the first visit tips off in a context (they are on by default for people) unless `tips` is set. */
+async function silenceTips(context: BrowserContext, tips: boolean): Promise<void> {
+  if (tips) return
+  await context.addInitScript(() => {
+    try {
+      localStorage.setItem('liberdade.tips', 'off')
+    } catch {
+      // No storage: the tips stay on, as they do for a person without it.
+    }
+  })
+}
+
 /** The findings of the test running now, for the contexts that `withContext` opens inside it. */
 let activeFindings: string[] | undefined
 
@@ -54,22 +69,31 @@ function failOnFindings(findings: string[]): void {
  * `test` with a guard on every test: it fails when any context of the test, the default one and the
  * ones made through `browser.newContext` or `withContext`, logged a CSP violation or got a 5xx.
  */
-export const test = base.extend<{ cspAndServerErrorGuard: void }>({
+export const test = base.extend<{ cspAndServerErrorGuard: void; tips: boolean }>({
+  // The first visit tips stay off unless a test or describe block sets `tips: true`.
+  tips: [false, { option: true }],
+  context: async ({ context, tips }, provide) => {
+    await silenceTips(context, tips)
+    await provide(context)
+  },
   cspAndServerErrorGuard: [
-    async ({ browser, context }, provide) => {
+    async ({ browser, context, tips }, provide) => {
       const findings: string[] = []
       watchContext(context, findings)
       const newContext = browser.newContext.bind(browser)
       browser.newContext = async (...args: Parameters<Browser['newContext']>) => {
         const created = await newContext(...args)
         watchContext(created, findings)
+        await silenceTips(created, tips)
         return created
       }
       activeFindings = findings
+      activeTips = tips
       try {
         await provide()
       } finally {
         activeFindings = undefined
+        activeTips = false
         browser.newContext = newContext
       }
       failOnFindings(findings)
@@ -232,6 +256,8 @@ export async function withContext<T>(
   body: (context: BrowserContext, page: Page) => Promise<T>,
 ): Promise<T> {
   const context = await browser.newContext(CONTEXT_OPTIONS)
+  // Inside a test the patched `newContext` did it already; the script is idempotent, so a hook is covered too.
+  if (!activeFindings) await silenceTips(context, activeTips)
   // Inside a test the guard already listens to this context; in a hook it only has this list.
   const findings = activeFindings ?? []
   if (!activeFindings) watchContext(context, findings)

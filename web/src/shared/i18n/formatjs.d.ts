@@ -6,6 +6,8 @@ import type { billingMessages } from '@/features/billing/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { categoriesMessages } from '@/features/categories/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
+import type { gamificationMessages } from '@/features/gamification/messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
 import type { legalLabelsMessages } from '@/features/legal/labels.messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { legalMessages } from '@/features/legal/messages.pt-BR'
@@ -36,6 +38,7 @@ import type { planningMessages } from '@/features/planning/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { recurrencesMessages } from '@/features/recurrences/messages.pt-BR'
 import type { reauthMessages } from '@/shared/auth/messages.pt-BR'
+import type { tipsMessages } from '@/shared/tips/messages.pt-BR'
 import type { sourceStampMessages } from '@/shared/ui/sourceStamp.messages.pt-BR'
 import type { messages } from './messages.pt-BR'
 
@@ -49,6 +52,7 @@ declare global {
         | keyof typeof billingMessages
         | keyof typeof categoriesMessages
         | keyof typeof dashboardMessages
+        | keyof typeof gamificationMessages
         | keyof typeof gettingStartedMessages
         | keyof typeof importMessages
         | keyof typeof indicatorsMessages
@@ -64,6 +68,7 @@ declare global {
         | keyof typeof reauthMessages
         | keyof typeof sourceStampMessages
         | keyof typeof signInMessages
+        | keyof typeof tipsMessages
         | keyof typeof transactionsMoreMessages
     }
   }

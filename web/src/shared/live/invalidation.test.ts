@@ -3,8 +3,12 @@ import { invalidatesMe, invalidationPrefixes } from './invalidation'
 
 describe('invalidationPrefixes', () => {
   it.each([
-    ['transaction', [['transactions'], ['dashboard'], ['accounts'], ['tags'], ['planning']]],
-    ['account', [['accounts'], ['transactions'], ['dashboard'], ['planning']]],
+    [
+      'transaction',
+      [['transactions'], ['dashboard'], ['accounts'], ['tags'], ['planning'], ['gamification']],
+    ],
+    ['account', [['accounts'], ['transactions'], ['dashboard'], ['planning'], ['gamification']]],
+    ['achievement', [['gamification']]],
     ['category', [['categories'], ['transactions'], ['dashboard'], ['planning']]],
     ['tag', [['tags'], ['transactions']]],
     ['rule', [['recurring-rules'], ['transactions'], ['planning']]],

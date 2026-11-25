@@ -1,13 +1,21 @@
 import { cleanup, screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
 import { IndicatorsPage } from './IndicatorsPage'
 
-afterEach(cleanup)
+beforeEach(() => {
+  localStorage.setItem('liberdade.tips', 'on')
+  Element.prototype.scrollIntoView = () => {}
+})
+
+afterEach(() => {
+  cleanup()
+  localStorage.clear()
+})
 
 function seedOn() {
   const workspace = seedMockFamily()
@@ -108,5 +116,39 @@ describe('IndicatorsPage', () => {
       'href',
       '/robo',
     )
+  })
+
+  it('tourOpensOnTheCardsWhileLoading', async () => {
+    seedOn()
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/indicators`, async () => {
+        await new Promise(() => {})
+        return HttpResponse.json({})
+      }),
+    )
+    render()
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Passo 1 de 2')
+    expect(document.querySelectorAll('[data-tour="indicators-cards"]')).toHaveLength(1)
+    expect(document.querySelector('[data-tour="indicators-cards"]')).toHaveAttribute(
+      'aria-busy',
+      'true',
+    )
+  })
+
+  it('tourOpensOnTheCardsOnError', async () => {
+    seedOn()
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/indicators`, () =>
+        HttpResponse.json({ code: 'internal' }, { status: 500 }),
+      ),
+    )
+    render()
+
+    await screen.findByText('Não deu para carregar. Tente de novo.')
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Passo 1 de 2')
+    expect(document.querySelectorAll('[data-tour="indicators-cards"]')).toHaveLength(1)
   })
 })

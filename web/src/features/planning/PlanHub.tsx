@@ -1,13 +1,14 @@
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
 import { useCurrentWorkspace } from '@/shared/api'
+import { PageTour } from '@/shared/tips'
 import { useDocumentTitle } from '@/shared/ui'
 import './register'
 
 const entryClass =
   'flex min-h-14 flex-col justify-center rounded-field border border-primary px-4 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
-type Entry = { to: string; title: string; description: string; youth: boolean }
+type Entry = { to: string; title: string; description: string; youth: boolean; tour: string }
 
 const entries: Entry[] = [
   {
@@ -15,24 +16,28 @@ const entries: Entry[] = [
     title: 'planning.budget.title',
     description: 'planning.budget.description',
     youth: false,
+    tour: 'planning-budget',
   },
   {
     to: '/planejar/metas',
     title: 'planning.goals.title',
     description: 'planning.goals.description',
     youth: true,
+    tour: 'planning-goals',
   },
   {
     to: '/planejar/reserva',
     title: 'planning.reserve.title',
     description: 'planning.reserve.description',
     youth: false,
+    tour: 'planning-reserve',
   },
   {
     to: '/planejar/recorrencias',
     title: 'planning.recurrences.title',
     description: 'planning.recurrences.description',
     youth: true,
+    tour: 'planning-recurring',
   },
 ]
 
@@ -51,7 +56,7 @@ export function PlanHub() {
           .filter((entry) => !youth || entry.youth)
           .map((entry) => (
             <li key={entry.to}>
-              <Link to={entry.to} className={entryClass}>
+              <Link to={entry.to} data-tour={entry.tour} className={entryClass}>
                 <span className="font-medium text-primary">
                   <FormattedMessage id={entry.title as 'planning.title'} />
                 </span>
@@ -62,6 +67,7 @@ export function PlanHub() {
             </li>
           ))}
       </ul>
+      <PageTour id="planning" />
     </main>
   )
 }

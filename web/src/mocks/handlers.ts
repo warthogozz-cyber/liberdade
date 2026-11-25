@@ -2676,6 +2676,24 @@ export const handlers = [
     return HttpResponse.json({ indicators: mockState.indicators })
   }),
 
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/gamification/streak'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (mockState.modules[workspace.id]?.gamification !== true) {
+      return problem(403, 'module.disabled', 'O módulo de conquistas está desligado.')
+    }
+    return HttpResponse.json(mockState.streak)
+  }),
+
+  http.get<{ ws: string }>(url('/v1/workspaces/:ws/gamification/achievements'), ({ params }) => {
+    const workspace = guard(params.ws)
+    if (workspace instanceof Response) return workspace
+    if (mockState.modules[workspace.id]?.gamification !== true) {
+      return problem(403, 'module.disabled', 'O módulo de conquistas está desligado.')
+    }
+    return HttpResponse.json({ items: mockState.achievements })
+  }),
+
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/goals'), ({ params }) => {
     const workspace = guard(params.ws)
     if (workspace instanceof Response) return workspace

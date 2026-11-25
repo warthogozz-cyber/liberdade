@@ -18,6 +18,7 @@ import {
   recordExpense,
   seedBudgetLimit,
   seedGoal,
+  setModules,
   signInBudget,
   signInWithGoogle,
   stubFirstReauthRequired,
@@ -463,4 +464,52 @@ test('the statement import meets WCAG 2.2 AA in both themes', async ({ page, req
     'Importar extrato',
     page.getByRole('heading', { level: 2, name: 'Quais colunas são quais?' }),
   )
+})
+
+test('Conquistas and the streak card meet WCAG 2.2 AA in both themes', async ({ page }) => {
+  await signInWithGoogle(page, newUser())
+  await createFamily(page)
+  await setModules(page, true)
+  await recordExpense(page, '1234', '🛒 Mercado')
+  await waitForQueueToEmpty(page)
+
+  await page.goto('/inicio')
+  await expectNoViolations(
+    page,
+    'Início',
+    page.getByRole('heading', { level: 2, name: 'Sequência' }),
+  )
+
+  // One earned and the rest still ahead, so both lists have content.
+  await page.goto('/mais/conquistas')
+  await expectNoViolations(
+    page,
+    'Conquistas',
+    page.getByRole('heading', { level: 2, name: 'Ganhas' }),
+  )
+  await expect(page.getByRole('heading', { level: 2, name: 'Próximas' })).toBeVisible()
+})
+
+test.describe('with the tips on', () => {
+  test.use({ tips: true })
+
+  test('an open tip and an open tour meet WCAG 2.2 AA in both themes', async ({ page }) => {
+    await signInWithGoogle(page, newUser())
+    await createFamily(page)
+    await setModules(page, true)
+
+    await page.goto('/lancamentos')
+    await expectNoViolations(
+      page,
+      'Lançamentos',
+      page.getByText('Todos os lançamentos do mês. Toque em um para editar ou excluir.'),
+    )
+
+    await page.goto('/mais/conquistas')
+    await expectNoViolations(
+      page,
+      'Conquistas',
+      page.getByRole('dialog', { name: /Sua sequência conta as semanas/ }),
+    )
+  })
 })
