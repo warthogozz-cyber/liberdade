@@ -12,6 +12,8 @@ interface ConfirmDialogProps {
   onConfirm: () => void
   /** Called for the cancel button and for Escape. */
   onCancel: () => void
+  /** Where the focus goes after closing; without it, the browser's default (the body). */
+  onCloseAutoFocus?: (event: Event) => void
 }
 
 const button =
@@ -27,6 +29,7 @@ export function ConfirmDialog({
   confirmDisabled = false,
   onConfirm,
   onCancel,
+  onCloseAutoFocus,
 }: ConfirmDialogProps) {
   // The confirm button would also close the dialog, which reads as a cancel: the caller closes it.
   function confirm(event: MouseEvent) {
@@ -43,7 +46,10 @@ export function ConfirmDialog({
     >
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 bg-black/40" />
-        <AlertDialog.Content className="fixed inset-x-4 top-1/2 mx-auto max-w-sm -translate-y-1/2 rounded-sheet bg-surface p-6 shadow-lg">
+        <AlertDialog.Content
+          onCloseAutoFocus={onCloseAutoFocus}
+          className="fixed inset-x-4 top-1/2 mx-auto max-w-sm -translate-y-1/2 rounded-sheet bg-surface p-6 shadow-lg"
+        >
           <AlertDialog.Title className="text-lg font-semibold">{title}</AlertDialog.Title>
           <AlertDialog.Description className="mt-2 text-text-muted">{body}</AlertDialog.Description>
           <div className="mt-6 flex flex-col gap-2">

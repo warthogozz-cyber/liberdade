@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { useIntl } from 'react-intl'
 import { Link, useNavigate } from 'react-router'
 import { ApiError, type MeWorkspace } from '@/shared/api'
@@ -57,6 +57,7 @@ export function StatusSheet({ workspace, venture, open, onOpenChange }: StatusSh
   const [confirming, setConfirming] = useState(false)
   const [deleteFailed, setDeleteFailed] = useState(false)
   const remove = useDeleteVenture(workspace.id, venture.id)
+  const deleteButton = useRef<HTMLButtonElement>(null)
 
   return (
     <>
@@ -74,6 +75,7 @@ export function StatusSheet({ workspace, venture, open, onOpenChange }: StatusSh
             setConfirming(true)
           }}
           deleteFailed={deleteFailed}
+          deleteButton={deleteButton}
         />
       </Sheet>
       <ConfirmDialog
@@ -84,6 +86,11 @@ export function StatusSheet({ workspace, venture, open, onOpenChange }: StatusSh
         cancelLabel={intl.formatMessage({ id: 'ventures.cancel' })}
         confirmDisabled={remove.isPending}
         onCancel={() => setConfirming(false)}
+        onCloseAutoFocus={(event) => {
+          // The dialog has no trigger of its own: give the focus back to the button that asked.
+          event.preventDefault()
+          deleteButton.current?.focus()
+        }}
         onConfirm={() =>
           remove.mutate(undefined, {
             onSuccess: () => void navigate('/mais/projetos'),
@@ -104,10 +111,18 @@ interface StatusActionsProps {
   onDone: () => void
   onDelete: () => void
   deleteFailed: boolean
+  deleteButton: RefObject<HTMLButtonElement | null>
 }
 
 /** The sheet's body: its own state starts clean each time the sheet opens. */
-function StatusActions({ workspace, venture, onDone, onDelete, deleteFailed }: StatusActionsProps) {
+function StatusActions({
+  workspace,
+  venture,
+  onDone,
+  onDelete,
+  deleteFailed,
+  deleteButton,
+}: StatusActionsProps) {
   const intl = useIntl()
   const change = useChangeVentureStatus(workspace.id, venture.id)
   const today = localDate(new Date(), workspace.timezone)
@@ -222,6 +237,7 @@ function StatusActions({ workspace, venture, onDone, onDelete, deleteFailed }: S
         <p role="alert">{intl.formatMessage({ id: 'common.actionFailed' })}</p>
       )}
       <button
+        ref={deleteButton}
         type="button"
         onClick={onDelete}
         className={`self-start min-h-12 px-2 font-medium text-text-muted underline ${focus}`}

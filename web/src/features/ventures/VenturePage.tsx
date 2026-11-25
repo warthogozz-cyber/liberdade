@@ -28,6 +28,18 @@ export function VenturePage() {
   const canWrite = workspace?.role === 'OWNER' || workspace?.role === 'ADULT'
   useDocumentTitle(venture.data?.name ?? intl.formatMessage({ id: 'ventures.title' }))
 
+  // Deleted elsewhere: a failed refetch keeps the cached data, so the 404 is checked first.
+  if (venture.error instanceof ApiError && venture.error.status === 404) {
+    return (
+      <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
+        <p>{intl.formatMessage({ id: 'ventures.page.gone' })}</p>
+        <Link to="/mais/projetos" className={`${outline} self-start`}>
+          {intl.formatMessage({ id: 'ventures.page.back' })}
+        </Link>
+      </main>
+    )
+  }
+
   if (workspace && venture.data) {
     const data = venture.data
     return (
@@ -99,17 +111,6 @@ export function VenturePage() {
             onOpenChange={setStatusOpen}
           />
         )}
-      </main>
-    )
-  }
-
-  if (venture.error instanceof ApiError && venture.error.status === 404) {
-    return (
-      <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
-        <p>{intl.formatMessage({ id: 'ventures.page.gone' })}</p>
-        <Link to="/mais/projetos" className={`${outline} self-start`}>
-          {intl.formatMessage({ id: 'ventures.page.back' })}
-        </Link>
       </main>
     )
   }

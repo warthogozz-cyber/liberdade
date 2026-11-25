@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
+import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, prdExampleVenture, seedMockFamily, seedVentureFixture } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
@@ -161,5 +162,54 @@ describe('StatusSheet', () => {
     expect(await screen.findByText('A lista')).toBeVisible()
     expect(mockState.ventures[workspace.id]?.map((each) => each.id)).not.toContain(venture.id)
     expect(events.slice(events.indexOf('DELETE'))).toEqual(['DELETE'])
+  })
+
+  it('cancellingTheDeleteDialogReturnsFocusToTheDeleteButton', async () => {
+    render()
+
+    const trigger = await screen.findByRole('button', { name: 'Excluir projeto' })
+    trigger.focus()
+    fireEvent.click(trigger)
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(trigger).toHaveFocus())
+  })
+
+  it('reopeningStartsClean', async () => {
+    const workspace = seedMockFamily()
+    const venture = prdExampleVenture({ status: 'CLOSED', closedOn: '2026-11-01' })
+    seedVentureFixture(workspace, venture)
+    server.use(
+      http.post(`${API_URL}/v1/workspaces/:ws/ventures/:id/status`, () =>
+        problem(409, 'venture.version-conflict', 'Outra pessoa alterou.'),
+      ),
+    )
+    function Harness() {
+      const [open, setOpen] = useState(true)
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            Abrir de novo
+          </button>
+          <StatusSheet workspace={workspace} venture={venture} open={open} onOpenChange={setOpen} />
+        </>
+      )
+    }
+    renderWithProviders(null, {
+      routes: [{ path: '/mais/projetos/:id', element: <Harness /> }],
+      route: `/mais/projetos/${venture.id}`,
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Reabrir' }))
+    expect(await screen.findByText(/Outra pessoa alterou este projeto/)).toBeVisible()
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir de novo' }))
+    expect(await screen.findByRole('dialog', { name: 'Status do projeto' })).toBeVisible()
+    expect(screen.queryByText(/Outra pessoa alterou este projeto/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Data de início')).not.toBeInTheDocument()
   })
 })
