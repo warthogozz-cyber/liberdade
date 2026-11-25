@@ -76,12 +76,12 @@ flowchart LR
   ledger --> workspace
   planning --> ledger
   gamification --> workspace & ledger & planning
-  ventures --> ledger
+  ventures --> workspace & ledger & billing
   live --> identity & workspace & ledger & planning & gamification & ventures
   live -. ouve eventos .-> ledger & planning & workspace & ventures
   audit -. ouve eventos .-> identity & workspace
-  audit --> identity & workspace
-  privacy --> ledger & audit & workspace & identity & billing & planning & gamification
+  audit --> identity & workspace & ventures
+  privacy --> ledger & audit & workspace & identity & billing & planning & gamification & ventures
   billing --> workspace & identity
   audit -. ouve eventos .-> billing
 ```
@@ -190,13 +190,6 @@ O módulo `planning` guarda as recorrências e os lançamentos previstos que ela
 pacote `br.com.liberdadefamilia.planning`. Ele depende só de `workspace`, `ledger` e `shared`;
 `audit` e `privacy` o enxergam por `RecurringRuleArchived` e `PlanningExport`.
 
-### Projetos (módulo `ventures`, Plano 9.1)
-
-O módulo `ventures` guarda os projetos de renda extra, com custos, produtos e passos, no pacote
-`br.com.liberdadefamilia.ventures`. O `live` o enxerga pelos eventos `VentureChanged`, `VentureClosed`
-e `VentureDeleted`, e o `privacy` por `VenturesExport`, a interface que entrega os projetos prontos para
-a exportação (versão 7). A exportação lê os projetos só por ela, nunca pelas tabelas.
-
 - Vem ligado por padrão em toda família. Desligar o módulo tira Recorrências do Mais e Previstos da
   lista de lançamentos; o resto do app segue igual.
 - Um previsto é uma linha de `transactions` com `status = PLANNED`, e nenhuma soma a conta. Confirmar
@@ -236,6 +229,13 @@ saldo e a divisão entre gastos fixos e variáveis. Mesmo com mais coisa, ele co
   dito no `localStorage` do aparelho (com `try/catch`), sem som e sem vibração.
 - **Navegação.** A barra inferior ganha Planejar entre "+ Novo gasto" e Mais enquanto o módulo está
   ligado (cinco itens; quatro quando desligado). Recorrências passou para `/planejar/recorrencias`.
+
+### Projetos (módulo `ventures`, Plano 9.1)
+
+O módulo `ventures` guarda os projetos de renda extra, com custos, produtos e passos, no pacote
+`br.com.liberdadefamilia.ventures`. O `live` o enxerga pelos eventos `VentureChanged`, `VentureClosed`
+e `VentureDeleted`, e o `privacy` por `VenturesExport`, a interface que entrega os projetos prontos para
+a exportação (versão 7). A exportação lê os projetos só por ela, nunca pelas tabelas.
 
 ### Avisos ao vivo (módulo `live`, Plano 7.3)
 
