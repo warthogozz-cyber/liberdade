@@ -18,7 +18,7 @@ import {
 
 const FIRST_TRANSACTION = 'Primeiro lançamento'
 
-/** An Adult joins the Dona's family in their own context and lands on Início. */
+/** An Adult joins the owner's family in their own context and lands on Início. */
 async function adultJoins(context: BrowserContext, donaPage: Page): Promise<Page> {
   const link = await createInvitation(donaPage, 'Bia', 'Adulto')
   const bia = await context.newPage()

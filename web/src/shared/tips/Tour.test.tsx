@@ -109,6 +109,22 @@ describe('Tour', () => {
     expect(seen()).toBe(true)
   })
 
+  it('escapeInsideAnotherDialogDoesNotSkip', async () => {
+    anchors(ALL)
+    const other = document.createElement('div')
+    other.setAttribute('role', 'dialog')
+    const inner = document.createElement('button')
+    other.appendChild(inner)
+    document.body.appendChild(other)
+    renderWithProviders(<PageTour id="planning" />)
+    await screen.findByRole('dialog', { name: /limite por categoria/ })
+    fireEvent.keyDown(inner, { key: 'Escape' })
+
+    expect(screen.getByRole('dialog', { name: /limite por categoria/ })).toBeInTheDocument()
+    expect(seen()).toBe(false)
+    other.remove()
+  })
+
   it('focusGoesBack', async () => {
     anchors(ALL)
     const trigger = document.createElement('button')

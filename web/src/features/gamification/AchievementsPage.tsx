@@ -37,7 +37,18 @@ export function AchievementsPage() {
         <h2 className="text-lg font-semibold">
           <FormattedMessage id="gamification.streak.title" />
         </h2>
-        {streak.data &&
+        {streak.isPending ? (
+          <div
+            aria-busy="true"
+            aria-label={intl.formatMessage({ id: 'gamification.streak.loading' })}
+            className="h-6 w-40 rounded-field bg-bg"
+          />
+        ) : streak.isError ? (
+          <p className="text-text-muted">
+            <FormattedMessage id="gamification.streak.error" />
+          </p>
+        ) : (
+          streak.data &&
           (streak.data.weeks > 0 ? (
             <>
               <p className="font-medium">
@@ -59,7 +70,8 @@ export function AchievementsPage() {
             <p className="text-text-muted">
               <FormattedMessage id="gamification.streak.none" />
             </p>
-          ))}
+          ))
+        )}
       </section>
       {achievements.data !== undefined ? (
         <div data-tour="achievements-list" className="flex flex-col gap-4">
@@ -80,7 +92,6 @@ export function AchievementsPage() {
                             day: '2-digit',
                             month: '2-digit',
                             year: 'numeric',
-                            timeZone: 'America/Sao_Paulo',
                           }),
                         }}
                       />

@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { useCurrentWorkspace } from '@/shared/api'
 import { gamificationKeys, getAchievements, useAchievements } from '@/shared/api/gamification'
@@ -31,6 +31,8 @@ export default function AchievementCelebrationWatcher() {
   const ws = useCurrentWorkspace()?.id ?? ''
   // Keeps the list in the cache, which is the base of the next comparison.
   useAchievements(ws)
+  // A key celebrates once per mount, however many saves read it as new.
+  const celebrated = useRef<Set<string>>(new Set())
   const [shown, setShown] = useState<Shown[]>([])
   const remove = useCallback(
     (id: number) => setShown((current) => current.filter((each) => each.id !== id)),
@@ -43,20 +45,24 @@ export default function AchievementCelebrationWatcher() {
     let queue: Promise<void> = Promise.resolve()
     return onLocalAction((action) => {
       if (action.fromQueue || action.workspaceId !== ws) return
+      // The base is read now, in the save's own turn, not when its place in the queue comes up.
+      const key = gamificationKeys.achievements(ws)
+      const before = queryClient.getQueryData<{ items: Parameters<typeof newlyEarned>[0] }>(key)
       queue = queue
         .then(async () => {
-          const key = gamificationKeys.achievements(ws)
-          const before = queryClient.getQueryData<{ items: Parameters<typeof newlyEarned>[0] }>(key)
           const after = await queryClient.fetchQuery({
             queryKey: key,
             queryFn: () => getAchievements(ws),
             staleTime: 0,
           })
           // The streak moves with a save too.
-          await queryClient.invalidateQueries({ queryKey: gamificationKeys.streak(ws) })
+          void queryClient.invalidateQueries({ queryKey: gamificationKeys.streak(ws) })
           if (!before) return
-          const earned = newlyEarned(before.items, after.items, Date.now())
+          const earned = newlyEarned(before.items, after.items, Date.now()).filter(
+            (each) => !celebrated.current.has(each),
+          )
           if (earned.length === 0) return
+          for (const each of earned) celebrated.current.add(each)
           setShown((current) => [
             ...current,
             ...earned.map((each) => ({ id: nextId++, key: each })),

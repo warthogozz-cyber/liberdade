@@ -11,6 +11,8 @@ export const gamificationMessages = {
   'gamification.celebrate': 'Conquista: {name}',
   'gamification.loading': 'Carregando as conquistas…',
   'gamification.open': 'Ver conquistas',
+  'gamification.streak.loading': 'Carregando a sequência…',
+  'gamification.streak.error': 'Não deu para ver a sequência agora.',
   'gamification.streak.title': 'Sequência',
   'gamification.achievement.FIRST_TRANSACTION.name': 'Primeiro lançamento',
   'gamification.achievement.FIRST_TRANSACTION.hint': 'Registre um lançamento.',

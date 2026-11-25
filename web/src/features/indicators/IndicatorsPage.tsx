@@ -36,7 +36,7 @@ export function IndicatorsPage() {
             ))}
           </ul>
         ) : indicators.isError ? (
-          <div className="flex flex-col items-start gap-2">
+          <div data-tour="indicators-cards" className="flex flex-col items-start gap-2">
             <p>
               <FormattedMessage id="common.error" />
             </p>
@@ -46,6 +46,7 @@ export function IndicatorsPage() {
           </div>
         ) : (
           <ul
+            data-tour="indicators-cards"
             aria-busy="true"
             aria-label={intl.formatMessage({ id: 'indicators.loading' })}
             className="flex flex-col gap-3"

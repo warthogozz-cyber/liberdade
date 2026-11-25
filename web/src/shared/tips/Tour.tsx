@@ -60,7 +60,7 @@ export default function Tour({ steps, onClose }: { steps: TourStep[]; onClose: (
     if (!el) return
     const previousOutline = el.style.outline
     const previousOffset = el.style.outlineOffset
-    el.style.outline = '3px solid var(--color-primary, #1d4ed8)'
+    el.style.outline = '3px solid var(--color-primary)'
     el.style.outlineOffset = '2px'
     let reduced = false
     try {
@@ -88,7 +88,12 @@ export default function Tour({ steps, onClose }: { steps: TourStep[]; onClose: (
   useEffect(() => {
     if (!open) return
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeRef.current()
+      if (event.key !== 'Escape') return
+      // An Esc meant for another dialog (not the tour card) must not end the tour.
+      const target = event.target
+      const otherDialog = target instanceof Element ? target.closest('[role="dialog"]') : null
+      if (otherDialog !== null && otherDialog !== cardRef.current) return
+      closeRef.current()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)

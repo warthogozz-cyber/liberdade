@@ -128,4 +128,17 @@ describe('AchievementCelebrationWatcher', () => {
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
+
+  it('duas ações seguidas celebram uma vez só', async () => {
+    const workspace = open()
+    await renderWithBase(workspace.id)
+
+    earnNow()
+    saved(workspace.id)
+    saved(workspace.id)
+    await screen.findByRole('status')
+    await pause(250)
+
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+  })
 })
