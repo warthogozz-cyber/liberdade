@@ -77,7 +77,7 @@ test('editingUpdatesThePreview: a new price changes the preview before saving, a
   await expect(preview).not.toContainText('2,70')
   await expect(page).toHaveURL(/\/editar$/)
 
-  await page.getByRole('button', { name: 'Salvar' }).click()
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click()
   await expect(page).toHaveURL(/\/mais\/projetos\/[^/]+$/)
   await expect(page.getByRole('heading', { level: 1, name: TEMPLATE_NAME })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Prévia das contas' })).toContainText('3,20')
@@ -89,7 +89,7 @@ test('stepsAndStatus: tick a step, start selling, close: the project moves to En
 }) => {
   await signInWithModules(page)
   await createFoodVenture(page)
-  await page.getByRole('button', { name: 'Salvar' }).click()
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: TEMPLATE_NAME })).toBeVisible()
 
   const step = page.getByRole('checkbox', {

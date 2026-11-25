@@ -537,7 +537,7 @@ test('the projects screens meet WCAG 2.2 AA in both themes', async ({ page }) =>
   const figures = page.getByRole('region', { name: 'Prévia das contas' })
   await expectNoViolations(page, 'Editar projeto', figures.getByText(money('540,00')))
 
-  await page.getByRole('button', { name: 'Salvar' }).click()
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click()
   await expectNoViolations(
     page,
     'Doces por encomenda',
@@ -559,9 +559,17 @@ test('the projects screens meet WCAG 2.2 AA in both themes', async ({ page }) =>
   )
 
   await page.goto('/mais/projetos/investimentos/simulador')
+  await page.getByLabel('Valor inicial (R$)').fill('1000')
+  await page.getByLabel('Aporte mensal (R$)').fill('100')
+  await page.getByLabel('Prazo (anos, de 1 a 50)').fill('5')
+  // The first row may come filled with an indicator or empty: either way, the person's own values win.
+  await page.getByLabel('Nome do cenário 1').fill('Meu cenário')
+  await page.getByLabel('Taxa ao ano (%) do cenário 1').fill('10')
+  await page.getByRole('button', { name: 'Simular', exact: true }).click()
+  await expect(page.getByRole('heading', { level: 2, name: 'Resultado' })).toBeVisible()
   await expectNoViolations(
     page,
     'Simulador de juros compostos',
-    page.getByRole('button', { name: 'Simular', exact: true }),
+    page.getByRole('region', { name: 'Meu cenário' }),
   )
 })
