@@ -2413,6 +2413,46 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets/{ref}/instagram-embed": {
+      "post": {
+        "operationId": "instagramEmbed",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstagramEmbedView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/{ref}/links": {
       "put": {
         "operationId": "putLinks",
@@ -5611,6 +5651,15 @@
             "items": {
               "$ref": "#/components/schemas/IndicatorView"
             }
+          }
+        }
+      },
+      "InstagramEmbedView": {
+        "type": "object",
+        "properties": {
+          "html": {
+            "type": "string",
+            "example": "<blockquote class=\"instagram-media\"></blockquote>"
           }
         }
       },

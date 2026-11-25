@@ -28,6 +28,12 @@ class MarketsExceptionHandler {
         return unprocessable("markets.location_invalid", "Essa localização não existe. Confira latitude e longitude.");
     }
 
+    @ExceptionHandler(InstagramUnavailableException.class)
+    ResponseEntity<ProblemDetail> handleInstagramUnavailable(InstagramUnavailableException ex) {
+        return unprocessable(
+                "markets.instagram_unavailable", "Não foi possível mostrar o Instagram aqui. Abra o link.");
+    }
+
     private static ResponseEntity<ProblemDetail> unprocessable(String code, String detail) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, detail);
         problem.setProperty("code", code);

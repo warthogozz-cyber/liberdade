@@ -916,6 +916,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/{ref}/instagram-embed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["instagramEmbed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/{ref}/links": {
         parameters: {
             query?: never;
@@ -1845,6 +1861,10 @@ export interface components {
         };
         IndicatorsView: {
             indicators: components["schemas"]["IndicatorView"][];
+        };
+        InstagramEmbedView: {
+            /** @example <blockquote class="instagram-media"></blockquote> */
+            html: string;
         };
         InvestmentSimulationRequest: {
             /** @example 5000.0 */
@@ -4155,6 +4175,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
+    instagramEmbed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramEmbedView"];
                 };
             };
         };

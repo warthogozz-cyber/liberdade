@@ -389,6 +389,14 @@ class RoleMatrixIT {
                                 Outcome.OK,
                                 Outcome.OK,
                                 Outcome.OK),
+                        each(
+                                "POST " + W + "/markets/{ref}/instagram-embed",
+                                W + "/markets/{instagramMarket}/instagram-embed",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
                         ownerAndAdult(
                                 "POST " + W + "/markets",
                                 W + "/markets",
@@ -1031,6 +1039,13 @@ class RoleMatrixIT {
         ids.put("market", jdbc.sql("""
                         insert into markets (workspace_id, origin, name, kind, lat, lon)
                         values (:ws, 'FAMILY', 'Feira Exemplo', 'GREENGROCER', -23.00300, -45.99900)
+                        returning id""").param("ws", ws).query(UUID.class).single());
+        ids.put(
+                "instagramMarket",
+                jdbc.sql("""
+                        insert into markets (workspace_id, origin, name, kind, instagram, instagram_set_at)
+                        values (:ws, 'FAMILY', 'Feira Com Post', 'GREENGROCER',
+                                'https://www.instagram.com/p/Exemplo123/', now())
                         returning id""").param("ws", ws).query(UUID.class).single());
         ids.put("leftMarket", jdbc.sql("""
                         insert into markets (workspace_id, origin, osm_type, osm_id)

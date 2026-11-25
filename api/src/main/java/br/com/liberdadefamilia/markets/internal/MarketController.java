@@ -7,6 +7,7 @@ import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 
 import br.com.liberdadefamilia.billing.PlanKey;
 import br.com.liberdadefamilia.billing.RequiresPlan;
+import br.com.liberdadefamilia.markets.internal.MarketViews.InstagramEmbedView;
 import br.com.liberdadefamilia.markets.internal.MarketViews.MarketCardView;
 import br.com.liberdadefamilia.markets.internal.MarketViews.SearchRequest;
 import br.com.liberdadefamilia.markets.internal.MarketViews.SearchResultView;
@@ -34,11 +35,17 @@ class MarketController {
     private final MarketSearchService search;
     private final MarketCardService cards;
     private final FamilyMarketService family;
+    private final InstagramEmbedService instagram;
 
-    MarketController(MarketSearchService search, MarketCardService cards, FamilyMarketService family) {
+    MarketController(
+            MarketSearchService search,
+            MarketCardService cards,
+            FamilyMarketService family,
+            InstagramEmbedService instagram) {
         this.search = search;
         this.cards = cards;
         this.family = family;
+        this.instagram = instagram;
     }
 
     /** The markets in a box around a point the app rounded to 2 decimals. A read, though it is a POST. */
@@ -65,6 +72,18 @@ class MarketController {
     @RequiresPlan(value = PlanKey.FAMILY, openWhileBillingOff = true)
     MarketCardView getMarket(@PathVariable String ref, WorkspaceMember member) {
         return cards.card(member, ref);
+    }
+
+    /**
+     * The embed of the Instagram post on the card, fetched when someone asks for it. A read, though it is a POST: the
+     * answer is kept in memory, so the app calls Instagram at most once a week per post.
+     */
+    @PostMapping("/v1/workspaces/{ws}/markets/{ref}/instagram-embed")
+    @RequiresModule(ModuleKey.MARKETS)
+    @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
+    @RequiresPlan(value = PlanKey.FAMILY, openWhileBillingOff = true)
+    InstagramEmbedView instagramEmbed(@PathVariable String ref, WorkspaceMember member) {
+        return instagram.embed(member, ref);
     }
 
     /** A market the family adds itself; the position is optional. */

@@ -30,6 +30,16 @@ class MarketsSourceConfig {
     }
 
     @Bean
+    InstagramOembed instagramOembed(MarketsProperties properties) {
+        return properties.instagram().fake() ? new FakeInstagramOembed() : new MetaInstagramOembed(properties);
+    }
+
+    @Bean
+    InstagramEmbedCache instagramEmbedCache(Clock clock) {
+        return new InstagramEmbedCache(clock, 1000);
+    }
+
+    @Bean
     GeocodingThrottle geocodingThrottle(Clock clock, Sleeper sleeper, MarketsProperties properties) {
         return new GeocodingThrottle(clock, sleeper, properties.geocoding().minInterval());
     }

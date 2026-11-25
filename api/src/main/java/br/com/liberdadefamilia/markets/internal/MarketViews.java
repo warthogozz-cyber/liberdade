@@ -152,6 +152,11 @@ final class MarketViews {
     /** The places found, at most 5. */
     record GeocodeResultView(List<PlaceView> places) {}
 
+    /** The embed HTML of an Instagram post: a blockquote without a script. */
+    record InstagramEmbedView(
+            @Schema(example = "<blockquote class=\"instagram-media\"></blockquote>")
+            String html) {}
+
     /** The switches the app reads to hide what is off. */
     record SettingsView(boolean geocodingEnabled, boolean instagramEnabled) {}
 }
