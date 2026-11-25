@@ -115,16 +115,17 @@ test.describe('first visit tips and tours', () => {
     await createFamily(page)
     await setModules(page, true)
 
-    // After a module toggle a fresh load can still bounce to /inicio, so retry until the screen holds.
+    // Right after a module toggle a fresh load can still bounce to /inicio, even after the screen
+    // showed, so reload until the tour holds. Only closing the tour marks it seen, so it opens again.
+    const tour = page.getByRole('dialog', { name: /Sua sequência conta as semanas/ })
     await expect(async () => {
       await page.goto('/mais/conquistas')
       await expect(page.getByRole('heading', { level: 1, name: 'Conquistas' })).toBeVisible({
         timeout: 3_000,
       })
-    }).toPass({ timeout: 30_000 })
-    const tour = page.getByRole('dialog', { name: /Sua sequência conta as semanas/ })
-    await expect(tour).toBeVisible()
-    await expect(tour.getByText('Passo 1 de 2')).toBeVisible()
+      await expect(tour.getByText('Passo 1 de 2')).toBeVisible({ timeout: 3_000 })
+      await expect(page).toHaveURL(/\/mais\/conquistas$/)
+    }).toPass({ timeout: 45_000 })
 
     // The card takes the focus when it opens, so the first Tab lands on its first button.
     await page.keyboard.press('Tab')
