@@ -228,6 +228,20 @@ export const routes: RouteObject[] = [
                             Component: m.VenturesListPage,
                           })),
                       },
+                      {
+                        path: '/mais/projetos/comecar',
+                        lazy: () =>
+                          import('@/features/ventures/StartPage').then((m) => ({
+                            Component: m.StartPage,
+                          })),
+                      },
+                      {
+                        path: '/mais/projetos/:id/editar',
+                        lazy: () =>
+                          import('@/features/ventures/VentureEditPage').then((m) => ({
+                            Component: m.VentureEditPage,
+                          })),
+                      },
                     ],
                   },
                 ],

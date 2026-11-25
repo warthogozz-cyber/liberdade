@@ -554,6 +554,98 @@ export function foodSweetsVenture(
   }
 }
 
+/**
+ * The figures of the PRD's example, what the simulation route answers: R$ 2,70 a unit at 60,0 %,
+ * break-even at 100 units (R$ 450,00), R$ 540,00 a month, paid back in 2 months, 710,0 % in a year.
+ */
+export function prdExampleFigures(): Schemas['FiguresView'] {
+  return {
+    initialInvestment: brl('800.00'),
+    fixedMonthly: brl('270.00'),
+    plannedRevenue: brl('1350.00'),
+    plannedCost: brl('540.00'),
+    totalMargin: brl('810.00'),
+    monthlyProfit: brl('540.00'),
+    paybackMonths: 2,
+    paybackState: 'MONTHS',
+    roi12mPercent: '710.0',
+    roiState: 'OK',
+    breakEven: { state: 'OK', revenue: brl('450.00'), weightedMarginPercent: '60.0' },
+    products: [
+      { margin: brl('2.70'), marginPercent: '60.0', priceCoversCost: true, breakEvenUnits: 100 },
+    ],
+  }
+}
+
+function ventureTemplate(
+  key: string,
+  name: string,
+  type: Schemas['TemplateView']['type'],
+): Schemas['TemplateView'] {
+  const venture = foodSweetsVenture()
+  return {
+    key,
+    name,
+    type,
+    figures: venture.figures,
+    initialItems: venture.initialItems.map(({ name: item, amount }) => ({ name: item, amount })),
+    fixedItems: venture.fixedItems.map(({ name: item, amount }) => ({ name: item, amount })),
+    products: venture.products.map(
+      ({ name: item, unitPrice, unitVariableCost, plannedUnitsMonth }) => ({
+        name: item,
+        unitPrice,
+        unitVariableCost,
+        plannedUnitsMonth,
+      }),
+    ),
+    steps: venture.steps.map((step) => step.title),
+  }
+}
+
+/** The five tracks the API offers, in its order: the last one has no template, it is educational. */
+export function ventureTracks(): Schemas['TrackView'][] {
+  return [
+    {
+      key: 'food',
+      name: 'Culinária',
+      description: 'Venda o que você sabe cozinhar.',
+      educational: false,
+      templates: [ventureTemplate('food-sweets', 'Doces caseiros', 'FOOD')],
+    },
+    {
+      key: 'digital',
+      name: 'Produtos digitais',
+      description: 'Crie uma vez e venda várias vezes.',
+      educational: false,
+      templates: [ventureTemplate('digital-ebook', 'E-book ou curso curto', 'DIGITAL_PRODUCT')],
+    },
+    {
+      key: 'content',
+      name: 'Conteúdo',
+      description: 'Transforme o que você sabe em vídeos, textos e aulas.',
+      educational: false,
+      templates: [ventureTemplate('content-channel', 'Canal de conteúdo', 'CONTENT')],
+    },
+    {
+      key: 'resale-services',
+      name: 'Revenda e serviços',
+      description: 'Revenda produtos ou venda o seu tempo.',
+      educational: false,
+      templates: [
+        ventureTemplate('resale-goods', 'Revenda de produtos', 'RESALE'),
+        ventureTemplate('service-hours', 'Serviço por atendimento', 'SERVICE'),
+      ],
+    },
+    {
+      key: 'investments',
+      name: 'Investimentos (conteúdo educativo)',
+      description: 'Entenda como cada opção funciona e simule cenários.',
+      educational: true,
+      templates: [],
+    },
+  ]
+}
+
 /** Gives the family the `food-sweets` project and turns the module on. */
 export function seedVentureFixture(
   workspace: MeWorkspace,

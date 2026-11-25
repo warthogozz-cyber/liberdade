@@ -18,6 +18,11 @@ export type TemplatesView = Schemas['TemplatesView']
 export type CreateVentureRequest = Schemas['CreateVentureRequest']
 export type UpdateVentureRequest = Schemas['UpdateVentureRequest']
 export type ChangeStatusRequest = Schemas['ChangeStatusRequest']
+export type VentureType = Schemas['VentureView']['type']
+export type VentureFigures = Schemas['FiguresView']
+export type TemplateView = Schemas['TemplateView']
+export type TrackView = Schemas['TrackView']
+export type SimulationRequest = Schemas['SimulationRequest']
 export type StepView = Schemas['StepView']
 export type CreateStepRequest = Schemas['CreateStepRequest']
 export type UpdateStepRequest = Schemas['UpdateStepRequest']
@@ -28,6 +33,9 @@ export const venturesKeys = {
   list: (ws: string) => [...venturesKeys.all(ws), 'list'] as const,
   detail: (ws: string, id: string) => [...venturesKeys.all(ws), 'detail', id] as const,
   templates: (ws: string) => [...venturesKeys.all(ws), 'templates'] as const,
+  /** `request` is the draft without any name: names do not change the figures. */
+  simulation: (ws: string, request: SimulationRequest) =>
+    [...venturesKeys.all(ws), 'simulation', request] as const,
 }
 
 /** The family's projects, with whether the plan lets it start another. */
@@ -43,6 +51,13 @@ export function getVenture(ws: string, id: string): Promise<VentureView> {
 /** The starting-point templates, by track. */
 export function getVentureTemplates(ws: string): Promise<TemplatesView> {
   return unwrap(client.GET('/v1/workspaces/{ws}/ventures/templates', { params: { path: { ws } } }))
+}
+
+/** The figures of a draft the person is typing, without saving anything. */
+export function simulateVenture(ws: string, body: SimulationRequest): Promise<VentureFigures> {
+  return unwrap(
+    client.POST('/v1/workspaces/{ws}/ventures/simulation', { params: { path: { ws } }, body }),
+  )
 }
 
 /** Starts a project, empty or from a template. */

@@ -11,6 +11,7 @@ import type { components } from '@/shared/api/schema'
 import {
   createFamily,
   foodSweetsVenture,
+  prdExampleFigures,
   keepsAcceptance,
   type MockAccount,
   type MockBudget,
@@ -18,6 +19,7 @@ import {
   type MockInvitation,
   type MockRule,
   mockState,
+  ventureTracks,
 } from './data'
 
 type Schemas = components['schemas']
@@ -1065,8 +1067,20 @@ function ventureHandlers() {
     http.get<{ ws: string }>(url('/v1/workspaces/:ws/ventures/templates'), ({ params }) => {
       const workspace = ventureGuard(params.ws, false)
       if (workspace instanceof Response) return workspace
-      return HttpResponse.json({ tracks: [] })
+      return HttpResponse.json({ tracks: ventureTracks() })
     }),
+
+    http.post<{ ws: string }>(
+      url('/v1/workspaces/:ws/ventures/simulation'),
+      async ({ request, params }) => {
+        if (withoutToken(request)) return csrfInvalid()
+        const workspace = ventureGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        const body = (await readJson(request)) as Partial<Schemas['SimulationRequest']> | undefined
+        if (!body || typeof body !== 'object') return malformed()
+        return HttpResponse.json(prdExampleFigures())
+      },
+    ),
 
     http.post<{ ws: string }>(url('/v1/workspaces/:ws/ventures'), async ({ request, params }) => {
       if (withoutToken(request)) return csrfInvalid()
