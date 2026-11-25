@@ -69,7 +69,9 @@ public class MonthInBudgetJob {
         AtomicInteger granted = new AtomicInteger();
         for (UUID workspaceId : planning.familiesWithBudgets(month)) {
             try {
-                tx.executeWithoutResult(status -> granted.addAndGet(grantFamily(workspaceId, month)));
+                // Counted after the commit, from what the transaction really granted.
+                Integer done = tx.execute(status -> grantFamily(workspaceId, month));
+                granted.addAndGet(done == null ? 0 : done);
             } catch (RuntimeException failure) {
                 failed++;
                 // The class only: the exception message could carry a value.
