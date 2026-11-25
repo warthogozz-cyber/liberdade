@@ -3116,6 +3116,283 @@
           "transaction-controller"
         ]
       }
+    },
+    "/v1/workspaces/{ws}/ventures": {
+      "get": {
+        "operationId": "getVentures",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenturesView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "venture-controller"
+        ]
+      },
+      "post": {
+        "operationId": "createVenture",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVentureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VentureView"
+                }
+              }
+            },
+            "description": "The project was created"
+          }
+        },
+        "tags": [
+          "venture-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/ventures/templates": {
+      "get": {
+        "operationId": "getTemplates",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplatesView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "venture-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/ventures/{id}": {
+      "delete": {
+        "operationId": "deleteVenture",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "tags": [
+          "venture-controller"
+        ]
+      },
+      "get": {
+        "operationId": "getVenture",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VentureView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "venture-controller"
+        ]
+      },
+      "put": {
+        "operationId": "updateVenture",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVentureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VentureView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "venture-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/ventures/{id}/status": {
+      "post": {
+        "operationId": "changeVentureStatus",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VentureView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "venture-controller"
+        ]
+      }
     }
   },
   "components": {
@@ -3290,6 +3567,33 @@
           }
         }
       },
+      "BreakEvenView": {
+        "type": "object",
+        "properties": {
+          "revenue": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "OK",
+              "NO_PRODUCTS",
+              "NEEDS_PLANNED_UNITS",
+              "NO_BREAK_EVEN"
+            ]
+          },
+          "weightedMarginPercent": {
+            "type": "string",
+            "nullable": true,
+            "example": "57.1"
+          }
+        }
+      },
       "BudgetLineView": {
         "type": "object",
         "properties": {
@@ -3456,6 +3760,33 @@
           }
         }
       },
+      "ChangeStatusRequest": {
+        "required": [
+          "status",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PLANNING",
+              "ACTIVE",
+              "PAUSED",
+              "CLOSED"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "CheckoutView": {
         "type": "object",
         "properties": {
@@ -3573,6 +3904,42 @@
           "copied": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "CostItemInput": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "pattern": "^[0-9]+([.][0-9]{1,2})?$",
+            "type": "string",
+            "example": "12.5"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "CostItemView": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "isExample": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
           }
         }
       },
@@ -3891,6 +4258,33 @@
           }
         }
       },
+      "CreateVentureRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "templateKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "FOOD",
+              "DIGITAL_PRODUCT",
+              "CONTENT",
+              "RESALE",
+              "SERVICE",
+              "OTHER"
+            ]
+          }
+        }
+      },
       "CreateWorkspaceRequest": {
         "required": [
           "name"
@@ -4014,6 +4408,62 @@
               "PRIVACY",
               "PARENTAL"
             ]
+          }
+        }
+      },
+      "FiguresView": {
+        "type": "object",
+        "properties": {
+          "breakEven": {
+            "$ref": "#/components/schemas/BreakEvenView"
+          },
+          "fixedMonthly": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "initialInvestment": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "monthlyProfit": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "paybackMonths": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "paybackState": {
+            "type": "string",
+            "enum": [
+              "MONTHS",
+              "NEVER"
+            ]
+          },
+          "plannedCost": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "plannedRevenue": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductFiguresView"
+            }
+          },
+          "roi12mPercent": {
+            "type": "string",
+            "nullable": true,
+            "example": "710.0"
+          },
+          "roiState": {
+            "type": "string",
+            "enum": [
+              "OK",
+              "NO_INVESTMENT"
+            ]
+          },
+          "totalMargin": {
+            "$ref": "#/components/schemas/Money"
           }
         }
       },
@@ -4635,6 +5085,78 @@
           }
         }
       },
+      "ProductFiguresView": {
+        "type": "object",
+        "properties": {
+          "breakEvenUnits": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "margin": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "marginPercent": {
+            "type": "string",
+            "example": "60.0"
+          },
+          "priceCoversCost": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProductInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "name": {
+            "type": "string"
+          },
+          "plannedUnitsMonth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitPrice": {
+            "pattern": "^[0-9]+([.][0-9]{1,2})?$",
+            "type": "string",
+            "example": "4.5"
+          },
+          "unitVariableCost": {
+            "pattern": "^[0-9]+([.][0-9]{1,2})?$",
+            "type": "string",
+            "example": "1.8"
+          }
+        }
+      },
+      "ProductView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "isExample": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "plannedUnitsMonth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitPrice": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "unitVariableCost": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
       "ProjectionPointView": {
         "type": "object",
         "properties": {
@@ -4911,6 +5433,27 @@
           }
         }
       },
+      "StepView": {
+        "type": "object",
+        "properties": {
+          "doneAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
       "StreakView": {
         "type": "object",
         "properties": {
@@ -4945,6 +5488,95 @@
           }
         }
       },
+      "TemplateItemView": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "TemplateProductView": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "plannedUnitsMonth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitPrice": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "unitVariableCost": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "TemplateView": {
+        "type": "object",
+        "properties": {
+          "figures": {
+            "$ref": "#/components/schemas/FiguresView"
+          },
+          "fixedItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateItemView"
+            }
+          },
+          "initialItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateItemView"
+            }
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateProductView"
+            }
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "FOOD",
+              "DIGITAL_PRODUCT",
+              "CONTENT",
+              "RESALE",
+              "SERVICE",
+              "OTHER"
+            ]
+          }
+        }
+      },
+      "TemplatesView": {
+        "type": "object",
+        "properties": {
+          "tracks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrackView"
+            }
+          }
+        }
+      },
       "ThemeRequest": {
         "required": [
           "theme"
@@ -4959,6 +5591,29 @@
               "FOREST",
               "PLUM"
             ]
+          }
+        }
+      },
+      "TrackView": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "educational": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateView"
+            }
           }
         }
       },
@@ -5397,6 +6052,60 @@
           }
         }
       },
+      "UpdateVentureRequest": {
+        "required": [
+          "fixedItems",
+          "initialItems",
+          "name",
+          "products",
+          "type",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "fixedItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostItemInput"
+            }
+          },
+          "initialItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostItemInput"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductInput"
+            }
+          },
+          "startedOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "FOOD",
+              "DIGITAL_PRODUCT",
+              "CONTENT",
+              "RESALE",
+              "SERVICE",
+              "OTHER"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "VariationView": {
         "type": "object",
         "properties": {
@@ -5412,6 +6121,164 @@
           },
           "value": {
             "type": "string"
+          }
+        }
+      },
+      "VentureSummary": {
+        "type": "object",
+        "properties": {
+          "closedOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "hasExamples": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "monthlyProfit": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "name": {
+            "type": "string"
+          },
+          "paybackMonths": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "paybackState": {
+            "type": "string",
+            "enum": [
+              "MONTHS",
+              "NEVER"
+            ]
+          },
+          "startedOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PLANNING",
+              "ACTIVE",
+              "PAUSED",
+              "CLOSED"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "FOOD",
+              "DIGITAL_PRODUCT",
+              "CONTENT",
+              "RESALE",
+              "SERVICE",
+              "OTHER"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "VentureView": {
+        "type": "object",
+        "properties": {
+          "closedOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/FiguresView"
+          },
+          "fixedItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostItemView"
+            }
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "initialItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostItemView"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductView"
+            }
+          },
+          "startedOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PLANNING",
+              "ACTIVE",
+              "PAUSED",
+              "CLOSED"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StepView"
+            }
+          },
+          "templateKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "FOOD",
+              "DIGITAL_PRODUCT",
+              "CONTENT",
+              "RESALE",
+              "SERVICE",
+              "OTHER"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "VenturesView": {
+        "type": "object",
+        "properties": {
+          "limitReached": {
+            "type": "boolean"
+          },
+          "ventures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VentureSummary"
+            }
           }
         }
       },

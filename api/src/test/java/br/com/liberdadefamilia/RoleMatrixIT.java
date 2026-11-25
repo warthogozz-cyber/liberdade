@@ -124,6 +124,7 @@ class RoleMatrixIT {
                         recurringRuleRows(),
                         budgetRows(),
                         goalRows(),
+                        ventureRows(),
                         reserveRows(),
                         projectionRows(),
                         indicatorRows(),
@@ -236,6 +237,43 @@ class RoleMatrixIT {
                                 "POST " + W + "/budgets/{month}/copy-previous",
                                 W + "/budgets/2026-11/copy-previous",
                                 null))
+                .flatMap(group -> group);
+    }
+
+    static Stream<Row> ventureRows() {
+        String create = "{\"name\":\"Doces\",\"type\":\"OTHER\"}";
+        String update = "{\"version\":0,\"name\":\"Outro\",\"type\":\"OTHER\",\"startedOn\":null,"
+                + "\"initialItems\":[],\"fixedItems\":[],\"products\":[]}";
+        String status = "{\"version\":0,\"status\":\"ACTIVE\",\"on\":null}";
+        return Stream.of(
+                        each(
+                                "GET " + W + "/ventures",
+                                W + "/ventures",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK),
+                        each(
+                                "GET " + W + "/ventures/templates",
+                                W + "/ventures/templates",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK),
+                        each(
+                                "GET " + W + "/ventures/{id}",
+                                W + "/ventures/{venture}",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK),
+                        ownerAndAdult("POST " + W + "/ventures", W + "/ventures", create),
+                        ownerAndAdult("PUT " + W + "/ventures/{id}", W + "/ventures/{venture}", update),
+                        ownerAndAdult("POST " + W + "/ventures/{id}/status", W + "/ventures/{venture}/status", status),
+                        ownerAndAdult("DELETE " + W + "/ventures/{id}", W + "/ventures/{venture}", null))
                 .flatMap(group -> group);
     }
 
@@ -724,12 +762,14 @@ class RoleMatrixIT {
     /**
      * The routes that need a running plan get one before the snapshot is taken: the paid order is its origin, as it is
      * the day after the payment. The shared family has none, since a plan makes the owner's checkout a 409.
+     * Creating a second project needs one too, as the family already has a project and the Grátis plan allows one.
      */
     private void runningPlanFor(Family family, Row row) {
         if (row.path().contains("{paidOrder}")
                 || row.path().endsWith("/billing/plan/theme")
                 || row.path().endsWith("/imports/category-hints")
-                || row.path().endsWith("/imports")) {
+                || row.path().endsWith("/imports")
+                || row.route().equals("POST " + W + "/ventures")) {
             jdbc.sql("""
                             insert into workspace_plans (workspace_id, plan_key, founder, source_order_id, starts_at, ends_at)
                             values (:ws, 'FAMILY', true, :order, now() - interval '1 minute', now() + interval '1 year')""")
@@ -780,6 +820,9 @@ class RoleMatrixIT {
         UUID tiaMembership = workspaces.addMember(ws, tia, VIEWER, "Tia");
         // The indicators and gamification modules start off; the matrix reads their routes with them on.
         jdbc.sql("insert into workspace_modules (workspace_id, module_key, enabled) values (:ws, 'indicators', true)")
+                .param("ws", ws)
+                .update();
+        jdbc.sql("insert into workspace_modules (workspace_id, module_key, enabled) values (:ws, 'ventures', true)")
                 .param("ws", ws)
                 .update();
         jdbc.sql("insert into workspace_modules (workspace_id, module_key, enabled) values (:ws, 'gamification', true)")
@@ -855,6 +898,16 @@ class RoleMatrixIT {
                 jdbc.sql("""
                         insert into goals (workspace_id, name, target_amount, currency, icon, created_by)
                         values (:ws, 'Viagem', 1000, 'BRL', 'travel', :ana)
+                        returning id""")
+                        .param("ws", ws)
+                        .param("ana", anaMembership)
+                        .query(UUID.class)
+                        .single());
+        ids.put(
+                "venture",
+                jdbc.sql("""
+                        insert into ventures (workspace_id, name, type, currency, created_by)
+                        values (:ws, 'Doces', 'OTHER', 'BRL', :ana)
                         returning id""")
                         .param("ws", ws)
                         .param("ana", anaMembership)

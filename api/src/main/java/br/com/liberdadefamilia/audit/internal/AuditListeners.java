@@ -15,6 +15,8 @@ import br.com.liberdadefamilia.planning.RecurringRuleCreated;
 import br.com.liberdadefamilia.planning.RecurringRuleEdited;
 import br.com.liberdadefamilia.planning.ReserveCostChanged;
 import br.com.liberdadefamilia.planning.ReserveTargetChanged;
+import br.com.liberdadefamilia.ventures.VentureClosed;
+import br.com.liberdadefamilia.ventures.VentureDeleted;
 import br.com.liberdadefamilia.workspace.InvitationCreated;
 import br.com.liberdadefamilia.workspace.InvitationKind;
 import br.com.liberdadefamilia.workspace.InvitationRevoked;
@@ -135,6 +137,16 @@ class AuditListeners {
     @EventListener
     void on(GoalArchived event) {
         record(event.workspaceId(), event.actorUserId(), "goal.archived", "GOAL", event.goalId(), Map.of());
+    }
+
+    @EventListener
+    void on(VentureClosed event) {
+        record(event.workspaceId(), event.actorUserId(), "venture.closed", "VENTURE", event.ventureId(), Map.of());
+    }
+
+    @EventListener
+    void on(VentureDeleted event) {
+        record(event.workspaceId(), event.actorUserId(), "venture.deleted", "VENTURE", event.ventureId(), Map.of());
     }
 
     @EventListener
