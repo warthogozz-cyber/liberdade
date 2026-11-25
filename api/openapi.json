@@ -2076,6 +2076,143 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets/geocode": {
+      "post": {
+        "operationId": "geocode",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeocodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeocodeResultView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-home-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/home": {
+      "delete": {
+        "operationId": "deleteHome",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Address removed"
+          }
+        },
+        "tags": [
+          "market-home-controller"
+        ]
+      },
+      "get": {
+        "operationId": "getHome",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeView"
+                }
+              }
+            },
+            "description": "No address yet"
+          }
+        },
+        "tags": [
+          "market-home-controller"
+        ]
+      },
+      "put": {
+        "operationId": "putHome",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-home-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/search": {
       "post": {
         "operationId": "searchMarkets",
@@ -5206,6 +5343,30 @@
         },
         "nullable": true
       },
+      "GeocodeRequest": {
+        "required": [
+          "query"
+        ],
+        "type": "object",
+        "properties": {
+          "query": {
+            "maxLength": 120,
+            "type": "string",
+            "example": "Rua Exemplo 10"
+          }
+        }
+      },
+      "GeocodeResultView": {
+        "type": "object",
+        "properties": {
+          "places": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlaceView"
+            }
+          }
+        }
+      },
       "GoalView": {
         "type": "object",
         "properties": {
@@ -5273,6 +5434,42 @@
           },
           "limitReached": {
             "type": "boolean"
+          }
+        }
+      },
+      "HomeRequest": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "maxLength": 40,
+            "type": "string",
+            "nullable": true,
+            "example": "Casa"
+          },
+          "lat": {
+            "type": "string",
+            "nullable": true,
+            "example": "-10.0"
+          },
+          "lon": {
+            "type": "string",
+            "nullable": true,
+            "example": "-50.0"
+          }
+        }
+      },
+      "HomeView": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "lat": {
+            "type": "string"
+          },
+          "lon": {
+            "type": "string"
           }
         }
       },
@@ -6095,6 +6292,20 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          }
+        }
+      },
+      "PlaceView": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "string"
+          },
+          "lon": {
+            "type": "string"
           }
         }
       },

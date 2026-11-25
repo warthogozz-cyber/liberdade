@@ -124,6 +124,27 @@ final class MarketViews {
             @Nullable @Schema(nullable = true) FlyerView flyer,
             @Nullable @Schema(nullable = true) Instant updatedAt) {}
 
+    /** The family's address: a point with 3 decimals and a name the person chose. */
+    record HomeView(
+            String lat,
+            String lon,
+            @Nullable @Schema(nullable = true) String label) {}
+
+    /** The family's address: both coordinates with at most 3 decimals; the label has up to 40 characters. */
+    record HomeRequest(
+            @Nullable @Schema(nullable = true, example = "-10.000") String lat,
+            @Nullable @Schema(nullable = true, example = "-50.000") String lon,
+            @Nullable @Schema(nullable = true, maxLength = 40, example = "Casa") String label) {}
+
+    /** An address to look for, 1 to 120 characters. */
+    record GeocodeRequest(@NotNull @Schema(maxLength = 120, example = "Rua Exemplo 10") String query) {}
+
+    /** A place the address search found, rounded to 3 decimals. */
+    record PlaceView(String lat, String lon, String label) {}
+
+    /** The places found, at most 5. */
+    record GeocodeResultView(List<PlaceView> places) {}
+
     /** The switches the app reads to hide what is off. */
     record SettingsView(boolean geocodingEnabled, boolean instagramEnabled) {}
 }

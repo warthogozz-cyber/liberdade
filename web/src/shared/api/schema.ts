@@ -804,6 +804,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/geocode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["geocode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getHome"];
+        put: operations["putHome"];
+        post?: never;
+        delete: operations["deleteHome"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/search": {
         parameters: {
             query?: never;
@@ -1728,6 +1760,13 @@ export interface components {
             /** Format: date */
             validUntil: string | null;
         } | null;
+        GeocodeRequest: {
+            /** @example Rua Exemplo 10 */
+            query: string;
+        };
+        GeocodeResultView: {
+            places: components["schemas"]["PlaceView"][];
+        };
         GoalView: {
             /** Format: date-time */
             achievedAt: string | null;
@@ -1751,6 +1790,19 @@ export interface components {
         GoalsView: {
             goals: components["schemas"]["GoalView"][];
             limitReached: boolean;
+        };
+        HomeRequest: {
+            /** @example Casa */
+            label: string | null;
+            /** @example -10.0 */
+            lat: string | null;
+            /** @example -50.0 */
+            lon: string | null;
+        };
+        HomeView: {
+            label: string | null;
+            lat: string;
+            lon: string;
         };
         ImportRequest: {
             rows: components["schemas"]["ImportRow"][];
@@ -1992,6 +2044,11 @@ export interface components {
             label: string;
             /** Format: date-time */
             lastUsedAt: string | null;
+        };
+        PlaceView: {
+            label: string;
+            lat: string;
+            lon: string;
         };
         PlanDetails: {
             canPurchase: boolean;
@@ -3870,6 +3927,104 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MarketCardView"];
                 };
+            };
+        };
+    };
+    geocode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GeocodeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeocodeResultView"];
+                };
+            };
+        };
+    };
+    getHome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No address yet */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeView"];
+                };
+            };
+        };
+    };
+    putHome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HomeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeView"];
+                };
+            };
+        };
+    };
+    deleteHome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Address removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

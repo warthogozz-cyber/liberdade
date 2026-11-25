@@ -406,7 +406,21 @@ class RoleMatrixIT {
                         ownerAndAdult(
                                 "POST " + W + "/markets/{ref}/convert",
                                 W + "/markets/{leftMarket}/convert",
-                                "{\"name\":\"Mercado que saiu\",\"kind\":\"SUPERMARKET\"}"))
+                                "{\"name\":\"Mercado que saiu\",\"kind\":\"SUPERMARKET\"}"),
+                        ownerAndAdult("GET " + W + "/markets/home", W + "/markets/home", null),
+                        ownerAndAdult(
+                                "PUT " + W + "/markets/home",
+                                W + "/markets/home",
+                                "{\"lat\":\"-23.123\",\"lon\":\"-46.123\",\"label\":\"Casa\"}"),
+                        ownerAndAdult("DELETE " + W + "/markets/home", W + "/markets/home", null),
+                        each(
+                                "POST " + W + "/markets/geocode",
+                                W + "/markets/geocode",
+                                "{\"query\":\"Rua Exemplo 10\"}",
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK))
                 .flatMap(group -> group);
     }
 
