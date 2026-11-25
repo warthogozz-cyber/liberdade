@@ -103,7 +103,8 @@ public record MarketsProperties(String botUrl, Osm osm, Geocoding geocoding, Ins
      * @param source {@code meta} or {@code fake}
      * @param baseUrl the Graph API address
      * @param timeout connection and read timeout
-     * @param profileEmbeds whether profile links are embedded too (a profile cannot be embedded: Instagram refuses it without a token, so this stays off)
+     * @param profileEmbeds whether profile links are embedded too (a profile cannot be embedded: Instagram
+     *     refuses it without a token, so this stays off)
      */
     public record Instagram(Boolean enabled, String source, String baseUrl, Duration timeout, Boolean profileEmbeds) {
 

@@ -71,6 +71,7 @@ public class MetaInstagramOembed implements InstagramOembed {
         return parse(body);
     }
 
+    /** Only 400 and 404 say "not embeddable"; any other 4xx (401, 403, 429) is a failure, so it is not kept. */
     private static boolean isRefusal(HttpStatusCode status) {
         return status.value() == 400 || status.value() == 404;
     }

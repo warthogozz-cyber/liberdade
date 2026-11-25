@@ -9,13 +9,13 @@ import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Answers of the embed service by canonical URL, in memory: an embed for 7 days, a refusal for a minute, so a post made
- * public later does not stay refused. At most {@code maxEntries}; the oldest goes first.
+ * Answers of the embed service by canonical URL, in memory: an embed for 7 days, a refusal for a day (D10). A failure (5xx or
+ * timeout) is deliberately not kept: it says nothing about the post. At most {@code maxEntries}; the oldest goes first.
  */
 final class InstagramEmbedCache {
 
     static final Duration EMBED_TTL = Duration.ofDays(7);
-    static final Duration REFUSAL_TTL = Duration.ofMinutes(1);
+    static final Duration REFUSAL_TTL = Duration.ofDays(1);
 
     /** {@code html} is null for a refusal. */
     private record Entry(@Nullable String html, Instant expiresAt) {}

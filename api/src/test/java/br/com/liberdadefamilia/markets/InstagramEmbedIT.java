@@ -148,7 +148,7 @@ class InstagramEmbedIT {
     }
 
     @Test
-    void aRefusalIsKeptForAMinuteOnly() {
+    void aRefusalIsKeptForADay() {
         UUID market = market("https://www.instagram.com/p/privado1/");
         int before = oembed.calls.get();
 
@@ -156,7 +156,7 @@ class InstagramEmbedIT {
         assertThat(embed(market)).hasStatus(422);
         assertThat(oembed.calls.get() - before).isEqualTo(1);
 
-        clock.freeze(BASE.plus(Duration.ofMinutes(1)).plusSeconds(1));
+        clock.freeze(BASE.plus(Duration.ofDays(1)).plusSeconds(1));
         assertThat(embed(market)).hasStatus(422);
         assertThat(oembed.calls.get() - before).isEqualTo(2);
     }

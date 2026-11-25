@@ -33,14 +33,14 @@ class InstagramEmbedCacheTest {
     }
 
     @Test
-    void keepsARefusalForAtMostAMinute() {
+    void keepsARefusalForADay() {
         InstagramEmbedCache cache = cache();
         cache.put(URL, Optional.empty());
 
-        clock.freeze(START.plus(Duration.ofMinutes(1)));
+        clock.freeze(START.plus(Duration.ofDays(1)));
         assertThat(cache.get(URL)).contains(Optional.empty());
 
-        clock.freeze(START.plus(Duration.ofMinutes(1)).plusSeconds(1));
+        clock.freeze(START.plus(Duration.ofDays(1)).plusSeconds(1));
         assertThat(cache.get(URL)).isEmpty();
     }
 
