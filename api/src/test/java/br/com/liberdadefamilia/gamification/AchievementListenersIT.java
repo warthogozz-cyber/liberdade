@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.gamification;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.gamification.domain.AchievementKey;
@@ -27,9 +28,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -43,6 +47,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /** The achievements granted by the real routes. Today is Friday 2026-11-20. */
+@ExtendWith(OutputCaptureExtension.class)
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, AchievementListenersIT.Config.class})
@@ -202,10 +207,12 @@ class AchievementListenersIT {
 
     @Test
     @DisplayName("falha na avaliação não desfaz o lançamento")
-    void evaluationFailureDoesNotUndoTheEntry() {
+    void evaluationFailureDoesNotUndoTheEntry(CapturedOutput output) {
         enable("gamification");
         enable("planning");
-        doThrow(new IllegalStateException("boom")).when(planningFacts).reserveMonths(any());
+        doThrow(new IllegalStateException("segredo-da-falha"))
+                .when(planningFacts)
+                .reserveMonths(any());
         UUID id = TestIds.v7();
 
         MvcTestResult posted = send(
@@ -223,6 +230,11 @@ class AchievementListenersIT {
                         .query(Long.class)
                         .single())
                 .isEqualTo(1);
+        verify(planningFacts).reserveMonths(any());
+        assertThat(output.getAll())
+                .contains("achievement evaluation failed")
+                .contains("IllegalStateException")
+                .doesNotContain("segredo-da-falha");
     }
 
     @Test
