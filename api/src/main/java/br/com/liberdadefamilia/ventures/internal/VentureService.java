@@ -141,6 +141,9 @@ class VentureService {
     VentureView update(WorkspaceMember member, UUID id, UpdateVentureRequest request) {
         UUID workspaceId = member.workspaceId();
         StoredVenture stored = ventures.find(workspaceId, id).orElseThrow(VentureNotFoundException::new);
+        if (request.version() != stored.version()) {
+            throw VentureRejectedException.versionConflict();
+        }
         VentureValidation.projectName(request.name());
         VentureValidation.itemCount(request.initialItems());
         VentureValidation.itemCount(request.fixedItems());

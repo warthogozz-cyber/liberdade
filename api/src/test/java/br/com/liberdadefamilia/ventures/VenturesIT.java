@@ -227,6 +227,18 @@ class VenturesIT {
     }
 
     @Test
+    void stalePutAfterActivationIs409NotStartedOnInvalid() {
+        UUID venture = id(create("{\"name\":\"Doces\",\"type\":\"OTHER\"}"));
+        assertThat(status(venture, "{\"version\":0,\"status\":\"ACTIVE\",\"on\":null}"))
+                .hasStatus(200);
+
+        var stale = update(venture, blankUpdate(0, "Dois"));
+
+        assertThat(stale).hasStatus(409);
+        assertThat(stale).bodyJson().extractingPath("$.code").isEqualTo("venture.version-conflict");
+    }
+
+    @Test
     void limitsAre422() {
         UUID venture = id(create("{\"name\":\"Doces\",\"type\":\"OTHER\"}"));
         String twentyOne =
