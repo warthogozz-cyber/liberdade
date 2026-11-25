@@ -2,7 +2,8 @@ import { dehydrate, type Mutation } from '@tanstack/react-query'
 import type { PersistedClient } from '@tanstack/react-query-persist-client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryKeys, type MeView, type MeWorkspace } from '@/shared/api'
-import { db, persistOptions, saveQueryCacheNow } from '@/shared/offline'
+import { persistOptions, saveQueryCacheNow } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import { createTestQueryClient } from '@/shared/testing'
 
 afterEach(() => {

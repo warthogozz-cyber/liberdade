@@ -1,6 +1,6 @@
 /**
  * Gzip budgets in KB: the first load, and each JS chunk loaded on demand. D18 asked 190 for the
- * first load; it measures 193.7 KB, so 200.
+ * first load; it measured 193.7 KB, so 200. With Dexie on demand it measures 170 KB (2026-11-25).
  */
 export const LIMITS = { initialKb: 200, chunkKb: 260 }
 

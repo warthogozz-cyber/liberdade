@@ -1,9 +1,9 @@
-import { Dexie } from 'dexie'
 import type { CreateTransactionRequest } from '@/shared/api'
 import { markLocalChange } from '@/shared/live/localChanges'
 import { parseCents } from '@/shared/money'
-import { db, type OutboxItem } from './db'
 import { withOutboxLock } from './lock'
+import { openOfflineDb } from './openOfflineDb'
+import type { OutboxItem } from './types'
 
 /** How long a new item waits before it is sent, so "Desfazer" can still take it back (D15). */
 export const SEND_DELAY_MS = 6000
@@ -17,10 +17,8 @@ export function notifyOutboxChanged(): void {
 }
 
 /** The user's items, both pending and needing attention, in the order they were made. */
-export function userItems(userId: string) {
-  return db.outbox
-    .where('[userId+createdAt]')
-    .between([userId, Dexie.minKey], [userId, Dexie.maxKey])
+export async function userItems(userId: string) {
+  return (await openOfflineDb()).userCollection(userId)
 }
 
 /** Queues a new transaction, to be sent once `SEND_DELAY_MS` has passed. */
@@ -41,6 +39,7 @@ export async function enqueueTransaction(
   }
   // Before the item can be sent, so the stream's notice of it is never taken for an arrival.
   markLocalChange(item.id)
+  const { db } = await openOfflineDb()
   await db.outbox.add(item)
   notifyOutboxChanged()
   return item
@@ -53,6 +52,7 @@ export async function enqueueTransaction(
  * stayed or had already left the queue.
  */
 export async function cancelOutboxItem(id: string): Promise<boolean> {
+  const { db } = await openOfflineDb()
   const deleted = await withOutboxLock({}, () =>
     db.transaction('rw', db.outbox, async () => {
       const item = await db.outbox.get(id)
@@ -76,6 +76,7 @@ export async function discardOutboxItem(
   id: string,
   { lockHeld = false }: { lockHeld?: boolean } = {},
 ): Promise<boolean> {
+  const { db } = await openOfflineDb()
   const discarded = await db.transaction('rw', db.outbox, async () => {
     const item = await db.outbox.get(id)
     if (!item) return false
@@ -99,6 +100,7 @@ export async function replaceOutboxItem(
   payload: CreateTransactionRequest,
   now = Date.now(),
 ): Promise<OutboxItem> {
+  const { db } = await openOfflineDb()
   const item = await db.transaction('rw', db.outbox, async () => {
     const old = await db.outbox.get(oldId)
     if (!old) throw new Error('The outbox item to replace is gone')
@@ -126,13 +128,23 @@ export async function replaceOutboxItem(
 
 /** Empties the user's queue, both states, once sign-out went through (D19). */
 export async function clearOutboxForUser(userId: string): Promise<void> {
-  await userItems(userId).delete()
+  await (await userItems(userId)).delete()
+  notifyOutboxChanged()
+}
+
+/** Lets the user's pending items go out now, not after their backoff, and wakes the sync. */
+export async function sendPendingNow(userId: string): Promise<void> {
+  await (
+    await userItems(userId)
+  )
+    .filter((item) => item.status === 'pending')
+    .modify({ sendAfter: 0 })
   notifyOutboxChanged()
 }
 
 /** How many of the user's items are still queued, both states (D19). */
-export function countOutboxForUser(userId: string): Promise<number> {
-  return userItems(userId).count()
+export async function countOutboxForUser(userId: string): Promise<number> {
+  return (await userItems(userId)).count()
 }
 
 /**

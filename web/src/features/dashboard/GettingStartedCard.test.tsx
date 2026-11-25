@@ -6,7 +6,7 @@ import { mockState, seedMockFamily } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL, queryKeys, type MeView } from '@/shared/api'
-import { db } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import { createTestQueryClient, outboxItem, renderWithProviders } from '@/shared/testing'
 
 const DISMISS = `${API_URL}/v1/me/getting-started/dismiss`

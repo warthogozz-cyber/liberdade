@@ -1,8 +1,9 @@
 import { ApiError, type TransactionView } from '@/shared/api'
 import { markLocalChange } from '@/shared/live/localChanges'
-import { db, type OutboxItem } from './db'
 import { withOutboxLock } from './lock'
+import { openOfflineDb } from './openOfflineDb'
 import { OUTBOX_EVENT, userItems } from './outbox'
+import type { OutboxItem } from './types'
 
 export interface SyncDeps {
   userId: string
@@ -56,6 +57,7 @@ async function recordFailure(
   now: () => number,
 ): Promise<SyncResult | undefined> {
   if (error instanceof ApiError && error.status === 401) return { status: 'unauthorized' }
+  const { db } = await openOfflineDb()
   if (error instanceof ApiError && !isTransient(error)) {
     await db.outbox.update(item.id, {
       status: 'needs-attention',
@@ -109,7 +111,9 @@ async function sendFirst({
   now = Date.now,
   signal,
 }: SyncDeps): Promise<SyncResult | undefined> {
-  const item = await userItems(userId)
+  const item = await (
+    await userItems(userId)
+  )
     .filter((queued) => queued.status === 'pending')
     .first()
   if (!item) return { status: 'done' }
@@ -127,6 +131,7 @@ async function sendFirst({
     const result = await recordFailure(item, error, now)
     return signal?.aborted ? { status: 'done' } : result
   }
+  const { db } = await openOfflineDb()
   await db.outbox.delete(item.id)
   onSent(item, view)
   return undefined

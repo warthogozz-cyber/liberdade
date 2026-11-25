@@ -9,7 +9,8 @@ import { server } from '@/mocks/server'
 import { API_URL, postTransaction, queryKeys, type MeWorkspace } from '@/shared/api'
 import { onLocalAction, type LocalAction } from '@/shared/events'
 import { localDate } from '@/shared/i18n'
-import { db, syncOutbox } from '@/shared/offline'
+import { syncOutbox } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import {
   createTestQueryClient,
   outboxItem,

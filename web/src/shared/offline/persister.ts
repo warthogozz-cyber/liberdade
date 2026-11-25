@@ -5,19 +5,19 @@ import type {
   PersistQueryClientOptions,
 } from '@tanstack/react-query-persist-client'
 import { CACHE_MAX_AGE } from '@/shared/api'
-import { db } from './db'
+import { openOfflineDb } from './openOfflineDb'
 
 const CACHE_KEY = 'liberdade-query-cache'
 
 /** Saves the query cache in the `kv` table, under the key `liberdade-query-cache`. */
 export const persister = createAsyncStoragePersister({
   storage: {
-    getItem: async (key) => (await db.kv.get(key))?.value ?? null,
+    getItem: async (key) => (await (await openOfflineDb()).db.kv.get(key))?.value ?? null,
     setItem: async (key, value) => {
-      await db.kv.put({ key, value })
+      await (await openOfflineDb()).db.kv.put({ key, value })
     },
     removeItem: async (key) => {
-      await db.kv.delete(key)
+      await (await openOfflineDb()).db.kv.delete(key)
     },
   },
   key: CACHE_KEY,
@@ -49,6 +49,7 @@ export async function saveQueryCacheNow(queryClient: QueryClient): Promise<void>
     clientState: dehydrate(queryClient, persistOptions.dehydrateOptions),
   }
   try {
+    const { db } = await openOfflineDb()
     await db.kv.put({ key: CACHE_KEY, value: JSON.stringify(client) })
   } catch {
     // The throttled save writes the same cache a moment later.

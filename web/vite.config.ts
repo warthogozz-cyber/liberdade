@@ -106,9 +106,10 @@ export default defineConfig({
               // The packages every screen needs, kept in one chunk: a lazy import that reaches only some
               // of them would otherwise split them in several, and each split costs the first load
               // gzip overhead (T14 measured 1.5 KB). Radix is not here: its dialogs are only for lazy screens, so
-              // it splits on its own and stays out of the first load (Task 6 of Plan 5).
+              // it splits on its own and stays out of the first load (Task 6 of Plan 5). Dexie is not here
+              // either: only the lazy offline database loads it (the lazy offline database plan).
               name: 'vendor',
-              test: /node_modules[\\/](react|react-dom|react-router|react-intl|@formatjs|intl-messageformat|@tanstack|scheduler|dexie|dexie-react-hooks|openapi-fetch|uuid)[\\/]/,
+              test: /node_modules[\\/](react|react-dom|react-router|react-intl|@formatjs|intl-messageformat|@tanstack|scheduler|openapi-fetch|uuid)[\\/]/,
             },
           ],
         },

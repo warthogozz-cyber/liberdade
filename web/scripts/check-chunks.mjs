@@ -22,10 +22,11 @@ if (existsSync(modulesPath)) {
     console.table(parts.filter((p) => p.kind === kind).slice(0, 15))
   }
 }
-// The achievement sound's synthesizer loads only when a sound plays (D13).
+// The achievement sound's synthesizer loads only when a sound plays (D13). The offline database
+// and Dexie load only through `openOfflineDb()` (the lazy offline database plan, 2026-11-25).
 const lazy = lazyOnly(
   manifest,
-  ['src/shared/sound/synth.ts'],
+  ['src/shared/sound/synth.ts', 'src/shared/offline/db.ts', 'node_modules/dexie/dist/dexie.js'],
   existsSync(modulesPath) ? JSON.parse(readFileSync(modulesPath, 'utf8')) : {},
 )
 if (!lazy.ok)

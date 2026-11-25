@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest'
 import { resetMockData } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { resetCsrf } from '@/shared/api'
-import { db } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 
 // MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`: a call no handler answers fails the test.
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
