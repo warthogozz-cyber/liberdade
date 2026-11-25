@@ -13,6 +13,7 @@ import {
 } from '@/shared/api'
 import { parseCents } from '@/shared/money'
 import { useOnline } from '@/shared/offline'
+import { PageTip } from '@/shared/tips'
 import { useDocumentTitle, useToast } from '@/shared/ui'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Sheet } from '@/shared/ui/Sheet'
@@ -42,6 +43,7 @@ export function AccountsPage() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
+      <PageTip id="accounts" />
       {workspace ? (
         <AccountsScreen workspace={workspace} />
       ) : (

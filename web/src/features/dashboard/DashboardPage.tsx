@@ -14,6 +14,7 @@ import { useReducedMotion } from '@/shared/motion'
 import { addMonths, currentMonth, maxMonth, monthFromParam } from '@/shared/i18n'
 import { parseCents } from '@/shared/money'
 import { useOnline, usePendingTotals } from '@/shared/offline'
+import { PageTip } from '@/shared/tips'
 import { DataAsOf, useDocumentTitle } from '@/shared/ui'
 import { MonthSwitcher } from '@/shared/ui/MonthSwitcher'
 import { EChart } from './EChart'
@@ -38,6 +39,7 @@ export function DashboardPage() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
+      <PageTip id="dashboard" />
       {me && workspace ? (
         <DashboardScreen userId={me.user.id} workspace={workspace} />
       ) : (

@@ -5,4 +5,7 @@ export const settingsMessages = {
   'settings.sound.label': 'Sons de conquista',
   'settings.sound.help': 'Um som curto quando uma meta é atingida ou a reserva fica completa.',
   'settings.sound.listen': 'Ouvir',
+  'settings.tips': 'Dicas',
+  'settings.tips.label': 'Mostrar dicas',
+  'settings.tips.help': 'Um aviso curto na primeira vez que você abre cada tela.',
 }

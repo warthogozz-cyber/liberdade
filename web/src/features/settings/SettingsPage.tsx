@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import { useIntl } from 'react-intl'
 import { playAchievement, unlockSound, useSoundEnabled } from '@/shared/sound'
+import { useTipsEnabled } from '@/shared/tips'
 import { useDocumentTitle } from '@/shared/ui'
 import './register'
 
@@ -12,7 +13,9 @@ export function SettingsPage() {
   const title = intl.formatMessage({ id: 'settings.title' })
   useDocumentTitle(title)
   const [enabled, setEnabled] = useSoundEnabled()
+  const [tipsOn, setTipsOn] = useTipsEnabled()
   const helpId = useId()
+  const tipsHelpId = useId()
 
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
@@ -55,6 +58,31 @@ export function SettingsPage() {
       >
         {intl.formatMessage({ id: 'settings.sound.listen' })}
       </button>
+      <h2 className="text-lg font-semibold">{intl.formatMessage({ id: 'settings.tips' })}</h2>
+      <div className="flex items-center justify-between gap-4">
+        <span className="font-medium">{intl.formatMessage({ id: 'settings.tips.label' })}</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={tipsOn}
+          aria-label={intl.formatMessage({ id: 'settings.tips.label' })}
+          aria-describedby={tipsHelpId}
+          onClick={() => setTipsOn(!tipsOn)}
+          className={`relative h-8 w-14 shrink-0 rounded-full border border-primary ${
+            tipsOn ? 'bg-primary' : 'bg-surface'
+          } ${focus}`}
+        >
+          <span
+            aria-hidden="true"
+            className={`absolute top-1 left-1 size-5 rounded-full bg-text ${
+              tipsOn ? 'translate-x-6' : ''
+            }`}
+          />
+        </button>
+      </div>
+      <p id={tipsHelpId} className="text-text-muted">
+        {intl.formatMessage({ id: 'settings.tips.help' })}
+      </p>
     </main>
   )
 }

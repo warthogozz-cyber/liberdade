@@ -72,4 +72,20 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ouvir' }))
     expect(unlockSound).toHaveBeenCalledOnce()
   })
+
+  it('tipsSwitchIsOnAndTurnsOff', () => {
+    localStorage.removeItem('liberdade.tips')
+    renderWithProviders(<SettingsPage />, { path: '/mais/ajustes' })
+
+    expect(screen.getByRole('heading', { name: 'Dicas' })).toBeInTheDocument()
+    const tips = screen.getByRole('switch', { name: 'Mostrar dicas' })
+    expect(tips).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(tips)
+    expect(screen.getByRole('switch', { name: 'Mostrar dicas' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    )
+    expect(localStorage.getItem('liberdade.tips')).toBe('off')
+  })
 })

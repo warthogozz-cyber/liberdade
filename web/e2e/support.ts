@@ -54,7 +54,21 @@ function failOnFindings(findings: string[]): void {
  * `test` with a guard on every test: it fails when any context of the test, the default one and the
  * ones made through `browser.newContext` or `withContext`, logged a CSP violation or got a 5xx.
  */
-export const test = base.extend<{ cspAndServerErrorGuard: void }>({
+export const test = base.extend<{ cspAndServerErrorGuard: void; tips: boolean }>({
+  // The first visit tips stay off unless a test or describe block sets `tips: true`.
+  tips: [false, { option: true }],
+  context: async ({ context, tips }, provide) => {
+    if (!tips) {
+      await context.addInitScript(() => {
+        try {
+          localStorage.setItem('liberdade.tips', 'off')
+        } catch {
+          // No storage: the tips stay on, as they do for a person without it.
+        }
+      })
+    }
+    await provide(context)
+  },
   cspAndServerErrorGuard: [
     async ({ browser, context }, provide) => {
       const findings: string[] = []
