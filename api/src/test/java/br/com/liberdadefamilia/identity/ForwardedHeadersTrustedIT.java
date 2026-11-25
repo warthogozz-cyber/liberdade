@@ -22,7 +22,9 @@ import org.springframework.test.context.ActiveProfiles;
             "liberdade.markets.osm.source=github",
             "liberdade.markets.geocoding.source=nominatim",
             "liberdade.markets.instagram.source=meta",
-            "liberdade.billing.enabled=false"
+            "liberdade.billing.enabled=false",
+            // prod logs JSON; left on, it would outlive this context and turn later tests' log lines into JSON.
+            "logging.structured.format.console="
         })
 @ActiveProfiles({"test", "prod"})
 @Import(TestcontainersConfiguration.class)
