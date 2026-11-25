@@ -2060,7 +2060,7 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -2068,7 +2068,7 @@
                 }
               }
             },
-            "description": "OK"
+            "description": "Created"
           }
         },
         "tags": [
@@ -5682,6 +5682,11 @@
               "LEFT_OSM",
               "ARCHIVED"
             ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "website": {
             "allOf": [

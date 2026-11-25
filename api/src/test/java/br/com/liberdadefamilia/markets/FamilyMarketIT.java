@@ -128,6 +128,34 @@ class FamilyMarketIT {
     }
 
     @Test
+    void cardCarriesUpdatedAtThatMovesWithAnEdit() throws Exception {
+        MvcTestResult added =
+                send(HttpMethod.POST, "/markets", "{\"name\":\"Feira Exemplo\",\"kind\":\"GREENGROCER\"}");
+        assertThat(added).hasStatus(201);
+        String first = added.getResponse().getContentAsString();
+        String ref = com.jayway.jsonpath.JsonPath.read(first, "$.ref");
+        String createdAt = com.jayway.jsonpath.JsonPath.read(first, "$.updatedAt");
+        assertThat(createdAt).isNotBlank();
+
+        MvcTestResult moved =
+                send(HttpMethod.PUT, "/markets/" + ref + "/position", "{\"lat\":\"-23.00400\",\"lon\":\"-45.99800\"}");
+
+        assertThat(moved).hasStatus(200);
+        String movedAt = com.jayway.jsonpath.JsonPath.read(moved.getResponse().getContentAsString(), "$.updatedAt");
+        assertThat(java.time.Instant.parse(movedAt)).isAfter(java.time.Instant.parse(createdAt));
+    }
+
+    @Test
+    void osmCardWithoutRowHasNoUpdatedAt() {
+        MarketsTestData.osm(jdbc, 1, "Mercado Exemplo 1", "-23.00100", "-46.00100");
+
+        MvcTestResult result = send(HttpMethod.GET, "/markets/osm-n-1", null);
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.updatedAt").isNull();
+    }
+
+    @Test
     void positionNeedsBothCoordinates() {
         UUID own = MarketsTestData.family(jdbc, ws, "Feira Exemplo", null, null);
 

@@ -121,7 +121,8 @@ final class MarketViews {
             @Nullable @Schema(nullable = true) LinkView website,
             @Nullable @Schema(nullable = true) LinkView instagram,
             boolean instagramEmbeddable,
-            @Nullable @Schema(nullable = true) FlyerView flyer) {}
+            @Nullable @Schema(nullable = true) FlyerView flyer,
+            @Nullable @Schema(nullable = true) Instant updatedAt) {}
 
     /** The switches the app reads to hide what is off. */
     record SettingsView(boolean geocodingEnabled, boolean instagramEnabled) {}

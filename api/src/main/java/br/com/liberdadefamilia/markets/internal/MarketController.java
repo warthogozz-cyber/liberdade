@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /** The Feira: markets around the family. Everyone reads; the owner and the adults add, edit and hide. */
@@ -71,8 +72,9 @@ class MarketController {
     @RequiresModule(ModuleKey.MARKETS)
     @WorkspaceScoped(allow = {OWNER, ADULT})
     @RequiresPlan(value = PlanKey.FAMILY, openWhileBillingOff = true)
-    ResponseEntity<MarketCardView> addMarket(@Valid @RequestBody NewMarketRequest request, WorkspaceMember member) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(family.add(member, request));
+    @ResponseStatus(HttpStatus.CREATED)
+    MarketCardView addMarket(@Valid @RequestBody NewMarketRequest request, WorkspaceMember member) {
+        return family.add(member, request);
     }
 
     /** The website, Instagram and flyer of the card. A null deletes the family's value. */

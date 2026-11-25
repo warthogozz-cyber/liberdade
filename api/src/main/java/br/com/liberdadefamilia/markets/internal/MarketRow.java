@@ -25,7 +25,8 @@ public record MarketRow(
         @Nullable String flyerSource,
         @Nullable LocalDate flyerValidUntil,
         @Nullable Instant flyerSetAt,
-        @Nullable Instant archivedAt) {
+        @Nullable Instant archivedAt,
+        Instant updatedAt) {
 
     public boolean isOsm() {
         return "OSM".equals(origin);

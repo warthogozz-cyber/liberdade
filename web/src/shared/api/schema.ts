@@ -1872,6 +1872,8 @@ export interface components {
             ref: string;
             /** @enum {string} */
             status: "ACTIVE" | "LEFT_OSM" | "ARCHIVED";
+            /** Format: date-time */
+            updatedAt: string | null;
             website: components["schemas"]["LinkView"] | null;
         };
         MeUser: {
@@ -3860,8 +3862,8 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Created */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

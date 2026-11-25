@@ -88,7 +88,8 @@ class MarketCardService {
                 website(row.orElse(null), object.orElse(null), datasetDate),
                 instagram,
                 embeddable(instagram),
-                row.map(MarketCardService::flyer).orElse(null));
+                row.map(MarketCardService::flyer).orElse(null),
+                row.map(MarketRow::updatedAt).orElse(null));
     }
 
     private boolean embeddable(@Nullable LinkView instagram) {

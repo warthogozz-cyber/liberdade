@@ -26,7 +26,7 @@ public class MarketRepository {
 
     private static final String COLUMNS = "id, origin, osm_type, osm_id, name, kind, lat, lon, cnpj, website,"
             + " website_set_at, instagram, instagram_set_at, flyer_url, flyer_source, flyer_valid_until,"
-            + " flyer_set_at, archived_at";
+            + " flyer_set_at, archived_at, updated_at";
 
     private static final String NEAREST_FIRST = """
             power(lat - :cLat, 2)
@@ -263,7 +263,8 @@ public class MarketRepository {
                 rs.getString("flyer_source"),
                 rs.getObject("flyer_valid_until", LocalDate.class),
                 instant(rs, "flyer_set_at"),
-                instant(rs, "archived_at"));
+                instant(rs, "archived_at"),
+                instant(rs, "updated_at"));
     }
 
     private static @Nullable Instant instant(ResultSet rs, String column) throws SQLException {
