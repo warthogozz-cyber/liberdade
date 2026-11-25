@@ -11,3 +11,10 @@ registerSlot('home', {
   roles: ['OWNER', 'ADULT', 'YOUTH'],
   Component: lazy(() => import('./StreakHomeCard')),
 })
+
+registerSlot('workspace', {
+  key: 'gamification-achievement-celebration',
+  module: 'gamification',
+  roles: ['OWNER', 'ADULT', 'YOUTH'],
+  Component: lazy(() => import('./AchievementCelebrationWatcher')),
+})
