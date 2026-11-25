@@ -579,3 +579,48 @@ test('the projects screens meet WCAG 2.2 AA in both themes', async ({ page }) =>
     page.getByRole('region', { name: 'Meu cenário' }),
   )
 })
+
+test('the actual versus planned screen and the form with the project field meet WCAG 2.2 AA in both themes', async ({
+  page,
+}) => {
+  await signInWithGoogle(page, newUser())
+  await createFamily(page)
+  await setModules(page, true)
+
+  // Right after the modules change, a fresh load can still read the old modules from the cache
+  // and bounce: load again until the start screen holds with its tracks.
+  await expect(async () => {
+    await page.goto('/mais/projetos/comecar')
+    await expect(page.getByRole('button', { name: /^Culinária/ })).toBeVisible({ timeout: 3_000 })
+    await expect(page).toHaveURL(/\/mais\/projetos\/comecar$/)
+  }).toPass({ timeout: 45_000 })
+  await page.getByRole('button', { name: /^Culinária/ }).click()
+  await page
+    .getByRole('dialog', { name: 'Começar com o modelo' })
+    .getByRole('button', { name: 'Criar projeto' })
+    .click()
+  await expect(page).toHaveURL(/\/mais\/projetos\/[^/]+\/editar$/)
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click()
+  await expect(page).toHaveURL(/\/mais\/projetos\/[^/]+$/)
+  const venturePage = page.url()
+
+  // An expense marked with the project: the form shows the field, the screen has a month to show.
+  const project = page.getByLabel('Projeto (opcional)')
+  await expect(async () => {
+    await page.goto('/lancar')
+    await expect(project).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 45_000 })
+  await typeAmount(page, '80000')
+  await page.getByText('🛒 Mercado', { exact: true }).click()
+  await project.selectOption({ label: 'Doces por encomenda' })
+  await expectNoViolations(page, 'Novo gasto', project)
+  await page.getByRole('button', { name: 'Salvar' }).click()
+  await expect(page).toHaveURL('/inicio')
+
+  await page.goto(`${venturePage}/real`)
+  await expectNoViolations(
+    page,
+    'Real vs. planejado',
+    page.getByRole('table', { name: 'Real e previsto, mês a mês' }),
+  )
+})
