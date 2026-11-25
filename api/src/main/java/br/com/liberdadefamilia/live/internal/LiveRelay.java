@@ -18,6 +18,9 @@ import br.com.liberdadefamilia.planning.RecurringRuleCreated;
 import br.com.liberdadefamilia.planning.RecurringRuleEdited;
 import br.com.liberdadefamilia.planning.ReserveCostChanged;
 import br.com.liberdadefamilia.planning.ReserveTargetChanged;
+import br.com.liberdadefamilia.ventures.VentureChanged;
+import br.com.liberdadefamilia.ventures.VentureClosed;
+import br.com.liberdadefamilia.ventures.VentureDeleted;
 import br.com.liberdadefamilia.workspace.MemberJoined;
 import br.com.liberdadefamilia.workspace.MemberProfileChanged;
 import br.com.liberdadefamilia.workspace.MemberRemoved;
@@ -135,6 +138,21 @@ class LiveRelay {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(ReserveCostChanged event) {
         send(event.workspaceId(), "reserve", null, new NoYouth(), ModuleKey.PLANNING);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void on(VentureChanged event) {
+        send(event.workspaceId(), "venture", event.ventureId(), new NoYouth(), ModuleKey.VENTURES);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void on(VentureClosed event) {
+        send(event.workspaceId(), "venture", event.ventureId(), new NoYouth(), ModuleKey.VENTURES);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void on(VentureDeleted event) {
+        send(event.workspaceId(), "venture", event.ventureId(), new NoYouth(), ModuleKey.VENTURES);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

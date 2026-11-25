@@ -77,8 +77,8 @@ flowchart LR
   planning --> ledger
   gamification --> workspace & ledger & planning
   ventures --> ledger
-  live --> identity & workspace & ledger & planning & gamification
-  live -. ouve eventos .-> ledger & planning & workspace
+  live --> identity & workspace & ledger & planning & gamification & ventures
+  live -. ouve eventos .-> ledger & planning & workspace & ventures
   audit -. ouve eventos .-> identity & workspace
   audit --> identity & workspace
   privacy --> ledger & audit & workspace & identity & billing & planning & gamification
@@ -190,6 +190,13 @@ O módulo `planning` guarda as recorrências e os lançamentos previstos que ela
 pacote `br.com.liberdadefamilia.planning`. Ele depende só de `workspace`, `ledger` e `shared`;
 `audit` e `privacy` o enxergam por `RecurringRuleArchived` e `PlanningExport`.
 
+### Projetos (módulo `ventures`, Plano 9.1)
+
+O módulo `ventures` guarda os projetos de renda extra, com custos, produtos e passos, no pacote
+`br.com.liberdadefamilia.ventures`. O `live` o enxerga pelos eventos `VentureChanged`, `VentureClosed`
+e `VentureDeleted`, e o `privacy` por `VenturesExport`, a interface que entrega os projetos prontos para
+a exportação (versão 7). A exportação lê os projetos só por ela, nunca pelas tabelas.
+
 - Vem ligado por padrão em toda família. Desligar o módulo tira Recorrências do Mais e Previstos da
   lista de lançamentos; o resto do app segue igual.
 - Um previsto é uma linha de `transactions` com `status = PLANNED`, e nenhuma soma a conta. Confirmar
@@ -249,6 +256,9 @@ outros aparelhos se atualizarem sem recarregar. Ele lê de `identity`, `workspac
   depois do commit e escolhe a audiência: todos, todos menos o Jovem (orçamento, reserva e
   recorrências) ou quem enxerga a conta (`AccountVisibility`). Os avisos do planejamento só saem com o
   módulo ligado.
+- **Avisos de projetos (Plano 9.1).** `VentureChanged`, `VentureClosed` e `VentureDeleted` (`ventures`)
+  viram o aviso `venture` com o id do projeto, para todos menos o Jovem, e só saem com o módulo
+  Projetos ligado. A assinatura de `LiveRelay.send` não mudou.
 - **Batida a cada 25 s** (`LiveHeartbeat`). Manda um comentário e fecha o stream de quem perdeu a
   sessão (`SessionLiveness`) ou a participação (`Memberships.activeAmong`). Mudar o papel ou remover
   o membro fecha os streams dele na hora; pedir a exclusão da família fecha os da família.

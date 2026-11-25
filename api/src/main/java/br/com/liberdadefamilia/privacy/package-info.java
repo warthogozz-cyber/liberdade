@@ -11,6 +11,7 @@
             "audit",
             "planning",
             "gamification",
+            "ventures",
             "shared"
         })
 package br.com.liberdadefamilia.privacy;
