@@ -1082,6 +1082,40 @@ function ventureHandlers() {
       },
     ),
 
+    http.post<{ ws: string }>(
+      url('/v1/workspaces/:ws/ventures/investment-simulation'),
+      async ({ request, params }) => {
+        if (withoutToken(request)) return csrfInvalid()
+        const workspace = ventureGuard(params.ws, false)
+        if (workspace instanceof Response) return workspace
+        const body = (await readJson(request)) as
+          Partial<Schemas['InvestmentSimulationRequest']> | undefined
+        if (!body || typeof body !== 'object' || !Array.isArray(body.scenarios)) return malformed()
+        const cents = (text: unknown) => Math.round(Number(text) * 100)
+        const money = (value: number) => ({
+          amount: (value / 100).toFixed(2),
+          currency: workspace.currency,
+        })
+        const months = (body.years ?? 0) * 12
+        const initial = cents(body.initialAmount)
+        const monthly = cents(body.monthlyContribution)
+        return HttpResponse.json({
+          scenarios: body.scenarios.map((scenario) => {
+            const rate = Math.pow(1 + Number(scenario.annualPercent) / 100, 1 / 12) - 1
+            let balance = initial
+            for (let month = 0; month < months; month += 1) balance = balance * (1 + rate) + monthly
+            const contributed = initial + monthly * months
+            return {
+              name: scenario.name,
+              finalBalance: money(Math.round(balance)),
+              totalContributed: money(contributed),
+              earnings: money(Math.round(balance) - contributed),
+            }
+          }),
+        })
+      },
+    ),
+
     http.post<{ ws: string }>(url('/v1/workspaces/:ws/ventures'), async ({ request, params }) => {
       if (withoutToken(request)) return csrfInvalid()
       const workspace = ventureGuard(params.ws, true)

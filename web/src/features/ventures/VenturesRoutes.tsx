@@ -14,6 +14,15 @@ const VentureEditPage = lazy(() =>
 
 const VenturePage = lazy(() => import('./VenturePage').then((m) => ({ default: m.VenturePage })))
 
+const InvestmentsPage = lazy(() =>
+  import('./investments/InvestmentsPage').then((m) => ({ default: m.InvestmentsPage })),
+)
+const InvestmentSimulatorPage = lazy(() =>
+  import('./investments/InvestmentSimulatorPage').then((m) => ({
+    default: m.InvestmentSimulatorPage,
+  })),
+)
+
 function Loading() {
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
@@ -32,7 +41,8 @@ export function VenturesRoutes() {
     { path: 'comecar', element: <StartPage /> },
     { path: ':id/editar', element: <VentureEditPage /> },
     { path: ':id', element: <VenturePage /> },
-    // Task 11 adds `investimentos` and `investimentos/simulador`.
+    { path: 'investimentos', element: <InvestmentsPage /> },
+    { path: 'investimentos/simulador', element: <InvestmentSimulatorPage /> },
   ])
   return <Suspense fallback={<Loading />}>{screen}</Suspense>
 }

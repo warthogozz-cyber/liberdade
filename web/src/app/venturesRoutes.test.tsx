@@ -28,7 +28,19 @@ describe('VenturesRoutes', () => {
     )
     edit.unmount()
 
-    renderWithProviders(null, { routes, route: `/mais/projetos/${venture.id}` })
+    const detail = renderWithProviders(null, { routes, route: `/mais/projetos/${venture.id}` })
     expect(await screen.findByRole('heading', { level: 1, name: venture.name })).toBeInTheDocument()
+    detail.unmount()
+
+    const texts = renderWithProviders(null, { routes, route: '/mais/projetos/investimentos' })
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Investimentos' }),
+    ).toBeInTheDocument()
+    texts.unmount()
+
+    renderWithProviders(null, { routes, route: '/mais/projetos/investimentos/simulador' })
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Simulador de juros compostos' }),
+    ).toBeInTheDocument()
   })
 })

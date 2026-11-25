@@ -23,6 +23,8 @@ export type VentureFigures = Schemas['FiguresView']
 export type TemplateView = Schemas['TemplateView']
 export type TrackView = Schemas['TrackView']
 export type SimulationRequest = Schemas['SimulationRequest']
+export type InvestmentSimulationRequest = Schemas['InvestmentSimulationRequest']
+export type InvestmentSimulationView = Schemas['InvestmentSimulationView']
 export type StepView = Schemas['StepView']
 export type CreateStepRequest = Schemas['CreateStepRequest']
 export type UpdateStepRequest = Schemas['UpdateStepRequest']
@@ -219,4 +221,32 @@ export function useStepMutations(ws: string, id: string) {
     onSettled: refresh,
   })
   return { add, update, remove }
+}
+
+/** The compound-interest simulation of the educational track: computed by the API, saves nothing. */
+export function useInvestmentSimulation(ws: string) {
+  return useMutation({
+    mutationFn: (body: InvestmentSimulationRequest): Promise<InvestmentSimulationView> =>
+      unwrap(
+        client.POST('/v1/workspaces/{ws}/ventures/investment-simulation', {
+          params: { path: { ws } },
+          body,
+        }),
+      ),
+  })
+}
+
+/**
+ * The Banco Central indicators the simulator prefills from. The ventures screens may not import
+ * the indicators feature, so this reads the same route under the same key and shares its cache.
+ */
+export function useSimulatorIndicators(ws: string | undefined) {
+  const id = ws ?? ''
+  return useQuery({
+    queryKey: [...queryKeys.workspace(id), 'indicators'] as const,
+    queryFn: () =>
+      unwrap(client.GET('/v1/workspaces/{ws}/indicators', { params: { path: { ws: id } } })),
+    enabled: id !== '',
+    staleTime: 30 * 60 * 1000,
+  })
 }
