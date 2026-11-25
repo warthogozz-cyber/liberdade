@@ -137,7 +137,8 @@ class RoleMatrixIT {
                         billingRows(),
                         importRows(),
                         liveRows(),
-                        gamificationRows())
+                        gamificationRows(),
+                        marketRows())
                 .flatMap(group -> group);
     }
 
@@ -359,6 +360,36 @@ class RoleMatrixIT {
     static Stream<Row> indicatorRows() {
         return each(
                 "GET " + W + "/indicators", W + "/indicators", null, Outcome.OK, Outcome.OK, Outcome.OK, Outcome.OK);
+    }
+
+    static Stream<Row> marketRows() {
+        String search = "{\"lat\":\"-23.00\",\"lon\":\"-46.00\"}";
+        return Stream.of(
+                        each(
+                                "POST " + W + "/markets/search",
+                                W + "/markets/search",
+                                search,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        each(
+                                "GET " + W + "/markets/settings",
+                                W + "/markets/settings",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        each(
+                                "GET " + W + "/markets/{ref}",
+                                W + "/markets/{market}",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK))
+                .flatMap(group -> group);
     }
 
     static Stream<Row> gamificationRows() {
@@ -807,6 +838,7 @@ class RoleMatrixIT {
                 || row.path().endsWith("/billing/plan/theme")
                 || row.path().endsWith("/imports/category-hints")
                 || row.path().endsWith("/imports")
+                || row.path().contains("/markets/")
                 || row.route().equals("POST " + W + "/ventures")) {
             jdbc.sql("""
                             insert into workspace_plans (workspace_id, plan_key, founder, source_order_id, starts_at, ends_at)
@@ -861,6 +893,9 @@ class RoleMatrixIT {
                 .param("ws", ws)
                 .update();
         jdbc.sql("insert into workspace_modules (workspace_id, module_key, enabled) values (:ws, 'ventures', true)")
+                .param("ws", ws)
+                .update();
+        jdbc.sql("insert into workspace_modules (workspace_id, module_key, enabled) values (:ws, 'markets', true)")
                 .param("ws", ws)
                 .update();
         jdbc.sql("insert into workspace_modules (workspace_id, module_key, enabled) values (:ws, 'gamification', true)")
@@ -961,6 +996,10 @@ class RoleMatrixIT {
                         .param("venture", ids.get("venture"))
                         .query(UUID.class)
                         .single());
+        ids.put("market", jdbc.sql("""
+                        insert into markets (workspace_id, origin, name, kind, lat, lon)
+                        values (:ws, 'FAMILY', 'Feira Exemplo', 'GREENGROCER', -23.00300, -45.99900)
+                        returning id""").param("ws", ws).query(UUID.class).single());
         ids.put("plannedFamily", planned(ws, ids.get("corrente"), ids.get("mercado"), anaMembership));
         ids.put("plannedYouth", planned(ws, ids.get("wallet"), ids.get("mercado"), anaMembership));
         byte[] tokenHash = new byte[32];

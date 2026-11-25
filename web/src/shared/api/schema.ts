@@ -788,6 +788,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["searchMarkets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMarketsSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMarket"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/members": {
         parameters: {
             query?: never;
@@ -1303,6 +1351,12 @@ export interface components {
             real: components["schemas"]["RealView"];
             totals: components["schemas"]["TotalsView"];
         };
+        AddressView: {
+            city: string | null;
+            housenumber: string | null;
+            street: string | null;
+            suburb: string | null;
+        } | null;
         BreakEvenView: {
             revenue: components["schemas"]["Money"] | null;
             /** @enum {string} */
@@ -1560,6 +1614,14 @@ export interface components {
             /** @enum {string} */
             purpose: "TERMS" | "PRIVACY" | "PARENTAL";
         };
+        FamilyItem: {
+            /** @enum {string|null} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE" | null;
+            lat: string;
+            lon: string;
+            name: string;
+            ref: string;
+        };
         FiguresView: {
             breakEven: components["schemas"]["BreakEvenView"];
             fixedMonthly: components["schemas"]["Money"];
@@ -1578,6 +1640,14 @@ export interface components {
             roiState: "OK" | "NO_INVESTMENT";
             totalMargin: components["schemas"]["Money"];
         };
+        FlyerView: {
+            /** Format: date-time */
+            setAt: string | null;
+            source: string | null;
+            url: string;
+            /** Format: date */
+            validUntil: string | null;
+        } | null;
         GoalView: {
             /** Format: date-time */
             achievedAt: string | null;
@@ -1678,9 +1748,43 @@ export interface components {
             role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
             token: string | null;
         };
+        LeftItem: {
+            cnpj: string | null;
+            ref: string;
+        };
         LegalVersions: {
             privacy: string;
             terms: string;
+        };
+        LinkView: {
+            /** Format: date */
+            date: string | null;
+            /** @enum {string} */
+            source: "FAMILY" | "OSM";
+            value: string;
+        } | null;
+        MarketCardView: {
+            address: components["schemas"]["AddressView"] | null;
+            cnpj: string | null;
+            /** Format: date */
+            datasetDate: string | null;
+            /** Format: uuid */
+            familyId: string | null;
+            flyer: components["schemas"]["FlyerView"] | null;
+            instagram: components["schemas"]["LinkView"] | null;
+            instagramEmbeddable: boolean;
+            /** @enum {string|null} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE" | null;
+            lat: string | null;
+            lon: string | null;
+            name: string | null;
+            openingHours: string | null;
+            /** @enum {string} */
+            origin: "OSM" | "FAMILY";
+            ref: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "LEFT_OSM" | "ARCHIVED";
+            website: components["schemas"]["LinkView"] | null;
         };
         MeUser: {
             /** Format: date-time */
@@ -1766,6 +1870,21 @@ export interface components {
             refundReason: "CUSTOMER" | "DUPLICATE" | null;
             /** @enum {string} */
             status: "CREATED" | "PAID" | "EXPIRED" | "CANCELED" | "REFUND_PENDING" | "REFUNDED" | "CHARGEBACK";
+        };
+        OsmItem: {
+            brand: string | null;
+            city: string | null;
+            /** Format: uuid */
+            familyId: string | null;
+            housenumber: string | null;
+            /** @enum {string} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE";
+            lat: string;
+            lon: string;
+            name: string | null;
+            ref: string;
+            street: string | null;
+            suburb: string | null;
         };
         PasskeyView: {
             /** Format: date-time */
@@ -1914,10 +2033,30 @@ export interface components {
             name: string;
             totalContributed: components["schemas"]["Money"];
         };
+        SearchRequest: {
+            /** @example -10.0 */
+            lat: string;
+            /** @example -50.0 */
+            lon: string;
+            /** Format: int32 */
+            radiusKm?: number | null;
+        };
+        SearchResultView: {
+            /** Format: date */
+            datasetDate: string | null;
+            family: components["schemas"]["FamilyItem"][];
+            left: components["schemas"]["LeftItem"][];
+            osm: components["schemas"]["OsmItem"][];
+            unlocated: components["schemas"]["UnlocatedItem"][];
+        };
         SetBudgetRequest: {
             limitAmount: components["schemas"]["Money"];
             /** Format: int64 */
             version?: number | null;
+        };
+        SettingsView: {
+            geocodingEnabled: boolean;
+            instagramEnabled: boolean;
         };
         SimulationCost: {
             /** @example 12.5 */
@@ -2058,6 +2197,12 @@ export interface components {
             ventureId: string | null;
             /** Format: int64 */
             version: number;
+        };
+        UnlocatedItem: {
+            /** @enum {string|null} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE" | null;
+            name: string;
+            ref: string;
         };
         UpdateAccountOwnerRequest: {
             /** Format: uuid */
@@ -3593,6 +3738,80 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    searchMarkets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResultView"];
+                };
+            };
+        };
+    };
+    getMarketsSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+        };
+    };
+    getMarket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketCardView"];
+                };
             };
         };
     };
