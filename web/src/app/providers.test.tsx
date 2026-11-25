@@ -7,7 +7,7 @@ import { AppProviders } from '@/app/providers'
 import { mockState } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { queryKeys } from '@/shared/api'
-import { db } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import { createTestQueryClient } from '@/shared/testing'
 
 afterEach(cleanup)

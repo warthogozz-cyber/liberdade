@@ -7,7 +7,6 @@ import {
   SEND_TIMEOUT_MS,
   backoffMs,
   cancelOutboxItem,
-  db,
   enqueueTransaction,
   startOutboxSync,
   syncOutbox,
@@ -15,6 +14,7 @@ import {
   type SyncDeps,
   type SyncResult,
 } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import { isLocalChange, markLocalChange, resetLocalChanges } from '@/shared/live/localChanges'
 import { outboxItem, outboxPayload as payload, transactionView as viewOf } from '@/shared/testing'
 import { withOutboxLock } from './lock'

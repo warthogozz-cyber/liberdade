@@ -3,7 +3,7 @@ import { useRoutes, type RouteObject } from 'react-router'
 import { afterEach, describe, expect, it } from 'vitest'
 import { routes } from '@/app/routes'
 import { mockState, seedMockFamily } from '@/mocks/data'
-import { db } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import { renderWithProviders } from '@/shared/testing'
 
 afterEach(cleanup)

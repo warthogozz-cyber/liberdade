@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { db, enqueueTransaction, useOutbox, usePendingTotals } from '@/shared/offline'
+import { enqueueTransaction, useOutbox, usePendingTotals } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import { outboxItem as item, outboxPayload as payload } from '@/shared/testing'
 
 describe('useOutbox', () => {
@@ -51,6 +52,21 @@ describe('useOutbox', () => {
 
     expect(result.current).toBeUndefined()
     await waitFor(() => expect(result.current).toEqual([]))
+    unmount()
+  })
+
+  it('drops the previous family’s items at once when the family changes', async () => {
+    await db.outbox.bulkAdd([item('t1'), item('t2', { createdAt: 2000, workspaceId: 'ws2' })])
+    const { result, rerender, unmount } = renderHook(
+      ({ workspaceId }: { workspaceId: string }) => useOutbox('a', workspaceId),
+      { initialProps: { workspaceId: 'ws1' } },
+    )
+    await waitFor(() => expect(result.current).toEqual([item('t1')]))
+
+    rerender({ workspaceId: 'ws2' })
+
+    expect(result.current).toBeUndefined()
+    await waitFor(() => expect(result.current?.map((queued) => queued.id)).toEqual(['t2']))
     unmount()
   })
 

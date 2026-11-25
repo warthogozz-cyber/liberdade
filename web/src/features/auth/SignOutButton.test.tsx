@@ -6,7 +6,8 @@ import { mockState } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
-import { countOutboxForUser, db } from '@/shared/offline'
+import { countOutboxForUser } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import { outboxItem, renderWithProviders } from '@/shared/testing'
 
 // Unmounting also closes a dialog left open.

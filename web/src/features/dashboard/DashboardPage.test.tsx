@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { API_URL, queryKeys, type DashboardView } from '@/shared/api'
-import { db } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import {
   createTestQueryClient,
   outboxItem,

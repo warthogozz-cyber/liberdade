@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
-import { db } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import { renderWithProviders } from '@/shared/testing'
 import { NewTransactionPage } from './NewTransactionPage'
 

@@ -3,12 +3,12 @@ import {
   cancelOutboxItem,
   clearOutboxForUser,
   countOutboxForUser,
-  db,
   discardOutboxItem,
   enqueueTransaction,
   pendingTotals,
   replaceOutboxItem,
 } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import { isLocalChange, resetLocalChanges } from '@/shared/live/localChanges'
 import { outboxItem as item, outboxPayload as payload } from '@/shared/testing'
 

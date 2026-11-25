@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/shared/api'
-import { db } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import { undoRecorded } from '@/shared/offline/undo'
 import { outboxItem as item } from '@/shared/testing'
 

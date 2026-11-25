@@ -8,7 +8,7 @@ import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL, queryKeys, type CreateTransactionRequest, type MeWorkspace } from '@/shared/api'
 import { markRemoteArrival, resetLocalChanges } from '@/shared/live/localChanges'
-import { db } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import {
   createTestQueryClient,
   outboxItem,

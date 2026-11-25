@@ -1,25 +1,7 @@
-import { Dexie, type EntityTable } from 'dexie'
-import type { CreateTransactionRequest } from '@/shared/api'
-
-/** A write waiting to reach the API. Dates are epoch milliseconds. */
-export interface OutboxItem {
-  id: string
-  userId: string
-  workspaceId: string
-  type: 'transaction.create'
-  payload: CreateTransactionRequest
-  createdAt: number
-  sendAfter: number
-  attempts: number
-  status: 'pending' | 'needs-attention'
-  problem?: { code: string; detail?: string }
-}
-
-/** A stored text value, such as the saved query cache. */
-export interface KvRow {
-  key: string
-  value: string
-}
+// The only module that loads Dexie. Reach it through `openOfflineDb()`, never with a static import,
+// so Dexie stays out of the first load (the guard in scripts/check-chunks.mjs fails the build).
+import { Dexie, liveQuery, type EntityTable } from 'dexie'
+import type { KvRow, OutboxItem } from './types'
 
 /** The device's database: the outbox, kept per user, and key-value rows. */
 export const db = new Dexie('liberdade') as Dexie & {
@@ -31,3 +13,26 @@ db.version(1).stores({
   outbox: 'id, [userId+createdAt], workspaceId',
   kv: 'key',
 })
+
+/** The user's items, both pending and needing attention, in the order they were made. */
+export function userCollection(userId: string) {
+  return db.outbox
+    .where('[userId+createdAt]')
+    .between([userId, Dexie.minKey], [userId, Dexie.maxKey])
+}
+
+/**
+ * Calls `onValue` with the query's answer now and again whenever the data it read changes, in this
+ * tab or another. A failed run is left out, keeping the last answer. Returns the unsubscribe.
+ */
+export function watch<T>(query: () => Promise<T>, onValue: (value: T) => void): () => void {
+  const subscription = liveQuery(query).subscribe({
+    next: onValue,
+    error: () => {
+      // The next change runs the query again; the last answer stays meanwhile.
+    },
+  })
+  return () => {
+    subscription.unsubscribe()
+  }
+}

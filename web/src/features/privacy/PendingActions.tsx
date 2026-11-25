@@ -5,7 +5,7 @@ import { ApiError, ReauthCancelledError, useMe } from '@/shared/api'
 import { useAccountDeletion, useFamilyDeletion } from '@/shared/api/privacy'
 import { useReauth } from '@/shared/auth'
 import { useOnline } from '@/shared/offline'
-import { notifyOutboxChanged, userItems } from '@/shared/offline/outbox'
+import { sendPendingNow } from '@/shared/offline/outbox'
 import { primaryButton } from './buttons'
 import { ExportButton } from './ExportButtons'
 import './register'
@@ -69,12 +69,7 @@ function AccountPendingActions() {
       cancel={cancel}
       onCancelled={async () => {
         // Expenses queued during the wait go out now, not after their backoff.
-        if (userId) {
-          await userItems(userId)
-            .filter((item) => item.status === 'pending')
-            .modify({ sendAfter: 0 })
-          notifyOutboxChanged()
-        }
+        if (userId) await sendPendingNow(userId)
         void navigate('/inicio', { replace: true })
       }}
     />

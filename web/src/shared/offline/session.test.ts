@@ -3,13 +3,13 @@ import { server } from '@/mocks/server'
 import { postJson, queryKeys, type MeView } from '@/shared/api'
 import {
   clearSession,
-  db,
   INVITATION_TOKEN_KEY,
   PENDING_PASSKEY_KEY,
   REAUTH_USER_KEY,
   RETURN_PATH_KEY,
   type OutboxItem,
 } from '@/shared/offline'
+import { db } from '@/shared/offline/db'
 import { createTestQueryClient } from '@/shared/testing'
 
 const userId = '0192f3a4-0000-7000-8000-000000000001'

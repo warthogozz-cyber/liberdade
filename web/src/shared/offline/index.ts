@@ -1,5 +1,4 @@
 export { applySentTransaction } from './applySent'
-export { db, type OutboxItem } from './db'
 export {
   SEND_DELAY_MS,
   cancelOutboxItem,
@@ -10,6 +9,7 @@ export {
   pendingTotals,
   replaceOutboxItem,
 } from './outbox'
+export type { OutboxItem } from './types'
 export { persistOptions, saveQueryCacheNow } from './persister'
 export {
   clearSession,
