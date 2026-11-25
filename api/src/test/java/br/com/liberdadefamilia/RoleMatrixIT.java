@@ -247,6 +247,9 @@ class RoleMatrixIT {
         String status = "{\"version\":0,\"status\":\"ACTIVE\",\"on\":null}";
         String step = "{\"title\":\"Novo passo\"}";
         String tick = "{\"done\":true}";
+        String simulation = "{\"initialItems\":[],\"fixedItems\":[],\"products\":[]}";
+        String investment = "{\"initialAmount\":\"1000\",\"monthlyContribution\":\"100\",\"years\":2,"
+                + "\"scenarios\":[{\"name\":\"a\",\"annualPercent\":\"5\"}]}";
         return Stream.of(
                         each(
                                 "GET " + W + "/ventures",
@@ -284,7 +287,23 @@ class RoleMatrixIT {
                         ownerAndAdult(
                                 "DELETE " + W + "/ventures/{id}/steps/{stepId}",
                                 W + "/ventures/{venture}/steps/{ventureStep}",
-                                null))
+                                null),
+                        each(
+                                "POST " + W + "/ventures/simulation",
+                                W + "/ventures/simulation",
+                                simulation,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK),
+                        each(
+                                "POST " + W + "/ventures/investment-simulation",
+                                W + "/ventures/investment-simulation",
+                                investment,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN,
+                                Outcome.OK))
                 .flatMap(group -> group);
     }
 

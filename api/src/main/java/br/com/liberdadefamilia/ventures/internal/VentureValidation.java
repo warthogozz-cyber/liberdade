@@ -18,6 +18,14 @@ final class VentureValidation {
     private static final BigDecimal MAX_AMOUNT = new BigDecimal("999999999.99");
 
     private static final int MAX_NAME = 40;
+    private static final int MAX_SCENARIO_NAME = 30;
+    private static final int MAX_SCENARIOS = 3;
+    private static final int MAX_YEARS = 50;
+    private static final BigDecimal MAX_PERCENT = new BigDecimal("100");
+
+    /** What a {@code Money} can hold; a result at or above it cannot be answered. */
+    private static final BigDecimal MONEY_LIMIT = BigDecimal.TEN.pow(15);
+
     private static final int MAX_STEP_TITLE = 80;
 
     private VentureValidation() {}
@@ -74,6 +82,55 @@ final class VentureValidation {
         if (title == null || title.isBlank() || title.length() > MAX_STEP_TITLE || title.indexOf('\0') >= 0) {
             throw VentureRejectedException.invalid("O passo precisa ter de 1 a 80 caracteres.");
         }
+    }
+
+    /** The investment simulator's inputs (D3); any other value is a 422 {@code investment-simulation.invalid}. */
+    static void investment(
+            BigDecimal initial,
+            BigDecimal monthly,
+            int years,
+            List<InvestmentSimulationRequest.ScenarioInput> scenarios) {
+        if (!validAmount(initial) || !validAmount(monthly)) {
+            throw VentureRejectedException.investmentInvalid(
+                    "Os valores precisam ser zero ou mais, ter até 2 casas e até 999.999.999,99.");
+        }
+        if (years < 1 || years > MAX_YEARS) {
+            throw VentureRejectedException.investmentInvalid("O prazo precisa ficar entre 1 e 50 anos.");
+        }
+        if (scenarios == null || scenarios.isEmpty() || scenarios.size() > MAX_SCENARIOS || scenarios.contains(null)) {
+            throw VentureRejectedException.investmentInvalid("A simulação aceita de 1 a 3 cenários.");
+        }
+        for (InvestmentSimulationRequest.ScenarioInput scenario : scenarios) {
+            String name = scenario.name();
+            if (name == null || name.isEmpty() || name.length() > MAX_SCENARIO_NAME || name.indexOf('\0') >= 0) {
+                throw VentureRejectedException.investmentInvalid("O nome do cenário precisa ter de 1 a 30 caracteres.");
+            }
+            BigDecimal percent = scenario.annualPercent();
+            if (percent == null
+                    || percent.signum() < 0
+                    || percent.compareTo(MAX_PERCENT) > 0
+                    || percent.stripTrailingZeros().scale() > 2) {
+                throw VentureRejectedException.investmentInvalid(
+                        "A taxa ao ano precisa ficar entre 0 e 100, com até 2 casas.");
+            }
+        }
+    }
+
+    /** A result the answer cannot hold: the inputs are in range but the growth is not. */
+    static void investmentResult(BigDecimal... values) {
+        for (BigDecimal value : values) {
+            if (value.abs().compareTo(MONEY_LIMIT) >= 0) {
+                throw VentureRejectedException.investmentInvalid(
+                        "Com esses números o resultado fica grande demais. Reduza o valor, o prazo ou a taxa.");
+            }
+        }
+    }
+
+    private static boolean validAmount(BigDecimal amount) {
+        return amount != null
+                && amount.signum() >= 0
+                && amount.compareTo(MAX_AMOUNT) <= 0
+                && amount.stripTrailingZeros().scale() <= 2;
     }
 
     private static void requireName(String name, String detail) {

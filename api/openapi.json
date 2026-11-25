@@ -3189,6 +3189,90 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/ventures/investment-simulation": {
+      "post": {
+        "operationId": "simulateInvestment",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvestmentSimulationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentSimulationView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "simulation-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/ventures/simulation": {
+      "post": {
+        "operationId": "simulate",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiguresView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "simulation-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/ventures/templates": {
       "get": {
         "operationId": "getTemplates",
@@ -4838,6 +4922,42 @@
           }
         }
       },
+      "InvestmentSimulationRequest": {
+        "type": "object",
+        "properties": {
+          "initialAmount": {
+            "pattern": "^[0-9]+([.][0-9]{1,2})?$",
+            "type": "string",
+            "example": "5000.0"
+          },
+          "monthlyContribution": {
+            "pattern": "^[0-9]+([.][0-9]{1,2})?$",
+            "type": "string",
+            "example": "200.0"
+          },
+          "scenarios": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScenarioInput"
+            }
+          },
+          "years": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "InvestmentSimulationView": {
+        "type": "object",
+        "properties": {
+          "scenarios": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScenarioView"
+            }
+          }
+        }
+      },
       "InvitationPreview": {
         "type": "object",
         "properties": {
@@ -5531,6 +5651,36 @@
           }
         }
       },
+      "ScenarioInput": {
+        "type": "object",
+        "properties": {
+          "annualPercent": {
+            "pattern": "^[0-9]+([.][0-9]{1,2})?$",
+            "type": "string",
+            "example": "10.5"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "ScenarioView": {
+        "type": "object",
+        "properties": {
+          "earnings": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "finalBalance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "name": {
+            "type": "string"
+          },
+          "totalContributed": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
       "SetBudgetRequest": {
         "required": [
           "limitAmount"
@@ -5544,6 +5694,58 @@
             "type": "integer",
             "format": "int64",
             "nullable": true
+          }
+        }
+      },
+      "SimulationCost": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "pattern": "^[0-9]+([.][0-9]{1,2})?$",
+            "type": "string",
+            "example": "12.5"
+          }
+        }
+      },
+      "SimulationProduct": {
+        "type": "object",
+        "properties": {
+          "plannedUnitsMonth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitPrice": {
+            "pattern": "^[0-9]+([.][0-9]{1,2})?$",
+            "type": "string",
+            "example": "4.5"
+          },
+          "unitVariableCost": {
+            "pattern": "^[0-9]+([.][0-9]{1,2})?$",
+            "type": "string",
+            "example": "1.8"
+          }
+        }
+      },
+      "SimulationRequest": {
+        "type": "object",
+        "properties": {
+          "fixedItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimulationCost"
+            }
+          },
+          "initialItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimulationCost"
+            }
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimulationProduct"
+            }
           }
         }
       },
@@ -6139,6 +6341,7 @@
         }
       },
       "UpdateStepRequest": {
+        "required": [],
         "type": "object",
         "properties": {
           "done": {

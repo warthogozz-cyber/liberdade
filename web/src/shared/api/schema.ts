@@ -1108,6 +1108,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/ventures/investment-simulation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["simulateInvestment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/ventures/simulation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["simulate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/ventures/templates": {
         parameters: {
             query?: never;
@@ -1587,6 +1619,18 @@ export interface components {
         IndicatorsView: {
             indicators: components["schemas"]["IndicatorView"][];
         };
+        InvestmentSimulationRequest: {
+            /** @example 5000.0 */
+            initialAmount: string;
+            /** @example 200.0 */
+            monthlyContribution: string;
+            scenarios: components["schemas"]["ScenarioInput"][];
+            /** Format: int32 */
+            years: number;
+        };
+        InvestmentSimulationView: {
+            scenarios: components["schemas"]["ScenarioView"][];
+        };
         InvitationPreview: {
             invitedBy: string | null;
             /** @enum {string} */
@@ -1806,10 +1850,38 @@ export interface components {
             /** Format: int32 */
             targetMonths: number;
         };
+        ScenarioInput: {
+            /** @example 10.5 */
+            annualPercent: string;
+            name: string;
+        };
+        ScenarioView: {
+            earnings: components["schemas"]["Money"];
+            finalBalance: components["schemas"]["Money"];
+            name: string;
+            totalContributed: components["schemas"]["Money"];
+        };
         SetBudgetRequest: {
             limitAmount: components["schemas"]["Money"];
             /** Format: int64 */
             version?: number | null;
+        };
+        SimulationCost: {
+            /** @example 12.5 */
+            amount: string;
+        };
+        SimulationProduct: {
+            /** Format: int32 */
+            plannedUnitsMonth: number;
+            /** @example 4.5 */
+            unitPrice: string;
+            /** @example 1.8 */
+            unitVariableCost: string;
+        };
+        SimulationRequest: {
+            fixedItems: components["schemas"]["SimulationCost"][];
+            initialItems: components["schemas"]["SimulationCost"][];
+            products: components["schemas"]["SimulationProduct"][];
         };
         SkipTransactionRequest: {
             /** Format: int64 */
@@ -1989,10 +2061,10 @@ export interface components {
             targetMonths?: number | null;
         };
         UpdateStepRequest: {
-            done: boolean | null;
+            done?: boolean | null;
             /** Format: int32 */
-            position: number | null;
-            title: string | null;
+            position?: number | null;
+            title?: string | null;
         };
         UpdateTransactionRequest: {
             /** Format: uuid */
@@ -4139,6 +4211,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VentureView"];
+                };
+            };
+        };
+    };
+    simulateInvestment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvestmentSimulationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestmentSimulationView"];
+                };
+            };
+        };
+    };
+    simulate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FiguresView"];
                 };
             };
         };

@@ -14,6 +14,11 @@ final class VentureRejectedException extends DomainException {
         return new VentureRejectedException(422, "venture.invalid", detail);
     }
 
+    /** A wrong input of the investment simulator; the detail says which and why. */
+    static VentureRejectedException investmentInvalid(String detail) {
+        return new VentureRejectedException(422, "investment-simulation.invalid", detail);
+    }
+
     static VentureRejectedException tooManySteps() {
         return new VentureRejectedException(
                 422, "venture.too-many-steps", "O projeto aceita até 20 passos. Apague um para incluir outro.");
