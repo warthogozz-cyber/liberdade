@@ -96,6 +96,10 @@ export interface MockState {
   acceptedDocuments: Record<'TERMS' | 'PRIVACY', { version: string; at: string } | null>
   /** The five Banco Central indicators the route returns, in card order (the fake source's values). */
   indicators: Schemas['IndicatorView'][]
+  /** What the streak route returns for the signed-in person. */
+  streak: Schemas['StreakView']
+  /** What the achievements route returns, already in the API's order and filtered for the role. */
+  achievements: Schemas['AchievementView'][]
   /**
    * The paid plan: `plan` is FREE until a payment, and `orders` are the checkouts started, newest last.
    * `selling` is billing being on (the legal set in force, as in staging and the e2e); with it off, the
@@ -330,6 +334,8 @@ function initialState(): MockState {
     billing: { plan: { key: 'FREE', endsAt: null }, orders: [], selling: true },
     importKeys: new Set(),
     indicators: initialIndicators(),
+    streak: { weeks: 0, frozenWeeks: 0, longest: 0 },
+    achievements: [],
     modules: {},
     rules: [],
     budgets: [],

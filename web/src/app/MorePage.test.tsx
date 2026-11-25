@@ -124,6 +124,26 @@ describe('MorePage', () => {
     expect(screen.queryByRole('link', { name: 'Indicadores' })).not.toBeInTheDocument()
   })
 
+  it('link no Mais', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { gamification: true }
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByRole('link', { name: 'Conquistas' })).toHaveAttribute(
+      'href',
+      '/mais/conquistas',
+    )
+  })
+
+  it('sem link de conquistas com o módulo desligado', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { gamification: false }
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByText(workspace.name)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Conquistas' })).not.toBeInTheDocument()
+  })
+
   it('no recurrences entry', async () => {
     const workspace = seedMockFamily()
     mockState.modules[workspace.id] = { planning: true }

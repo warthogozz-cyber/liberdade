@@ -1,4 +1,5 @@
 import { queryKeys } from '@/shared/api'
+import { gamificationKeys } from '@/shared/api/gamification'
 import { planningKeys } from '@/shared/api/planning'
 
 const WS = ''
@@ -22,10 +23,11 @@ const budgets = after(planningKeys.budgets(WS, '').slice(0, 4))
 const goals = after(planningKeys.goals(WS))
 const reserve = after(planningKeys.reserve(WS))
 const projection = after(planningKeys.projection(WS))
+const gamification = after(gamificationKeys.all(WS))
 
 const PREFIXES: Record<string, (readonly string[])[]> = {
-  transaction: [transactions, dashboard, accounts, tags, planning],
-  account: [accounts, transactions, dashboard, planning],
+  transaction: [transactions, dashboard, accounts, tags, planning, gamification],
+  account: [accounts, transactions, dashboard, planning, gamification],
   category: [categories, transactions, dashboard, planning],
   tag: [tags, transactions],
   rule: [rules, transactions, planning],
@@ -34,6 +36,7 @@ const PREFIXES: Record<string, (readonly string[])[]> = {
   reserve: [reserve, projection],
   members: [members, invitations, accounts],
   modules: [modules, planning],
+  achievement: [gamification],
 }
 
 /**

@@ -1,0 +1,32 @@
+/** The streak card's and the achievements screen's text. It loads with the lazy pieces that show it. */
+export const gamificationMessages = {
+  'gamification.streak.weeks': '{weeks, plural, one {# semana seguida} other {# semanas seguidas}}',
+  'gamification.streak.frozen':
+    '{frozen, plural, one {# semana de folga incluída} other {# semanas de folga incluídas}}',
+  'gamification.streak.none': 'Lance algo esta semana para começar uma sequência.',
+  'gamification.title': 'Conquistas',
+  'gamification.earned': 'Ganhas',
+  'gamification.next': 'Próximas',
+  'gamification.earnedOn': 'Ganha em {date}',
+  'gamification.celebrate': 'Conquista: {name}',
+  'gamification.loading': 'Carregando as conquistas…',
+  'gamification.open': 'Ver conquistas',
+  'gamification.streak.title': 'Sequência',
+  'gamification.achievement.FIRST_TRANSACTION.name': 'Primeiro lançamento',
+  'gamification.achievement.FIRST_TRANSACTION.hint': 'Registre um lançamento.',
+  'gamification.achievement.STREAK_4_WEEKS.name': '4 semanas seguidas',
+  'gamification.achievement.STREAK_4_WEEKS.hint': 'Registre algo em 4 semanas seguidas.',
+  'gamification.achievement.FIRST_GOAL.name': 'Primeira meta',
+  'gamification.achievement.FIRST_GOAL.hint': 'Crie uma meta em Planejar.',
+  'gamification.achievement.GOAL_ACHIEVED.name': 'Meta alcançada',
+  'gamification.achievement.GOAL_ACHIEVED.hint': 'Uma meta da família chega ao valor.',
+  'gamification.achievement.RESERVE_1_MONTH.name': 'Reserva de 1 mês',
+  'gamification.achievement.RESERVE_1_MONTH.hint': 'A reserva cobre 1 mês de custo.',
+  'gamification.achievement.RESERVE_3_MONTHS.name': 'Reserva de 3 meses',
+  'gamification.achievement.RESERVE_3_MONTHS.hint': 'A reserva cobre 3 meses de custo.',
+  'gamification.achievement.RESERVE_6_MONTHS.name': 'Reserva de 6 meses',
+  'gamification.achievement.RESERVE_6_MONTHS.hint': 'A reserva cobre 6 meses de custo.',
+  'gamification.achievement.MONTH_IN_BUDGET.name': 'Mês dentro do orçamento',
+  'gamification.achievement.MONTH_IN_BUDGET.hint':
+    'Um mês fecha com todas as categorias dentro do limite.',
+} as const
