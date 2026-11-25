@@ -1735,7 +1735,7 @@ export interface components {
         ModuleView: {
             enabled: boolean;
             /** @enum {string} */
-            key: "planning" | "indicators" | "gamification" | "ventures";
+            key: "planning" | "indicators" | "gamification" | "ventures" | "markets";
         };
         Money: {
             /** @example 12.34 */
@@ -3723,7 +3723,7 @@ export interface operations {
             path: {
                 /** @description Workspace (family) id */
                 ws: string;
-                key: "planning" | "indicators" | "gamification" | "ventures";
+                key: "planning" | "indicators" | "gamification" | "ventures" | "markets";
             };
             cookie?: never;
         };

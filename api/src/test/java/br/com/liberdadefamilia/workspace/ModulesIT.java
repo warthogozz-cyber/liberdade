@@ -106,17 +106,17 @@ class ModulesIT {
         MvcTestResult result = get(ana, "/v1/workspaces/" + ws + "/modules");
 
         assertThat(result).hasStatusOk();
-        assertThat(result).bodyJson().extractingPath("$").asArray().hasSize(4);
+        assertThat(result).bodyJson().extractingPath("$").asArray().hasSize(5);
         assertThat(result)
                 .bodyJson()
                 .extractingPath("$[*].key")
                 .asArray()
-                .containsExactly("planning", "indicators", "gamification", "ventures");
+                .containsExactly("planning", "indicators", "gamification", "ventures", "markets");
         assertThat(result)
                 .bodyJson()
                 .extractingPath("$[*].enabled")
                 .asArray()
-                .containsExactly(true, false, false, false);
+                .containsExactly(true, false, false, false, false);
         assertThat(modules.isEnabled(ws, ModuleKey.PLANNING)).isTrue();
         assertThat(modules.isEnabled(ws, ModuleKey.INDICATORS)).isFalse();
         assertThat(modules.isEnabled(ws, ModuleKey.GAMIFICATION)).isFalse();
@@ -144,7 +144,7 @@ class ModulesIT {
                     .bodyJson()
                     .extractingPath("$[*].enabled")
                     .asArray()
-                    .containsExactly(true, true, false, false);
+                    .containsExactly(true, true, false, false, false);
         }
         assertThat(modules.isEnabled(ws, ModuleKey.INDICATORS)).isTrue();
     }
