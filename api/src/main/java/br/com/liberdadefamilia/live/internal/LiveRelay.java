@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.live.internal;
 
+import br.com.liberdadefamilia.gamification.AchievementsEarned;
 import br.com.liberdadefamilia.ledger.AccountChanged;
 import br.com.liberdadefamilia.ledger.AccountOwnerChanged;
 import br.com.liberdadefamilia.ledger.CategoryChanged;
@@ -7,6 +8,7 @@ import br.com.liberdadefamilia.ledger.TagChanged;
 import br.com.liberdadefamilia.ledger.TransactionChanged;
 import br.com.liberdadefamilia.live.internal.Audience.AccountViewers;
 import br.com.liberdadefamilia.live.internal.Audience.Everyone;
+import br.com.liberdadefamilia.live.internal.Audience.Member;
 import br.com.liberdadefamilia.live.internal.Audience.NoYouth;
 import br.com.liberdadefamilia.planning.BudgetChanged;
 import br.com.liberdadefamilia.planning.GoalArchived;
@@ -38,7 +40,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * no transaction; it only reads the family's modules and hands the notice over, and a failure never reaches the code
  * that published the event. It is logged by its class only.
  *
- * <p>The planning events go out only while the family has Planning on; the check runs once per event, not per stream.
+ * <p>The planning events go out only while the family has Planning on, the achievement notice only while it has
+ * Conquistas on; the check runs once per event, not per stream.
  */
 @Component
 class LiveRelay {
@@ -60,7 +63,7 @@ class LiveRelay {
                 "transaction",
                 event.transactionId(),
                 new AccountViewers(event.accountId(), event.toAccountId(), Set.of()),
-                false);
+                null);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -70,7 +73,7 @@ class LiveRelay {
                 "account",
                 event.accountId(),
                 new AccountViewers(event.accountId(), null, Set.of()),
-                false);
+                null);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -81,75 +84,75 @@ class LiveRelay {
                 "account",
                 event.accountId(),
                 new AccountViewers(event.accountId(), null, former == null ? Set.of() : Set.of(former)),
-                false);
+                null);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(CategoryChanged event) {
-        send(event.workspaceId(), "category", event.categoryId(), new Everyone(), false);
+        send(event.workspaceId(), "category", event.categoryId(), new Everyone(), null);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(TagChanged event) {
-        send(event.workspaceId(), "tag", event.tagId(), new Everyone(), false);
+        send(event.workspaceId(), "tag", event.tagId(), new Everyone(), null);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(RecurringRuleCreated event) {
-        send(event.workspaceId(), "rule", event.ruleId(), new NoYouth(), true);
+        send(event.workspaceId(), "rule", event.ruleId(), new NoYouth(), ModuleKey.PLANNING);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(RecurringRuleEdited event) {
-        send(event.workspaceId(), "rule", event.ruleId(), new NoYouth(), true);
+        send(event.workspaceId(), "rule", event.ruleId(), new NoYouth(), ModuleKey.PLANNING);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(RecurringRuleArchived event) {
-        send(event.workspaceId(), "rule", event.ruleId(), new NoYouth(), true);
+        send(event.workspaceId(), "rule", event.ruleId(), new NoYouth(), ModuleKey.PLANNING);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(BudgetChanged event) {
-        send(event.workspaceId(), "budget", null, new NoYouth(), true);
+        send(event.workspaceId(), "budget", null, new NoYouth(), ModuleKey.PLANNING);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(GoalChanged event) {
-        send(event.workspaceId(), "goal", event.goalId(), new Everyone(), true);
+        send(event.workspaceId(), "goal", event.goalId(), new Everyone(), ModuleKey.PLANNING);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(GoalArchived event) {
-        send(event.workspaceId(), "goal", event.goalId(), new Everyone(), true);
+        send(event.workspaceId(), "goal", event.goalId(), new Everyone(), ModuleKey.PLANNING);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(ReserveTargetChanged event) {
-        send(event.workspaceId(), "reserve", null, new NoYouth(), true);
+        send(event.workspaceId(), "reserve", null, new NoYouth(), ModuleKey.PLANNING);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(ReserveCostChanged event) {
-        send(event.workspaceId(), "reserve", null, new NoYouth(), true);
+        send(event.workspaceId(), "reserve", null, new NoYouth(), ModuleKey.PLANNING);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(MemberJoined event) {
-        send(event.workspaceId(), "members", null, new Everyone(), false);
+        send(event.workspaceId(), "members", null, new Everyone(), null);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(MemberRemoved event) {
         closeMember(event.workspaceId(), event.membershipId());
-        send(event.workspaceId(), "members", null, new Everyone(), false);
+        send(event.workspaceId(), "members", null, new Everyone(), null);
     }
 
     /** The streams of the person close, so they reconnect with the new role (or are turned away if gone). */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(MemberRoleChanged event) {
         closeMember(event.workspaceId(), event.membershipId());
-        send(event.workspaceId(), "members", null, new Everyone(), false);
+        send(event.workspaceId(), "members", null, new Everyone(), null);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -171,17 +174,24 @@ class LiveRelay {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(MemberProfileChanged event) {
-        send(event.workspaceId(), "members", null, new Everyone(), false);
+        send(event.workspaceId(), "members", null, new Everyone(), null);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(ModuleToggled event) {
-        send(event.workspaceId(), "modules", null, new Everyone(), false);
+        send(event.workspaceId(), "modules", null, new Everyone(), null);
     }
 
-    private void send(UUID workspaceId, String entity, @Nullable UUID id, Audience audience, boolean needsPlanning) {
+    /** Only the person who earned it hears about it, and only while Conquistas is on (D10). */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void on(AchievementsEarned event) {
+        send(event.workspaceId(), "achievement", null, new Member(event.membershipId()), ModuleKey.GAMIFICATION);
+    }
+
+    private void send(
+            UUID workspaceId, String entity, @Nullable UUID id, Audience audience, @Nullable ModuleKey module) {
         try {
-            if (needsPlanning && !modules.isEnabled(workspaceId, ModuleKey.PLANNING)) {
+            if (module != null && !modules.isEnabled(workspaceId, module)) {
                 return;
             }
             streams.publish(workspaceId, new LiveChange(entity, id), audience);
