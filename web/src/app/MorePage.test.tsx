@@ -153,3 +153,36 @@ describe('MorePage', () => {
     expect(screen.queryByRole('link', { name: 'Recorrências' })).not.toBeInTheDocument()
   })
 })
+
+describe('MorePage projects entry', () => {
+  it('showsProjectsWhenOn', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'ADULT'
+    mockState.modules[workspace.id] = { ventures: true }
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByRole('link', { name: 'Projetos' })).toHaveAttribute(
+      'href',
+      '/mais/projetos',
+    )
+  })
+
+  it('showsNoProjectsEntryToAYouth', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'YOUTH'
+    mockState.modules[workspace.id] = { ventures: true }
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByText(workspace.name)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Projetos' })).not.toBeInTheDocument()
+  })
+
+  it('showsNoProjectsEntryWhenOff', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { ventures: false }
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByText(workspace.name)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Projetos' })).not.toBeInTheDocument()
+  })
+})

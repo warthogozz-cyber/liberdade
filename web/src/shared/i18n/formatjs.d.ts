@@ -37,6 +37,8 @@ import type { indicatorsMessages } from '@/features/indicators/messages.pt-BR'
 import type { planningMessages } from '@/features/planning/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { recurrencesMessages } from '@/features/recurrences/messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
+import type { venturesMessages } from '@/features/ventures/messages.pt-BR'
 import type { reauthMessages } from '@/shared/auth/messages.pt-BR'
 import type { tipsMessages } from '@/shared/tips/messages.pt-BR'
 import type { sourceStampMessages } from '@/shared/ui/sourceStamp.messages.pt-BR'
@@ -65,6 +67,7 @@ declare global {
         | keyof typeof privacyMessages
         | keyof typeof settingsMessages
         | keyof typeof recurrencesMessages
+        | keyof typeof venturesMessages
         | keyof typeof reauthMessages
         | keyof typeof sourceStampMessages
         | keyof typeof signInMessages

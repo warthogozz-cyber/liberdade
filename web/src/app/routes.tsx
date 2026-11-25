@@ -11,6 +11,7 @@ import '@/features/gamification/register'
 import '@/features/indicators/register'
 import '@/features/planning/register'
 import '@/features/recurrences/register'
+import '@/features/ventures/register'
 
 // Secondary screens load on demand, so the first load stays small (chunk budget in CI). Copy this
 // shape for a new one: the page exports its component by name. The layouts and the welcome page (a
@@ -204,6 +205,30 @@ export const routes: RouteObject[] = [
                       import('@/features/gamification/AchievementsPage').then((m) => ({
                         Component: m.AchievementsPage,
                       })),
+                  },
+                ],
+              },
+              {
+                // With the projects module off, its screens do not open either; a Youth who
+                // types the address goes back to More. The other screens join as they are built.
+                element: (
+                  <ModuleRoute module="ventures">
+                    <Outlet />
+                  </ModuleRoute>
+                ),
+                children: [
+                  {
+                    lazy: () =>
+                      import('@/app/NoYouthRoute').then((m) => ({ Component: m.NoYouthRoute })),
+                    children: [
+                      {
+                        path: '/mais/projetos',
+                        lazy: () =>
+                          import('@/features/ventures/VenturesListPage').then((m) => ({
+                            Component: m.VenturesListPage,
+                          })),
+                      },
+                    ],
                   },
                 ],
               },

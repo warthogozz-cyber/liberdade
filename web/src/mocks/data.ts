@@ -78,6 +78,8 @@ export interface MockState {
   budgets: MockBudget[]
   /** The family's goals, in creation order, archived ones included. */
   goals: MockGoal[]
+  /** The family's projects (ventures) by workspace id, in creation order. */
+  ventures: Record<string, Schemas['VentureView'][]>
   /** The emergency reserve settings: the target in months and the monthly cost the family typed in. */
   reserve: { targetMonths: number; manualMonthlyCost: Schemas['ReserveView']['manualMonthlyCost'] }
   /** The family's average monthly spending over its history, in cents; null while it has none. */
@@ -340,6 +342,7 @@ function initialState(): MockState {
     rules: [],
     budgets: [],
     goals: [],
+    ventures: {},
     reserve: { targetMonths: 6, manualMonthlyCost: null },
     spendingHistoryCents: null,
     activity: initialActivity(),
@@ -479,6 +482,87 @@ export function seedMockFamily(): MeWorkspace {
 /** Puts the family on the paid plan, until a year from the mock's dates, as a paid checkout would. */
 export function seedFamilyPlan(): void {
   mockState.billing.plan = { key: 'FAMILY', endsAt: '2027-11-30T03:00:00Z' }
+}
+
+const brl = (amount: string): Schemas['Money'] => ({ amount, currency: 'BRL' })
+
+/** The `food-sweets` project as the API shows it: R$ 540,00 a month, paid back in 2 months. */
+export function foodSweetsVenture(
+  overrides: Partial<Schemas['VentureView']> = {},
+): Schemas['VentureView'] {
+  return {
+    id: '0192f3a4-0000-7000-8000-0000000000a1',
+    name: 'Doces caseiros',
+    type: 'FOOD',
+    templateKey: 'food-sweets',
+    status: 'ACTIVE',
+    startedOn: '2026-10-01',
+    closedOn: null,
+    currency: 'BRL',
+    version: 0,
+    initialItems: [
+      {
+        id: '0192f3a4-0000-7000-8000-0000000000b1',
+        name: 'Forma e utensílios',
+        amount: brl('600.00'),
+        isExample: false,
+      },
+    ],
+    fixedItems: [
+      {
+        id: '0192f3a4-0000-7000-8000-0000000000b2',
+        name: 'Embalagens',
+        amount: brl('60.00'),
+        isExample: false,
+      },
+    ],
+    products: [
+      {
+        id: '0192f3a4-0000-7000-8000-0000000000c1',
+        name: 'Brigadeiro',
+        unitPrice: brl('4.50'),
+        unitVariableCost: brl('1.80'),
+        plannedUnitsMonth: 200,
+        isExample: false,
+      },
+    ],
+    steps: [
+      {
+        id: '0192f3a4-0000-7000-8000-0000000000d1',
+        title: 'Testar a receita',
+        position: 0,
+        doneAt: null,
+      },
+    ],
+    figures: {
+      initialInvestment: brl('600.00'),
+      fixedMonthly: brl('60.00'),
+      plannedRevenue: brl('900.00'),
+      plannedCost: brl('360.00'),
+      totalMargin: brl('540.00'),
+      monthlyProfit: brl('540.00'),
+      paybackMonths: 2,
+      paybackState: 'MONTHS',
+      roi12mPercent: '980.0',
+      roiState: 'OK',
+      breakEven: { state: 'OK', revenue: brl('150.00'), weightedMarginPercent: '60.0' },
+      products: [
+        { margin: brl('2.70'), marginPercent: '60.0', priceCoversCost: true, breakEvenUnits: 23 },
+      ],
+    },
+    ...overrides,
+  }
+}
+
+/** Gives the family the `food-sweets` project and turns the module on. */
+export function seedVentureFixture(
+  workspace: MeWorkspace,
+  overrides: Partial<Schemas['VentureView']> = {},
+): Schemas['VentureView'] {
+  mockState.modules[workspace.id] = { ...mockState.modules[workspace.id], ventures: true }
+  const venture = foodSweetsVenture(overrides)
+  mockState.ventures[workspace.id] = [...(mockState.ventures[workspace.id] ?? []), venture]
+  return venture
 }
 
 /**
