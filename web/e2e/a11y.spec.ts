@@ -443,8 +443,14 @@ test('the statement import meets WCAG 2.2 AA in both themes', async ({ page, req
   await createFamily(page)
   await buyFamilyPlan(page, request)
 
-  await page.goto('/lancamentos/importar')
+  // Right after the purchase, a fresh load can still read the free plan from the saved cache and
+  // bounce to the list: load again until the import screen holds with its file field.
   const file = page.getByLabel('Arquivo do extrato')
+  await expect(async () => {
+    await page.goto('/lancamentos/importar')
+    await expect(file).toBeVisible({ timeout: 3_000 })
+    await expect(page).toHaveURL(/\/lancamentos\/importar$/)
+  }).toPass({ timeout: 45_000 })
   await file.setInputFiles(
     fileURLToPath(new URL('../src/features/import/fixtures/ofx-sgml-1252.ofx', import.meta.url)),
   )
