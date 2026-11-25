@@ -5335,13 +5335,28 @@
             "example": "2026-11"
           },
           "plannedCost": {
-            "$ref": "#/components/schemas/Money"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
           },
           "plannedIncome": {
-            "$ref": "#/components/schemas/Money"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
           },
           "plannedResult": {
-            "$ref": "#/components/schemas/Money"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
           },
           "result": {
             "$ref": "#/components/schemas/Money"
@@ -5627,10 +5642,20 @@
         "type": "object",
         "properties": {
           "investment": {
-            "$ref": "#/components/schemas/Money"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
           },
           "missing": {
-            "$ref": "#/components/schemas/Money"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
           },
           "months": {
             "type": "integer",
@@ -6130,13 +6155,28 @@
             "$ref": "#/components/schemas/Money"
           },
           "plannedCost": {
-            "$ref": "#/components/schemas/Money"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
           },
           "plannedIncome": {
-            "$ref": "#/components/schemas/Money"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
           },
           "plannedResult": {
-            "$ref": "#/components/schemas/Money"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
           },
           "result": {
             "$ref": "#/components/schemas/Money"

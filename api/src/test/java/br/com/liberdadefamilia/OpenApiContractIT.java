@@ -149,6 +149,29 @@ class OpenApiContractIT {
         }
     }
 
+    /** The amounts that may be absent are an {@code allOf} of Money with {@code nullable}, so the web reads Money | null. */
+    @Test
+    void actualVsPlannedMissingAmountsAreNullable() {
+        var contract = contract();
+
+        for (String field : List.of(
+                "MonthView.properties.plannedIncome",
+                "MonthView.properties.plannedCost",
+                "MonthView.properties.plannedResult",
+                "TotalsView.properties.plannedIncome",
+                "TotalsView.properties.plannedCost",
+                "TotalsView.properties.plannedResult",
+                "RealView.properties.investment",
+                "RealView.properties.missing")) {
+            contract.extractingPath(SCHEMAS + "." + field + ".nullable")
+                    .as(field)
+                    .isEqualTo(true);
+            contract.extractingPath(SCHEMAS + "." + field + ".allOf[0]['$ref']")
+                    .as(field)
+                    .isEqualTo("#/components/schemas/Money");
+        }
+    }
+
     /** The ids name the generated operations; a {@code _1} suffix would depend on the order handlers are found. */
     @Test
     void operationIdsAreUniqueAndUnsuffixed() {

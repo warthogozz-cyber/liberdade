@@ -1750,9 +1750,9 @@ export interface components {
             income: components["schemas"]["Money"];
             /** @example 2026-11 */
             month: string;
-            plannedCost: components["schemas"]["Money"];
-            plannedIncome: components["schemas"]["Money"];
-            plannedResult: components["schemas"]["Money"];
+            plannedCost: components["schemas"]["Money"] | null;
+            plannedIncome: components["schemas"]["Money"] | null;
+            plannedResult: components["schemas"]["Money"] | null;
             result: components["schemas"]["Money"];
         };
         NewUser: {
@@ -1847,8 +1847,8 @@ export interface components {
             today: string;
         };
         RealView: {
-            investment: components["schemas"]["Money"];
-            missing: components["schemas"]["Money"];
+            investment: components["schemas"]["Money"] | null;
+            missing: components["schemas"]["Money"] | null;
             /** Format: int32 */
             months: number | null;
             /** @enum {string} */
@@ -2009,9 +2009,9 @@ export interface components {
         TotalsView: {
             expense: components["schemas"]["Money"];
             income: components["schemas"]["Money"];
-            plannedCost: components["schemas"]["Money"];
-            plannedIncome: components["schemas"]["Money"];
-            plannedResult: components["schemas"]["Money"];
+            plannedCost: components["schemas"]["Money"] | null;
+            plannedIncome: components["schemas"]["Money"] | null;
+            plannedResult: components["schemas"]["Money"] | null;
             result: components["schemas"]["Money"];
         };
         TrackView: {
