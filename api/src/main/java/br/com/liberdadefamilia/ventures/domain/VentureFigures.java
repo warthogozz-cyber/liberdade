@@ -14,7 +14,7 @@ public record VentureFigures(
         BigDecimal monthlyProfit,
         @Nullable BigDecimal roi12mPercent,
         RoiState roiState,
-        @Nullable Integer paybackMonths,
+        @Nullable Long paybackMonths,
         PaybackState paybackState,
         BreakEven breakEven,
         List<ProductFigures> products) {

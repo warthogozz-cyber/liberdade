@@ -72,15 +72,15 @@ public final class VentureCalculator {
             ProductLine p = products.get(i);
             BigDecimal margin = margin(p);
             productFigures.add(new ProductFigures(
-                    money(margin), percent1(percent(margin, p.unitPrice())), margin.signum() >= 0, breakEvenUnits[i]));
+                    money(margin), percent1(percent(margin, p.unitPrice())), margin.signum() > 0, breakEvenUnits[i]));
         }
 
-        Integer payback = null;
+        Long payback = null;
         PaybackState paybackState = PaybackState.NEVER;
         if (profit.signum() > 0) {
             paybackState = PaybackState.MONTHS;
             payback = Math.max(
-                    1, initialInvestment.divide(profit, 0, RoundingMode.CEILING).intValueExact());
+                    1, initialInvestment.divide(profit, 0, RoundingMode.CEILING).longValueExact());
         }
 
         BigDecimal roi = null;
