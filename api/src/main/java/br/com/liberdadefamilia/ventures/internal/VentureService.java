@@ -421,6 +421,8 @@ class VentureService {
     }
 
     private VentureView view(StoredVenture venture) {
+        VentureFigures figures = figures(venture);
+        VentureValidation.figuresResult(figures);
         Currency currency = Currency.getInstance(venture.currency());
         List<StepView> steps = new ArrayList<>();
         for (StoredVenture.Step step : venture.steps()) {
@@ -451,7 +453,7 @@ class VentureService {
                                 product.isExample()))
                         .toList(),
                 steps,
-                FiguresView.of(figures(venture), currency),
+                FiguresView.of(figures, currency),
                 venture.version());
     }
 

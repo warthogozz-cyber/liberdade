@@ -260,6 +260,34 @@ class VenturesIT {
     }
 
     @Test
+    void aResultTooBigForMoneyIs422AndNothingIsStored() {
+        UUID venture = id(create("{\"name\":\"Doces\",\"type\":\"OTHER\"}"));
+        String product =
+                "{\"name\":\"P\",\"unitVariableCost\":\"0.00\",\"unitPrice\":\"999999999.99\",\"plannedUnitsMonth\":1000000}";
+
+        assertInvalid(update(venture, withLists(0, "Outro", "", product + "," + product)));
+
+        assertThat(jdbc.sql("select version from ventures where id = :id")
+                        .param("id", venture)
+                        .query(Long.class)
+                        .single())
+                .isZero();
+        assertThat(jdbc.sql("select name from ventures where id = :id")
+                        .param("id", venture)
+                        .query(String.class)
+                        .single())
+                .isEqualTo("Doces");
+    }
+
+    @Test
+    void aWhitespaceOnlyNameIs422() {
+        UUID venture = id(create("{\"name\":\"Doces\",\"type\":\"OTHER\"}"));
+
+        assertInvalid(update(venture, blankUpdate(0, "   ")));
+        assertInvalid(create("{\"name\":\"  \",\"type\":\"OTHER\"}"));
+    }
+
+    @Test
     void startedOnRules() {
         UUID venture = id(create("{\"name\":\"Doces\",\"type\":\"OTHER\"}"));
 

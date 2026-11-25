@@ -1,6 +1,8 @@
 package br.com.liberdadefamilia.ventures.internal;
 
+import br.com.liberdadefamilia.ventures.domain.VentureFigures;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -126,6 +128,27 @@ final class VentureValidation {
         }
     }
 
+    /** The figures of a project the answer cannot hold: the inputs are in range but their sums are not. */
+    static void figuresResult(VentureFigures figures) {
+        List<BigDecimal> values = new ArrayList<>(List.of(
+                figures.initialInvestment(),
+                figures.fixedMonthly(),
+                figures.plannedRevenue(),
+                figures.plannedCost(),
+                figures.totalMargin(),
+                figures.monthlyProfit()));
+        if (figures.breakEven().revenue() != null) {
+            values.add(figures.breakEven().revenue());
+        }
+        figures.products().forEach(product -> values.add(product.margin()));
+        for (BigDecimal value : values) {
+            if (value.abs().compareTo(MONEY_LIMIT) >= 0) {
+                throw VentureRejectedException.invalid(
+                        "Com esses números o resultado fica grande demais. Confira os valores.");
+            }
+        }
+    }
+
     private static boolean validAmount(BigDecimal amount) {
         return amount != null
                 && amount.signum() >= 0
@@ -134,7 +157,7 @@ final class VentureValidation {
     }
 
     private static void requireName(String name, String detail) {
-        if (name == null || name.isEmpty() || name.length() > MAX_NAME || name.indexOf('\0') >= 0) {
+        if (name == null || name.isBlank() || name.length() > MAX_NAME || name.indexOf('\0') >= 0) {
             throw VentureRejectedException.invalid(detail);
         }
     }

@@ -194,6 +194,14 @@ class SimulationIT {
         assertInvestmentInvalid(body("999999999.99", "999999999.99", 50, "a", "100"));
     }
 
+    @Test
+    void aResultTooBigForMoneyIs422() {
+        String product = "{\"unitVariableCost\":\"0.00\",\"unitPrice\":\"999999999.99\",\"plannedUnitsMonth\":1000000}";
+
+        assertInvalid(
+                simulate("{\"initialItems\":[],\"fixedItems\":[],\"products\":[" + product + "," + product + "]}"));
+    }
+
     private static String body(String initial, String monthly, int years, String name, String percent) {
         return ("{\"initialAmount\":\"%s\",\"monthlyContribution\":\"%s\",\"years\":%d,"
                         + "\"scenarios\":[{\"name\":\"%s\",\"annualPercent\":\"%s\"}]}")

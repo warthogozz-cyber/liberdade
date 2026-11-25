@@ -7,6 +7,7 @@ import br.com.liberdadefamilia.ventures.domain.InvestmentScenario;
 import br.com.liberdadefamilia.ventures.domain.InvestmentSimulator;
 import br.com.liberdadefamilia.ventures.domain.ProductLine;
 import br.com.liberdadefamilia.ventures.domain.VentureCalculator;
+import br.com.liberdadefamilia.ventures.domain.VentureFigures;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.util.Currency;
 import java.util.List;
@@ -32,19 +33,19 @@ class SimulationService {
             VentureValidation.unitPrice(product.unitPrice());
             VentureValidation.plannedUnits(product.plannedUnitsMonth());
         });
-        return FiguresView.of(
-                VentureCalculator.calculate(
-                        request.initialItems().stream()
-                                .map(item -> new CostLine(item.amount()))
-                                .toList(),
-                        request.fixedItems().stream()
-                                .map(item -> new CostLine(item.amount()))
-                                .toList(),
-                        request.products().stream()
-                                .map(product -> new ProductLine(
-                                        product.unitVariableCost(), product.unitPrice(), product.plannedUnitsMonth()))
-                                .toList()),
-                member.baseCurrency());
+        VentureFigures figures = VentureCalculator.calculate(
+                request.initialItems().stream()
+                        .map(item -> new CostLine(item.amount()))
+                        .toList(),
+                request.fixedItems().stream()
+                        .map(item -> new CostLine(item.amount()))
+                        .toList(),
+                request.products().stream()
+                        .map(product -> new ProductLine(
+                                product.unitVariableCost(), product.unitPrice(), product.plannedUnitsMonth()))
+                        .toList());
+        VentureValidation.figuresResult(figures);
+        return FiguresView.of(figures, member.baseCurrency());
     }
 
     /**
