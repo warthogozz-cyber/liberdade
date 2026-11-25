@@ -19,6 +19,9 @@ import org.springframework.test.context.ActiveProfiles;
             "server.tomcat.remoteip.internal-proxies=127.0.0.1/32, ::1/128",
             "liberdade.billing.gateway=asaas",
             "liberdade.indicators.source=bcb",
+            "liberdade.markets.osm.source=github",
+            "liberdade.markets.geocoding.source=nominatim",
+            "liberdade.markets.instagram.source=meta",
             "liberdade.billing.enabled=false"
         })
 @ActiveProfiles({"test", "prod"})
