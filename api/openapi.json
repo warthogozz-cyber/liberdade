@@ -2034,6 +2034,48 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets": {
+      "post": {
+        "operationId": "addMarket",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewMarketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketCardView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/search": {
       "post": {
         "operationId": "searchMarkets",
@@ -2131,6 +2173,189 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketCardView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/{ref}/archive": {
+      "post": {
+        "operationId": "archiveMarket",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Hidden"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/{ref}/convert": {
+      "post": {
+        "operationId": "convertMarket",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewMarketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketCardView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/{ref}/links": {
+      "put": {
+        "operationId": "putLinks",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinksRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketCardView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/{ref}/position": {
+      "put": {
+        "operationId": "putPosition",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PositionRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -5342,6 +5567,34 @@
         },
         "nullable": true
       },
+      "LinksRequest": {
+        "type": "object",
+        "properties": {
+          "flyerSource": {
+            "maxLength": 60,
+            "minLength": 0,
+            "type": "string",
+            "nullable": true
+          },
+          "flyerUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "flyerValidUntil": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "instagram": {
+            "type": "string",
+            "nullable": true
+          },
+          "website": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "MarketCardView": {
         "type": "object",
         "properties": {
@@ -5691,6 +5944,39 @@
           }
         }
       },
+      "NewMarketRequest": {
+        "required": [
+          "kind",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SUPERMARKET",
+              "CONVENIENCE",
+              "GREENGROCER",
+              "MARKETPLACE"
+            ]
+          },
+          "lat": {
+            "type": "string",
+            "nullable": true,
+            "example": "-10.00012"
+          },
+          "lon": {
+            "type": "string",
+            "nullable": true,
+            "example": "-50.00012"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 0,
+            "type": "string"
+          }
+        }
+      },
       "NewUser": {
         "required": [
           "displayName"
@@ -5883,6 +6169,21 @@
               "MONTHS",
               "NEVER"
             ]
+          }
+        }
+      },
+      "PositionRequest": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "string",
+            "nullable": true,
+            "example": "-10.00012"
+          },
+          "lon": {
+            "type": "string",
+            "nullable": true,
+            "example": "-50.00012"
           }
         }
       },

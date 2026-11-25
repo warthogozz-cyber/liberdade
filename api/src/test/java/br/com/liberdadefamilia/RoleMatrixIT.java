@@ -388,7 +388,25 @@ class RoleMatrixIT {
                                 Outcome.OK,
                                 Outcome.OK,
                                 Outcome.OK,
-                                Outcome.OK))
+                                Outcome.OK),
+                        ownerAndAdult(
+                                "POST " + W + "/markets",
+                                W + "/markets",
+                                "{\"name\":\"Feira Nova\",\"kind\":\"GREENGROCER\"}"),
+                        ownerAndAdult(
+                                "PUT " + W + "/markets/{ref}/links",
+                                W + "/markets/{market}/links",
+                                "{\"website\":\"https://familia.example.com\",\"instagram\":null,\"flyerUrl\":null,"
+                                        + "\"flyerSource\":null,\"flyerValidUntil\":null}"),
+                        ownerAndAdult(
+                                "PUT " + W + "/markets/{ref}/position",
+                                W + "/markets/{market}/position",
+                                "{\"lat\":\"-23.00400\",\"lon\":\"-45.99800\"}"),
+                        ownerAndAdult("POST " + W + "/markets/{ref}/archive", W + "/markets/{market}/archive", null),
+                        ownerAndAdult(
+                                "POST " + W + "/markets/{ref}/convert",
+                                W + "/markets/{leftMarket}/convert",
+                                "{\"name\":\"Mercado que saiu\",\"kind\":\"SUPERMARKET\"}"))
                 .flatMap(group -> group);
     }
 
@@ -838,7 +856,7 @@ class RoleMatrixIT {
                 || row.path().endsWith("/billing/plan/theme")
                 || row.path().endsWith("/imports/category-hints")
                 || row.path().endsWith("/imports")
-                || row.path().contains("/markets/")
+                || row.path().contains("/markets")
                 || row.route().equals("POST " + W + "/ventures")) {
             jdbc.sql("""
                             insert into workspace_plans (workspace_id, plan_key, founder, source_order_id, starts_at, ends_at)
@@ -999,6 +1017,10 @@ class RoleMatrixIT {
         ids.put("market", jdbc.sql("""
                         insert into markets (workspace_id, origin, name, kind, lat, lon)
                         values (:ws, 'FAMILY', 'Feira Exemplo', 'GREENGROCER', -23.00300, -45.99900)
+                        returning id""").param("ws", ws).query(UUID.class).single());
+        ids.put("leftMarket", jdbc.sql("""
+                        insert into markets (workspace_id, origin, osm_type, osm_id)
+                        values (:ws, 'OSM', 'n', 777)
                         returning id""").param("ws", ws).query(UUID.class).single());
         ids.put("plannedFamily", planned(ws, ids.get("corrente"), ids.get("mercado"), anaMembership));
         ids.put("plannedYouth", planned(ws, ids.get("wallet"), ids.get("mercado"), anaMembership));

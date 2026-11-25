@@ -25,8 +25,8 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
  * The plan guard on the Feira's routes, as on the module's others: billing on and the Grátis plan is a 403
- * {@code plan.required}; with billing off the routes are open. The routes that write come with later tasks, and so do
- * their rows here.
+ * {@code plan.required}; with billing off the routes are open. The other routes that write share the module's guards and
+ * are covered by the role matrix.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -34,6 +34,8 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 class MarketPlanGuardIT {
 
     private static final String SEARCH = "{\"lat\":\"-23.00\",\"lon\":\"-46.00\"}";
+    private static final String LINKS = "{\"website\":\"https://familia.example.com\",\"instagram\":null,"
+            + "\"flyerUrl\":null,\"flyerSource\":null,\"flyerValidUntil\":null}";
 
     @Autowired
     MockMvcTester mvc;
@@ -65,7 +67,7 @@ class MarketPlanGuardIT {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"search", "settings", "card"})
+    @ValueSource(strings = {"search", "settings", "card", "links"})
     void billingOnAndFreePlanIs403(String route) {
         doReturn(true).when(plans).legalSetEnabled();
 
@@ -76,7 +78,7 @@ class MarketPlanGuardIT {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"search", "settings", "card"})
+    @ValueSource(strings = {"search", "settings", "card", "links"})
     void billingOffIsOpen(String route) {
         doReturn(false).when(plans).legalSetEnabled();
 
@@ -96,6 +98,14 @@ class MarketPlanGuardIT {
                         .content(SEARCH)
                         .exchange();
             case "settings" -> mvc.get().uri(base + "/settings").with(session).exchange();
+            case "links" ->
+                mvc.method(HttpMethod.PUT)
+                        .uri(base + "/" + market + "/links")
+                        .with(session)
+                        .with(CsrfSession.start(mvc, session))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(LINKS)
+                        .exchange();
             default -> mvc.get().uri(base + "/" + market).with(session).exchange();
         };
     }

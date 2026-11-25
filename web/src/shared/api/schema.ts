@@ -788,6 +788,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addMarket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/search": {
         parameters: {
             query?: never;
@@ -829,6 +845,70 @@ export interface paths {
         };
         get: operations["getMarket"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveMarket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["convertMarket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["putLinks"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}/position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["putPosition"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1763,6 +1843,14 @@ export interface components {
             source: "FAMILY" | "OSM";
             value: string;
         } | null;
+        LinksRequest: {
+            flyerSource: string | null;
+            flyerUrl: string | null;
+            /** Format: date */
+            flyerValidUntil: string | null;
+            instagram: string | null;
+            website: string | null;
+        };
         MarketCardView: {
             address: components["schemas"]["AddressView"] | null;
             cnpj: string | null;
@@ -1860,6 +1948,15 @@ export interface components {
             plannedResult: components["schemas"]["Money"] | null;
             result: components["schemas"]["Money"];
         };
+        NewMarketRequest: {
+            /** @enum {string} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE";
+            /** @example -10.00012 */
+            lat?: string | null;
+            /** @example -50.00012 */
+            lon?: string | null;
+            name: string;
+        };
         NewUser: {
             displayName: string;
         } | null;
@@ -1918,6 +2015,12 @@ export interface components {
             paybackMonths: number | null;
             /** @enum {string} */
             paybackState: "MONTHS" | "NEVER";
+        };
+        PositionRequest: {
+            /** @example -10.00012 */
+            lat: string | null;
+            /** @example -50.00012 */
+            lon: string | null;
         };
         PreviewInvitationRequest: {
             token: string;
@@ -3741,6 +3844,33 @@ export interface operations {
             };
         };
     };
+    addMarket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewMarketRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
     searchMarkets: {
         parameters: {
             query?: never;
@@ -3803,6 +3933,112 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
+    archiveMarket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hidden */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    convertMarket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewMarketRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
+    putLinks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinksRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
+    putPosition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PositionRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

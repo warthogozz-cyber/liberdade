@@ -1,6 +1,8 @@
 package br.com.liberdadefamilia.markets.internal;
 
 import br.com.liberdadefamilia.markets.domain.FamilyRef;
+import br.com.liberdadefamilia.markets.domain.GeoPoint;
+import br.com.liberdadefamilia.markets.domain.MarketKind;
 import br.com.liberdadefamilia.markets.domain.MarketRef;
 import br.com.liberdadefamilia.markets.domain.OsmRef;
 import br.com.liberdadefamilia.markets.domain.SearchBox;
@@ -8,6 +10,7 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -80,6 +83,102 @@ public class MarketRepository {
         return findByRef(workspaceId, ref).map(MarketRow::id).orElseThrow(MarketNotFoundException::new);
     }
 
+    /** A new {@code FAMILY} row; {@code position} may be null. {@code actor} is the membership that adds it. */
+    UUID insertFamily(UUID workspaceId, UUID actor, String name, MarketKind kind, @Nullable GeoPoint position) {
+        return jdbc.sql("""
+                        insert into markets (workspace_id, origin, name, kind, lat, lon, created_by, updated_by)
+                        values (:ws, 'FAMILY', :name, :kind, :lat, :lon, :actor, :actor)
+                        returning id""")
+                .param("ws", workspaceId)
+                .param("name", name)
+                .param("kind", kind.name())
+                .param("lat", position == null ? null : position.lat(), Types.NUMERIC)
+                .param("lon", position == null ? null : position.lon(), Types.NUMERIC)
+                .param("actor", actor)
+                .query(UUID.class)
+                .single();
+    }
+
+    /**
+     * Replaces the family's five links. A {@code *_set_at} moves only when its value changed, and goes back to null
+     * with the value. The flyer's three fields change together.
+     */
+    void updateLinks(UUID workspaceId, UUID id, UUID actor, FamilyLinks links) {
+        jdbc.sql("""
+                        update markets set
+                          website_set_at = case when cast(:website as text) is null then null
+                                                when website is distinct from cast(:website as text) then now()
+                                                else website_set_at end,
+                          website = cast(:website as text),
+                          instagram_set_at = case when cast(:instagram as text) is null then null
+                                                  when instagram is distinct from cast(:instagram as text) then now()
+                                                  else instagram_set_at end,
+                          instagram = cast(:instagram as text),
+                          flyer_set_at = case when cast(:flyerUrl as text) is null then null
+                                              when flyer_url is distinct from cast(:flyerUrl as text)
+                                                or flyer_source is distinct from cast(:flyerSource as text)
+                                                or flyer_valid_until is distinct from cast(:validUntil as date)
+                                              then now()
+                                              else flyer_set_at end,
+                          flyer_url = cast(:flyerUrl as text),
+                          flyer_source = case when cast(:flyerUrl as text) is null then null
+                                              else cast(:flyerSource as text) end,
+                          flyer_valid_until = case when cast(:flyerUrl as text) is null then null
+                                                   else cast(:validUntil as date) end,
+                          updated_by = :actor, updated_at = now()
+                        where workspace_id = :ws and id = :id""")
+                .param("website", links.website(), Types.VARCHAR)
+                .param("instagram", links.instagram(), Types.VARCHAR)
+                .param("flyerUrl", links.flyerUrl(), Types.VARCHAR)
+                .param("flyerSource", links.flyerSource(), Types.VARCHAR)
+                .param("validUntil", links.flyerValidUntil(), Types.DATE)
+                .param("actor", actor)
+                .param("ws", workspaceId)
+                .param("id", id)
+                .update();
+    }
+
+    void updatePosition(UUID workspaceId, UUID id, UUID actor, GeoPoint position) {
+        jdbc.sql("""
+                        update markets set lat = :lat, lon = :lon, updated_by = :actor, updated_at = now()
+                        where workspace_id = :ws and id = :id and origin = 'FAMILY'""")
+                .param("lat", position.lat())
+                .param("lon", position.lon())
+                .param("actor", actor)
+                .param("ws", workspaceId)
+                .param("id", id)
+                .update();
+    }
+
+    /** Hides the market; false when it already was, and then nothing changes (not even {@code archived_at}). */
+    boolean archive(UUID workspaceId, UUID id, UUID actor) {
+        return jdbc.sql("""
+                                update markets set archived_at = now(), updated_by = :actor, updated_at = now()
+                                where workspace_id = :ws and id = :id and archived_at is null""")
+                        .param("actor", actor)
+                        .param("ws", workspaceId)
+                        .param("id", id)
+                        .update()
+                > 0;
+    }
+
+    /** Turns an {@code OSM} row into a {@code FAMILY} one: the OpenStreetMap ids go, the CNPJ and links stay. */
+    void convertToFamily(
+            UUID workspaceId, UUID id, UUID actor, String name, MarketKind kind, @Nullable GeoPoint position) {
+        jdbc.sql("""
+                        update markets set origin = 'FAMILY', osm_type = null, osm_id = null, name = :name,
+                               kind = :kind, lat = :lat, lon = :lon, updated_by = :actor, updated_at = now()
+                        where workspace_id = :ws and id = :id and origin = 'OSM'""")
+                .param("name", name)
+                .param("kind", kind.name())
+                .param("lat", position == null ? null : position.lat(), Types.NUMERIC)
+                .param("lon", position == null ? null : position.lon(), Types.NUMERIC)
+                .param("actor", actor)
+                .param("ws", workspaceId)
+                .param("id", id)
+                .update();
+    }
+
     /** Not archived {@code FAMILY} markets with a position inside the box, nearest to the center first. */
     List<NearbyFamily> familyInBox(UUID workspaceId, SearchBox box, BigDecimal centerLat, BigDecimal centerLon) {
         return jdbc.sql("""
@@ -127,6 +226,14 @@ public class MarketRepository {
                 .query((rs, n) -> new Departed(rs.getObject("id", UUID.class), rs.getString("cnpj")))
                 .list();
     }
+
+    /** The five links as stored: canonical text, or null for none. */
+    record FamilyLinks(
+            @Nullable String website,
+            @Nullable String instagram,
+            @Nullable String flyerUrl,
+            @Nullable String flyerSource,
+            @Nullable LocalDate flyerValidUntil) {}
 
     record NearbyFamily(UUID id, String name, @Nullable String kind, BigDecimal lat, BigDecimal lon) {}
 
