@@ -38,12 +38,13 @@ export type ApiMoney = Schemas['Money']
 export type CategoryKind = operations['listCategories']['parameters']['query']['kind']
 export type PaymentMethod = NonNullable<CreateTransactionRequest['paymentMethod']>
 export type TagView = Schemas['TagView']
-/** What narrows the month's list: a category (with its subcategories), an account, a tag, a payment method. */
+/** What narrows the month's list: a category (with its subcategories), an account, a tag, a payment method, a project. */
 export interface TransactionFilters {
   categoryId?: string
   accountId?: string
   tagId?: string
   paymentMethod?: PaymentMethod
+  ventureId?: string
 }
 export type MemberView = Schemas['MemberView']
 export type MemberRole = MemberView['role']

@@ -12,6 +12,8 @@ import { firstName, type messages } from '@/shared/i18n'
 import { parseCents } from '@/shared/money'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Sheet } from '@/shared/ui/Sheet'
+import { useVentures } from '@/shared/api/ventures'
+import { useModuleEnabled } from '@/shared/modules'
 import { categoryLabel, type ListItem } from './listItems'
 import { memberLabel } from './memberLabel'
 import './more.register'
@@ -60,6 +62,11 @@ export function TransactionDetailSheet({
   const format = useFormatMoney()
   const text = (id: MessageId) => intl.formatMessage({ id })
   const [confirming, setConfirming] = useState(false)
+  // The name comes from the family's projects, with the module on; a deleted project has none.
+  const venturesOn = useModuleEnabled('ventures') && workspace.role !== 'YOUTH'
+  const ventureName = useVentures(
+    venturesOn && item.ventureId ? workspace.id : '',
+  ).data?.ventures.find(({ id }) => id === item.ventureId)?.name
   const category = item.categoryId ? categories.get(item.categoryId) : undefined
   const cents = parseCents(item.amount.amount)
   const transfer = item.kind === 'TRANSFER'
@@ -102,6 +109,7 @@ export function TransactionDetailSheet({
       text('transactions.detail.paymentMethod'),
       item.paymentMethod ? intl.formatMessage({ id: `payment.${item.paymentMethod}` }) : undefined,
     ],
+    [text('transactions.detail.venture'), venturesOn ? ventureName : undefined],
     [text('transactions.detail.tags'), item.tags.join(', ') || undefined],
     [text('transactions.detail.description'), item.description ?? undefined],
     [text('transactions.detail.by'), by],

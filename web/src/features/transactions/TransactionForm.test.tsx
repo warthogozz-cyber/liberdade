@@ -1,8 +1,10 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mockState, seedMockFamily } from '@/mocks/data'
+import { mockState, seedMockFamily, seedVentureFixture } from '@/mocks/data'
+import { queryKeys } from '@/shared/api'
+import { venturesKeys } from '@/shared/api/ventures'
 import { db } from '@/shared/offline/db'
-import { renderWithProviders } from '@/shared/testing'
+import { createTestQueryClient, renderWithProviders } from '@/shared/testing'
 import { NewTransactionPage } from './NewTransactionPage'
 
 afterEach(() => {
@@ -99,5 +101,104 @@ describe('TransactionForm payment method and tags', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
     const [item] = await db.outbox.toArray()
     expect(item.payload).toMatchObject({ kind: 'TRANSFER', paymentMethod: null })
+  })
+})
+
+const FIELD = { name: 'Projeto (opcional)' }
+
+/** Renders the form with its own cache, and waits until the module list has answered. */
+async function openWithVentures(workspaceId: string, ventures: boolean) {
+  const queryClient = createTestQueryClient()
+  const rendered = renderWithProviders(<NewTransactionPage />, { path: '/lancar', queryClient })
+  await screen.findByRole('radio', { name: '🛒 Mercado' })
+  await waitFor(() =>
+    expect(queryClient.getQueryState(queryKeys.modules(workspaceId))?.status).toBe('success'),
+  )
+  if (ventures) {
+    await waitFor(() =>
+      expect(queryClient.getQueryState(venturesKeys.list(workspaceId))?.status).toBe('success'),
+    )
+  }
+  return rendered
+}
+
+describe('TransactionForm project field', () => {
+  it('showsTheFieldOnIncomeAndExpense', async () => {
+    const workspace = seedMockFamily()
+    seedVentureFixture(workspace)
+    mockState.accounts.push({
+      ...mockState.accounts[0],
+      id: crypto.randomUUID(),
+      name: 'Banco',
+      ownerMembershipId: workspace.membershipId,
+    })
+    await openWithVentures(workspace.id, true)
+
+    expect(await screen.findByRole('combobox', FIELD)).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Nenhum' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Doces caseiros' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Receita' }))
+    expect(screen.getByRole('combobox', FIELD)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Transferência' }))
+    expect(screen.queryByRole('combobox', FIELD)).not.toBeInTheDocument()
+  })
+
+  it('hiddenWithoutOpenVentures', async () => {
+    const workspace = seedMockFamily()
+    seedVentureFixture(workspace, { status: 'CLOSED', closedOn: '2026-10-20' })
+    await openWithVentures(workspace.id, true)
+
+    expect(screen.queryByRole('combobox', FIELD)).not.toBeInTheDocument()
+  })
+
+  it('youthNeverSeesTheField', async () => {
+    const workspace = seedMockFamily()
+    seedVentureFixture(workspace)
+    workspace.role = 'YOUTH'
+    await openWithVentures(workspace.id, false)
+
+    expect(screen.queryByRole('combobox', FIELD)).not.toBeInTheDocument()
+  })
+
+  it('moduleOffHidesTheField', async () => {
+    const workspace = seedMockFamily()
+    seedVentureFixture(workspace)
+    mockState.modules[workspace.id] = { ...mockState.modules[workspace.id], ventures: false }
+    await openWithVentures(workspace.id, false)
+
+    expect(screen.queryByRole('combobox', FIELD)).not.toBeInTheDocument()
+  })
+
+  it('worksOffline', async () => {
+    const workspace = seedMockFamily()
+    const venture = seedVentureFixture(workspace)
+    const { router } = await openWithVentures(workspace.id, true)
+    const field = await screen.findByRole('combobox', FIELD)
+
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    window.dispatchEvent(new Event('offline'))
+    press('5', '0')
+    fireEvent.click(screen.getByRole('radio', { name: '🛒 Mercado' }))
+    fireEvent.change(field, { target: { value: venture.id } })
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
+    const [item] = await db.outbox.toArray()
+    expect(item.payload).toMatchObject({ kind: 'EXPENSE', ventureId: venture.id })
+  })
+
+  it('sendsNoProjectWhenNoneIsChosen', async () => {
+    const workspace = seedMockFamily()
+    seedVentureFixture(workspace)
+    const { router } = await openWithVentures(workspace.id, true)
+    await screen.findByRole('combobox', FIELD)
+
+    press('5')
+    fireEvent.click(screen.getByRole('radio', { name: '🛒 Mercado' }))
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
+    const [item] = await db.outbox.toArray()
+    expect(item.payload).not.toHaveProperty('ventureId')
   })
 })

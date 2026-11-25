@@ -261,6 +261,28 @@ describe('syncOutbox', () => {
     expect(deps.onSent).toHaveBeenCalledTimes(1)
   })
 
+  it('ventureInvalidGoesToAttention', async () => {
+    const detail =
+      'Esse projeto não existe mais nesta família. Tire o projeto do lançamento e envie de novo.'
+    const marked = payload('t1', { ventureId: '0192f3a4-0000-7000-8000-0000000000a1' })
+    await db.outbox.add(item('t1', { payload: marked }))
+    const deps = syncDeps({
+      send: vi
+        .fn<SyncDeps['send']>()
+        .mockRejectedValue(new ApiError(422, 'transaction.venture-invalid', detail)),
+    })
+
+    expect(await syncOutbox(deps)).toEqual({ status: 'done' })
+
+    expect(await db.outbox.get('t1')).toEqual(
+      item('t1', {
+        payload: marked,
+        status: 'needs-attention',
+        problem: { code: 'transaction.venture-invalid', detail },
+      }),
+    )
+  })
+
   it('stops on a 401 and leaves the item as it was', async () => {
     await db.outbox.bulkAdd([item('t1', { createdAt: 100 }), item('t2', { createdAt: 200 })])
     const deps = syncDeps({

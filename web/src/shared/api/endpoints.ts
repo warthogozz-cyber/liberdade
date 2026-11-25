@@ -62,11 +62,14 @@ export function listCategories(ws: string, kind: CategoryKind): Promise<Category
 export function listTransactions(
   ws: string,
   month: string,
-  { categoryId, accountId, tagId, paymentMethod }: TransactionFilters = {},
+  { categoryId, accountId, tagId, paymentMethod, ventureId }: TransactionFilters = {},
 ): Promise<TransactionView[]> {
   return unwrap(
     client.GET('/v1/workspaces/{ws}/transactions', {
-      params: { path: { ws }, query: { month, categoryId, accountId, tagId, paymentMethod } },
+      params: {
+        path: { ws },
+        query: { month, categoryId, accountId, tagId, paymentMethod, ventureId },
+      },
     }),
   )
 }

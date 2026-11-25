@@ -6,6 +6,7 @@ import type {
   TagView,
   TransactionFilters as Filters,
 } from '@/shared/api'
+import type { VentureSummary } from '@/shared/api/ventures'
 import { Sheet } from '@/shared/ui/Sheet'
 import { categoryLabel } from './listItems'
 
@@ -22,6 +23,8 @@ interface TransactionFiltersProps {
   tags: TagView[]
   /** The family's payment methods, in the order they are shown. */
   paymentMethods: PaymentMethod[]
+  /** The projects to filter by, or null when the filter does not show (module off, Youth, none open). */
+  ventures: VentureSummary[] | null
 }
 
 const option =
@@ -47,6 +50,7 @@ export function TransactionFilters({
   accounts,
   tags,
   paymentMethods,
+  ventures,
 }: TransactionFiltersProps) {
   const intl = useIntl()
   const archived = intl.formatMessage({ id: 'transactions.filter.archived' })
@@ -127,6 +131,26 @@ export function TransactionFilters({
             </label>
           ))}
         </fieldset>
+        {ventures && (
+          <fieldset>
+            <legend className="mb-2 font-medium">
+              {intl.formatMessage({ id: 'transactions.filter.venture' })}
+            </legend>
+            {ventures.map((venture) => (
+              <label key={venture.id} className={option}>
+                <input
+                  type="radio"
+                  name="filter-venture"
+                  checked={filters.ventureId === venture.id}
+                  onChange={() => onChange({ ...filters, ventureId: venture.id })}
+                />
+                {venture.status === 'CLOSED'
+                  ? intl.formatMessage({ id: 'transaction.venture.closed' }, { name: venture.name })
+                  : venture.name}
+              </label>
+            ))}
+          </fieldset>
+        )}
       </div>
     </Sheet>
   )

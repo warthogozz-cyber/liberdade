@@ -1,7 +1,7 @@
-import { cleanup, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mockState, seedMockFamily } from '@/mocks/data'
+import { mockState, seedMockFamily, seedVentureFixture } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL, queryKeys } from '@/shared/api'
@@ -124,5 +124,95 @@ describe('EditTransaction', () => {
     await waitFor(() =>
       expect(screen.getByRole('status', { name: 'Valor' })).toHaveTextContent('R$ 10,00'),
     )
+  })
+})
+
+const PATCH_URL = `${API_URL}/v1/workspaces/:ws/transactions/:id`
+
+/** Records each PATCH body and lets the mock API answer it. */
+function recordPatches() {
+  const bodies: Record<string, unknown>[] = []
+  server.use(
+    http.patch(PATCH_URL, async ({ request }) => {
+      bodies.push((await request.clone().json()) as Record<string, unknown>)
+      return undefined
+    }),
+  )
+  return bodies
+}
+
+/** A Mercado expense of R$ 12,00 marked with the project, in the mock API. */
+async function openMarked(withBank = false) {
+  const workspace = seedMockFamily()
+  if (withBank) {
+    mockState.accounts.push({
+      ...mockState.accounts[0],
+      id: crypto.randomUUID(),
+      name: 'Banco',
+      ownerMembershipId: workspace.membershipId,
+    })
+  }
+  const venture = seedVentureFixture(workspace)
+  const body = outboxPayload(EDIT_ID, {
+    accountId: mockState.accounts[0].id,
+    categoryId: mockState.categories.find((each) => each.name === 'Mercado')!.id,
+    amount: { amount: '12.00', currency: 'BRL' },
+    ventureId: venture.id,
+  })
+  mockState.transactions.push({ ...transactionView(body), memberId: workspace.membershipId })
+  const rendered = renderEdit()
+  await waitFor(() =>
+    expect(screen.getByRole('status', { name: 'Valor' })).toHaveTextContent('R$ 12,00'),
+  )
+  return { workspace, venture, ...rendered }
+}
+
+const saveButton = () => screen.getByRole('button', { name: 'Salvar' })
+
+describe('EditTransaction project', () => {
+  it('untouchedVentureSendsNothing', async () => {
+    const bodies = recordPatches()
+    const { venture, router } = await openMarked()
+    const field = await screen.findByRole('combobox', { name: 'Projeto (opcional)' })
+    expect(field).toHaveValue(venture.id)
+
+    fireEvent.click(screen.getByRole('button', { name: '5' }))
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancamentos'))
+    expect(bodies).toHaveLength(1)
+    expect(bodies[0]).not.toHaveProperty('ventureId')
+    expect(bodies[0]).not.toHaveProperty('clearVenture')
+  })
+
+  it('choosingNoneSendsClear', async () => {
+    const bodies = recordPatches()
+    const { router } = await openMarked()
+    const field = await screen.findByRole('combobox', { name: 'Projeto (opcional)' })
+
+    fireEvent.change(field, { target: { value: '' } })
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancamentos'))
+    expect(bodies[0]).toMatchObject({ clearVenture: true })
+    expect(bodies[0]).not.toHaveProperty('ventureId')
+    expect(mockState.transactions[0].ventureId).toBeNull()
+  })
+
+  it('switchingToTransferClears', async () => {
+    const bodies = recordPatches()
+    const { router } = await openMarked(true)
+    await screen.findByRole('combobox', { name: 'Projeto (opcional)' })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Transferência' }))
+    expect(screen.queryByRole('combobox', { name: 'Projeto (opcional)' })).not.toBeInTheDocument()
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Para' })).getByRole('radio', { name: 'Banco' }),
+    )
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/lancamentos'))
+    expect(bodies[0]).toMatchObject({ kind: 'TRANSFER', clearVenture: true })
+    expect(bodies[0]).not.toHaveProperty('ventureId')
   })
 })

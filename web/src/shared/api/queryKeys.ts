@@ -18,13 +18,18 @@ export const queryKeys = {
       ...workspace(ws),
       'transactions',
       month,
-      ...(filters?.categoryId || filters?.accountId || filters?.tagId || filters?.paymentMethod
+      ...(filters?.categoryId ||
+      filters?.accountId ||
+      filters?.tagId ||
+      filters?.paymentMethod ||
+      filters?.ventureId
         ? [
             {
               categoryId: filters.categoryId ?? null,
               accountId: filters.accountId ?? null,
               tagId: filters.tagId ?? null,
               paymentMethod: filters.paymentMethod ?? null,
+              ventureId: filters.ventureId ?? null,
             },
           ]
         : []),

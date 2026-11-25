@@ -2473,8 +2473,9 @@ export const handlers = [
     const accountId = search.get('accountId')
     const tagId = search.get('tagId')
     const paymentMethod = search.get('paymentMethod')
+    const ventureId = search.get('ventureId')
     if (!MONTH.test(month)) return malformed()
-    if ([categoryId, accountId, tagId].some((id) => id !== null && !UUID.test(id)))
+    if ([categoryId, accountId, tagId, ventureId].some((id) => id !== null && !UUID.test(id)))
       return malformed()
     const outOfRange = monthOutOfRange(workspace, month)
     if (outOfRange) return outOfRange
@@ -2498,6 +2499,7 @@ export const handlers = [
                 (transaction.occurredOn.startsWith(`${month}-`) ||
                   (thisMonth && transaction.occurredOn < `${month}-01`))) &&
             (paymentMethod === null || transaction.paymentMethod === paymentMethod) &&
+            (ventureId === null || transaction.ventureId === ventureId) &&
             (tagId === null ||
               (tagName !== undefined && transaction.tags.some((name) => name === tagName))) &&
             (categoryId === null ||
@@ -2542,7 +2544,7 @@ export const handlers = [
       scheduledOn: null,
       recurringRuleId: null,
       importKey: null,
-      ventureId: null,
+      ventureId: body.ventureId ?? null,
       memberId: body.memberId ?? workspace.membershipId,
       createdAt: new Date().toISOString(),
       version: 0,
@@ -2601,6 +2603,8 @@ export const handlers = [
         // No tags keeps the ones it has; a list, even an empty one, replaces them.
         tags: body.tags == null ? current.tags : tagNamesOf(body.tags),
         memberId: body.memberId ?? current.memberId,
+        // No project keeps the one it has; only `clearVenture` takes it off.
+        ventureId: body.clearVenture === true ? null : (body.ventureId ?? current.ventureId),
         version: current.version + 1,
       }
       const failure = familyRuleFailure(workspace, edited, current)
