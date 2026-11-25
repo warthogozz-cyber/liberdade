@@ -80,7 +80,7 @@ class OpenApiContractIT {
 
         contract.extractingPath(TRANSACTIONS + ".get.parameters[*].name")
                 .asArray()
-                .containsExactly("ws", "month", "categoryId", "accountId", "paymentMethod", "tagId");
+                .containsExactly("ws", "month", "categoryId", "accountId", "paymentMethod", "tagId", "ventureId");
         contract.extractingPath(TRANSACTIONS + ".post.parameters[*].name")
                 .asArray()
                 .containsExactly("ws", "Idempotency-Key");
@@ -146,6 +146,29 @@ class OpenApiContractIT {
                 "MeUser.properties.displayName")) {
             contract.hasPath(SCHEMAS + "." + field);
             contract.doesNotHavePath(SCHEMAS + "." + field + ".nullable");
+        }
+    }
+
+    /** The amounts that may be absent are an {@code allOf} of Money with {@code nullable}, so the web reads Money | null. */
+    @Test
+    void actualVsPlannedMissingAmountsAreNullable() {
+        var contract = contract();
+
+        for (String field : List.of(
+                "MonthView.properties.plannedIncome",
+                "MonthView.properties.plannedCost",
+                "MonthView.properties.plannedResult",
+                "TotalsView.properties.plannedIncome",
+                "TotalsView.properties.plannedCost",
+                "TotalsView.properties.plannedResult",
+                "RealView.properties.investment",
+                "RealView.properties.missing")) {
+            contract.extractingPath(SCHEMAS + "." + field + ".nullable")
+                    .as(field)
+                    .isEqualTo(true);
+            contract.extractingPath(SCHEMAS + "." + field + ".allOf[0]['$ref']")
+                    .as(field)
+                    .isEqualTo("#/components/schemas/Money");
         }
     }
 

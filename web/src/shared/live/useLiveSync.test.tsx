@@ -141,6 +141,7 @@ describe('useLiveSync', () => {
       ['ws', WS, 'tags'],
       ['ws', WS, 'planning'],
       ['ws', WS, 'gamification'],
+      ['ws', WS, 'ventures'],
     ])
     expect(invalidatedKeys(invalidate)).not.toContainEqual(['ws', WS, 'members'])
   })

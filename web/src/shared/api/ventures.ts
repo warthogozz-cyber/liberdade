@@ -25,6 +25,7 @@ export type TrackView = Schemas['TrackView']
 export type SimulationRequest = Schemas['SimulationRequest']
 export type InvestmentSimulationRequest = Schemas['InvestmentSimulationRequest']
 export type InvestmentSimulationView = Schemas['InvestmentSimulationView']
+export type ActualVsPlanned = Schemas['ActualVsPlannedView']
 export type StepView = Schemas['StepView']
 export type CreateStepRequest = Schemas['CreateStepRequest']
 export type UpdateStepRequest = Schemas['UpdateStepRequest']
@@ -35,6 +36,8 @@ export const venturesKeys = {
   list: (ws: string) => [...venturesKeys.all(ws), 'list'] as const,
   detail: (ws: string, id: string) => [...venturesKeys.all(ws), 'detail', id] as const,
   templates: (ws: string) => [...venturesKeys.all(ws), 'templates'] as const,
+  actualVsPlanned: (ws: string, id: string) =>
+    [...venturesKeys.detail(ws, id), 'actual-vs-planned'] as const,
   /** `request` is the draft without any name: names do not change the figures. */
   simulation: (ws: string, request: SimulationRequest) =>
     [...venturesKeys.all(ws), 'simulation', request] as const,
@@ -48,6 +51,15 @@ export function getVentures(ws: string): Promise<VenturesView> {
 /** One project with its figures and steps. */
 export function getVenture(ws: string, id: string): Promise<VentureView> {
   return unwrap(client.GET('/v1/workspaces/{ws}/ventures/{id}', { params: { path: { ws, id } } }))
+}
+
+/** What a project really did, month by month, against what it planned. */
+export function getActualVsPlanned(ws: string, id: string): Promise<ActualVsPlanned> {
+  return unwrap(
+    client.GET('/v1/workspaces/{ws}/ventures/{id}/actual-vs-planned', {
+      params: { path: { ws, id } },
+    }),
+  )
 }
 
 /** The starting-point templates, by track. */
@@ -143,6 +155,16 @@ export function useVenture(ws: string, id: string) {
   return useQuery({
     queryKey: venturesKeys.detail(ws, id),
     queryFn: () => getVenture(ws, id),
+    enabled: ws !== '' && id !== '',
+    meta: { persist: false },
+  })
+}
+
+/** The real-versus-planned view of a project; waits for a family id and a project. */
+export function useActualVsPlanned(ws: string, id: string) {
+  return useQuery({
+    queryKey: venturesKeys.actualVsPlanned(ws, id),
+    queryFn: () => getActualVsPlanned(ws, id),
     enabled: ws !== '' && id !== '',
     meta: { persist: false },
   })

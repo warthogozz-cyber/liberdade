@@ -11,10 +11,10 @@ import { VenturePage } from './VenturePage'
 
 afterEach(cleanup)
 
-function render(role?: 'VIEWER') {
+function render(role?: 'VIEWER', status: 'PLANNING' | 'ACTIVE' = 'PLANNING') {
   const workspace = seedMockFamily()
   if (role) workspace.role = role
-  const venture = prdExampleVenture()
+  const venture = prdExampleVenture({ status })
   seedVentureFixture(workspace, venture)
   renderWithProviders(<VenturePage />, {
     path: '/mais/projetos/:id',
@@ -47,6 +47,22 @@ describe('VenturePage', () => {
     expect(screen.getByRole('button', { name: 'Mudar o status' })).toBeVisible()
     expect(screen.getByRole('checkbox', { name: 'Testar a receita' })).toBeVisible()
     expect(screen.queryByText('Real vs. planejado')).not.toBeInTheDocument()
+  })
+
+  it('linkOutsidePlanning', async () => {
+    const venture = render(undefined, 'ACTIVE')
+
+    expect(await screen.findByRole('link', { name: 'Real vs. planejado ›' })).toHaveAttribute(
+      'href',
+      `/mais/projetos/${venture.id}/real`,
+    )
+  })
+
+  it('noLinkWhilePlanning', async () => {
+    render()
+
+    expect(await screen.findByText('Planejando')).toBeVisible()
+    expect(screen.queryByRole('link', { name: /Real vs\. planejado/ })).not.toBeInTheDocument()
   })
 
   it('viewerSeesNoControls', async () => {

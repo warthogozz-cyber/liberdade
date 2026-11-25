@@ -12,7 +12,8 @@ public enum AchievementKey {
     RESERVE_1_MONTH(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), true, 1),
     RESERVE_3_MONTHS(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), true, 3),
     RESERVE_6_MONTHS(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), true, 6),
-    MONTH_IN_BUDGET(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), true, 0);
+    MONTH_IN_BUDGET(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), true, 0),
+    FIRST_VENTURE(Set.of(Role.OWNER, Role.ADULT), false, 0);
 
     private final Set<Role> roles;
     private final boolean needsPlanning;

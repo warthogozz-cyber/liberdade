@@ -57,6 +57,12 @@ public interface LedgerFigures {
      */
     List<ScheduledFlow> openFlowsAfter(UUID workspaceId, LocalDate today, LocalDate until);
 
+    /**
+     * One row for each month, by the month of {@code occurred_on}, with a confirmed, not deleted income or expense
+     * marked with the venture, oldest first. Months without such a transaction are absent.
+     */
+    List<VentureMonth> ventureMonths(UUID workspaceId, UUID ventureId);
+
     /** Every date the rule already has an occurrence for, skipped (deleted) ones included. */
     Set<LocalDate> occupiedDates(UUID workspaceId, UUID ruleId);
 }

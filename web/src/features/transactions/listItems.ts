@@ -31,6 +31,7 @@ function fromOutbox(item: OutboxItem): ListItem {
     scheduledOn: null,
     recurringRuleId: null,
     importKey: null,
+    ventureId: item.payload.ventureId ?? null,
     // Not stored yet, so at no version of the API's.
     version: 0,
     // Without a chosen member the API credits the signed-in one; '' stands for that here.

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mockState, seedMockFamily } from '@/mocks/data'
+import { mockState, seedMockFamily, seedVentureFixture } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
@@ -53,5 +53,29 @@ describe('TransactionFilters tag and payment method', () => {
       expect(last?.get('tagId')).toBe(escola.id)
       expect(last?.get('paymentMethod')).toBe('PIX')
     })
+  })
+})
+
+describe('TransactionFilters project', () => {
+  it('filtersByVenture', async () => {
+    const workspace = seedMockFamily()
+    const venture = seedVentureFixture(workspace)
+    const queries: URLSearchParams[] = []
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/transactions`, ({ request }) => {
+        queries.push(new URL(request.url).searchParams)
+        return HttpResponse.json([])
+      }),
+    )
+    const { router } = renderWithProviders(<TransactionsPage />, { path: '/lancamentos' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Filtros' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Filtros' })
+    const group = within(await within(dialog).findByRole('group', { name: 'Projeto' }))
+    fireEvent.click(group.getByRole('radio', { name: 'Doces caseiros' }))
+
+    await waitFor(() => expect(queries.at(-1)?.get('ventureId')).toBe(venture.id))
+    expect(router.state.location.search).toContain(`projeto=${venture.id}`)
+    expect(workspace.id).toBeTruthy()
   })
 })

@@ -46,6 +46,7 @@ function setUp(spent: string, month = '2026-11') {
     scheduledOn: null,
     recurringRuleId: null,
     importKey: null,
+    ventureId: null,
     createdAt: new Date().toISOString(),
     memberId: workspace.membershipId,
     version: 0,

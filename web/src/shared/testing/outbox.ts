@@ -46,6 +46,7 @@ export function transactionView(
     scheduledOn: null,
     recurringRuleId: null,
     importKey: null,
+    ventureId: request.ventureId ?? null,
     createdAt,
     memberId: 'member',
     version: 0,

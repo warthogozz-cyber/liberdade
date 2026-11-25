@@ -125,6 +125,7 @@ class TransactionController {
      * @param accountId only what leaves or enters this account
      * @param paymentMethod only what was paid this way
      * @param tagId only what has this tag
+     * @param ventureId only what is marked with this venture; the youth's list ignores it
      */
     @GetMapping("/v1/workspaces/{ws}/transactions")
     @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
@@ -134,7 +135,8 @@ class TransactionController {
             @RequestParam(required = false) @Nullable UUID accountId,
             @RequestParam(required = false) @Nullable PaymentMethod paymentMethod,
             @RequestParam(required = false) @Nullable UUID tagId,
+            @RequestParam(required = false) @Nullable UUID ventureId,
             WorkspaceMember member) {
-        return service.list(member, month, categoryId, accountId, paymentMethod, tagId);
+        return service.list(member, month, categoryId, accountId, paymentMethod, tagId, ventureId);
     }
 }

@@ -13,7 +13,18 @@ class VenturesOpenApiConfig {
 
     private record NullableRef(String schema, String property) {}
 
-    private static final List<NullableRef> NULLABLE_REFS = List.of(new NullableRef("BreakEvenView", "revenue"));
+    private static final List<NullableRef> NULLABLE_REFS = List.of(
+            new NullableRef("BreakEvenView", "revenue"),
+            new NullableRef("MonthView", "plannedIncome"),
+            new NullableRef("MonthView", "plannedCost"),
+            new NullableRef("MonthView", "plannedResult"),
+            new NullableRef("MonthView", "difference"),
+            new NullableRef("TotalsView", "difference"),
+            new NullableRef("TotalsView", "plannedIncome"),
+            new NullableRef("TotalsView", "plannedCost"),
+            new NullableRef("TotalsView", "plannedResult"),
+            new NullableRef("RealView", "investment"),
+            new NullableRef("RealView", "missing"));
 
     /** A bare {@code $ref} cannot say the property may be null, so it is wrapped: {@code nullable} next to an allOf. */
     @Bean

@@ -102,6 +102,11 @@ export function VenturePage() {
           live={false}
         />
         <HowWeCalculate venture={data} />
+        {data.status !== 'PLANNING' && (
+          <Link to={`/mais/projetos/${data.id}/real`} className={`${outline} self-start`}>
+            {intl.formatMessage({ id: 'ventures.real.link' })}
+          </Link>
+        )}
         <StepsList workspace={workspace} venture={data} canWrite={canWrite} />
         {canWrite && (
           <StatusSheet

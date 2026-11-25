@@ -5,6 +5,7 @@ import br.com.liberdadefamilia.gamification.domain.AchievementKey;
 import br.com.liberdadefamilia.gamification.domain.WeeklyStreak;
 import br.com.liberdadefamilia.ledger.EntryWeeks;
 import br.com.liberdadefamilia.planning.PlanningFacts;
+import br.com.liberdadefamilia.ventures.VenturesExport;
 import br.com.liberdadefamilia.workspace.MembershipStatus;
 import br.com.liberdadefamilia.workspace.Memberships;
 import br.com.liberdadefamilia.workspace.ModuleKey;
@@ -40,6 +41,7 @@ public class AchievementService {
     private final AchievementRepository repository;
     private final EntryWeeks entryWeeks;
     private final PlanningFacts planning;
+    private final VenturesExport ventures;
     private final Modules modules;
     private final Memberships memberships;
     private final ApplicationEventPublisher events;
@@ -49,6 +51,7 @@ public class AchievementService {
             AchievementRepository repository,
             EntryWeeks entryWeeks,
             PlanningFacts planning,
+            VenturesExport ventures,
             Modules modules,
             Memberships memberships,
             ApplicationEventPublisher events,
@@ -56,6 +59,7 @@ public class AchievementService {
         this.repository = repository;
         this.entryWeeks = entryWeeks;
         this.planning = planning;
+        this.ventures = ventures;
         this.modules = modules;
         this.memberships = memberships;
         this.events = events;
@@ -137,6 +141,7 @@ public class AchievementService {
             case GOAL_ACHIEVED -> facts.anyGoalReached();
             case RESERVE_1_MONTH, RESERVE_3_MONTHS, RESERVE_6_MONTHS ->
                 facts.reserveMonths().compareTo(BigDecimal.valueOf(key.reserveMonths())) >= 0;
+            case FIRST_VENTURE -> ventures.anyStartedBy(member.workspaceId(), member.membershipId());
             case MONTH_IN_BUDGET -> false;
         };
     }

@@ -27,7 +27,8 @@ class AchievementKeyTest {
                 Arguments.of(AchievementKey.RESERVE_1_MONTH, noYouth),
                 Arguments.of(AchievementKey.RESERVE_3_MONTHS, noYouth),
                 Arguments.of(AchievementKey.RESERVE_6_MONTHS, noYouth),
-                Arguments.of(AchievementKey.MONTH_IN_BUDGET, noYouth));
+                Arguments.of(AchievementKey.MONTH_IN_BUDGET, noYouth),
+                Arguments.of(AchievementKey.FIRST_VENTURE, Set.of(Role.OWNER, Role.ADULT)));
     }
 
     @ParameterizedTest
@@ -51,9 +52,11 @@ class AchievementKeyTest {
 
     @ParameterizedTest
     @EnumSource(AchievementKey.class)
-    @DisplayName("needsPlanning só é falso em FIRST_TRANSACTION e STREAK_4_WEEKS")
+    @DisplayName("needsPlanning só é falso em FIRST_TRANSACTION, STREAK_4_WEEKS e FIRST_VENTURE")
     void needsPlanningOnlyFalseForTheFirstTwo(AchievementKey key) {
-        boolean free = key == AchievementKey.FIRST_TRANSACTION || key == AchievementKey.STREAK_4_WEEKS;
+        boolean free = key == AchievementKey.FIRST_TRANSACTION
+                || key == AchievementKey.STREAK_4_WEEKS
+                || key == AchievementKey.FIRST_VENTURE;
         assertThat(key.needsPlanning()).isEqualTo(!free);
     }
 
@@ -79,6 +82,7 @@ class AchievementKeyTest {
                         AchievementKey.RESERVE_1_MONTH,
                         AchievementKey.RESERVE_3_MONTHS,
                         AchievementKey.RESERVE_6_MONTHS,
-                        AchievementKey.MONTH_IN_BUDGET);
+                        AchievementKey.MONTH_IN_BUDGET,
+                        AchievementKey.FIRST_VENTURE);
     }
 }

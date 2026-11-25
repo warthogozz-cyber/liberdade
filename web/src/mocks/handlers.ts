@@ -1137,6 +1137,50 @@ function ventureHandlers() {
       return HttpResponse.json(venture, { status: 201 })
     }),
 
+    http.get<{ ws: string; id: string }>(
+      url('/v1/workspaces/:ws/ventures/:id/actual-vs-planned'),
+      ({ params }) => {
+        const workspace = ventureGuard(params.ws, false)
+        if (workspace instanceof Response) return workspace
+        const venture = find(workspace.id, params.id)
+        if (!venture) return ventureNotFound()
+        const brl = (amount: string) => ({ amount, currency: 'BRL' })
+        const view: Schemas['ActualVsPlannedView'] = {
+          currency: 'BRL',
+          planned: {
+            initialInvestment: venture.figures.initialInvestment,
+            paybackMonths: venture.figures.paybackMonths,
+            paybackState: venture.figures.paybackState,
+          },
+          real: { state: 'NO_DATA', months: null, investment: null, missing: null },
+          months: [
+            {
+              month: new Date().toISOString().slice(0, 7),
+              income: brl('0.00'),
+              expense: brl('0.00'),
+              result: brl('0.00'),
+              plannedIncome: null,
+              plannedCost: null,
+              plannedResult: null,
+              comparison: null,
+              difference: null,
+            },
+          ],
+          totals: {
+            income: brl('0.00'),
+            expense: brl('0.00'),
+            result: brl('0.00'),
+            plannedIncome: null,
+            plannedCost: null,
+            plannedResult: null,
+            comparison: null,
+            difference: null,
+          },
+        }
+        return HttpResponse.json(view)
+      },
+    ),
+
     http.get<{ ws: string; id: string }>(url('/v1/workspaces/:ws/ventures/:id'), ({ params }) => {
       const workspace = ventureGuard(params.ws, false)
       if (workspace instanceof Response) return workspace
@@ -2473,8 +2517,9 @@ export const handlers = [
     const accountId = search.get('accountId')
     const tagId = search.get('tagId')
     const paymentMethod = search.get('paymentMethod')
+    const ventureId = search.get('ventureId')
     if (!MONTH.test(month)) return malformed()
-    if ([categoryId, accountId, tagId].some((id) => id !== null && !UUID.test(id)))
+    if ([categoryId, accountId, tagId, ventureId].some((id) => id !== null && !UUID.test(id)))
       return malformed()
     const outOfRange = monthOutOfRange(workspace, month)
     if (outOfRange) return outOfRange
@@ -2498,6 +2543,7 @@ export const handlers = [
                 (transaction.occurredOn.startsWith(`${month}-`) ||
                   (thisMonth && transaction.occurredOn < `${month}-01`))) &&
             (paymentMethod === null || transaction.paymentMethod === paymentMethod) &&
+            (ventureId === null || transaction.ventureId === ventureId) &&
             (tagId === null ||
               (tagName !== undefined && transaction.tags.some((name) => name === tagName))) &&
             (categoryId === null ||
@@ -2542,6 +2588,7 @@ export const handlers = [
       scheduledOn: null,
       recurringRuleId: null,
       importKey: null,
+      ventureId: body.ventureId ?? null,
       memberId: body.memberId ?? workspace.membershipId,
       createdAt: new Date().toISOString(),
       version: 0,
@@ -2600,6 +2647,8 @@ export const handlers = [
         // No tags keeps the ones it has; a list, even an empty one, replaces them.
         tags: body.tags == null ? current.tags : tagNamesOf(body.tags),
         memberId: body.memberId ?? current.memberId,
+        // No project keeps the one it has; only `clearVenture` takes it off.
+        ventureId: body.clearVenture === true ? null : (body.ventureId ?? current.ventureId),
         version: current.version + 1,
       }
       const failure = familyRuleFailure(workspace, edited, current)
@@ -2711,6 +2760,7 @@ export const handlers = [
           scheduledOn: rule.nextDueOn,
           recurringRuleId: rule.id,
           importKey: null,
+          ventureId: null,
           createdAt: new Date().toISOString(),
           memberId: workspace.membershipId,
           version: 0,
@@ -3350,6 +3400,7 @@ export const handlers = [
           scheduledOn: null,
           recurringRuleId: null,
           importKey: row.importKey,
+          ventureId: null,
           memberId: workspace.membershipId,
           createdAt: new Date().toISOString(),
           version: 0,

@@ -29,6 +29,7 @@ import { groupByDay, mergeTransactions, plannedOf } from './listItems'
 import { PlannedSection } from './PlannedSection'
 import { TransactionFilters } from './TransactionFilters'
 import { TransactionRow } from './TransactionRow'
+import { useVentureChoices } from './useVentureChoices'
 import './more.register'
 
 /** The least time between two announcements of new entries to a screen reader. */
@@ -83,7 +84,11 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
   const categoryId = params.get('categoria') ?? undefined
   const accountId = params.get('conta') ?? undefined
   const tagId = params.get('tag') ?? undefined
+  const ventureParam = params.get('projeto') ?? undefined
   const methodParam = params.get('forma')
+  // Without the field's conditions (module on, not a Youth, a project open) the filter is not there.
+  const { choices: ventures } = useVentureChoices(ventureParam ?? null)
+  const ventureId = ventures ? ventureParam : undefined
   const paymentMethod = workspace.paymentMethods.find((method) => method === methodParam)
   const filters = useMemo<Filters>(
     () => ({
@@ -91,8 +96,9 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
       ...(accountId && { accountId }),
       ...(tagId && { tagId }),
       ...(paymentMethod && { paymentMethod }),
+      ...(ventureId && { ventureId }),
     }),
-    [categoryId, accountId, tagId, paymentMethod],
+    [categoryId, accountId, tagId, paymentMethod, ventureId],
   )
   const [filtering, setFiltering] = useState(false)
   const transactions = useTransactions(workspace.id, month, filters)
@@ -111,6 +117,7 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
     accountId?: string | null
     tagId?: string | null
     paymentMethod?: PaymentMethod | null
+    ventureId?: string | null
   }) {
     const merged = new URLSearchParams(params)
     const set = (key: string, value: string | null | undefined) => {
@@ -123,6 +130,7 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
     set('conta', next.accountId)
     set('tag', next.tagId)
     set('forma', next.paymentMethod)
+    set('projeto', next.ventureId)
     setParams(merged)
   }
 
@@ -172,6 +180,12 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
             onClear={() => update({ paymentMethod: null })}
           />
         )}
+        {ventureId && (
+          <FilterChip
+            label={ventures?.find(({ id }) => id === ventureId)?.name ?? ''}
+            onClear={() => update({ ventureId: null })}
+          />
+        )}
         {canImport && (
           <Link
             to="/lancamentos/importar"
@@ -191,6 +205,7 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
             accountId: next.accountId ?? null,
             tagId: next.tagId ?? null,
             paymentMethod: next.paymentMethod ?? null,
+            ventureId: next.ventureId ?? null,
           })
           setFiltering(false)
         }}
@@ -198,6 +213,7 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
         accounts={accountList ?? []}
         tags={tagList ?? []}
         paymentMethods={workspace.paymentMethods}
+        ventures={ventures}
       />
       <TransactionList
         userId={userId}
@@ -260,7 +276,8 @@ function queuedBelongs(
   categoryList: CategoryView[],
   tagList: TagView[] | undefined,
 ): boolean {
-  const { accountId, categoryId, tagId, paymentMethod } = filters
+  const { accountId, categoryId, tagId, paymentMethod, ventureId } = filters
+  if (ventureId && (payload.ventureId ?? null) !== ventureId) return false
   if (paymentMethod && (payload.paymentMethod ?? null) !== paymentMethod) return false
   if (tagId) {
     const name = tagList?.find(({ id }) => id === tagId)?.name.toLowerCase()

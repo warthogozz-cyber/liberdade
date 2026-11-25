@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * A transaction as the data export carries it. {@code kind} is the enum name ({@code EXPENSE}, {@code INCOME}, ...) and
  * {@code status} is {@code CONFIRMED} or {@code PLANNED}. {@code tags} are the names of the tags on it, in name order. {@code importKey} is the hash that marks a transaction
- * brought in by a statement import, null for the others.
+ * brought in by a statement import, null for the others. {@code ventureId} is the venture an income or expense is marked with, null without one.
  */
 public record ExportedTransaction(
         UUID id,
@@ -29,4 +29,5 @@ public record ExportedTransaction(
         List<String> tags,
         @Nullable LocalDate scheduledOn,
         @Nullable UUID recurringRuleId,
-        @Nullable String importKey) {}
+        @Nullable String importKey,
+        @Nullable UUID ventureId) {}

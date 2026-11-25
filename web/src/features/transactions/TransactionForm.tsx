@@ -35,6 +35,8 @@ import { KindTabs } from './KindTabs'
 import { kindTabId } from './kindTabId'
 import { PaymentMethodChips } from './PaymentMethodChips'
 import { TagInput } from './TagInput'
+import { useVentureChoices } from './useVentureChoices'
+import { VenturePicker } from './VenturePicker'
 
 const lastAccountKey = (workspaceId: string) => `liberdade:last-account:${workspaceId}`
 
@@ -178,12 +180,23 @@ export function TransactionForm({
     () =>
       editing?.tags ?? (fixing?.payload.tags ?? []).filter((name): name is string => name !== null),
   )
+  // The project a transaction already has: it stays on offer, and an edit tells a change from none.
+  const markedVentureId = editing?.ventureId ?? fixing?.payload.ventureId ?? null
+  const [chosenVentureId, setChosenVentureId] = useState<string | null>(markedVentureId)
   const [sheet, setSheet] = useState<'categories' | 'context' | null>(null)
   const [saving, setSaving] = useState(false)
   // State lags a render behind; the ref stops a double tap from queueing twice (Review Focus 1).
   const savingRef = useRef(false)
 
   const transfer = kind === 'TRANSFER'
+  const { choices: ventureChoices, known: venturesKnown } = useVentureChoices(markedVentureId)
+  // Once the list is known, only a project on offer is sent: a deleted one, or any while the field
+  // is hidden (module off, Youth), would be refused again. Until it is known the id is kept.
+  const ventureId = venturesKnown
+    ? ventureChoices?.some(({ id }) => id === chosenVentureId)
+      ? chosenVentureId
+      : null
+    : chosenVentureId
   // An archived account takes no new transactions; an edit keeps the ones the transaction has (R9).
   const archivedLabel = intl.formatMessage({ id: 'transactions.filter.archived' })
   const activeAccounts = (accounts.data ?? [])
@@ -240,7 +253,10 @@ export function TransactionForm({
     setKind(next)
     setCategoryId(undefined)
     // A transfer is not paid for: it keeps no method, even if the tab is changed back.
-    if (next === 'TRANSFER') setPaymentMethod(null)
+    if (next === 'TRANSFER') {
+      setPaymentMethod(null)
+      setChosenVentureId(null)
+    }
   }
 
   function chooseFrom(id: string) {
@@ -288,6 +304,7 @@ export function TransactionForm({
         paymentMethod: transfer ? null : paymentMethod,
         tags,
         ...(chosenMemberId && kind === 'EXPENSE' ? { memberId: chosenMemberId } : {}),
+        ...ventureChange(editing.ventureId ?? null, ventureId, ventureChoices !== null, transfer),
         version: editing.version,
       })
       if (!saved) {
@@ -310,6 +327,7 @@ export function TransactionForm({
       ...(chosenMemberId && chosenMemberId !== workspace.membershipId && kind === 'EXPENSE'
         ? { memberId: chosenMemberId }
         : {}),
+      ...(!transfer && ventureId ? { ventureId } : {}),
     }
     try {
       if (fixing) await replaceOutboxItem(fixing.id, payload)
@@ -424,6 +442,13 @@ export function TransactionForm({
               />
             )}
             <TagInput value={tags} onChange={setTags} />
+            {!transfer && (
+              <VenturePicker
+                value={ventureId}
+                onChange={setChosenVentureId}
+                keep={markedVentureId}
+              />
+            )}
             <button
               type="button"
               onClick={() => setSheet('context')}
@@ -500,6 +525,25 @@ export function TransactionForm({
       {children}
     </div>
   )
+}
+
+/**
+ * What an edit says about the project: nothing while it is left as it was (a missing `ventureId`
+ * keeps it), the new one when another is chosen, `clearVenture` when it is taken off, or when the
+ * line becomes a transfer. A field that does not show cannot change it, except by the transfer.
+ */
+function ventureChange(
+  before: string | null,
+  after: string | null,
+  fieldShown: boolean,
+  transfer: boolean,
+): Pick<UpdateTransactionRequest, 'ventureId' | 'clearVenture'> {
+  if (transfer) return before === null ? {} : { clearVenture: true }
+  if (!fieldShown) return {}
+  if (before === null) return after === null ? {} : { ventureId: after }
+  if (after === null) return { clearVenture: true }
+  if (after === before) return {}
+  return { ventureId: after }
 }
 
 interface AccountChoiceProps {

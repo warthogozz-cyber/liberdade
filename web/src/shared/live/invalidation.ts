@@ -29,7 +29,7 @@ const gamification = after(gamificationKeys.all(WS))
 const ventures = ['ventures'] as const
 
 const PREFIXES: Record<string, (readonly string[])[]> = {
-  transaction: [transactions, dashboard, accounts, tags, planning, gamification],
+  transaction: [transactions, dashboard, accounts, tags, planning, gamification, ventures],
   account: [accounts, transactions, dashboard, planning, gamification],
   category: [categories, transactions, dashboard, planning],
   tag: [tags, transactions],

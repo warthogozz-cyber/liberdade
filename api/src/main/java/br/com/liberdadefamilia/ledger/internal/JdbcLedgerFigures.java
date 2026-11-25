@@ -8,6 +8,7 @@ import br.com.liberdadefamilia.ledger.MonthTotal;
 import br.com.liberdadefamilia.ledger.ScheduledFlow;
 import br.com.liberdadefamilia.ledger.SpendingSplit;
 import br.com.liberdadefamilia.ledger.TransactionKind;
+import br.com.liberdadefamilia.ledger.VentureMonth;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -180,6 +181,28 @@ class JdbcLedgerFigures implements LedgerFigures {
                 .param("withoutRuleOnly", withoutRuleOnly)
                 .query((rs, row) -> new MonthTotal(
                         YearMonth.from(rs.getObject("month", LocalDate.class)), rs.getBigDecimal("amount")))
+                .list();
+    }
+
+    @Override
+    public List<VentureMonth> ventureMonths(UUID workspaceId, UUID ventureId) {
+        return jdbc.sql("""
+                        select date_trunc('month', t.occurred_on)::date as month,
+                               coalesce(sum(t.amount) filter (where t.kind = 'INCOME'), 0) as income,
+                               coalesce(sum(t.amount) filter (where t.kind = 'EXPENSE'), 0) as expense
+                        from transactions t
+                        where t.workspace_id = :workspaceId
+                          and t.venture_id = :ventureId
+                          and t.status = 'CONFIRMED'
+                          and t.deleted_at is null
+                        group by 1
+                        order by 1""")
+                .param("workspaceId", workspaceId)
+                .param("ventureId", ventureId)
+                .query((rs, row) -> new VentureMonth(
+                        YearMonth.from(rs.getObject("month", LocalDate.class)),
+                        rs.getBigDecimal("income"),
+                        rs.getBigDecimal("expense")))
                 .list();
     }
 

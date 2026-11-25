@@ -15,8 +15,9 @@ import org.jspecify.annotations.Nullable;
  * a category and no destination. {@code tags} are the names, by name, archived tags included. {@code status} is
  * {@code CONFIRMED} or {@code PLANNED}: a planned one counts in no total, and has the {@code scheduledOn} it is due,
  * and the {@code recurringRuleId} that made it, if any. {@code importKey} is the hash of the statement line it came
- * from, when it was imported, so the device can tell which lines are already in. {@code version} goes back in an edit,
- * for the optimistic lock.
+ * from, when it was imported, so the device can tell which lines are already in. {@code ventureId} is the venture an
+ * income or expense belongs to; the youth never gets it. {@code version} goes back in an edit, for the optimistic
+ * lock.
  */
 record TransactionView(
         UUID id,
@@ -35,7 +36,8 @@ record TransactionView(
         @Nullable @Schema(nullable = true) String importKey,
         UUID memberId,
         Instant createdAt,
-        long version) {
+        long version,
+        @Nullable @Schema(nullable = true) UUID ventureId) {
 
     static final String CONFIRMED = "CONFIRMED";
     static final String PLANNED = "PLANNED";
@@ -63,6 +65,30 @@ record TransactionView(
                 importKey,
                 memberId,
                 createdAt,
-                version);
+                version,
+                ventureId);
+    }
+
+    /** The same transaction without its venture, as the youth gets it. */
+    TransactionView withoutVenture() {
+        return new TransactionView(
+                id,
+                kind,
+                amount,
+                occurredOn,
+                accountId,
+                toAccountId,
+                categoryId,
+                description,
+                paymentMethod,
+                tags,
+                status,
+                scheduledOn,
+                recurringRuleId,
+                importKey,
+                memberId,
+                createdAt,
+                version,
+                null);
     }
 }

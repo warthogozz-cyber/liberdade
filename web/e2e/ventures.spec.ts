@@ -4,9 +4,14 @@ import {
   expect,
   money,
   newUser,
+  notices,
+  recordExpense,
   setModules,
   signInWithGoogle,
   test,
+  typeAmount,
+  waitForOfflineReady,
+  waitForQueueToEmpty,
 } from './support.ts'
 
 const DISCLAIMER = 'Conteúdo educativo. Não é recomendação de investimento.'
@@ -156,4 +161,127 @@ test('investmentsTrack: the texts and the simulator both carry the notice, and a
   await expect(result).toContainText('Saldo final')
   await expect(result).toContainText('Total aportado')
   await expect(page.getByText(SIMULATOR_NOTE)).toBeVisible()
+})
+
+/** A project in progress, as its page leaves it: the model's project, saved, then "Começar a vender". */
+async function startFoodVenture(page: Page): Promise<string> {
+  await createFoodVenture(page)
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click()
+  await expect(page.getByRole('heading', { level: 1, name: TEMPLATE_NAME })).toBeVisible()
+  await page.getByRole('button', { name: 'Mudar o status' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Status do projeto' })
+  await sheet.getByRole('button', { name: 'Começar a vender', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Confirmar' }).click()
+  await expect(sheet).toBeHidden()
+  await expect(page.getByText('Em andamento', { exact: true })).toBeVisible()
+  const id = /\/mais\/projetos\/([^/]+)$/.exec(page.url())?.[1]
+  expect(id, 'the project id in the URL').toBeTruthy()
+  return id!
+}
+
+/** Opens the form for a kind ("gasto" or "receita") with the project field ready. */
+async function openMarkableForm(page: Page, kind: 'gasto' | 'receita'): Promise<void> {
+  await expect(async () => {
+    await page.goto(kind === 'receita' ? '/lancar?tipo=receita' : '/lancar')
+    await expect(page.getByLabel('Projeto (opcional)')).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 45_000 })
+}
+
+/** Records a transaction marked with the project: the digits are cents, the category its label. */
+async function recordMarked(
+  page: Page,
+  kind: 'gasto' | 'receita',
+  digits: string,
+  category: string,
+): Promise<void> {
+  await openMarkableForm(page, kind)
+  await typeAmount(page, digits)
+  await page.getByText(category, { exact: true }).click()
+  await page.getByLabel('Projeto (opcional)').selectOption({ label: TEMPLATE_NAME })
+  await page.getByRole('button', { name: 'Salvar' }).click()
+  await expect(
+    notices(page).getByText(kind === 'gasto' ? 'Gasto salvo' : 'Receita salva'),
+  ).toBeVisible()
+  await expect(page).toHaveURL('/inicio')
+}
+
+test('markATransactionAndSeeTheActual: an expense and an income marked with the project show in the real versus planned', async ({
+  page,
+}) => {
+  await signInWithModules(page)
+  await startFoodVenture(page)
+  const venturePage = page.url()
+
+  await recordMarked(page, 'gasto', '80000', '🛒 Mercado')
+  await recordMarked(page, 'receita', '30000', '💼 Salário')
+  // Saved on the device first: the real only counts them once they reached the server.
+  await waitForQueueToEmpty(page)
+
+  await page.goto(venturePage)
+  await page.getByRole('link', { name: 'Real vs. planejado ›' }).click()
+  await expect(page).toHaveURL(/\/mais\/projetos\/[^/]+\/real$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'Real vs. planejado' })).toBeVisible()
+
+  const real = page.getByRole('region', { name: 'Real', exact: true })
+  await expect(real).toContainText(money('500,00'))
+  await expect(real).toContainText(/ainda não se pagou: faltam\s+R\$\s500,00/)
+
+  // Both land in the same month: one row, with the income and the expense.
+  const month = page.getByRole('row', { name: /^\p{L}+\/\d{4}/u })
+  await expect(month).toHaveCount(1)
+  await expect(month).toContainText(money('300,00'))
+  await expect(month).toContainText(money('800,00'))
+})
+
+test('offlineMarkedTransactionSyncs: an income marked with the project while offline syncs and shows in the real', async ({
+  page,
+  context,
+}) => {
+  await signInWithModules(page)
+  const id = await startFoodVenture(page)
+  await waitForOfflineReady(page)
+  // The projects are kept on the device: load the form online, then lose the network.
+  await openMarkableForm(page, 'receita')
+
+  await context.setOffline(true)
+  await typeAmount(page, '30000')
+  await page.getByText('💼 Salário', { exact: true }).click()
+  await page.getByLabel('Projeto (opcional)').selectOption({ label: TEMPLATE_NAME })
+  await page.getByRole('button', { name: 'Salvar' }).click()
+  await expect(notices(page).getByText('Receita salva')).toBeVisible()
+
+  await page
+    .getByRole('navigation', { name: 'Navegação principal' })
+    .getByRole('link', { name: 'Lançamentos' })
+    .click()
+  const income = page.getByRole('listitem').filter({ hasText: '💼 Salário' })
+  await expect(income).toContainText('Aguardando sinal')
+
+  // Back online, the queue sends it with its project.
+  await context.setOffline(false)
+  await expect(income).not.toContainText('Aguardando sinal', { timeout: 20_000 })
+
+  await page.goto(`/mais/projetos/${id}/real`)
+  await expect(page.getByRole('heading', { level: 1, name: 'Real vs. planejado' })).toBeVisible()
+  const month = page.getByRole('row', { name: /^\p{L}+\/\d{4}/u })
+  await expect(month).toHaveCount(1)
+  await expect(month).toContainText(money('300,00'))
+})
+
+test('filterFromTheProject: "Ver lançamentos do projeto" lists only the marked ones', async ({
+  page,
+}) => {
+  await signInWithModules(page)
+  const id = await startFoodVenture(page)
+
+  await recordMarked(page, 'gasto', '1200', '🛒 Mercado')
+  await recordExpense(page, '700', '🚌 Transporte')
+  await waitForQueueToEmpty(page)
+
+  await page.goto(`/mais/projetos/${id}/real`)
+  await page.getByRole('link', { name: 'Ver lançamentos do projeto' }).click()
+  // The link opens the project's newest month.
+  await expect(page).toHaveURL(new RegExp(`/lancamentos\\?projeto=${id}&mes=\\d{4}-\\d{2}$`))
+  await expect(page.getByRole('listitem').filter({ hasText: '🛒 Mercado' })).toBeVisible()
+  await expect(page.getByRole('listitem').filter({ hasText: '🚌 Transporte' })).toHaveCount(0)
 })

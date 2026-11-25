@@ -2778,6 +2778,16 @@
               "format": "uuid",
               "nullable": true
             }
+          },
+          {
+            "in": "query",
+            "name": "ventureId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -3427,6 +3437,47 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/ventures/{id}/actual-vs-planned": {
+      "get": {
+        "operationId": "getActualVsPlanned",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActualVsPlannedView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "actual-vs-planned-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/ventures/{id}/status": {
       "post": {
         "operationId": "changeVentureStatus",
@@ -3739,7 +3790,8 @@
           "RESERVE_1_MONTH",
           "RESERVE_3_MONTHS",
           "RESERVE_6_MONTHS",
-          "MONTH_IN_BUDGET"
+          "MONTH_IN_BUDGET",
+          "FIRST_VENTURE"
         ]
       },
       "AchievementView": {
@@ -3800,6 +3852,29 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          }
+        }
+      },
+      "ActualVsPlannedView": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonthView"
+            }
+          },
+          "planned": {
+            "$ref": "#/components/schemas/PlannedView"
+          },
+          "real": {
+            "$ref": "#/components/schemas/RealView"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TotalsView"
           }
         }
       },
@@ -4499,6 +4574,11 @@
             }
           },
           "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "ventureId": {
             "type": "string",
             "format": "uuid",
             "nullable": true
@@ -5232,6 +5312,66 @@
           }
         }
       },
+      "MonthView": {
+        "type": "object",
+        "properties": {
+          "comparison": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "BELOW",
+              "ABOVE",
+              "EQUAL"
+            ]
+          },
+          "difference": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "expense": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "income": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "month": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "type": "string",
+            "example": "2026-11"
+          },
+          "plannedCost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "plannedIncome": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "plannedResult": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "result": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
       "NewUser": {
         "required": [
           "displayName"
@@ -5351,6 +5491,26 @@
               "OCEAN",
               "FOREST",
               "PLUM"
+            ]
+          }
+        }
+      },
+      "PlannedView": {
+        "type": "object",
+        "properties": {
+          "initialInvestment": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "paybackMonths": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "paybackState": {
+            "type": "string",
+            "enum": [
+              "MONTHS",
+              "NEVER"
             ]
           }
         }
@@ -5484,6 +5644,41 @@
           "today": {
             "type": "string",
             "format": "date"
+          }
+        }
+      },
+      "RealView": {
+        "type": "object",
+        "properties": {
+          "investment": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "missing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "months": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "PAID_BACK",
+              "NOT_YET",
+              "NEVER_NEGATIVE",
+              "NO_DATA"
+            ]
           }
         }
       },
@@ -5959,6 +6154,61 @@
           }
         }
       },
+      "TotalsView": {
+        "type": "object",
+        "properties": {
+          "comparison": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "BELOW",
+              "ABOVE",
+              "EQUAL"
+            ]
+          },
+          "difference": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "expense": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "income": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "plannedCost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "plannedIncome": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "plannedResult": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "result": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
       "TrackView": {
         "type": "object",
         "properties": {
@@ -6065,6 +6315,11 @@
             }
           },
           "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "ventureId": {
             "type": "string",
             "format": "uuid",
             "nullable": true
@@ -6381,6 +6636,10 @@
             "format": "uuid",
             "nullable": true
           },
+          "clearVenture": {
+            "type": "boolean",
+            "nullable": true
+          },
           "description": {
             "maxLength": 140,
             "minLength": 0,
@@ -6426,6 +6685,11 @@
             }
           },
           "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "ventureId": {
             "type": "string",
             "format": "uuid",
             "nullable": true
