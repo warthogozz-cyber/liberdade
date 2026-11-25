@@ -235,7 +235,7 @@ saldo e a divisão entre gastos fixos e variáveis. Mesmo com mais coisa, ele co
 O módulo `ventures` guarda os projetos de renda extra, com custos, produtos e passos, no pacote
 `br.com.liberdadefamilia.ventures`. O `live` o enxerga pelos eventos `VentureChanged`, `VentureClosed`
 e `VentureDeleted`, e o `privacy` por `VenturesExport`, a interface que entrega os projetos prontos para
-a exportação (versão 7). A exportação lê os projetos só por ela, nunca pelas tabelas.
+a exportação (versão 8). A exportação lê os projetos só por ela, nunca pelas tabelas.
 
 ### Avisos ao vivo (módulo `live`, Plano 7.3)
 

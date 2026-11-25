@@ -36,6 +36,7 @@ import br.com.liberdadefamilia.workspace.ModuleKey;
 import br.com.liberdadefamilia.workspace.Modules;
 import br.com.liberdadefamilia.workspace.Role;
 import br.com.liberdadefamilia.workspace.WorkspaceRegion;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -74,7 +75,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 class ExportService {
 
-    private static final int FORMAT_VERSION = 7;
+    private static final int FORMAT_VERSION = 8;
     private static final ZoneId FORTALEZA = ZoneId.of("America/Fortaleza");
     private static final List<String> TRANSACTION_HEADER = List.of(
             "data",
@@ -89,7 +90,8 @@ class ExportService {
             "criado_em",
             "status",
             "forma_pagamento",
-            "tags");
+            "tags",
+            "projeto");
 
     /** The download: its file name and the writer of its bytes. */
     /**
@@ -143,7 +145,9 @@ class ExportService {
             List<String> tags,
             @Nullable LocalDate scheduledOn,
             @Nullable UUID recurringRuleId,
-            @Nullable String importKey) {}
+            @Nullable String importKey,
+            @Nullable UUID ventureId,
+            @JsonIgnore @Nullable String ventureName) {}
 
     /** A tag the person created, with the family it belongs to. */
     private record PersonalTag(
@@ -329,7 +333,9 @@ class ExportService {
             membershipRows.add(new PersonalMembership(
                     m.membershipId(), m.workspaceId(), family, m.role(), m.nickname(), m.status()));
             names.computeIfAbsent(m.workspaceId(), this::namesOf);
+            Map<UUID, String> ventureNames = m.role() == Role.YOUTH ? Map.of() : ventureNamesOf(m.workspaceId());
             for (ExportedTransaction t : ledger.transactionsOf(m.workspaceId(), m.membershipId(), m.role())) {
+                String ventureName = t.ventureId() == null ? null : ventureNames.get(t.ventureId());
                 transactions.add(new PersonalTransaction(
                         m.workspaceId(),
                         family,
@@ -349,7 +355,9 @@ class ExportService {
                         t.tags(),
                         t.scheduledOn(),
                         t.recurringRuleId(),
-                        t.importKey()));
+                        t.importKey(),
+                        ventureName == null ? null : t.ventureId(),
+                        ventureName));
             }
             for (ExportedTag t : ledger.tagsCreatedBy(m.workspaceId(), m.membershipId())) {
                 tags.add(new PersonalTag(m.workspaceId(), family, t.id(), t.name(), t.createdAt(), t.archivedAt()));
@@ -439,6 +447,13 @@ class ExportService {
                 names);
     }
 
+    /** The name of each of the family's ventures. */
+    private Map<UUID, String> ventureNamesOf(UUID workspaceId) {
+        Map<UUID, String> names = new HashMap<>();
+        ventures.ventures(workspaceId).forEach(v -> names.put(v.id(), v.name()));
+        return names;
+    }
+
     /** Each membership's display name: the family nickname, else the person's name; absent once the account is gone. */
     private Map<UUID, String> namesOf(UUID workspaceId) {
         List<MemberSummary> all = memberships.all(workspaceId);
@@ -505,7 +520,8 @@ class ExportService {
                     t.createdAt(),
                     t.status(),
                     t.paymentMethod(),
-                    t.tags()));
+                    t.tags(),
+                    t.ventureName()));
             rows.add(row);
         }
         List<String> header = new ArrayList<>(List.of("familia"));
@@ -564,6 +580,8 @@ class ExportService {
         root.put("orders", data.orders());
         root.put("plan", data.plan());
 
+        Map<UUID, String> ventureNames = new HashMap<>();
+        data.ventures().forEach(v -> ventureNames.put(v.id(), v.name()));
         List<List<String>> transactionRows = new ArrayList<>();
         for (ExportedTransaction t : data.transactions()) {
             transactionRows.add(transactionCells(
@@ -578,7 +596,8 @@ class ExportService {
                     t.createdAt(),
                     t.status(),
                     t.paymentMethod(),
-                    t.tags()));
+                    t.tags(),
+                    t.ventureId() == null ? null : ventureNames.get(t.ventureId())));
         }
         List<List<String>> accountRows = new ArrayList<>();
         for (ExportedAccount a : data.accounts()) {
@@ -803,7 +822,8 @@ class ExportService {
             Instant createdAt,
             String status,
             @Nullable PaymentMethod paymentMethod,
-            List<String> tags) {
+            List<String> tags,
+            @Nullable String ventureName) {
         return List.of(
                 occurredOn.toString(),
                 Labels.transactionKind(kind),
@@ -817,7 +837,8 @@ class ExportService {
                 createdAt.toString(),
                 Labels.transactionStatus(status),
                 Labels.paymentMethod(paymentMethod),
-                String.join("; ", tags));
+                String.join("; ", tags),
+                orEmpty(ventureName));
     }
 
     private static String orEmpty(@Nullable String value) {

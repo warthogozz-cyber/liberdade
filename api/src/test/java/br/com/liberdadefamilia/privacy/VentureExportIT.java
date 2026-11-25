@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.support.CsrfSession;
+import br.com.liberdadefamilia.support.TestIds;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
 import br.com.liberdadefamilia.workspace.Role;
@@ -75,7 +76,7 @@ class VentureExportIT {
         Map<String, byte[]> files = unzip(exportFamily(ana, ws));
         String json = text(files.get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(7);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(8);
         assertThat(JsonPath.<List<String>>read(json, "$.ventures[*].id"))
                 .containsExactly(doces.toString(), loja.toString());
         assertThat(JsonPath.<String>read(json, "$.ventures[0].name")).isEqualTo("Doces");
@@ -113,7 +114,7 @@ class VentureExportIT {
 
         String json = text(unzip(exportMine(bia)).get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(7);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(8);
         assertThat(JsonPath.<List<String>>read(json, "$.ventures[*].id")).containsExactly(biasVenture.toString());
         assertThat(JsonPath.<String>read(json, "$.ventures[0].familyName")).isNotEmpty();
         assertThat(JsonPath.<String>read(json, "$.ventures[0].items[0].name")).isEqualTo("Contas");
@@ -136,7 +137,86 @@ class VentureExportIT {
         assertThat(JsonPath.<List<String>>read(json, "$.ventures[*].id")).containsExactly(biasVenture.toString());
     }
 
+    @Test
+    void transactionsCarryVenture() {
+        UUID doces = venture("Doces", "FOOD", "ACTIVE", "2026-10-01", null, "food-sweets", anaMember);
+        UUID account = account("Conta da casa", null);
+        UUID marked = transaction(account, "INCOME", "Venda de bolo", anaMember, doces);
+        UUID plain = transaction(account, "EXPENSE", "Mercado", anaMember, null);
+
+        Map<String, byte[]> familyFiles = unzip(exportFamily(ana, ws));
+        String family = text(familyFiles.get("dados.json"));
+        assertThat(JsonPath.<Integer>read(family, "$.formatVersion")).isEqualTo(8);
+        assertThat(JsonPath.<List<String>>read(family, "$.transactions[?(@.id=='" + marked + "')].ventureId"))
+                .containsExactly(doces.toString());
+        assertThat(JsonPath.<List<Object>>read(family, "$.transactions[?(@.id=='" + plain + "')].ventureId"))
+                .containsExactly((Object) null);
+
+        assertThat(firstLine(familyFiles.get("lancamentos.csv"))).endsWith(";tags;projeto");
+        assertThat(text(familyFiles.get("lancamentos.csv")))
+                .containsPattern("Venda de bolo[^\n]*;Doces\r?\n")
+                .containsPattern("Mercado[^\n]*;\r?\n");
+
+        Map<String, byte[]> mine = unzip(exportMine(ana));
+        assertThat(JsonPath.<List<String>>read(
+                        text(mine.get("dados.json")), "$.transactions[?(@.id=='" + marked + "')].ventureId"))
+                .containsExactly(doces.toString());
+        assertThat(firstLine(mine.get("lancamentos.csv"))).endsWith(";tags;projeto");
+        assertThat(text(mine.get("lancamentos.csv"))).containsPattern("Venda de bolo[^\n]*;Doces\r?\n");
+    }
+
+    @Test
+    void youthPersonExportHasNoVenture() {
+        UUID davi = users.create("Davi Teste", "davi@example.com");
+        UUID daviMember = workspaces.addMember(ws, davi, Role.YOUTH, "Davi");
+        UUID doces = venture("Doces", "FOOD", "ACTIVE", "2026-10-01", null, "food-sweets", anaMember);
+        UUID account = account("Mesada", daviMember);
+        transaction(account, "INCOME", "Venda da mesada", daviMember, doces);
+
+        Map<String, byte[]> files = unzip(exportMine(davi));
+
+        String json = text(files.get("dados.json"));
+        assertThat(JsonPath.<List<String>>read(json, "$.transactions[*].description"))
+                .containsExactly("Venda da mesada");
+        assertThat(json).doesNotContain(doces.toString());
+        assertThat(JsonPath.<List<Object>>read(json, "$.ventures")).isEmpty();
+        assertThat(text(files.get("lancamentos.csv"))).doesNotContain("Doces");
+    }
+
     // --- seed ---
+
+    private UUID account(String name, UUID owner) {
+        return jdbc.sql("""
+                        insert into accounts (workspace_id, name, type, currency, initial_balance, owner_membership_id)
+                        values (:ws, :name, 'CHECKING', 'BRL', 0, :owner)
+                        returning id""")
+                .param("ws", ws)
+                .param("name", name)
+                .param("owner", owner)
+                .query(UUID.class)
+                .single();
+    }
+
+    private UUID transaction(UUID account, String kind, String description, UUID member, UUID venture) {
+        UUID id = TestIds.v7();
+        jdbc.sql("""
+                        insert into transactions
+                            (id, workspace_id, kind, amount, currency, occurred_on, account_id, category_id, description,
+                             member_id, created_by, venture_id)
+                        values (:id, :ws, :kind, 10, 'BRL', date '2026-11-10', :account,
+                                (select id from categories where workspace_id = :ws and kind = :kind
+                                 and parent_id is null order by name limit 1), :description, :member,
+                                :member, :venture)""")
+                .param("id", id)
+                .param("ws", ws)
+                .param("kind", kind)
+                .param("account", account)
+                .param("description", description)
+                .param("member", member)
+                .param("venture", venture)
+                .update();
+        return id;
+    }
 
     private UUID venture(
             String name,

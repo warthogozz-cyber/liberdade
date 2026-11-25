@@ -376,9 +376,19 @@ não vem antes de `started_on`. Os itens, produtos e passos somem com o projeto,
 família. `created_by` é chave composta para `memberships` com `ON DELETE SET NULL (created_by)`: quem sai
 da família deixa os projetos para trás, sem autor. A tabela `audit_events` passou a aceitar o alvo `VENTURE`.
 
-`transactions.venture_id` (opcional, para ligar vendas e custos reais ao projeto) ainda não existe.
+**V31: projeto no lançamento** (`V31__transaction_venture.sql`, Plano 9.2)
 
-**Exportação (v7).** A exportação pessoal traz em `ventures` os projetos criados pela pessoa, com itens,
+`transactions.venture_id` (opcional) liga uma receita ou uma despesa ao projeto a que ela pertence, para
+comparar o real com o previsto. É chave composta `(workspace_id, venture_id)` para `ventures` com
+`ON DELETE SET NULL (venture_id)`: apagar o projeto solta os lançamentos, não os apaga. A regra
+`transactions_venture_kind` aceita a marca só em `INCOME` e `EXPENSE`. O índice parcial
+`transactions_by_venture` em `(workspace_id, venture_id, occurred_on)` cobre só os lançamentos marcados.
+
+A exportação passou à versão 8: cada lançamento do `dados.json` ganha `ventureId` e o `lancamentos.csv`
+ganha a coluna `projeto` (o nome do projeto, vazio sem marca). Na exportação por pessoa de um Jovem a
+marca não aparece.
+
+**Exportação (v8).** A exportação pessoal traz em `ventures` os projetos criados pela pessoa, com itens,
 produtos e passos. A exportação da família traz todos os projetos no JSON e quatro planilhas:
 `projetos.csv`, `projetos_itens.csv`, `projetos_produtos.csv` e `projetos_passos.csv`. A exportação
 pessoal não tem planilha de projetos. Quem sai da família leva só o que criou; os projetos ficam com a

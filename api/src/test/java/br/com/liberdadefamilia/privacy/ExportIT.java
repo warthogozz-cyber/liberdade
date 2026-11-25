@@ -90,7 +90,7 @@ class ExportIT {
         Map<String, byte[]> files = unzip(result);
         assertThat(files).containsOnlyKeys("dados.json", "lancamentos.csv", "atividade.csv", "aportes.csv");
         String json = text(files.get("dados.json"));
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(7);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(8);
         assertThat(JsonPath.<String>read(json, "$.profile.email")).isEqualTo("bia@example.com");
         assertThat(JsonPath.<String>read(json, "$.profile.displayName")).isEqualTo("Bia Teste");
         assertThat(JsonPath.<List<?>>read(json, "$.memberships")).hasSize(2);
@@ -204,7 +204,7 @@ class ExportIT {
                 .doesNotContain("So da Dona");
         assertThat(csv)
                 .startsWith(
-                        "﻿familia;data;tipo;valor;moeda;conta;conta_destino;categoria;descricao;quem;criado_em;status;forma_pagamento;tags\r\n");
+                        "﻿familia;data;tipo;valor;moeda;conta;conta_destino;categoria;descricao;quem;criado_em;status;forma_pagamento;tags;projeto\r\n");
         assertThat(csv).contains("Família Teste;");
         assertThat(JsonPath.<List<String>>read(text(files.get("dados.json")), "$.transactions[*].description"))
                 .doesNotContain("So da Dona");
@@ -282,7 +282,7 @@ class ExportIT {
         String csv = text(files.get("lancamentos.csv"));
         assertThat(csv)
                 .startsWith(
-                        "﻿data;tipo;valor;moeda;conta;conta_destino;categoria;descricao;quem;criado_em;status;forma_pagamento;tags\r\n");
+                        "﻿data;tipo;valor;moeda;conta;conta_destino;categoria;descricao;quem;criado_em;status;forma_pagamento;tags;projeto\r\n");
         assertThat(csv).containsPattern(";Gasto;1234,56;BRL;Corrente;;Mercado;Compra grande;Aninha;");
         assertThat(csv).contains(";Transferência;100,00;BRL;Corrente;Carteira;;;Aninha;");
         assertThat(csv).contains("So da Dona").contains("Para a Bia");
@@ -319,7 +319,7 @@ class ExportIT {
 
         String json = text(unzip(exportFamily(f.ana, f.ws)).get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(7);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(8);
         assertThat(JsonPath.<List<?>>read(json, "$.orders")).hasSize(1);
         assertThat(JsonPath.<String>read(json, "$.orders[0].status")).isEqualTo("PAID");
         assertThat(JsonPath.<String>read(json, "$.orders[0].amount")).isEqualTo("89.00");
@@ -501,7 +501,7 @@ class ExportIT {
 
         String json = text(unzip(exportFamily(f.ana, f.ws)).get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(7);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(8);
         assertThat(JsonPath.<String>read(json, "$.workspace.country")).isEqualTo("BR");
         assertThat(JsonPath.<String>read(json, "$.workspace.locale")).isEqualTo("pt-BR");
         assertThat(JsonPath.<List<?>>read(json, "$.recurringRules")).hasSize(1);
@@ -539,7 +539,7 @@ class ExportIT {
         String mine = text(unzip(exportMine(f.ana)).get("dados.json"));
 
         for (String json : List.of(family, mine)) {
-            assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(7);
+            assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(8);
             assertThat(JsonPath.<List<Map<String, Object>>>read(json, "$.transactions[?(@.description=='Importada')]"))
                     .singleElement()
                     .satisfies(row -> assertThat(row).containsEntry("importKey", key));
@@ -571,7 +571,7 @@ class ExportIT {
         Map<String, byte[]> files = unzip(exportFamily(f.ana, f.ws));
 
         String json = text(files.get("dados.json"));
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(7);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(8);
         assertThat(JsonPath.<Integer>read(json, "$.reserveTargetMonths")).isEqualTo(6);
         assertThat(JsonPath.<Number>read(json, "$.manualMonthlyCost").doubleValue())
                 .isEqualTo(4500.5);
@@ -655,8 +655,8 @@ class ExportIT {
 
         assertThat(files).containsKeys("recorrencias.csv", "tags.csv");
         assertThat(text(files.get("lancamentos.csv")))
-                .contains("criado_em;status;forma_pagamento;tags\r\n")
-                .containsPattern(";Mensalidade;Aninha;[^;]*;Confirmado;Pix;\"?Escola; Filhos\"?\r\n");
+                .contains("criado_em;status;forma_pagamento;tags;projeto\r\n")
+                .containsPattern(";Mensalidade;Aninha;[^;]*;Confirmado;Pix;\"?Escola; Filhos\"?;\r\n");
         assertThat(text(files.get("recorrencias.csv")))
                 .contains(
                         "tipo;valor;moeda;conta;conta_destino;categoria;forma_pagamento;descricao;frequencia;intervalo;inicio;fim;arquivada_em")
