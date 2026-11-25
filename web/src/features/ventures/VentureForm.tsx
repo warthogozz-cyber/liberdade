@@ -39,6 +39,8 @@ const TYPES: readonly VentureType[] = [
 ]
 
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+// Keeps a focused field above the fixed preview (up to 45vh) when the browser scrolls it into view.
+const clearOfPanel = { scrollMarginBottom: '50vh' } as const
 const field = `min-h-12 w-full rounded-field border border-primary bg-surface px-3 ${focus}`
 const button = `min-h-12 rounded-field px-4 font-medium disabled:opacity-50 ${focus}`
 const outline = `${button} border border-primary text-primary`
@@ -282,6 +284,7 @@ export function VentureForm({ workspace, venture, onReload }: VentureFormProps) 
           aria-describedby={error ? `${props.id}-error` : undefined}
           onChange={(event) => props.onChange(event.target.value)}
           className={field}
+          style={clearOfPanel}
         />
         {error && (
           <p id={`${props.id}-error`} className="text-sm">
@@ -343,6 +346,7 @@ export function VentureForm({ workspace, venture, onReload }: VentureFormProps) 
           disabled={rows.length >= MAX_ITEMS}
           onClick={() => addCost(list)}
           className={`${outline} self-start`}
+          style={clearOfPanel}
         >
           {intl.formatMessage({ id: addId })}
         </button>
@@ -351,7 +355,7 @@ export function VentureForm({ workspace, venture, onReload }: VentureFormProps) 
   }
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-4 p-6 pb-72 lg:pb-6">
+    <main className="mx-auto flex max-w-5xl flex-col gap-4 p-6 pb-[50vh] lg:pb-6">
       <h1 className="text-2xl font-semibold">
         {intl.formatMessage({ id: 'ventures.edit.title' })}
       </h1>
@@ -387,6 +391,7 @@ export function VentureForm({ workspace, venture, onReload }: VentureFormProps) 
                 setDraft((current) => ({ ...current, type: event.target.value as VentureType }))
               }
               className={field}
+              style={clearOfPanel}
             >
               {TYPES.map((each) => (
                 <option key={each} value={each}>
@@ -408,6 +413,7 @@ export function VentureForm({ workspace, venture, onReload }: VentureFormProps) 
                   setDraft((current) => ({ ...current, startedOn: event.target.value || null }))
                 }
                 className={field}
+                style={clearOfPanel}
               />
             </div>
           )}
@@ -474,6 +480,7 @@ export function VentureForm({ workspace, venture, onReload }: VentureFormProps) 
               disabled={draft.products.length >= MAX_PRODUCTS}
               onClick={addProduct}
               className={`${outline} self-start`}
+              style={clearOfPanel}
             >
               {intl.formatMessage({ id: 'ventures.form.addProduct' })}
             </button>
@@ -539,6 +546,7 @@ function Row({ legend, removeLabel, onRemove, children }: RowProps) {
         aria-label={removeLabel}
         onClick={onRemove}
         className={`${outline} self-start`}
+        style={clearOfPanel}
       >
         {intl.formatMessage({ id: 'ventures.form.remove' }, { what: '' }).trim()}
       </button>

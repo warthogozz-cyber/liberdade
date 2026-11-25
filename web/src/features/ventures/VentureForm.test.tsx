@@ -128,4 +128,19 @@ describe('VentureForm', () => {
     const panel = await screen.findByRole('region', { name: 'Prévia das contas' })
     expect(await within(panel).findByText('710,0%')).toBeVisible()
   })
+
+  it('keepsFocusedFieldsAboveTheMobilePanel', () => {
+    render(exampleVenture())
+
+    // The fixed panel takes up to 45vh on a phone: the page pads and scrolls past all of it.
+    const panel = screen.getByRole('region', { name: 'Prévia das contas' }).parentElement
+    expect(panel).toHaveClass('fixed', 'max-h-[45vh]', 'lg:sticky')
+    expect(screen.getByRole('main')).toHaveClass('pb-[50vh]', 'lg:pb-6')
+    expect(screen.getByLabelText('Nome do projeto').getAttribute('style')).toContain(
+      'scroll-margin-bottom: 50vh',
+    )
+    expect(
+      screen.getByRole('button', { name: 'Acrescentar custo fixo' }).getAttribute('style'),
+    ).toContain('scroll-margin-bottom: 50vh')
+  })
 })

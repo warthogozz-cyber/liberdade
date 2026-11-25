@@ -52,8 +52,10 @@ describe('useVentureSimulation', () => {
   it('waits400ms', async () => {
     const ws = setup()
     const bodies: unknown[] = []
+    const arrivedAt: number[] = []
     server.use(
       http.post(URL, async ({ request }) => {
+        arrivedAt.push(performance.now())
         bodies.push(await request.json())
         return HttpResponse.json(prdExampleFigures())
       }),
@@ -63,18 +65,19 @@ describe('useVentureSimulation', () => {
     await advance(50)
     await waitFor(() => expect(bodies).toHaveLength(1))
     bodies.length = 0
+    arrivedAt.length = 0
 
+    let lastChange = 0
     for (const units of ['20', '30', '40']) {
       current = draft(units)
       rerender()
+      lastChange = performance.now()
       await advance(100)
     }
-    // 300 ms after the first change, 100 ms after the last: still waiting.
-    expect(bodies).toHaveLength(0)
 
-    await advance(200)
-    expect(bodies).toHaveLength(0)
-    await waitFor(() => expect(bodies).toHaveLength(1))
+    await waitFor(() => expect(bodies).toHaveLength(1), { timeout: 3000 })
+    // Timers never fire early, so this holds on a slow machine too: only a shorter delay fails it.
+    expect(arrivedAt[0]! - lastChange).toBeGreaterThanOrEqual(390)
     expect(bodies[0]).toEqual({
       initialItems: [{ amount: '600.00' }],
       fixedItems: [{ amount: '60.00' }],
