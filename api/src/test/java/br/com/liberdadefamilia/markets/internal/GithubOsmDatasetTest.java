@@ -10,10 +10,19 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import br.com.liberdadefamilia.markets.internal.OsmImportException.Reason;
+import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -144,6 +153,89 @@ class GithubOsmDatasetTest {
             server.expect(requestTo(BASE + "/manifest.json")).andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
 
             assertThat(reasonOf(dataset::manifest)).as(body).isEqualTo(Reason.BAD_MANIFEST);
+        }
+    }
+
+    /** A real local server that sends the headers and some of the body, then goes silent. */
+    private static HttpServer stallingServer() throws IOException {
+        HttpServer http = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        http.createContext("/", exchange -> {
+            exchange.sendResponseHeaders(200, 1_000_000);
+            exchange.getResponseBody().write(new byte[100]);
+            exchange.getResponseBody().flush();
+            try {
+                Thread.sleep(30_000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            exchange.close();
+        });
+        http.setExecutor(Executors.newCachedThreadPool(r -> {
+            Thread t = new Thread(r);
+            t.setDaemon(true);
+            return t;
+        }));
+        http.start();
+        return http;
+    }
+
+    private static GithubOsmDataset realDataset(HttpServer http, Duration timeout) {
+        MarketsProperties properties = new MarketsProperties(
+                BOT,
+                new MarketsProperties.Osm(
+                        "github",
+                        "http://127.0.0.1:" + http.getAddress().getPort(),
+                        timeout,
+                        1_000_000L,
+                        0.8,
+                        Duration.ofDays(15)),
+                null,
+                null);
+        return new GithubOsmDataset(properties);
+    }
+
+    private static Reason reasonWithin(Duration limit, Callable<?> call) throws Exception {
+        ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor();
+        Future<?> future = pool.submit(call);
+        try {
+            future.get(limit.toMillis(), TimeUnit.MILLISECONDS);
+            throw new AssertionError("expected a failure");
+        } catch (java.util.concurrent.ExecutionException e) {
+            return ((OsmImportException) e.getCause()).reason();
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void aBodyThatStallsAfterTheHeadersIsTimeout() throws Exception {
+        HttpServer http = stallingServer();
+        try {
+            GithubOsmDataset real = realDataset(http, Duration.ofSeconds(1));
+
+            Reason reason = reasonWithin(Duration.ofSeconds(15), () -> {
+                try (InputStream in = real.open()) {
+                    return in.readAllBytes();
+                }
+            });
+
+            assertThat(reason).isEqualTo(Reason.TIMEOUT);
+        } finally {
+            http.stop(0);
+        }
+    }
+
+    @Test
+    void aManifestThatStallsAfterTheHeadersIsTimeout() throws Exception {
+        HttpServer http = stallingServer();
+        try {
+            GithubOsmDataset real = realDataset(http, Duration.ofSeconds(1));
+
+            Reason reason = reasonWithin(Duration.ofSeconds(15), real::manifest);
+
+            assertThat(reason).isEqualTo(Reason.TIMEOUT);
+        } finally {
+            http.stop(0);
         }
     }
 }
