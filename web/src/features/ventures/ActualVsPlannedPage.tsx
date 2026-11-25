@@ -36,6 +36,12 @@ export function ActualVsPlannedPage() {
   }
 
   if (venture.data && view.data) {
+    // The list opens on one month; the project's newest one is where its entries are, even once closed.
+    const newest = view.data.months.reduce<string | null>(
+      (latest, { month }) => (latest === null || month > latest ? month : latest),
+      null,
+    )
+    const transactions = `/lancamentos?projeto=${id}${newest ? `&mes=${newest}` : ''}`
     return (
       <main className="mx-auto flex max-w-2xl flex-col gap-4 p-6">
         <header className="flex flex-col gap-2">
@@ -54,7 +60,7 @@ export function ActualVsPlannedPage() {
         </header>
         <RealPaybackCards planned={view.data.planned} real={view.data.real} />
         <MonthsTable months={view.data.months} totals={view.data.totals} />
-        <Link to={`/lancamentos?projeto=${id}`} className={`${outline} self-start`}>
+        <Link to={transactions} className={`${outline} self-start`}>
           {intl.formatMessage({ id: 'ventures.real.transactions' })}
         </Link>
       </main>
