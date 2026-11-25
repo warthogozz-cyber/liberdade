@@ -2,6 +2,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { useCurrentWorkspace } from '@/shared/api'
 import { useAchievements, useStreak } from '@/shared/api/gamification'
 import { registerMessages } from '@/shared/i18n'
+import { PageTour } from '@/shared/tips'
 import { useDocumentTitle } from '@/shared/ui'
 import { achievementHint, achievementName } from './achievementCopy'
 import { gamificationMessages } from './messages.pt-BR'
@@ -125,6 +126,7 @@ export function AchievementsPage() {
           ))}
         </ul>
       )}
+      <PageTour id="achievements" />
     </main>
   )
 }
