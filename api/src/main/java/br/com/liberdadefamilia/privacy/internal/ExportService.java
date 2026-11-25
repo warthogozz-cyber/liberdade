@@ -24,6 +24,11 @@ import br.com.liberdadefamilia.planning.ExportedReserveSettings;
 import br.com.liberdadefamilia.planning.PlanningExport;
 import br.com.liberdadefamilia.shared.Money;
 import br.com.liberdadefamilia.shared.PaymentMethod;
+import br.com.liberdadefamilia.ventures.ExportedVenture;
+import br.com.liberdadefamilia.ventures.ExportedVentureItem;
+import br.com.liberdadefamilia.ventures.ExportedVentureProduct;
+import br.com.liberdadefamilia.ventures.ExportedVentureStep;
+import br.com.liberdadefamilia.ventures.VenturesExport;
 import br.com.liberdadefamilia.workspace.MemberSummary;
 import br.com.liberdadefamilia.workspace.MembershipStatus;
 import br.com.liberdadefamilia.workspace.Memberships;
@@ -69,7 +74,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 class ExportService {
 
-    private static final int FORMAT_VERSION = 6;
+    private static final int FORMAT_VERSION = 7;
     private static final ZoneId FORTALEZA = ZoneId.of("America/Fortaleza");
     private static final List<String> TRANSACTION_HEADER = List.of(
             "data",
@@ -163,6 +168,12 @@ class ExportService {
             String familyName,
             @JsonUnwrapped ExportedContribution contribution) {}
 
+    /** A project the person created, with the family it belongs to. */
+    private record PersonalVenture(
+            UUID workspaceId,
+            String familyName,
+            @JsonUnwrapped ExportedVenture venture) {}
+
     /** An achievement the person earned, with the family it belongs to. */
     private record PersonalAchievement(UUID workspaceId, String key, Instant earnedAt) {}
 
@@ -175,6 +186,7 @@ class ExportService {
             List<PersonalTag> tags,
             List<PersonalRule> recurringRules,
             List<PersonalContribution> goalContributions,
+            List<PersonalVenture> ventures,
             List<PersonalAchievement> achievements,
             Map<UUID, Map<UUID, String>> names) {}
 
@@ -212,6 +224,7 @@ class ExportService {
             List<ExportedGoal> goals,
             List<ExportedContribution> goalContributions,
             ExportedReserveSettings reserve,
+            List<ExportedVenture> ventures,
             List<OrderLine> orders,
             @Nullable ExportedPlan plan,
             Map<String, Boolean> modules,
@@ -222,6 +235,7 @@ class ExportService {
     private final Modules modules;
     private final LedgerExport ledger;
     private final PlanningExport planning;
+    private final VenturesExport ventures;
     private final AchievementExport achievements;
     private final BillingExport billing;
     private final AuditTrail audit;
@@ -237,6 +251,7 @@ class ExportService {
             Modules modules,
             LedgerExport ledger,
             PlanningExport planning,
+            VenturesExport ventures,
             AchievementExport achievements,
             BillingExport billing,
             AuditTrail audit,
@@ -249,6 +264,7 @@ class ExportService {
         this.modules = modules;
         this.ledger = ledger;
         this.planning = planning;
+        this.ventures = ventures;
         this.achievements = achievements;
         this.billing = billing;
         this.audit = audit;
@@ -305,6 +321,7 @@ class ExportService {
         List<PersonalTag> tags = new ArrayList<>();
         List<PersonalRule> rules = new ArrayList<>();
         List<PersonalContribution> contributions = new ArrayList<>();
+        List<PersonalVenture> personalVentures = new ArrayList<>();
         List<PersonalAchievement> earned = new ArrayList<>();
         Map<UUID, Map<UUID, String>> names = new HashMap<>();
         for (MemberSummary m : mine) {
@@ -342,6 +359,9 @@ class ExportService {
             }
             for (ExportedContribution c : planning.contributionsBy(m.workspaceId(), m.membershipId())) {
                 contributions.add(new PersonalContribution(m.workspaceId(), family, c));
+            }
+            for (ExportedVenture v : ventures.venturesCreatedBy(m.workspaceId(), m.membershipId())) {
+                personalVentures.add(new PersonalVenture(m.workspaceId(), family, v));
             }
             for (ExportedAchievement a : achievements.of(m.workspaceId(), m.membershipId())) {
                 earned.add(new PersonalAchievement(m.workspaceId(), a.key(), a.earnedAt()));
@@ -384,6 +404,7 @@ class ExportService {
                 tags,
                 rules,
                 contributions,
+                personalVentures,
                 earned,
                 names);
     }
@@ -411,6 +432,7 @@ class ExportService {
                 planning.goals(workspaceId),
                 planning.contributions(workspaceId),
                 planning.reserveSettings(workspaceId),
+                ventures.ventures(workspaceId),
                 billing.orders(workspaceId).stream().map(OrderLine::of).toList(),
                 billing.plan(workspaceId).orElse(null),
                 enabled,
@@ -464,6 +486,7 @@ class ExportService {
         root.put("tags", data.tags());
         root.put("recurringRules", data.recurringRules());
         root.put("goalContributions", data.goalContributions());
+        root.put("ventures", data.ventures());
         root.put("achievements", data.achievements());
 
         List<List<String>> rows = new ArrayList<>();
@@ -536,6 +559,7 @@ class ExportService {
         root.put("goalContributions", data.goalContributions());
         root.put("reserveTargetMonths", data.reserve().targetMonths());
         root.put("manualMonthlyCost", data.reserve().manualMonthlyCost());
+        root.put("ventures", data.ventures());
         root.put("modules", data.modules());
         root.put("orders", data.orders());
         root.put("plan", data.plan());
@@ -645,6 +669,46 @@ class ExportService {
                     c.amount().currency().getCurrencyCode(),
                     member == null ? "" : orEmpty(data.names().get(member))));
         }
+        List<List<String>> ventureRows = new ArrayList<>();
+        List<List<String>> ventureItemRows = new ArrayList<>();
+        List<List<String>> ventureProductRows = new ArrayList<>();
+        List<List<String>> ventureStepRows = new ArrayList<>();
+        for (ExportedVenture v : data.ventures()) {
+            LocalDate startedOn = v.startedOn();
+            LocalDate closedOn = v.closedOn();
+            ventureRows.add(List.of(
+                    v.name(),
+                    Labels.ventureType(v.type()),
+                    Labels.ventureStatus(v.status()),
+                    startedOn == null ? "" : startedOn.toString(),
+                    closedOn == null ? "" : closedOn.toString(),
+                    v.currency()));
+            for (ExportedVentureItem i : v.items()) {
+                ventureItemRows.add(List.of(
+                        v.name(),
+                        Labels.ventureItemKind(i.kind()),
+                        i.name(),
+                        CsvWriter.amount(i.amount().amount()),
+                        i.amount().currency().getCurrencyCode()));
+            }
+            for (ExportedVentureProduct p : v.products()) {
+                ventureProductRows.add(List.of(
+                        v.name(),
+                        p.name(),
+                        CsvWriter.amount(p.unitVariableCost().amount()),
+                        CsvWriter.amount(p.unitPrice().amount()),
+                        Integer.toString(p.plannedUnitsMonth()),
+                        p.unitPrice().currency().getCurrencyCode()));
+            }
+            for (ExportedVentureStep s : v.steps()) {
+                Instant doneAt = s.doneAt();
+                ventureStepRows.add(List.of(
+                        v.name(),
+                        Integer.toString(s.position() + 1),
+                        s.title(),
+                        doneAt == null ? "" : doneAt.toString()));
+            }
+        }
         List<List<String>> memberRows = new ArrayList<>();
         for (Member m : data.members()) {
             memberRows.add(List.of(orEmpty(m.name()), Labels.role(m.role()), Labels.status(m.status())));
@@ -709,6 +773,21 @@ class ExportService {
         files.put(
                 "aportes.csv",
                 csv.toBytes(List.of("meta", "data", "valor", "moeda", "quem"), contributionRows, Set.of(2)));
+        files.put(
+                "projetos.csv",
+                csv.toBytes(List.of("nome", "tipo", "situacao", "inicio", "encerramento", "moeda"), ventureRows));
+        files.put(
+                "projetos_itens.csv",
+                csv.toBytes(List.of("projeto", "tipo", "nome", "valor", "moeda"), ventureItemRows, Set.of(3)));
+        files.put(
+                "projetos_produtos.csv",
+                csv.toBytes(
+                        List.of("projeto", "nome", "custo_unitario", "preco", "venda_prevista_mes", "moeda"),
+                        ventureProductRows,
+                        Set.of(2, 3)));
+        files.put(
+                "projetos_passos.csv",
+                csv.toBytes(List.of("projeto", "posicao", "passo", "feito_em"), ventureStepRows));
         zip(out, files);
     }
 
@@ -808,6 +887,32 @@ class ExportService {
                 case "YEARLY" -> "Anual";
                 default -> frequency;
             };
+        }
+
+        static String ventureType(String type) {
+            return switch (type) {
+                case "FOOD" -> "Culinária";
+                case "DIGITAL_PRODUCT" -> "Produto digital";
+                case "CONTENT" -> "Conteúdo";
+                case "RESALE" -> "Revenda";
+                case "SERVICE" -> "Serviço";
+                case "OTHER" -> "Outro";
+                default -> type;
+            };
+        }
+
+        static String ventureStatus(String status) {
+            return switch (status) {
+                case "PLANNING" -> "Planejando";
+                case "ACTIVE" -> "Ativo";
+                case "PAUSED" -> "Pausado";
+                case "CLOSED" -> "Encerrado";
+                default -> status;
+            };
+        }
+
+        static String ventureItemKind(String kind) {
+            return "INITIAL".equals(kind) ? "Inicial" : "Fixo mensal";
         }
 
         static String categoryKind(String kind) {

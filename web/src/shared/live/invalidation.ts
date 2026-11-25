@@ -24,6 +24,9 @@ const goals = after(planningKeys.goals(WS))
 const reserve = after(planningKeys.reserve(WS))
 const projection = after(planningKeys.projection(WS))
 const gamification = after(gamificationKeys.all(WS))
+// The prefix of `venturesKeys.all` (shared/api/ventures.ts), written out so the initial chunk does not
+// take that file for one key; the live-invalidation test checks they agree.
+const ventures = ['ventures'] as const
 
 const PREFIXES: Record<string, (readonly string[])[]> = {
   transaction: [transactions, dashboard, accounts, tags, planning, gamification],
@@ -35,8 +38,9 @@ const PREFIXES: Record<string, (readonly string[])[]> = {
   goal: [goals],
   reserve: [reserve, projection],
   members: [members, invitations, accounts],
-  modules: [modules, planning],
+  modules: [modules, planning, ventures],
   achievement: [gamification],
+  venture: [ventures],
 }
 
 /**

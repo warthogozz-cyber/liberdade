@@ -12,6 +12,7 @@ import {
   createRule,
   expect,
   joinAsYouth,
+  money,
   newUser,
   openInvitation,
   familyMonth,
@@ -512,4 +513,69 @@ test.describe('with the tips on', () => {
       page.getByRole('dialog', { name: /Sua sequência conta as semanas/ }),
     )
   })
+})
+
+test('the projects screens meet WCAG 2.2 AA in both themes', async ({ page }) => {
+  await signInWithGoogle(page, newUser())
+  await createFamily(page)
+  await setModules(page, true)
+
+  // From the model, so the form and the project screen have example stamps, figures and steps.
+  // Right after the modules change, a fresh load can still read the old modules from the cache
+  // and bounce: load again until the start screen holds with its tracks.
+  await expect(async () => {
+    await page.goto('/mais/projetos/comecar')
+    await expect(page.getByRole('button', { name: /^Culinária/ })).toBeVisible({ timeout: 3_000 })
+    await expect(page).toHaveURL(/\/mais\/projetos\/comecar$/)
+  }).toPass({ timeout: 45_000 })
+  await expectNoViolations(
+    page,
+    'Começar um projeto',
+    page.getByRole('button', { name: /^Culinária/ }),
+  )
+  await page.getByRole('button', { name: /^Culinária/ }).click()
+  await page
+    .getByRole('dialog', { name: 'Começar com o modelo' })
+    .getByRole('button', { name: 'Criar projeto' })
+    .click()
+  await expect(page).toHaveURL(/\/mais\/projetos\/[^/]+\/editar$/)
+
+  const figures = page.getByRole('region', { name: 'Prévia das contas' })
+  await expectNoViolations(page, 'Editar projeto', figures.getByText(money('540,00')))
+
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click()
+  await expectNoViolations(
+    page,
+    'Doces por encomenda',
+    page.getByRole('heading', { level: 2, name: 'Passos' }),
+  )
+
+  await page.goto('/mais/projetos')
+  await expectNoViolations(
+    page,
+    'Projetos',
+    page.getByRole('link', { name: /Doces por encomenda/ }),
+  )
+
+  await page.goto('/mais/projetos/investimentos')
+  await expectNoViolations(
+    page,
+    'Investimentos',
+    page.getByText('Conteúdo educativo. Não é recomendação de investimento.'),
+  )
+
+  await page.goto('/mais/projetos/investimentos/simulador')
+  await page.getByLabel('Valor inicial (R$)').fill('1000')
+  await page.getByLabel('Aporte mensal (R$)').fill('100')
+  await page.getByLabel('Prazo (anos, de 1 a 50)').fill('5')
+  // The first row may come filled with an indicator or empty: either way, the person's own values win.
+  await page.getByLabel('Nome do cenário 1').fill('Meu cenário')
+  await page.getByLabel('Taxa ao ano (%) do cenário 1').fill('10')
+  await page.getByRole('button', { name: 'Simular', exact: true }).click()
+  await expect(page.getByRole('heading', { level: 2, name: 'Resultado' })).toBeVisible()
+  await expectNoViolations(
+    page,
+    'Simulador de juros compostos',
+    page.getByRole('region', { name: 'Meu cenário' }),
+  )
 })

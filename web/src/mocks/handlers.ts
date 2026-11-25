@@ -10,6 +10,8 @@ import { centsToApi, MAX_CENTS, parseCents } from '@/shared/money'
 import type { components } from '@/shared/api/schema'
 import {
   createFamily,
+  foodSweetsVenture,
+  prdExampleFigures,
   keepsAcceptance,
   type MockAccount,
   type MockBudget,
@@ -17,6 +19,7 @@ import {
   type MockInvitation,
   type MockRule,
   mockState,
+  ventureTracks,
 } from './data'
 
 type Schemas = components['schemas']
@@ -1003,6 +1006,275 @@ function isKnownTimezone(timezone: unknown): timezone is string {
  * The routes of Tasks 3, 5 and 6, with the API's error codes, plus `POST /logout` and the four
  * passkey routes of Task 4.
  */
+const VENTURE_STATUSES: unknown[] = ['PLANNING', 'ACTIVE', 'PAUSED', 'CLOSED']
+const ventureNotFound = () => problem(404, 'venture.not-found', 'Projeto não encontrado.')
+const ventureLimitReached = () =>
+  problem(
+    403,
+    'venture.limit-reached',
+    'No plano Grátis, a família tem 1 projeto ativo. Encerre um, ou veja o plano Família em Mais > Plano.',
+  )
+
+/** The family's open projects against the free plan's one (billing on, as in staging). */
+const ventureLimitReachedNow = (ws: string) =>
+  mockState.billing.plan.key === 'FREE' &&
+  mockState.billing.selling &&
+  (mockState.ventures[ws] ?? []).filter((each) => each.status !== 'CLOSED').length >= 1
+
+function ventureSummary(view: Schemas['VentureView']): Schemas['VentureSummary'] {
+  return {
+    id: view.id,
+    name: view.name,
+    type: view.type,
+    status: view.status,
+    startedOn: view.startedOn,
+    closedOn: view.closedOn,
+    version: view.version,
+    hasExamples: [...view.initialItems, ...view.fixedItems, ...view.products].some(
+      (each) => each.isExample,
+    ),
+    monthlyProfit: view.figures.monthlyProfit,
+    paybackMonths: view.figures.paybackMonths,
+    paybackState: view.figures.paybackState,
+  }
+}
+
+/** The routes of the projects module (the simulation routes come with their screens). */
+function ventureHandlers() {
+  /** The family, with the module on and a person who is not a Youth; a writer too when asked. */
+  function ventureGuard(ws: string, write: boolean): MeWorkspace | Response {
+    const workspace = guard(ws)
+    if (workspace instanceof Response) return workspace
+    if (workspace.role === 'YOUTH') return roleDenied()
+    if (mockState.modules[workspace.id]?.ventures !== true) {
+      return problem(403, 'module.disabled', 'O módulo de projetos está desligado.')
+    }
+    return write && !canManageRules(workspace) ? roleDenied() : workspace
+  }
+  const owned = (ws: string) => (mockState.ventures[ws] ??= [])
+  const find = (ws: string, id: string) => owned(ws).find((each) => each.id === id)
+
+  return [
+    http.get<{ ws: string }>(url('/v1/workspaces/:ws/ventures'), ({ params }) => {
+      const workspace = ventureGuard(params.ws, false)
+      if (workspace instanceof Response) return workspace
+      return HttpResponse.json({
+        ventures: owned(workspace.id).map(ventureSummary),
+        limitReached: canManageRules(workspace) && ventureLimitReachedNow(workspace.id),
+      })
+    }),
+
+    http.get<{ ws: string }>(url('/v1/workspaces/:ws/ventures/templates'), ({ params }) => {
+      const workspace = ventureGuard(params.ws, false)
+      if (workspace instanceof Response) return workspace
+      return HttpResponse.json({ tracks: ventureTracks() })
+    }),
+
+    http.post<{ ws: string }>(
+      url('/v1/workspaces/:ws/ventures/simulation'),
+      async ({ request, params }) => {
+        if (withoutToken(request)) return csrfInvalid()
+        const workspace = ventureGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        const body = (await readJson(request)) as Partial<Schemas['SimulationRequest']> | undefined
+        if (!body || typeof body !== 'object') return malformed()
+        return HttpResponse.json(prdExampleFigures())
+      },
+    ),
+
+    http.post<{ ws: string }>(
+      url('/v1/workspaces/:ws/ventures/investment-simulation'),
+      async ({ request, params }) => {
+        if (withoutToken(request)) return csrfInvalid()
+        const workspace = ventureGuard(params.ws, false)
+        if (workspace instanceof Response) return workspace
+        const body = (await readJson(request)) as
+          Partial<Schemas['InvestmentSimulationRequest']> | undefined
+        if (!body || typeof body !== 'object' || !Array.isArray(body.scenarios)) return malformed()
+        const cents = (text: unknown) => Math.round(Number(text) * 100)
+        const money = (value: number) => ({
+          amount: (value / 100).toFixed(2),
+          currency: workspace.currency,
+        })
+        const months = (body.years ?? 0) * 12
+        const initial = cents(body.initialAmount)
+        const monthly = cents(body.monthlyContribution)
+        return HttpResponse.json({
+          scenarios: body.scenarios.map((scenario) => {
+            const rate = Math.pow(1 + Number(scenario.annualPercent) / 100, 1 / 12) - 1
+            let balance = initial
+            for (let month = 0; month < months; month += 1) balance = balance * (1 + rate) + monthly
+            const contributed = initial + monthly * months
+            return {
+              name: scenario.name,
+              finalBalance: money(Math.round(balance)),
+              totalContributed: money(contributed),
+              earnings: money(Math.round(balance) - contributed),
+            }
+          }),
+        })
+      },
+    ),
+
+    http.post<{ ws: string }>(url('/v1/workspaces/:ws/ventures'), async ({ request, params }) => {
+      if (withoutToken(request)) return csrfInvalid()
+      const workspace = ventureGuard(params.ws, true)
+      if (workspace instanceof Response) return workspace
+      const body = (await readJson(request)) as Partial<Schemas['CreateVentureRequest']> | undefined
+      if (!body || typeof body !== 'object') return malformed()
+      const name = typeof body.name === 'string' ? body.name.trim() : ''
+      if (!name || name.length > 40) return budgetInvalid()
+      if (ventureLimitReachedNow(workspace.id)) return ventureLimitReached()
+      const venture = foodSweetsVenture({
+        id: crypto.randomUUID(),
+        name,
+        type: body.type ?? 'OTHER',
+        templateKey: body.templateKey ?? null,
+        status: 'PLANNING',
+        startedOn: null,
+      })
+      owned(workspace.id).push(venture)
+      return HttpResponse.json(venture, { status: 201 })
+    }),
+
+    http.get<{ ws: string; id: string }>(url('/v1/workspaces/:ws/ventures/:id'), ({ params }) => {
+      const workspace = ventureGuard(params.ws, false)
+      if (workspace instanceof Response) return workspace
+      const venture = find(workspace.id, params.id)
+      return venture ? HttpResponse.json(venture) : ventureNotFound()
+    }),
+
+    http.put<{ ws: string; id: string }>(
+      url('/v1/workspaces/:ws/ventures/:id'),
+      async ({ request, params }) => {
+        if (withoutToken(request)) return csrfInvalid()
+        const workspace = ventureGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        const venture = find(workspace.id, params.id)
+        if (!venture) return ventureNotFound()
+        const body = (await readJson(request)) as
+          Partial<Schemas['UpdateVentureRequest']> | undefined
+        if (!body || typeof body !== 'object') return malformed()
+        const name = typeof body.name === 'string' ? body.name.trim() : ''
+        if (!name || name.length > 40) return budgetInvalid()
+        if (body.version !== venture.version) {
+          return problem(
+            409,
+            'venture.version-conflict',
+            'O projeto foi alterado por outra pessoa. Recarregue e tente de novo.',
+          )
+        }
+        venture.name = name
+        if (body.type) venture.type = body.type
+        venture.startedOn = body.startedOn ?? null
+        venture.version += 1
+        return HttpResponse.json(venture)
+      },
+    ),
+
+    http.delete<{ ws: string; id: string }>(
+      url('/v1/workspaces/:ws/ventures/:id'),
+      ({ request, params }) => {
+        if (withoutToken(request)) return csrfInvalid()
+        const workspace = ventureGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        mockState.ventures[workspace.id] = owned(workspace.id).filter(
+          (each) => each.id !== params.id,
+        )
+        return new HttpResponse(null, { status: 204 })
+      },
+    ),
+
+    http.post<{ ws: string; id: string }>(
+      url('/v1/workspaces/:ws/ventures/:id/status'),
+      async ({ request, params }) => {
+        if (withoutToken(request)) return csrfInvalid()
+        const workspace = ventureGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        const venture = find(workspace.id, params.id)
+        if (!venture) return ventureNotFound()
+        const body = (await readJson(request)) as
+          Partial<Schemas['ChangeStatusRequest']> | undefined
+        if (!body?.status || !VENTURE_STATUSES.includes(body.status)) return budgetInvalid()
+        if (typeof body.version === 'number' && body.version !== venture.version) {
+          return problem(
+            409,
+            'venture.version-conflict',
+            'O projeto foi alterado por outra pessoa. Recarregue e tente de novo.',
+          )
+        }
+        if (body.status === 'ACTIVE' && body.on) venture.startedOn = body.on
+        venture.status = body.status
+        venture.closedOn = body.status === 'CLOSED' ? (body.on ?? '2026-11-25') : null
+        venture.version += 1
+        return HttpResponse.json(venture)
+      },
+    ),
+
+    http.post<{ ws: string; id: string }>(
+      url('/v1/workspaces/:ws/ventures/:id/steps'),
+      async ({ request, params }) => {
+        if (withoutToken(request)) return csrfInvalid()
+        const workspace = ventureGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        const venture = find(workspace.id, params.id)
+        if (!venture) return ventureNotFound()
+        const body = (await readJson(request)) as Partial<Schemas['CreateStepRequest']> | undefined
+        const title = typeof body?.title === 'string' ? body.title.trim() : ''
+        if (!title || title.length > 80) return budgetInvalid()
+        const step = {
+          id: crypto.randomUUID(),
+          title,
+          position: venture.steps.length,
+          doneAt: null,
+        }
+        venture.steps.push(step)
+        return HttpResponse.json(step, { status: 201 })
+      },
+    ),
+
+    http.patch<{ ws: string; id: string; stepId: string }>(
+      url('/v1/workspaces/:ws/ventures/:id/steps/:stepId'),
+      async ({ request, params }) => {
+        if (withoutToken(request)) return csrfInvalid()
+        const workspace = ventureGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        const venture = find(workspace.id, params.id)
+        const step = venture?.steps.find((each) => each.id === params.stepId)
+        if (!venture || !step) return ventureNotFound()
+        const body = (await readJson(request)) as Partial<Schemas['UpdateStepRequest']> | undefined
+        if (!body || typeof body !== 'object') return malformed()
+        if (typeof body.title === 'string' && body.title.trim()) step.title = body.title.trim()
+        if (typeof body.done === 'boolean') {
+          step.doneAt = body.done ? new Date().toISOString() : null
+        }
+        if (typeof body.position === 'number') {
+          const others = venture.steps.filter((each) => each !== step)
+          others.splice(Math.min(Math.max(body.position, 0), others.length), 0, step)
+          venture.steps = others.map((each, position) => ({ ...each, position }))
+          return HttpResponse.json(venture.steps.find((each) => each.id === step.id))
+        }
+        return HttpResponse.json(step)
+      },
+    ),
+
+    http.delete<{ ws: string; id: string; stepId: string }>(
+      url('/v1/workspaces/:ws/ventures/:id/steps/:stepId'),
+      ({ request, params }) => {
+        if (withoutToken(request)) return csrfInvalid()
+        const workspace = ventureGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        const venture = find(workspace.id, params.id)
+        if (!venture) return ventureNotFound()
+        venture.steps = venture.steps
+          .filter((each) => each.id !== params.stepId)
+          .map((each, position) => ({ ...each, position }))
+        return new HttpResponse(null, { status: 204 })
+      },
+    ),
+  ]
+}
+
 export const handlers = [
   http.get(url('/v1/csrf'), () => HttpResponse.json(CSRF)),
 
@@ -2666,6 +2938,8 @@ export const handlers = [
     }
     return HttpResponse.json(reserveView())
   }),
+
+  ...ventureHandlers(),
 
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/indicators'), ({ params }) => {
     const workspace = guard(params.ws)

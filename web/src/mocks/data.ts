@@ -78,6 +78,8 @@ export interface MockState {
   budgets: MockBudget[]
   /** The family's goals, in creation order, archived ones included. */
   goals: MockGoal[]
+  /** The family's projects (ventures) by workspace id, in creation order. */
+  ventures: Record<string, Schemas['VentureView'][]>
   /** The emergency reserve settings: the target in months and the monthly cost the family typed in. */
   reserve: { targetMonths: number; manualMonthlyCost: Schemas['ReserveView']['manualMonthlyCost'] }
   /** The family's average monthly spending over its history, in cents; null while it has none. */
@@ -340,6 +342,7 @@ function initialState(): MockState {
     rules: [],
     budgets: [],
     goals: [],
+    ventures: {},
     reserve: { targetMonths: 6, manualMonthlyCost: null },
     spendingHistoryCents: null,
     activity: initialActivity(),
@@ -479,6 +482,212 @@ export function seedMockFamily(): MeWorkspace {
 /** Puts the family on the paid plan, until a year from the mock's dates, as a paid checkout would. */
 export function seedFamilyPlan(): void {
   mockState.billing.plan = { key: 'FAMILY', endsAt: '2027-11-30T03:00:00Z' }
+}
+
+const brl = (amount: string): Schemas['Money'] => ({ amount, currency: 'BRL' })
+
+/** The `food-sweets` project as the API shows it: R$ 540,00 a month, paid back in 2 months. */
+export function foodSweetsVenture(
+  overrides: Partial<Schemas['VentureView']> = {},
+): Schemas['VentureView'] {
+  return {
+    id: '0192f3a4-0000-7000-8000-0000000000a1',
+    name: 'Doces caseiros',
+    type: 'FOOD',
+    templateKey: 'food-sweets',
+    status: 'ACTIVE',
+    startedOn: '2026-10-01',
+    closedOn: null,
+    currency: 'BRL',
+    version: 0,
+    initialItems: [
+      {
+        id: '0192f3a4-0000-7000-8000-0000000000b1',
+        name: 'Forma e utensílios',
+        amount: brl('600.00'),
+        isExample: false,
+      },
+    ],
+    fixedItems: [
+      {
+        id: '0192f3a4-0000-7000-8000-0000000000b2',
+        name: 'Embalagens',
+        amount: brl('60.00'),
+        isExample: false,
+      },
+    ],
+    products: [
+      {
+        id: '0192f3a4-0000-7000-8000-0000000000c1',
+        name: 'Brigadeiro',
+        unitPrice: brl('4.50'),
+        unitVariableCost: brl('1.80'),
+        plannedUnitsMonth: 200,
+        isExample: false,
+      },
+    ],
+    steps: [
+      {
+        id: '0192f3a4-0000-7000-8000-0000000000d1',
+        title: 'Testar a receita',
+        position: 0,
+        doneAt: null,
+      },
+    ],
+    figures: {
+      initialInvestment: brl('600.00'),
+      fixedMonthly: brl('60.00'),
+      plannedRevenue: brl('900.00'),
+      plannedCost: brl('360.00'),
+      totalMargin: brl('540.00'),
+      monthlyProfit: brl('540.00'),
+      paybackMonths: 2,
+      paybackState: 'MONTHS',
+      roi12mPercent: '980.0',
+      roiState: 'OK',
+      breakEven: { state: 'OK', revenue: brl('150.00'), weightedMarginPercent: '60.0' },
+      products: [
+        { margin: brl('2.70'), marginPercent: '60.0', priceCoversCost: true, breakEvenUnits: 23 },
+      ],
+    },
+    ...overrides,
+  }
+}
+
+/**
+ * The figures of the PRD's example, what the simulation route answers: R$ 2,70 a unit at 60,0 %,
+ * break-even at 100 units (R$ 450,00), R$ 540,00 a month, paid back in 2 months, 710,0 % in a year.
+ */
+export function prdExampleFigures(): Schemas['FiguresView'] {
+  return {
+    initialInvestment: brl('800.00'),
+    fixedMonthly: brl('270.00'),
+    plannedRevenue: brl('1350.00'),
+    plannedCost: brl('540.00'),
+    totalMargin: brl('810.00'),
+    monthlyProfit: brl('540.00'),
+    paybackMonths: 2,
+    paybackState: 'MONTHS',
+    roi12mPercent: '710.0',
+    roiState: 'OK',
+    breakEven: { state: 'OK', revenue: brl('450.00'), weightedMarginPercent: '60.0' },
+    products: [
+      { margin: brl('2.70'), marginPercent: '60.0', priceCoversCost: true, breakEvenUnits: 100 },
+    ],
+  }
+}
+
+/**
+ * The PRD's example as a saved project, still being planned: R$ 800,00 to start, R$ 270,00 a month
+ * in fixed costs, one product at R$ 4,50 with R$ 1,80 of cost, and three steps. Its figures are
+ * `prdExampleFigures`.
+ */
+export function prdExampleVenture(
+  overrides: Partial<Schemas['VentureView']> = {},
+): Schemas['VentureView'] {
+  const base = foodSweetsVenture()
+  const [initial] = base.initialItems
+  const [fixedCost] = base.fixedItems
+  const [product] = base.products
+  if (!initial || !fixedCost || !product) throw new Error('The food-sweets project lost its items')
+  return {
+    ...base,
+    status: 'PLANNING',
+    startedOn: null,
+    initialItems: [{ ...initial, amount: brl('800.00') }],
+    fixedItems: [{ ...fixedCost, amount: brl('270.00') }],
+    products: [{ ...product, plannedUnitsMonth: 300 }],
+    steps: ['Testar a receita', 'Definir os preços', 'Fazer a primeira venda'].map(
+      (title, position) => ({
+        id: `0192f3a4-0000-7000-8000-0000000000e${position}`,
+        title,
+        position,
+        doneAt: null,
+      }),
+    ),
+    figures: prdExampleFigures(),
+    ...overrides,
+  }
+}
+
+function ventureTemplate(
+  key: string,
+  name: string,
+  type: Schemas['TemplateView']['type'],
+): Schemas['TemplateView'] {
+  const venture = foodSweetsVenture()
+  return {
+    key,
+    name,
+    type,
+    figures: venture.figures,
+    initialItems: venture.initialItems.map(({ name: item, amount }) => ({ name: item, amount })),
+    fixedItems: venture.fixedItems.map(({ name: item, amount }) => ({ name: item, amount })),
+    products: venture.products.map(
+      ({ name: item, unitPrice, unitVariableCost, plannedUnitsMonth }) => ({
+        name: item,
+        unitPrice,
+        unitVariableCost,
+        plannedUnitsMonth,
+      }),
+    ),
+    steps: venture.steps.map((step) => step.title),
+  }
+}
+
+/** The five tracks the API offers, in its order: the last one has no template, it is educational. */
+export function ventureTracks(): Schemas['TrackView'][] {
+  return [
+    {
+      key: 'food',
+      name: 'Culinária',
+      description: 'Venda o que você sabe cozinhar.',
+      educational: false,
+      templates: [ventureTemplate('food-sweets', 'Doces caseiros', 'FOOD')],
+    },
+    {
+      key: 'digital',
+      name: 'Produtos digitais',
+      description: 'Crie uma vez e venda várias vezes.',
+      educational: false,
+      templates: [ventureTemplate('digital-ebook', 'E-book ou curso curto', 'DIGITAL_PRODUCT')],
+    },
+    {
+      key: 'content',
+      name: 'Conteúdo',
+      description: 'Transforme o que você sabe em vídeos, textos e aulas.',
+      educational: false,
+      templates: [ventureTemplate('content-channel', 'Canal de conteúdo', 'CONTENT')],
+    },
+    {
+      key: 'resale-services',
+      name: 'Revenda e serviços',
+      description: 'Revenda produtos ou venda o seu tempo.',
+      educational: false,
+      templates: [
+        ventureTemplate('resale-goods', 'Revenda de produtos', 'RESALE'),
+        ventureTemplate('service-hours', 'Serviço por atendimento', 'SERVICE'),
+      ],
+    },
+    {
+      key: 'investments',
+      name: 'Investimentos (conteúdo educativo)',
+      description: 'Entenda como cada opção funciona e simule cenários.',
+      educational: true,
+      templates: [],
+    },
+  ]
+}
+
+/** Gives the family the `food-sweets` project and turns the module on. */
+export function seedVentureFixture(
+  workspace: MeWorkspace,
+  overrides: Partial<Schemas['VentureView']> = {},
+): Schemas['VentureView'] {
+  mockState.modules[workspace.id] = { ...mockState.modules[workspace.id], ventures: true }
+  const venture = foodSweetsVenture(overrides)
+  mockState.ventures[workspace.id] = [...(mockState.ventures[workspace.id] ?? []), venture]
+  return venture
 }
 
 /**

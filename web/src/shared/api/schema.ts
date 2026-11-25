@@ -1092,6 +1092,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/ventures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getVentures"];
+        put?: never;
+        post: operations["createVenture"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/ventures/investment-simulation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["simulateInvestment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/ventures/simulation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["simulate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/ventures/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/ventures/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getVenture"];
+        put: operations["updateVenture"];
+        post?: never;
+        delete: operations["deleteVenture"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/ventures/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["changeVentureStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/ventures/{id}/steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addStep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/ventures/{id}/steps/{stepId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteStep"];
+        options?: never;
+        head?: never;
+        patch: operations["updateStep"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1152,6 +1280,13 @@ export interface components {
             /** Format: uuid */
             workspaceId: string | null;
         };
+        BreakEvenView: {
+            revenue: components["schemas"]["Money"] | null;
+            /** @enum {string} */
+            state: "OK" | "NO_PRODUCTS" | "NEEDS_PLANNED_UNITS" | "NO_BREAK_EVEN";
+            /** @example 57.1 */
+            weightedMarginPercent: string | null;
+        };
         BudgetLineView: {
             /** Format: uuid */
             categoryId: string;
@@ -1200,6 +1335,14 @@ export interface components {
             /** Format: uuid */
             parentId: string | null;
         };
+        ChangeStatusRequest: {
+            /** Format: date */
+            on?: string | null;
+            /** @enum {string} */
+            status: "PLANNING" | "ACTIVE" | "PAUSED" | "CLOSED";
+            /** Format: int64 */
+            version: number;
+        };
         CheckoutView: {
             /** Format: uri */
             checkoutUrl: string;
@@ -1246,6 +1389,20 @@ export interface components {
         CopyBudgetsView: {
             /** Format: int32 */
             copied: number;
+        };
+        CostItemInput: {
+            /** @example 12.5 */
+            amount: string;
+            /** Format: uuid */
+            id: string | null;
+            name: string;
+        };
+        CostItemView: {
+            amount: components["schemas"]["Money"];
+            /** Format: uuid */
+            id: string;
+            isExample: boolean;
+            name: string;
         };
         CreateAccountRequest: {
             initialBalance: components["schemas"]["Money"];
@@ -1307,6 +1464,9 @@ export interface components {
             /** Format: uuid */
             toAccountId?: string | null;
         };
+        CreateStepRequest: {
+            title: string;
+        };
         CreateTransactionRequest: {
             /** Format: uuid */
             accountId: string;
@@ -1327,6 +1487,12 @@ export interface components {
             tags?: (string | null)[] | null;
             /** Format: uuid */
             toAccountId?: string | null;
+        };
+        CreateVentureRequest: {
+            name: string;
+            templateKey?: string | null;
+            /** @enum {string|null} */
+            type?: "FOOD" | "DIGITAL_PRODUCT" | "CONTENT" | "RESALE" | "SERVICE" | "OTHER" | null;
         };
         CreateWorkspaceRequest: {
             name: string;
@@ -1368,6 +1534,24 @@ export interface components {
             currentVersion: string;
             /** @enum {string} */
             purpose: "TERMS" | "PRIVACY" | "PARENTAL";
+        };
+        FiguresView: {
+            breakEven: components["schemas"]["BreakEvenView"];
+            fixedMonthly: components["schemas"]["Money"];
+            initialInvestment: components["schemas"]["Money"];
+            monthlyProfit: components["schemas"]["Money"];
+            /** Format: int64 */
+            paybackMonths: number | null;
+            /** @enum {string} */
+            paybackState: "MONTHS" | "NEVER";
+            plannedCost: components["schemas"]["Money"];
+            plannedRevenue: components["schemas"]["Money"];
+            products: components["schemas"]["ProductFiguresView"][];
+            /** @example 710.0 */
+            roi12mPercent: string | null;
+            /** @enum {string} */
+            roiState: "OK" | "NO_INVESTMENT";
+            totalMargin: components["schemas"]["Money"];
         };
         GoalView: {
             /** Format: date-time */
@@ -1434,6 +1618,18 @@ export interface components {
         };
         IndicatorsView: {
             indicators: components["schemas"]["IndicatorView"][];
+        };
+        InvestmentSimulationRequest: {
+            /** @example 5000.0 */
+            initialAmount: string;
+            /** @example 200.0 */
+            monthlyContribution: string;
+            scenarios: components["schemas"]["ScenarioInput"][];
+            /** Format: int32 */
+            years: number;
+        };
+        InvestmentSimulationView: {
+            scenarios: components["schemas"]["ScenarioView"][];
         };
         InvitationPreview: {
             invitedBy: string | null;
@@ -1562,6 +1758,35 @@ export interface components {
         PreviewInvitationRequest: {
             token: string;
         };
+        ProductFiguresView: {
+            /** Format: int64 */
+            breakEvenUnits: number | null;
+            margin: components["schemas"]["Money"];
+            /** @example 60.0 */
+            marginPercent: string;
+            priceCoversCost: boolean;
+        };
+        ProductInput: {
+            /** Format: uuid */
+            id: string | null;
+            name: string;
+            /** Format: int32 */
+            plannedUnitsMonth: number;
+            /** @example 4.5 */
+            unitPrice: string;
+            /** @example 1.8 */
+            unitVariableCost: string;
+        };
+        ProductView: {
+            /** Format: uuid */
+            id: string;
+            isExample: boolean;
+            name: string;
+            /** Format: int32 */
+            plannedUnitsMonth: number;
+            unitPrice: components["schemas"]["Money"];
+            unitVariableCost: components["schemas"]["Money"];
+        };
         ProjectionPointView: {
             balance: components["schemas"]["Money"];
             estimatedSpending: components["schemas"]["Money"];
@@ -1625,10 +1850,38 @@ export interface components {
             /** Format: int32 */
             targetMonths: number;
         };
+        ScenarioInput: {
+            /** @example 10.5 */
+            annualPercent: string;
+            name: string;
+        };
+        ScenarioView: {
+            earnings: components["schemas"]["Money"];
+            finalBalance: components["schemas"]["Money"];
+            name: string;
+            totalContributed: components["schemas"]["Money"];
+        };
         SetBudgetRequest: {
             limitAmount: components["schemas"]["Money"];
             /** Format: int64 */
             version?: number | null;
+        };
+        SimulationCost: {
+            /** @example 12.5 */
+            amount: string;
+        };
+        SimulationProduct: {
+            /** Format: int32 */
+            plannedUnitsMonth: number;
+            /** @example 4.5 */
+            unitPrice: string;
+            /** @example 1.8 */
+            unitVariableCost: string;
+        };
+        SimulationRequest: {
+            fixedItems: components["schemas"]["SimulationCost"][];
+            initialItems: components["schemas"]["SimulationCost"][];
+            products: components["schemas"]["SimulationProduct"][];
         };
         SkipTransactionRequest: {
             /** Format: int64 */
@@ -1648,6 +1901,15 @@ export interface components {
             /** Format: int64 */
             timeout: number;
         };
+        StepView: {
+            /** Format: date-time */
+            doneAt: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            position: number;
+            title: string;
+        };
         StreakView: {
             /** Format: int32 */
             frozenWeeks: number;
@@ -1663,9 +1925,41 @@ export interface components {
             id: string;
             name: string;
         };
+        TemplateItemView: {
+            amount: components["schemas"]["Money"];
+            name: string;
+        };
+        TemplateProductView: {
+            name: string;
+            /** Format: int32 */
+            plannedUnitsMonth: number;
+            unitPrice: components["schemas"]["Money"];
+            unitVariableCost: components["schemas"]["Money"];
+        };
+        TemplateView: {
+            figures: components["schemas"]["FiguresView"];
+            fixedItems: components["schemas"]["TemplateItemView"][];
+            initialItems: components["schemas"]["TemplateItemView"][];
+            key: string;
+            name: string;
+            products: components["schemas"]["TemplateProductView"][];
+            steps: string[];
+            /** @enum {string} */
+            type: "FOOD" | "DIGITAL_PRODUCT" | "CONTENT" | "RESALE" | "SERVICE" | "OTHER";
+        };
+        TemplatesView: {
+            tracks: components["schemas"]["TrackView"][];
+        };
         ThemeRequest: {
             /** @enum {string} */
             theme: "TEAL" | "OCEAN" | "FOREST" | "PLUM";
+        };
+        TrackView: {
+            description: string;
+            educational: boolean;
+            key: string;
+            name: string;
+            templates: components["schemas"]["TemplateView"][];
         };
         TransactionView: {
             /** Format: uuid */
@@ -1766,6 +2060,12 @@ export interface components {
             /** Format: int32 */
             targetMonths?: number | null;
         };
+        UpdateStepRequest: {
+            done?: boolean | null;
+            /** Format: int32 */
+            position?: number | null;
+            title?: string | null;
+        };
         UpdateTransactionRequest: {
             /** Format: uuid */
             accountId: string;
@@ -1787,12 +2087,71 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        UpdateVentureRequest: {
+            fixedItems: components["schemas"]["CostItemInput"][];
+            initialItems: components["schemas"]["CostItemInput"][];
+            name: string;
+            products: components["schemas"]["ProductInput"][];
+            /** Format: date */
+            startedOn?: string | null;
+            /** @enum {string} */
+            type: "FOOD" | "DIGITAL_PRODUCT" | "CONTENT" | "RESALE" | "SERVICE" | "OTHER";
+            /** Format: int64 */
+            version: number;
+        };
         VariationView: {
             basis: string;
             /** Format: date */
             since: string;
             unit: string;
             value: string;
+        };
+        VentureSummary: {
+            /** Format: date */
+            closedOn: string | null;
+            hasExamples: boolean;
+            /** Format: uuid */
+            id: string;
+            monthlyProfit: components["schemas"]["Money"];
+            name: string;
+            /** Format: int64 */
+            paybackMonths: number | null;
+            /** @enum {string} */
+            paybackState: "MONTHS" | "NEVER";
+            /** Format: date */
+            startedOn: string | null;
+            /** @enum {string} */
+            status: "PLANNING" | "ACTIVE" | "PAUSED" | "CLOSED";
+            /** @enum {string} */
+            type: "FOOD" | "DIGITAL_PRODUCT" | "CONTENT" | "RESALE" | "SERVICE" | "OTHER";
+            /** Format: int64 */
+            version: number;
+        };
+        VentureView: {
+            /** Format: date */
+            closedOn: string | null;
+            currency: string;
+            figures: components["schemas"]["FiguresView"];
+            fixedItems: components["schemas"]["CostItemView"][];
+            /** Format: uuid */
+            id: string;
+            initialItems: components["schemas"]["CostItemView"][];
+            name: string;
+            products: components["schemas"]["ProductView"][];
+            /** Format: date */
+            startedOn: string | null;
+            /** @enum {string} */
+            status: "PLANNING" | "ACTIVE" | "PAUSED" | "CLOSED";
+            steps: components["schemas"]["StepView"][];
+            templateKey: string | null;
+            /** @enum {string} */
+            type: "FOOD" | "DIGITAL_PRODUCT" | "CONTENT" | "RESALE" | "SERVICE" | "OTHER";
+            /** Format: int64 */
+            version: number;
+        };
+        VenturesView: {
+            limitReached: boolean;
+            ventures: components["schemas"]["VentureSummary"][];
         };
         WorkspaceView: {
             /** Format: uuid */
@@ -3803,6 +4162,315 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getVentures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VenturesView"];
+                };
+            };
+        };
+    };
+    createVenture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateVentureRequest"];
+            };
+        };
+        responses: {
+            /** @description The project was created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VentureView"];
+                };
+            };
+        };
+    };
+    simulateInvestment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvestmentSimulationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestmentSimulationView"];
+                };
+            };
+        };
+    };
+    simulate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FiguresView"];
+                };
+            };
+        };
+    };
+    getTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplatesView"];
+                };
+            };
+        };
+    };
+    getVenture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VentureView"];
+                };
+            };
+        };
+    };
+    updateVenture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateVentureRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VentureView"];
+                };
+            };
+        };
+    };
+    deleteVenture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    changeVentureStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VentureView"];
+                };
+            };
+        };
+    };
+    addStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStepRequest"];
+            };
+        };
+        responses: {
+            /** @description The step was added at the end */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepView"];
+                };
+            };
+        };
+    };
+    deleteStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+                stepId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+                stepId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStepRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepView"];
+                };
             };
         };
     };

@@ -280,7 +280,7 @@ tombstones não entram: não identificam nada.
 | `achievements` | `workspace_id`, `membership_id`, `achievement_key` (o nome da conquista), `earned_at`, `silent` (verdadeiro quando a conquista é concedida sem aviso ao vivo). Chave primária `(membership_id, achievement_key)`: cada participação ganha cada conquista uma vez. Chave composta para `memberships` com `ON DELETE CASCADE`, e para `workspaces` também |
 | `transactions` | Índice `transactions_by_creator` em `(workspace_id, created_by, created_at)`, para ler as semanas com lançamentos de cada pessoa |
 
-Na exportação pessoal (v6), `achievements` traz `workspaceId`, `key` e `earnedAt` de cada conquista de
+Na exportação pessoal (v6 em diante), `achievements` traz `workspaceId`, `key` e `earnedAt` de cada conquista de
 cada participação da pessoa, as silenciosas também. A exportação da família não muda.
 
 ### Regras no banco
@@ -362,12 +362,27 @@ têm `workspace_id`.
 
 ## 5. v0.4 — Novo Projeto
 
+**V30: projetos** (`V30__ventures.sql`, Plano 9.1)
+
 | Tabela | Colunas principais |
 |---|---|
-| `ventures` | `workspace_id`, `name`, `type` (`FOOD` `DIGITAL_PRODUCT` `SERVICE` `OTHER`), `template_key`, `status` (`PLANNING` `ACTIVE` `PAUSED` `CLOSED`), `started_on`, `version` |
-| `venture_cost_items` | `workspace_id`, `venture_id`, `kind` (`INITIAL` `FIXED_MONTHLY`), `name`, `amount`, `currency` |
-| `venture_products` | `workspace_id`, `venture_id`, `name`, `unit_variable_cost`, `unit_price`, `planned_units_month` |
-| Alterações | `transactions.venture_id` (opcional) liga vendas e custos reais ao projeto |
+| `ventures` | `workspace_id`, `name` (1 a 40 letras), `type` (`FOOD` `DIGITAL_PRODUCT` `CONTENT` `RESALE` `SERVICE` `OTHER`), `template_key` (o modelo de origem; vazio num projeto em branco), `status` (`PLANNING` `ACTIVE` `PAUSED` `CLOSED`), `started_on`, `closed_on`, `currency` (a moeda da família na criação), `created_by` (opcional), `version` |
+| `venture_cost_items` | `workspace_id`, `venture_id`, `kind` (`INITIAL` `FIXED_MONTHLY`), `name`, `amount`, `currency`, `is_example`, `position` |
+| `venture_products` | `workspace_id`, `venture_id`, `name`, `unit_variable_cost`, `unit_price`, `planned_units_month`, `currency`, `is_example`, `position` |
+| `venture_steps` | `workspace_id`, `venture_id`, `title`, `position`, `done_at` |
+
+Regras no banco: fora de `PLANNING` o projeto precisa de `started_on`; `closed_on` existe só em `CLOSED` e
+não vem antes de `started_on`. Os itens, produtos e passos somem com o projeto, e o projeto some com a
+família. `created_by` é chave composta para `memberships` com `ON DELETE SET NULL (created_by)`: quem sai
+da família deixa os projetos para trás, sem autor. A tabela `audit_events` passou a aceitar o alvo `VENTURE`.
+
+`transactions.venture_id` (opcional, para ligar vendas e custos reais ao projeto) ainda não existe.
+
+**Exportação (v7).** A exportação pessoal traz em `ventures` os projetos criados pela pessoa, com itens,
+produtos e passos. A exportação da família traz todos os projetos no JSON e quatro planilhas:
+`projetos.csv`, `projetos_itens.csv`, `projetos_produtos.csv` e `projetos_passos.csv`. A exportação
+pessoal não tem planilha de projetos. Quem sai da família leva só o que criou; os projetos ficam com a
+família.
 
 ## 6. Retenção (LGPD)
 
@@ -377,6 +392,7 @@ têm `workspace_id`.
 | Família excluída | 30 dias de carência e depois apagamento definitivo |
 | Lançamento excluído | Apagado de vez após 30 dias; o de uma recorrência (excluído ou pulado) espera também até o segundo mês depois da data prevista |
 | Convites usados ou vencidos | Apagados após 90 dias |
+| `ventures` | Ficam com a família; ao sair, o autor vira vazio (`created_by` nulo). Somem com a família |
 | `achievements` | Somem com a participação: ao sair da família, ao excluir a conta ou com a família |
 | `import_tombstones` | 13 meses depois do apagamento definitivo do lançamento (só o hash); apagados junto com a conta bancária ou a família |
 | `billing_webhook_events` | 180 dias |

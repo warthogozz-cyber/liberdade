@@ -76,12 +76,12 @@ flowchart LR
   ledger --> workspace
   planning --> ledger
   gamification --> workspace & ledger & planning
-  ventures --> ledger
-  live --> identity & workspace & ledger & planning & gamification
-  live -. ouve eventos .-> ledger & planning & workspace
+  ventures --> workspace & ledger & billing
+  live --> identity & workspace & ledger & planning & gamification & ventures
+  live -. ouve eventos .-> ledger & planning & workspace & ventures
   audit -. ouve eventos .-> identity & workspace
-  audit --> identity & workspace
-  privacy --> ledger & audit & workspace & identity & billing & planning & gamification
+  audit --> identity & workspace & ventures
+  privacy --> ledger & audit & workspace & identity & billing & planning & gamification & ventures
   billing --> workspace & identity
   audit -. ouve eventos .-> billing
 ```
@@ -230,6 +230,13 @@ saldo e a divisão entre gastos fixos e variáveis. Mesmo com mais coisa, ele co
 - **Navegação.** A barra inferior ganha Planejar entre "+ Novo gasto" e Mais enquanto o módulo está
   ligado (cinco itens; quatro quando desligado). Recorrências passou para `/planejar/recorrencias`.
 
+### Projetos (módulo `ventures`, Plano 9.1)
+
+O módulo `ventures` guarda os projetos de renda extra, com custos, produtos e passos, no pacote
+`br.com.liberdadefamilia.ventures`. O `live` o enxerga pelos eventos `VentureChanged`, `VentureClosed`
+e `VentureDeleted`, e o `privacy` por `VenturesExport`, a interface que entrega os projetos prontos para
+a exportação (versão 7). A exportação lê os projetos só por ela, nunca pelas tabelas.
+
 ### Avisos ao vivo (módulo `live`, Plano 7.3)
 
 O módulo `live` leva ao navegador o aviso de que algo mudou na família, para as telas abertas em
@@ -249,6 +256,9 @@ outros aparelhos se atualizarem sem recarregar. Ele lê de `identity`, `workspac
   depois do commit e escolhe a audiência: todos, todos menos o Jovem (orçamento, reserva e
   recorrências) ou quem enxerga a conta (`AccountVisibility`). Os avisos do planejamento só saem com o
   módulo ligado.
+- **Avisos de projetos (Plano 9.1).** `VentureChanged`, `VentureClosed` e `VentureDeleted` (`ventures`)
+  viram o aviso `venture` com o id do projeto, para todos menos o Jovem, e só saem com o módulo
+  Projetos ligado. A assinatura de `LiveRelay.send` não mudou.
 - **Batida a cada 25 s** (`LiveHeartbeat`). Manda um comentário e fecha o stream de quem perdeu a
   sessão (`SessionLiveness`) ou a participação (`Memberships.activeAmong`). Mudar o papel ou remover
   o membro fecha os streams dele na hora; pedir a exclusão da família fecha os da família.
