@@ -162,7 +162,7 @@ class GamificationControllerIT {
     void firstReadWritesInSilence() {
         entry(owner, "2026-11-18T15:00:00Z");
         enable("gamification");
-        // No listener ran for this entry: whatever row a listener could have written is not there.
+        // Clears the rows (if a listener wrote any) so the first read finds none and has to write them.
         jdbc.sql("delete from achievements where workspace_id = :ws")
                 .param("ws", ws)
                 .update();
@@ -217,6 +217,7 @@ class GamificationControllerIT {
                 .bodyJson()
                 .extractingPath("$.items[*].key")
                 .asArray()
+                .contains("FIRST_TRANSACTION")
                 .noneMatch(key -> key.toString().startsWith("RESERVE_"));
     }
 
