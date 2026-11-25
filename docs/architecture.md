@@ -67,7 +67,7 @@ flowchart LR
   subgraph opcionais[Módulos opcionais]
     planning[planning<br/>recorrências e previstos<br/>(v0.2: orçamentos, metas, reserva)]
     indicators[indicators · v0.3<br/>coleta do BCB]
-    gamification[gamification · v0.3<br/>sequências, conquistas]
+    gamification[gamification · Plano 8.3<br/>sequência, conquistas]
     ventures[ventures · v0.4<br/>Novo Projeto]
   end
   live[live · Plano 7.3<br/>avisos ao vivo por SSE]
@@ -75,13 +75,13 @@ flowchart LR
   workspace --> identity
   ledger --> workspace
   planning --> ledger
-  gamification --> ledger
+  gamification --> workspace & ledger & planning
   ventures --> ledger
-  live --> identity & workspace & ledger & planning
+  live --> identity & workspace & ledger & planning & gamification
   live -. ouve eventos .-> ledger & planning & workspace
   audit -. ouve eventos .-> identity & workspace
   audit --> identity & workspace
-  privacy --> ledger & audit & workspace & identity & billing
+  privacy --> ledger & audit & workspace & identity & billing & planning & gamification
   billing --> workspace & identity
   audit -. ouve eventos .-> billing
 ```
