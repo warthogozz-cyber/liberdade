@@ -1156,6 +1156,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/ventures/{id}/steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addStep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/ventures/{id}/steps/{stepId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteStep"];
+        options?: never;
+        head?: never;
+        patch: operations["updateStep"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1399,6 +1431,9 @@ export interface components {
             startOn: string;
             /** Format: uuid */
             toAccountId?: string | null;
+        };
+        CreateStepRequest: {
+            title: string;
         };
         CreateTransactionRequest: {
             /** Format: uuid */
@@ -1952,6 +1987,12 @@ export interface components {
             manualMonthlyCost?: components["schemas"]["Money"] | null;
             /** Format: int32 */
             targetMonths?: number | null;
+        };
+        UpdateStepRequest: {
+            done: boolean | null;
+            /** Format: int32 */
+            position: number | null;
+            title: string | null;
         };
         UpdateTransactionRequest: {
             /** Format: uuid */
@@ -4223,6 +4264,86 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VentureView"];
+                };
+            };
+        };
+    };
+    addStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStepRequest"];
+            };
+        };
+        responses: {
+            /** @description The step was added at the end */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepView"];
+                };
+            };
+        };
+    };
+    deleteStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+                stepId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+                stepId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStepRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepView"];
                 };
             };
         };

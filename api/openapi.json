@@ -3393,6 +3393,158 @@
           "venture-controller"
         ]
       }
+    },
+    "/v1/workspaces/{ws}/ventures/{id}/steps": {
+      "post": {
+        "operationId": "addStep",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStepRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepView"
+                }
+              }
+            },
+            "description": "The step was added at the end"
+          }
+        },
+        "tags": [
+          "venture-step-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/ventures/{id}/steps/{stepId}": {
+      "delete": {
+        "operationId": "deleteStep",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "stepId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "tags": [
+          "venture-step-controller"
+        ]
+      },
+      "patch": {
+        "operationId": "updateStep",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "stepId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStepRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "venture-step-controller"
+        ]
+      }
     }
   },
   "components": {
@@ -4178,6 +4330,17 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          }
+        }
+      },
+      "CreateStepRequest": {
+        "required": [
+          "title"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
           }
         }
       },
@@ -5971,6 +6134,24 @@
             "minimum": 1,
             "type": "integer",
             "format": "int32",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateStepRequest": {
+        "type": "object",
+        "properties": {
+          "done": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
             "nullable": true
           }
         }

@@ -14,6 +14,11 @@ final class VentureRejectedException extends DomainException {
         return new VentureRejectedException(422, "venture.invalid", detail);
     }
 
+    static VentureRejectedException tooManySteps() {
+        return new VentureRejectedException(
+                422, "venture.too-many-steps", "O projeto aceita até 20 passos. Apague um para incluir outro.");
+    }
+
     static VentureRejectedException templateUnknown() {
         return new VentureRejectedException(422, "venture.template-unknown", "Esse modelo não existe.");
     }

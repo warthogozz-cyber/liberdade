@@ -12,11 +12,13 @@ final class VentureValidation {
     static final int MAX_ITEMS = 20;
     static final int MAX_PRODUCTS = 10;
     static final int MAX_UNITS = 1_000_000;
+    static final int MAX_STEPS = 20;
 
     /** The largest amount, the same ceiling a transaction has. */
     private static final BigDecimal MAX_AMOUNT = new BigDecimal("999999999.99");
 
     private static final int MAX_NAME = 40;
+    private static final int MAX_STEP_TITLE = 80;
 
     private VentureValidation() {}
 
@@ -64,6 +66,13 @@ final class VentureValidation {
     static void productCount(List<?> products) {
         if (products == null || products.size() > MAX_PRODUCTS || products.contains(null)) {
             throw VentureRejectedException.invalid("O projeto aceita até 10 produtos.");
+        }
+    }
+
+    /** A step title: 1 to 80 characters, not blank. */
+    static void stepTitle(String title) {
+        if (title == null || title.isBlank() || title.length() > MAX_STEP_TITLE || title.indexOf('\0') >= 0) {
+            throw VentureRejectedException.invalid("O passo precisa ter de 1 a 80 caracteres.");
         }
     }
 

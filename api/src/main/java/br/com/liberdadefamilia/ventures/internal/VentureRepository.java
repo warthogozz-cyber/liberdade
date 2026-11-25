@@ -144,6 +144,74 @@ class VentureRepository {
                 .update();
     }
 
+    /** The project's steps in position order. */
+    List<StoredVenture.Step> steps(UUID workspaceId, UUID ventureId) {
+        return jdbc.sql("""
+                        select id, title, position, done_at from venture_steps
+                        where workspace_id = :workspaceId and venture_id = :ventureId
+                        order by position, id""")
+                .param("workspaceId", workspaceId)
+                .param("ventureId", ventureId)
+                .query((rs, row) -> step(rs))
+                .list();
+    }
+
+    /** Adds the step at the given position and returns it. */
+    StoredVenture.Step addStep(UUID workspaceId, UUID ventureId, String title, int position) {
+        return jdbc.sql("""
+                        insert into venture_steps (workspace_id, venture_id, title, position)
+                        values (:workspaceId, :ventureId, :title, :position)
+                        returning id, title, position, done_at""")
+                .param("workspaceId", workspaceId)
+                .param("ventureId", ventureId)
+                .param("title", title)
+                .param("position", position)
+                .query((rs, row) -> step(rs))
+                .single();
+    }
+
+    /** Writes the step's title and done time. */
+    void updateStep(UUID workspaceId, UUID ventureId, UUID stepId, String title, @Nullable Instant doneAt) {
+        jdbc.sql("""
+                        update venture_steps set title = :title, done_at = :doneAt
+                        where workspace_id = :workspaceId and venture_id = :ventureId and id = :stepId""")
+                .param("workspaceId", workspaceId)
+                .param("ventureId", ventureId)
+                .param("stepId", stepId)
+                .param("title", title)
+                .param(
+                        "doneAt",
+                        doneAt == null ? null : OffsetDateTime.ofInstant(doneAt, ZoneOffset.UTC),
+                        Types.TIMESTAMP_WITH_TIMEZONE)
+                .update();
+    }
+
+    /** Gives the steps the positions 0..n-1 in the order they come. */
+    void renumberSteps(UUID workspaceId, UUID ventureId, List<UUID> ordered) {
+        for (int i = 0; i < ordered.size(); i++) {
+            jdbc.sql("""
+                            update venture_steps set position = :position
+                            where workspace_id = :workspaceId and venture_id = :ventureId and id = :stepId
+                              and position <> :position""")
+                    .param("workspaceId", workspaceId)
+                    .param("ventureId", ventureId)
+                    .param("stepId", ordered.get(i))
+                    .param("position", i)
+                    .update();
+        }
+    }
+
+    boolean deleteStep(UUID workspaceId, UUID ventureId, UUID stepId) {
+        return jdbc.sql("""
+                        delete from venture_steps
+                        where workspace_id = :workspaceId and venture_id = :ventureId and id = :stepId""")
+                        .param("workspaceId", workspaceId)
+                        .param("ventureId", ventureId)
+                        .param("stepId", stepId)
+                        .update()
+                > 0;
+    }
+
     /** Removes every cost line and product of the project, so the caller can write the new ones. */
     void clearLines(UUID workspaceId, UUID ventureId) {
         jdbc.sql("delete from venture_cost_items where workspace_id = :workspaceId and venture_id = :ventureId")

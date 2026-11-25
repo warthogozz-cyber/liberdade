@@ -245,6 +245,8 @@ class RoleMatrixIT {
         String update = "{\"version\":0,\"name\":\"Outro\",\"type\":\"OTHER\",\"startedOn\":null,"
                 + "\"initialItems\":[],\"fixedItems\":[],\"products\":[]}";
         String status = "{\"version\":0,\"status\":\"ACTIVE\",\"on\":null}";
+        String step = "{\"title\":\"Novo passo\"}";
+        String tick = "{\"done\":true}";
         return Stream.of(
                         each(
                                 "GET " + W + "/ventures",
@@ -273,7 +275,16 @@ class RoleMatrixIT {
                         ownerAndAdult("POST " + W + "/ventures", W + "/ventures", create),
                         ownerAndAdult("PUT " + W + "/ventures/{id}", W + "/ventures/{venture}", update),
                         ownerAndAdult("POST " + W + "/ventures/{id}/status", W + "/ventures/{venture}/status", status),
-                        ownerAndAdult("DELETE " + W + "/ventures/{id}", W + "/ventures/{venture}", null))
+                        ownerAndAdult("DELETE " + W + "/ventures/{id}", W + "/ventures/{venture}", null),
+                        ownerAndAdult("POST " + W + "/ventures/{id}/steps", W + "/ventures/{venture}/steps", step),
+                        ownerAndAdult(
+                                "PATCH " + W + "/ventures/{id}/steps/{stepId}",
+                                W + "/ventures/{venture}/steps/{ventureStep}",
+                                tick),
+                        ownerAndAdult(
+                                "DELETE " + W + "/ventures/{id}/steps/{stepId}",
+                                W + "/ventures/{venture}/steps/{ventureStep}",
+                                null))
                 .flatMap(group -> group);
     }
 
@@ -911,6 +922,16 @@ class RoleMatrixIT {
                         returning id""")
                         .param("ws", ws)
                         .param("ana", anaMembership)
+                        .query(UUID.class)
+                        .single());
+        ids.put(
+                "ventureStep",
+                jdbc.sql("""
+                        insert into venture_steps (workspace_id, venture_id, title, position)
+                        values (:ws, :venture, 'Primeiro', 0)
+                        returning id""")
+                        .param("ws", ws)
+                        .param("venture", ids.get("venture"))
                         .query(UUID.class)
                         .single());
         ids.put("plannedFamily", planned(ws, ids.get("corrente"), ids.get("mercado"), anaMembership));
