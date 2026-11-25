@@ -189,10 +189,11 @@ export function TransactionForm({
   const savingRef = useRef(false)
 
   const transfer = kind === 'TRANSFER'
-  const ventureChoices = useVentureChoices(markedVentureId)
-  // A project that is no longer on offer (deleted) cannot be sent again: it is left out, not kept.
-  const ventureId = ventureChoices
-    ? ventureChoices.some(({ id }) => id === chosenVentureId)
+  const { choices: ventureChoices, known: venturesKnown } = useVentureChoices(markedVentureId)
+  // Once the list is known, only a project on offer is sent: a deleted one, or any while the field
+  // is hidden (module off, Youth), would be refused again. Until it is known the id is kept.
+  const ventureId = venturesKnown
+    ? ventureChoices?.some(({ id }) => id === chosenVentureId)
       ? chosenVentureId
       : null
     : chosenVentureId
@@ -303,11 +304,7 @@ export function TransactionForm({
         paymentMethod: transfer ? null : paymentMethod,
         tags,
         ...(chosenMemberId && kind === 'EXPENSE' ? { memberId: chosenMemberId } : {}),
-        ...ventureChange(
-          editing.ventureId ?? null,
-          transfer ? null : ventureId,
-          ventureChoices !== null,
-        ),
+        ...ventureChange(editing.ventureId ?? null, ventureId, ventureChoices !== null, transfer),
         version: editing.version,
       })
       if (!saved) {
@@ -539,10 +536,13 @@ function ventureChange(
   before: string | null,
   after: string | null,
   fieldShown: boolean,
+  transfer: boolean,
 ): Pick<UpdateTransactionRequest, 'ventureId' | 'clearVenture'> {
-  if (before === null) return !fieldShown || after === null ? {} : { ventureId: after }
+  if (transfer) return before === null ? {} : { clearVenture: true }
+  if (!fieldShown) return {}
+  if (before === null) return after === null ? {} : { ventureId: after }
   if (after === null) return { clearVenture: true }
-  if (!fieldShown || after === before) return {}
+  if (after === before) return {}
   return { ventureId: after }
 }
 

@@ -13,7 +13,7 @@ interface VenturePickerProps {
 export function VenturePicker({ value, onChange, keep }: VenturePickerProps) {
   const intl = useIntl()
   const id = useId()
-  const choices = useVentureChoices(keep)
+  const { choices } = useVentureChoices(keep)
   if (!choices) return null
   return (
     <div className="flex flex-col gap-1">

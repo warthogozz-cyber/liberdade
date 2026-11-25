@@ -87,7 +87,7 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
   const ventureParam = params.get('projeto') ?? undefined
   const methodParam = params.get('forma')
   // Without the field's conditions (module on, not a Youth, a project open) the filter is not there.
-  const ventures = useVentureChoices(ventureParam ?? null)
+  const { choices: ventures } = useVentureChoices(ventureParam ?? null)
   const ventureId = ventures ? ventureParam : undefined
   const paymentMethod = workspace.paymentMethods.find((method) => method === methodParam)
   const filters = useMemo<Filters>(

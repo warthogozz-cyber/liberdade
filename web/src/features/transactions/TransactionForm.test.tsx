@@ -4,7 +4,12 @@ import { mockState, seedMockFamily, seedVentureFixture } from '@/mocks/data'
 import { queryKeys } from '@/shared/api'
 import { venturesKeys } from '@/shared/api/ventures'
 import { db } from '@/shared/offline/db'
-import { createTestQueryClient, renderWithProviders } from '@/shared/testing'
+import {
+  createTestQueryClient,
+  outboxItem,
+  outboxPayload,
+  renderWithProviders,
+} from '@/shared/testing'
 import { NewTransactionPage } from './NewTransactionPage'
 
 afterEach(() => {
@@ -195,6 +200,55 @@ describe('TransactionForm project field', () => {
 
     press('5')
     fireEvent.click(screen.getByRole('radio', { name: '🛒 Mercado' }))
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
+    const [item] = await db.outbox.toArray()
+    expect(item.payload).not.toHaveProperty('ventureId')
+  })
+
+  it.each([
+    ['the project was deleted and none is open', 'deleted'],
+    ['the module is off', 'moduleOff'],
+  ] as const)('fixDropsTheVentureWhen %s', async (_name, why) => {
+    const FIX_ID = '0192f3a4-0000-7000-8000-0000000000f1'
+    const workspace = seedMockFamily()
+    if (why === 'moduleOff') {
+      seedVentureFixture(workspace)
+      mockState.modules[workspace.id] = { ...mockState.modules[workspace.id], ventures: false }
+    } else {
+      seedVentureFixture(workspace, { status: 'CLOSED', closedOn: '2026-10-20' })
+    }
+    await db.outbox.add(
+      outboxItem(FIX_ID, {
+        userId: mockState.user.id,
+        workspaceId: workspace.id,
+        status: 'needs-attention',
+        problem: { code: 'transaction.venture-invalid', detail: 'Projeto excluído.' },
+        payload: outboxPayload(FIX_ID, {
+          accountId: mockState.accounts[0].id,
+          categoryId: mockState.categories.find((each) => each.name === 'Mercado')!.id,
+          ventureId: '0192f3a4-0000-7000-8000-0000000000ff',
+        }),
+      }),
+    )
+    const queryClient = createTestQueryClient()
+    const { router } = renderWithProviders(<NewTransactionPage />, {
+      path: '/lancar',
+      route: `/lancar?corrigir=${FIX_ID}`,
+      queryClient,
+    })
+    await screen.findByRole('radio', { name: '🛒 Mercado' })
+    await waitFor(() =>
+      expect(queryClient.getQueryState(queryKeys.modules(workspace.id))?.status).toBe('success'),
+    )
+    if (why === 'deleted') {
+      await waitFor(() =>
+        expect(queryClient.getQueryState(venturesKeys.list(workspace.id))?.status).toBe('success'),
+      )
+    }
+    expect(screen.queryByRole('combobox', FIELD)).not.toBeInTheDocument()
+
     fireEvent.click(saveButton())
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
