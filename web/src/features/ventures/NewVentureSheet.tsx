@@ -47,15 +47,17 @@ export function NewVentureSheet({ workspaceId, template, onClose }: NewVentureSh
   const [name, setName] = useState(template?.name ?? '')
   const [type, setType] = useState<VentureType>('OTHER')
   const [error, setError] = useState<string>()
-  const invalid = error === intl.formatMessage({ id: 'ventures.sheet.invalidName' })
+  const [invalid, setInvalid] = useState(false)
 
   async function submit() {
     const trimmed = name.trim()
     if (trimmed === '' || trimmed.length > MAX_NAME_LENGTH) {
+      setInvalid(true)
       setError(intl.formatMessage({ id: 'ventures.sheet.invalidName' }))
       return
     }
     if (!online || create.isPending) return
+    setInvalid(false)
     setError(undefined)
     const body: CreateVentureRequest = template
       ? { name: trimmed, templateKey: template.key }
@@ -116,7 +118,7 @@ export function NewVentureSheet({ workspaceId, template, onClose }: NewVentureSh
             maxLength={MAX_NAME_LENGTH}
             autoComplete="off"
             aria-invalid={invalid}
-            aria-describedby={error ? 'new-venture-error' : undefined}
+            aria-describedby={invalid ? 'new-venture-error' : undefined}
             onChange={(event) => setName(event.target.value)}
             className={field}
           />
