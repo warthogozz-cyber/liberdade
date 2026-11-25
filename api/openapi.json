@@ -1537,6 +1537,70 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/gamification/achievements": {
+      "get": {
+        "operationId": "achievements",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AchievementsView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "gamification-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/gamification/streak": {
+      "get": {
+        "operationId": "streak",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreakView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "gamification-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/goals": {
       "get": {
         "operationId": "getGoals",
@@ -3149,6 +3213,46 @@
               "WALLET",
               "INVESTMENT"
             ]
+          }
+        }
+      },
+      "AchievementKey": {
+        "type": "string",
+        "enum": [
+          "FIRST_TRANSACTION",
+          "STREAK_4_WEEKS",
+          "FIRST_GOAL",
+          "GOAL_ACHIEVED",
+          "RESERVE_1_MONTH",
+          "RESERVE_3_MONTHS",
+          "RESERVE_6_MONTHS",
+          "MONTH_IN_BUDGET"
+        ]
+      },
+      "AchievementView": {
+        "type": "object",
+        "properties": {
+          "earnedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "key": {
+            "$ref": "#/components/schemas/AchievementKey"
+          },
+          "silent": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AchievementsView": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AchievementView"
+            }
           }
         }
       },
@@ -4804,6 +4908,23 @@
           "timeout": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "StreakView": {
+        "type": "object",
+        "properties": {
+          "frozenWeeks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "longest": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weeks": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

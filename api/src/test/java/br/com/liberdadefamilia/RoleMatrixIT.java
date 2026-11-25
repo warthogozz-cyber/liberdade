@@ -135,7 +135,8 @@ class RoleMatrixIT {
                         deletionRows(),
                         billingRows(),
                         importRows(),
-                        liveRows())
+                        liveRows(),
+                        gamificationRows())
                 .flatMap(group -> group);
     }
 
@@ -282,6 +283,27 @@ class RoleMatrixIT {
     static Stream<Row> indicatorRows() {
         return each(
                 "GET " + W + "/indicators", W + "/indicators", null, Outcome.OK, Outcome.OK, Outcome.OK, Outcome.OK);
+    }
+
+    static Stream<Row> gamificationRows() {
+        return Stream.of(
+                        each(
+                                "GET " + W + "/gamification/streak",
+                                W + "/gamification/streak",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        each(
+                                "GET " + W + "/gamification/achievements",
+                                W + "/gamification/achievements",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK))
+                .flatMap(group -> group);
     }
 
     static Stream<Row> projectionRows() {
@@ -756,8 +778,11 @@ class RoleMatrixIT {
         UUID leoMembership = workspaces.addMember(ws, leo, YOUTH, "Leo");
         workspaces.addMember(ws, vera, VIEWER, "Vera");
         UUID tiaMembership = workspaces.addMember(ws, tia, VIEWER, "Tia");
-        // The indicators module starts off; the matrix reads the route with it on.
+        // The indicators and gamification modules start off; the matrix reads their routes with them on.
         jdbc.sql("insert into workspace_modules (workspace_id, module_key, enabled) values (:ws, 'indicators', true)")
+                .param("ws", ws)
+                .update();
+        jdbc.sql("insert into workspace_modules (workspace_id, module_key, enabled) values (:ws, 'gamification', true)")
                 .param("ws", ws)
                 .update();
 

@@ -628,6 +628,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/gamification/achievements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["achievements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/gamification/streak": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["streak"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/goals": {
         parameters: {
             query?: never;
@@ -1094,6 +1126,17 @@ export interface components {
             ownerMembershipId: string | null;
             /** @enum {string} */
             type: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT";
+        };
+        /** @enum {string} */
+        AchievementKey: "FIRST_TRANSACTION" | "STREAK_4_WEEKS" | "FIRST_GOAL" | "GOAL_ACHIEVED" | "RESERVE_1_MONTH" | "RESERVE_3_MONTHS" | "RESERVE_6_MONTHS" | "MONTH_IN_BUDGET";
+        AchievementView: {
+            /** Format: date-time */
+            earnedAt: string | null;
+            key: components["schemas"]["AchievementKey"];
+            silent: boolean;
+        };
+        AchievementsView: {
+            items: components["schemas"]["AchievementView"][];
         };
         ActivityItem: {
             action: string;
@@ -1604,6 +1647,14 @@ export interface components {
         SseEmitter: {
             /** Format: int64 */
             timeout: number;
+        };
+        StreakView: {
+            /** Format: int32 */
+            frozenWeeks: number;
+            /** Format: int32 */
+            longest: number;
+            /** Format: int32 */
+            weeks: number;
         };
         TagView: {
             /** Format: date-time */
@@ -2793,6 +2844,52 @@ export interface operations {
                 };
                 content: {
                     "application/zip": string;
+                };
+            };
+        };
+    };
+    achievements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AchievementsView"];
+                };
+            };
+        };
+    };
+    streak: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreakView"];
                 };
             };
         };
