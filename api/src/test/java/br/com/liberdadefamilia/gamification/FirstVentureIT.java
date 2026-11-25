@@ -8,6 +8,8 @@ import br.com.liberdadefamilia.gamification.internal.AchievementRepository;
 import br.com.liberdadefamilia.gamification.internal.AchievementService;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestClock;
+import br.com.liberdadefamilia.support.TestIds;
+import br.com.liberdadefamilia.support.TestLedger;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
 import br.com.liberdadefamilia.workspace.Role;
@@ -69,6 +71,9 @@ class FirstVentureIT {
     @Autowired
     TestClock clock;
 
+    @Autowired
+    TestLedger ledger;
+
     private UUID ownerUser;
     private UUID adultUser;
     private UUID ws;
@@ -126,6 +131,42 @@ class FirstVentureIT {
         assertThat(status(adultUser, venture, 1, "ACTIVE")).hasStatus(200);
 
         assertThat(keys(adult)).doesNotContain(AchievementKey.FIRST_VENTURE);
+    }
+
+    @Test
+    @DisplayName("projeto encerrado direto do planejamento não dá a conquista, nem na avaliação ampla")
+    void closedStraightFromPlanningDoesNotAward() {
+        UUID venture = create(adultUser);
+        assertThat(status(adultUser, venture, 0, "CLOSED")).hasStatus(200);
+        UUID id = TestIds.v7();
+
+        MvcTestResult posted = send(
+                ownerUser,
+                HttpMethod.POST,
+                "/transactions",
+                """
+                {"id":"%s","kind":"EXPENSE","amount":{"amount":"12.34","currency":"BRL"},"occurredOn":"2026-11-20",
+                 "accountId":"%s","categoryId":"%s"}""".formatted(id, ledger.walletOf(ws), ledger.categoryOf(ws, "EXPENSE", "Mercado")),
+                id);
+        assertThat(posted).hasStatus(201);
+        MvcTestResult list = mvc.get()
+                .uri("/v1/workspaces/" + ws + "/gamification/achievements")
+                .with(TestUsers.signedIn(adultUser, null))
+                .exchange();
+
+        assertThat(list).hasStatusOk();
+        assertThat(count()).isZero();
+        assertThat(keys(adult)).doesNotContain(AchievementKey.FIRST_VENTURE);
+    }
+
+    @Test
+    @DisplayName("ativar e encerrar em outro dia continua valendo na avaliação ampla")
+    void activatedThenClosedLaterStillCounts() {
+        insertVenture(adult, "CLOSED", "2026-11-01", "2026-11-10");
+
+        service.evaluateFamily(ws, true);
+
+        assertThat(keys(adult)).contains(AchievementKey.FIRST_VENTURE);
     }
 
     @Test
@@ -271,7 +312,15 @@ class FirstVentureIT {
     }
 
     private MvcTestResult send(UUID user, HttpMethod method, String path, @Nullable String body) {
+        return send(user, method, path, body, null);
+    }
+
+    private MvcTestResult send(
+            UUID user, HttpMethod method, String path, @Nullable String body, @Nullable UUID idempotencyKey) {
         var request = mvc.method(method).uri("/v1/workspaces/" + ws + path).with(TestUsers.signedIn(user, null));
+        if (idempotencyKey != null) {
+            request.header("Idempotency-Key", idempotencyKey.toString());
+        }
         if (method != HttpMethod.GET) {
             request.with(CsrfSession.start(mvc, TestUsers.signedIn(user, null)));
         }

@@ -81,7 +81,10 @@ class JdbcVenturesExport implements VenturesExport {
                         select exists (
                             select 1 from ventures
                             where workspace_id = :workspaceId and created_by = :membershipId
-                              and started_on is not null)""")
+                              and started_on is not null
+                              -- closing straight from planning writes closed_on = started_on; a project that was
+                              -- active and closed the same day looks the same, and is left out too
+                              and (status <> 'CLOSED' or closed_on > started_on))""")
                 .param("workspaceId", workspaceId)
                 .param("membershipId", membershipId)
                 .query(Boolean.class)
