@@ -61,8 +61,9 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/(oauth2|login|logout|webauthn)(\/|$)/, /^\/embed\//],
         // The fonts too, so the first screen offline keeps Inter (T10-precache-fonts).
         globPatterns: ['**/*.{js,css,html,woff2}'],
-        // MSW's worker ships in `public/` for `dev:mocks`; the app's worker never caches it.
-        globIgnores: ['**/mockServiceWorker.js'],
+        // MSW's worker ships in `public/` for `dev:mocks`; the app's worker never caches it. The isolated
+        // Instagram page stays out too: its CSP is its security boundary and a cached copy could lose it.
+        globIgnores: ['**/mockServiceWorker.js', 'embed/**'],
         // The first visit is controlled as soon as the worker activates, so a screen opened offline right
         // after it (a lazy chunk never fetched online) still comes from the precache.
         clientsClaim: true,
