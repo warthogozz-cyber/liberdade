@@ -1746,6 +1746,7 @@ export interface components {
         MonthView: {
             /** @enum {string|null} */
             comparison: "BELOW" | "ABOVE" | "EQUAL" | null;
+            difference: components["schemas"]["Money"] | null;
             expense: components["schemas"]["Money"];
             income: components["schemas"]["Money"];
             /** @example 2026-11 */
@@ -2007,6 +2008,9 @@ export interface components {
             theme: "TEAL" | "OCEAN" | "FOREST" | "PLUM";
         };
         TotalsView: {
+            /** @enum {string|null} */
+            comparison: "BELOW" | "ABOVE" | "EQUAL" | null;
+            difference: components["schemas"]["Money"] | null;
             expense: components["schemas"]["Money"];
             income: components["schemas"]["Money"];
             plannedCost: components["schemas"]["Money"] | null;

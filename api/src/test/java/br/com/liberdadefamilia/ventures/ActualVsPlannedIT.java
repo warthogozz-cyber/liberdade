@@ -113,6 +113,14 @@ class ActualVsPlannedIT {
                 .extractingPath("$.months[0].plannedResult.amount")
                 .isEqualTo("540.00");
         assertThat(result).bodyJson().extractingPath("$.months[0].comparison").isEqualTo("ABOVE");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.months[0].difference.amount")
+                .isEqualTo("360.50");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.months[1].difference.amount")
+                .isEqualTo("1040.00");
         assertThat(result).bodyJson().extractingPath("$.months[1].month").isEqualTo("2026-10");
         assertThat(result)
                 .bodyJson()
@@ -126,6 +134,11 @@ class ActualVsPlannedIT {
                 .bodyJson()
                 .extractingPath("$.totals.plannedResult.amount")
                 .isEqualTo("1080.00");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.totals.difference.amount")
+                .isEqualTo("679.50");
+        assertThat(result).bodyJson().extractingPath("$.totals.comparison").isEqualTo("BELOW");
         assertThat(result)
                 .bodyJson()
                 .extractingPath("$.planned.initialInvestment.amount")

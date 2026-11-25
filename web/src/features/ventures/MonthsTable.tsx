@@ -19,6 +19,7 @@ interface RowValues {
   result: Money
   planned: Money
   comparison: 'BELOW' | 'ABOVE' | 'EQUAL' | null
+  difference: Money
 }
 
 // On a phone each row is a card: the cells stack with their column's name before the value.
@@ -38,6 +39,13 @@ export function MonthsTable({ months, totals }: Props) {
   function monthLabel(month: string): string {
     const short = intl.formatDate(`${month}-01T00:00:00Z`, { month: 'short', timeZone: 'UTC' })
     return `${short.replace(/\.$/, '')}/${month.slice(0, 4)}`
+  }
+
+  /** "R$ 70,00 abaixo do previsto"; no amount when equal, a dash when nothing was planned. */
+  function differenceText({ comparison, difference }: RowValues): string {
+    if (!comparison) return none
+    const text = label(`ventures.real.comparison.${comparison}`)
+    return comparison === 'EQUAL' || !difference ? text : `${money(difference)} ${text}`
   }
 
   const row = (key: string, head: string, values: RowValues, strong = false) => (
@@ -61,7 +69,7 @@ export function MonthsTable({ months, totals }: Props) {
         {money(values.planned) ?? none}
       </td>
       <td className={cell} data-label={label('ventures.real.difference')}>
-        {values.comparison ? label(`ventures.real.comparison.${values.comparison}`) : none}
+        {differenceText(values)}
       </td>
     </tr>
   )
@@ -89,6 +97,7 @@ export function MonthsTable({ months, totals }: Props) {
             result: month.result,
             planned: month.plannedResult,
             comparison: month.comparison,
+            difference: month.difference,
           }),
         )}
         {row(
@@ -99,7 +108,8 @@ export function MonthsTable({ months, totals }: Props) {
             expense: totals.expense,
             result: totals.result,
             planned: totals.plannedResult,
-            comparison: null,
+            comparison: totals.comparison,
+            difference: totals.difference,
           },
           true,
         )}

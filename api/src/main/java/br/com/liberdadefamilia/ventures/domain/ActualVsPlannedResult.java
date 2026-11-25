@@ -18,5 +18,7 @@ public record ActualVsPlannedResult(List<MonthRow> months, Totals totals, RealPa
             BigDecimal result,
             @Nullable BigDecimal plannedIncome,
             @Nullable BigDecimal plannedCost,
-            @Nullable BigDecimal plannedResult) {}
+            @Nullable BigDecimal plannedResult,
+            @Nullable Comparison comparison,
+            @Nullable BigDecimal difference) {}
 }

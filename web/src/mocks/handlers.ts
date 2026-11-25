@@ -1163,6 +1163,7 @@ function ventureHandlers() {
               plannedCost: null,
               plannedResult: null,
               comparison: null,
+              difference: null,
             },
           ],
           totals: {
@@ -1172,6 +1173,8 @@ function ventureHandlers() {
             plannedIncome: null,
             plannedCost: null,
             plannedResult: null,
+            comparison: null,
+            difference: null,
           },
         }
         return HttpResponse.json(view)

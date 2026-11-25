@@ -18,6 +18,8 @@ class VenturesOpenApiConfig {
             new NullableRef("MonthView", "plannedIncome"),
             new NullableRef("MonthView", "plannedCost"),
             new NullableRef("MonthView", "plannedResult"),
+            new NullableRef("MonthView", "difference"),
+            new NullableRef("TotalsView", "difference"),
             new NullableRef("TotalsView", "plannedIncome"),
             new NullableRef("TotalsView", "plannedCost"),
             new NullableRef("TotalsView", "plannedResult"),

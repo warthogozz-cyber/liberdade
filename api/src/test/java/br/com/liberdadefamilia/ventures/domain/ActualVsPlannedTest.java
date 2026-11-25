@@ -41,6 +41,7 @@ class ActualVsPlannedTest {
         assertThat(september.plannedCost()).isNull();
         assertThat(september.plannedResult()).isNull();
         assertThat(september.comparison()).isNull();
+        assertThat(september.difference()).isNull();
         assertThat(result.months().get(1).plannedResult()).isEqualTo(d("540.00"));
         assertThat(result.totals().plannedResult()).isEqualTo(d("1080.00"));
         assertThat(result.real().state()).isEqualTo(RealPaybackState.NOT_YET);
@@ -146,6 +147,33 @@ class ActualVsPlannedTest {
         assertThat(active(month("2026-11", "600", "0")).months().get(0).comparison())
                 .isEqualTo(Comparison.ABOVE);
         assertThat(base.monthlyProfit()).isEqualTo(d("540.00"));
+    }
+
+    @Test
+    void differenceIsTheNonNegativeGap() {
+        MonthRow below = active(month("2026-11", "400", "0")).months().get(0);
+        MonthRow equal = active(month("2026-11", "540", "0")).months().get(0);
+        MonthRow above = active(month("2026-11", "600.55", "0")).months().get(0);
+
+        assertThat(below.difference()).isEqualTo(d("140.00"));
+        assertThat(equal.difference()).isEqualTo(d("0.00"));
+        assertThat(above.difference()).isEqualTo(d("60.55"));
+
+        ActualVsPlannedResult.Totals totals =
+                active(month("2026-11", "400", "0")).totals();
+        // September to November: three planned months of 540.00
+        assertThat(totals.difference()).isEqualTo(d("1220.00"));
+        assertThat(totals.comparison()).isEqualTo(Comparison.BELOW);
+        assertThat(active(month("2026-11", "2000", "0")).totals().comparison()).isEqualTo(Comparison.ABOVE);
+    }
+
+    @Test
+    void noPlannedGivesNoDifferenceInTotals() {
+        ActualVsPlannedResult result =
+                compute(LocalDate.of(2026, 10, 5), null, VentureStatus.PLANNING, NOVEMBER, month("2026-09", "0", "30"));
+
+        assertThat(result.totals().difference()).isNull();
+        assertThat(result.totals().comparison()).isNull();
     }
 
     @Test

@@ -5324,6 +5324,14 @@
               "EQUAL"
             ]
           },
+          "difference": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
           "expense": {
             "$ref": "#/components/schemas/Money"
           },
@@ -6149,6 +6157,23 @@
       "TotalsView": {
         "type": "object",
         "properties": {
+          "comparison": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "BELOW",
+              "ABOVE",
+              "EQUAL"
+            ]
+          },
+          "difference": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
           "expense": {
             "$ref": "#/components/schemas/Money"
           },

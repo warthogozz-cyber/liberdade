@@ -72,18 +72,21 @@ public final class ActualVsPlanned {
                 money(income.subtract(expense)),
                 moneyOrNull(plannedIncome),
                 moneyOrNull(plannedCost),
-                moneyOrNull(plannedResult));
+                moneyOrNull(plannedResult),
+                plannedResult == null ? null : compare(income.subtract(expense), plannedResult),
+                plannedResult == null
+                        ? null
+                        : money(income.subtract(expense).subtract(plannedResult).abs()));
         return new ActualVsPlannedResult(shown, totals, realPayback(realStart, end, byMonth));
     }
 
     private static MonthRow row(YearMonth month, BigDecimal in, BigDecimal out, @Nullable VentureFigures planned) {
         BigDecimal result = money(in.subtract(out));
         if (planned == null) {
-            return new MonthRow(month, money(in), money(out), result, null, null, null, null);
+            return new MonthRow(month, money(in), money(out), result, null, null, null, null, null);
         }
         BigDecimal plannedResult = money(planned.monthlyProfit());
-        int cmp = result.compareTo(plannedResult);
-        Comparison comparison = cmp < 0 ? Comparison.BELOW : cmp > 0 ? Comparison.ABOVE : Comparison.EQUAL;
+        Comparison comparison = compare(result, plannedResult);
         return new MonthRow(
                 month,
                 money(in),
@@ -92,7 +95,13 @@ public final class ActualVsPlanned {
                 money(planned.plannedRevenue()),
                 money(planned.plannedCost()),
                 plannedResult,
-                comparison);
+                comparison,
+                money(result.subtract(plannedResult).abs()));
+    }
+
+    private static Comparison compare(BigDecimal result, BigDecimal plannedResult) {
+        int cmp = money(result).compareTo(money(plannedResult));
+        return cmp < 0 ? Comparison.BELOW : cmp > 0 ? Comparison.ABOVE : Comparison.EQUAL;
     }
 
     private static RealPayback realPayback(

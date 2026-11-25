@@ -38,7 +38,10 @@ record ActualVsPlannedView(
             Money plannedResult,
 
             @Nullable @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-            Comparison comparison) {}
+            Comparison comparison,
+
+            @Nullable @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            Money difference) {}
 
     record TotalsView(
             Money income,
@@ -52,7 +55,13 @@ record ActualVsPlannedView(
             Money plannedCost,
 
             @Nullable @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-            Money plannedResult) {}
+            Money plannedResult,
+
+            @Nullable @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            Comparison comparison,
+
+            @Nullable @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            Money difference) {}
 
     record PlannedView(
             Money initialInvestment,
@@ -85,7 +94,9 @@ record ActualVsPlannedView(
                         money(totals.result(), currency),
                         money(totals.plannedIncome(), currency),
                         money(totals.plannedCost(), currency),
-                        money(totals.plannedResult(), currency)),
+                        money(totals.plannedResult(), currency),
+                        totals.comparison(),
+                        money(totals.difference(), currency)),
                 new PlannedView(
                         Money.of(planned.initialInvestment(), currency),
                         planned.paybackMonths(),
@@ -107,7 +118,8 @@ record ActualVsPlannedView(
                 money(row.plannedIncome(), currency),
                 money(row.plannedCost(), currency),
                 money(row.plannedResult(), currency),
-                row.comparison());
+                row.comparison(),
+                money(row.difference(), currency));
     }
 
     private static @Nullable Money money(@Nullable BigDecimal amount, Currency currency) {
