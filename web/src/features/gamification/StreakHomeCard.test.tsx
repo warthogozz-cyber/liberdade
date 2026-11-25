@@ -1,6 +1,9 @@
-import { cleanup, screen, waitFor } from '@testing-library/react'
+import { cleanup, screen } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
+import { server } from '@/mocks/server'
+import { API_URL } from '@/shared/api'
 import { ModuleSlot } from '@/shared/modules'
 import { renderWithProviders } from '@/shared/testing'
 import './register'
@@ -50,10 +53,23 @@ describe('StreakHomeCard', () => {
   })
 
   it('cartão some com o módulo desligado', async () => {
-    seed(false, { weeks: 3, frozenWeeks: 1 })
+    const workspace = seed(false, { weeks: 3, frozenWeeks: 1 })
+    // Another module is on, so a card wired to the wrong module would show.
+    mockState.modules[workspace.id] = { gamification: false, planning: true }
+    // Answers like an open module, so only the slot's gate can keep the card away.
+    let calls = 0
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/${workspace.id}/gamification/streak`, () => {
+        calls += 1
+        return HttpResponse.json({ weeks: 3, frozenWeeks: 1, longest: 3 })
+      }),
+    )
     render()
 
-    await waitFor(() => expect(screen.queryByText('Sequência')).not.toBeInTheDocument())
+    // The tests above are the positive control: the same slot shows the card with the module on.
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    expect(screen.queryByText('Sequência')).not.toBeInTheDocument()
     expect(screen.queryByText('3 semanas seguidas')).not.toBeInTheDocument()
+    expect(calls).toBe(0)
   })
 })
