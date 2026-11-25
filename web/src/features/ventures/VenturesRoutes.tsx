@@ -12,6 +12,8 @@ const VentureEditPage = lazy(() =>
   import('./VentureEditPage').then((m) => ({ default: m.VentureEditPage })),
 )
 
+const VenturePage = lazy(() => import('./VenturePage').then((m) => ({ default: m.VenturePage })))
+
 function Loading() {
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
@@ -29,7 +31,7 @@ export function VenturesRoutes() {
     { index: true, element: <VenturesListPage /> },
     { path: 'comecar', element: <StartPage /> },
     { path: ':id/editar', element: <VentureEditPage /> },
-    // Task 10 adds `:id` (the project's page).
+    { path: ':id', element: <VenturePage /> },
     // Task 11 adds `investimentos` and `investimentos/simulador`.
   ])
   return <Suspense fallback={<Loading />}>{screen}</Suspense>

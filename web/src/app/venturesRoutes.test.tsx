@@ -19,9 +19,16 @@ describe('VenturesRoutes', () => {
     expect(await screen.findByRole('list', { name: 'Trilhas' })).toBeInTheDocument()
     start.unmount()
 
-    renderWithProviders(null, { routes, route: `/mais/projetos/${venture.id}/editar` })
+    const edit = renderWithProviders(null, {
+      routes,
+      route: `/mais/projetos/${venture.id}/editar`,
+    })
     expect(await screen.findByRole('textbox', { name: 'Nome do projeto' })).toHaveValue(
       venture.name,
     )
+    edit.unmount()
+
+    renderWithProviders(null, { routes, route: `/mais/projetos/${venture.id}` })
+    expect(await screen.findByRole('heading', { level: 1, name: venture.name })).toBeInTheDocument()
   })
 })

@@ -16,6 +16,8 @@ interface FiguresPanelProps {
   pending?: boolean
   /** The products' names, in the order of `figures.products`; "Produto n" when they do not match. */
   productNames?: readonly string[]
+  /** Announces changes to a screen reader. Off on a page whose figures only change on a reload. */
+  live?: boolean
 }
 
 /**
@@ -28,6 +30,7 @@ export function FiguresPanel({
   offline = false,
   pending = false,
   productNames = [],
+  live = true,
 }: FiguresPanelProps) {
   const intl = useIntl()
   const money = (amount: string) => formatMoney(parseCents(amount), currency, intl.locale)
@@ -36,7 +39,7 @@ export function FiguresPanel({
 
   return (
     <section
-      aria-live="polite"
+      aria-live={live ? 'polite' : undefined}
       aria-busy={pending}
       aria-label={intl.formatMessage({ id: 'ventures.figures.title' })}
       className="flex flex-col gap-3 rounded-card bg-surface p-4 text-sm"

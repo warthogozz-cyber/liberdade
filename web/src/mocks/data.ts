@@ -577,6 +577,39 @@ export function prdExampleFigures(): Schemas['FiguresView'] {
   }
 }
 
+/**
+ * The PRD's example as a saved project, still being planned: R$ 800,00 to start, R$ 270,00 a month
+ * in fixed costs, one product at R$ 4,50 with R$ 1,80 of cost, and three steps. Its figures are
+ * `prdExampleFigures`.
+ */
+export function prdExampleVenture(
+  overrides: Partial<Schemas['VentureView']> = {},
+): Schemas['VentureView'] {
+  const base = foodSweetsVenture()
+  const [initial] = base.initialItems
+  const [fixedCost] = base.fixedItems
+  const [product] = base.products
+  if (!initial || !fixedCost || !product) throw new Error('The food-sweets project lost its items')
+  return {
+    ...base,
+    status: 'PLANNING',
+    startedOn: null,
+    initialItems: [{ ...initial, amount: brl('800.00') }],
+    fixedItems: [{ ...fixedCost, amount: brl('270.00') }],
+    products: [{ ...product, plannedUnitsMonth: 300 }],
+    steps: ['Testar a receita', 'Definir os preços', 'Fazer a primeira venda'].map(
+      (title, position) => ({
+        id: `0192f3a4-0000-7000-8000-0000000000e${position}`,
+        title,
+        position,
+        doneAt: null,
+      }),
+    ),
+    figures: prdExampleFigures(),
+    ...overrides,
+  }
+}
+
 function ventureTemplate(
   key: string,
   name: string,

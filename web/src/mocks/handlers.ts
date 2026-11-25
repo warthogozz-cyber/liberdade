@@ -1162,6 +1162,14 @@ function ventureHandlers() {
         const body = (await readJson(request)) as
           Partial<Schemas['ChangeStatusRequest']> | undefined
         if (!body?.status || !VENTURE_STATUSES.includes(body.status)) return budgetInvalid()
+        if (typeof body.version === 'number' && body.version !== venture.version) {
+          return problem(
+            409,
+            'venture.version-conflict',
+            'O projeto foi alterado por outra pessoa. Recarregue e tente de novo.',
+          )
+        }
+        if (body.status === 'ACTIVE' && body.on) venture.startedOn = body.on
         venture.status = body.status
         venture.closedOn = body.status === 'CLOSED' ? (body.on ?? '2026-11-25') : null
         venture.version += 1
@@ -1197,13 +1205,20 @@ function ventureHandlers() {
         if (withoutToken(request)) return csrfInvalid()
         const workspace = ventureGuard(params.ws, true)
         if (workspace instanceof Response) return workspace
-        const step = find(workspace.id, params.id)?.steps.find((each) => each.id === params.stepId)
-        if (!step) return ventureNotFound()
+        const venture = find(workspace.id, params.id)
+        const step = venture?.steps.find((each) => each.id === params.stepId)
+        if (!venture || !step) return ventureNotFound()
         const body = (await readJson(request)) as Partial<Schemas['UpdateStepRequest']> | undefined
         if (!body || typeof body !== 'object') return malformed()
         if (typeof body.title === 'string' && body.title.trim()) step.title = body.title.trim()
         if (typeof body.done === 'boolean') {
           step.doneAt = body.done ? new Date().toISOString() : null
+        }
+        if (typeof body.position === 'number') {
+          const others = venture.steps.filter((each) => each !== step)
+          others.splice(Math.min(Math.max(body.position, 0), others.length), 0, step)
+          venture.steps = others.map((each, position) => ({ ...each, position }))
+          return HttpResponse.json(venture.steps.find((each) => each.id === step.id))
         }
         return HttpResponse.json(step)
       },
@@ -1217,7 +1232,9 @@ function ventureHandlers() {
         if (workspace instanceof Response) return workspace
         const venture = find(workspace.id, params.id)
         if (!venture) return ventureNotFound()
-        venture.steps = venture.steps.filter((each) => each.id !== params.stepId)
+        venture.steps = venture.steps
+          .filter((each) => each.id !== params.stepId)
+          .map((each, position) => ({ ...each, position }))
         return new HttpResponse(null, { status: 204 })
       },
     ),

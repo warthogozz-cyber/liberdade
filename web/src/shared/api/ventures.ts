@@ -187,11 +187,18 @@ export function useChangeVentureStatus(ws: string, id: string) {
   })
 }
 
-/** Deletes a project. */
+/**
+ * Deletes a project. The project's own query goes away with it, not refetched: asking for a deleted
+ * project would only answer 404. Only the list refreshes.
+ */
 export function useDeleteVenture(ws: string, id: string) {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => deleteVenture(ws, id),
-    onSettled: useRefreshVentures(ws),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: venturesKeys.detail(ws, id) })
+      void queryClient.invalidateQueries({ queryKey: venturesKeys.list(ws) })
+    },
   })
 }
 
