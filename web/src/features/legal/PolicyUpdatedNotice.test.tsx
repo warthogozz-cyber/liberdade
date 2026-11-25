@@ -12,9 +12,13 @@ afterEach(() => {
   localStorage.clear()
 })
 
-/** The person accepted the policy before the .1 text, which the API says still counts. */
+/**
+ * The policy in force is the .4 text, a version that keeps the acceptance of the ones it continues (the .5 text
+ * asks for a new acceptance). The person accepted the policy before the .1 text, which the API says still counts.
+ */
 function acceptOldPolicy() {
   seedMockFamily()
+  mockState.currentDocuments.PRIVACY = 'privacy-2026-12.4'
   mockState.acceptedDocuments.PRIVACY = { version: 'privacy-2026-12', at: '2026-11-20T10:00:00Z' }
 }
 
@@ -33,6 +37,7 @@ describe('PolicyUpdatedNotice', () => {
 
   it('showsTheNoticeToWhoAcceptedTheTwelveDotTwoText', async () => {
     seedMockFamily()
+    mockState.currentDocuments.PRIVACY = 'privacy-2026-12.4'
     mockState.acceptedDocuments.PRIVACY = {
       version: 'privacy-2026-12.2',
       at: '2026-11-20T10:00:00Z',

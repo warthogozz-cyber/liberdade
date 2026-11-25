@@ -74,7 +74,7 @@ class DocumentsBillingIT {
         assertThat(result).bodyJson().extractingPath("$[0].currentVersion").isEqualTo("terms-2026-12");
         assertThat(result).bodyJson().extractingPath("$[0].acceptedVersion").isEqualTo("terms-2026-11");
         assertThat(result).bodyJson().extractingPath("$[1].purpose").isEqualTo("PRIVACY");
-        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.4");
+        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.5");
         assertThat(result).bodyJson().extractingPath("$[1].acceptedVersion").isEqualTo("privacy-2026-11");
         // The terms changed, and the policy of November is not in the chain of the December one, so both ask.
         assertThat(result).bodyJson().extractingPath("$[0].acceptanceRequired").isEqualTo(true);
@@ -82,7 +82,7 @@ class DocumentsBillingIT {
     }
 
     @Test
-    void billingPolicyKeepsDecemberAcceptance() {
+    void feiraPolicyAsksDecemberAcceptanceAgain() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         jdbc.sql("""
                         insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
@@ -94,12 +94,12 @@ class DocumentsBillingIT {
                 .with(TestUsers.signedIn(ana, null))
                 .exchange();
 
-        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.4");
-        assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(false);
+        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.5");
+        assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(true);
     }
 
     @Test
-    void chainKeepsAcceptance() {
+    void feiraPolicyAsksTheChainAgain() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         jdbc.sql("""
                         insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
@@ -110,12 +110,12 @@ class DocumentsBillingIT {
                 .with(TestUsers.signedIn(ana, null))
                 .exchange();
 
-        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.4");
-        assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(false);
+        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.5");
+        assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(true);
     }
 
     @Test
-    void chainKeepsAcceptanceThroughTheFirstAddition() {
+    void feiraPolicyAsksTheFirstAdditionAgain() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         jdbc.sql("""
                         insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
@@ -126,12 +126,12 @@ class DocumentsBillingIT {
                 .with(TestUsers.signedIn(ana, null))
                 .exchange();
 
-        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.4");
-        assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(false);
+        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.5");
+        assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(true);
     }
 
     @Test
-    void chainKeepsAcceptanceThroughTheSecondAddition() {
+    void feiraPolicyAsksTheSecondAdditionAgain() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         jdbc.sql("""
                         insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
@@ -142,13 +142,13 @@ class DocumentsBillingIT {
                 .with(TestUsers.signedIn(ana, null))
                 .exchange();
 
-        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.4");
+        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.5");
         assertThat(result).bodyJson().extractingPath("$[1].acceptedVersion").isEqualTo("privacy-2026-12.2");
-        assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(false);
+        assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(true);
     }
 
     @Test
-    void newPrivacyKeepsAcceptance() {
+    void feiraPolicyAsksThePreviousTextAgain() {
         UUID ana = users.create("Ana Teste", "ana@example.com");
         jdbc.sql("""
                         insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
@@ -159,12 +159,12 @@ class DocumentsBillingIT {
                 .with(TestUsers.signedIn(ana, null))
                 .exchange();
 
-        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.4");
+        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.5");
         assertThat(result).bodyJson().extractingPath("$[1].acceptedVersion").isEqualTo("privacy-2026-12.3");
-        assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(false);
+        assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(true);
     }
 
-    /** Before billing, the .4 policy continues the .2, the .1 and the November ones and keeps their acceptance. */
+    /** Before billing, the .5 policy (the Feira) has no chain: every earlier acceptance is asked again. */
     @Nested
     @TestPropertySource(properties = "liberdade.billing.enabled=false")
     class BillingOff {
@@ -179,7 +179,7 @@ class DocumentsBillingIT {
         TestUsers users;
 
         @Test
-        void chainKeepsAcceptanceForNovemberSet() {
+        void feiraPolicyAsksNovemberSetAgain() {
             UUID ana = users.create("Ana Teste", "ana@example.com");
             jdbc.sql("""
                             insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
@@ -190,15 +190,15 @@ class DocumentsBillingIT {
                     .with(TestUsers.signedIn(ana, null))
                     .exchange();
 
-            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.4");
+            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.5");
             assertThat(result)
                     .bodyJson()
                     .extractingPath("$[1].acceptanceRequired")
-                    .isEqualTo(false);
+                    .isEqualTo(true);
         }
 
         @Test
-        void oldAcceptanceStillCounts() {
+        void oldAcceptanceMustBeRenewed() {
             UUID ana = users.create("Ana Teste", "ana@example.com");
             jdbc.sql("""
                             insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
@@ -211,12 +211,12 @@ class DocumentsBillingIT {
                     .exchange();
 
             assertThat(result).hasStatusOk();
-            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.4");
+            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.5");
             assertThat(result).bodyJson().extractingPath("$[1].acceptedVersion").isEqualTo("privacy-2026-11");
             assertThat(result)
                     .bodyJson()
                     .extractingPath("$[1].acceptanceRequired")
-                    .isEqualTo(false);
+                    .isEqualTo(true);
             assertThat(result)
                     .bodyJson()
                     .extractingPath("$[0].acceptanceRequired")
@@ -224,7 +224,7 @@ class DocumentsBillingIT {
         }
 
         @Test
-        void acceptanceOfThePreviousTextStillCounts() {
+        void feiraPolicyAsksTheSecondNovemberAdditionAgain() {
             UUID ana = users.create("Ana Teste", "ana@example.com");
             jdbc.sql("""
                             insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
@@ -235,15 +235,15 @@ class DocumentsBillingIT {
                     .with(TestUsers.signedIn(ana, null))
                     .exchange();
 
-            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.4");
+            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.5");
             assertThat(result)
                     .bodyJson()
                     .extractingPath("$[1].acceptanceRequired")
-                    .isEqualTo(false);
+                    .isEqualTo(true);
         }
 
         @Test
-        void newPrivacyKeepsAcceptance() {
+        void feiraPolicyAsksThePreviousTextAgain() {
             UUID ana = users.create("Ana Teste", "ana@example.com");
             jdbc.sql("""
                             insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
@@ -254,12 +254,12 @@ class DocumentsBillingIT {
                     .with(TestUsers.signedIn(ana, null))
                     .exchange();
 
-            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.4");
+            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.5");
             assertThat(result).bodyJson().extractingPath("$[1].acceptedVersion").isEqualTo("privacy-2026-11.3");
             assertThat(result)
                     .bodyJson()
                     .extractingPath("$[1].acceptanceRequired")
-                    .isEqualTo(false);
+                    .isEqualTo(true);
         }
 
         @Test
@@ -286,7 +286,7 @@ class DocumentsBillingIT {
             UUID ana = users.create("Ana Teste", "ana@example.com");
             RequestPostProcessor session = TestUsers.signedIn(ana, null);
 
-            MvcTestResult current = accept(session, "terms-2026-11", "privacy-2026-11.4");
+            MvcTestResult current = accept(session, "terms-2026-11", "privacy-2026-11.5");
             MvcTestResult old = accept(session, "terms-2026-11", "privacy-2026-11");
 
             assertThat(current).hasStatus(204);

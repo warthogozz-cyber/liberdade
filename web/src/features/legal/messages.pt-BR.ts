@@ -3,11 +3,13 @@ import { privacy2026111Messages } from './texts/privacy-2026-11.1'
 import { privacy2026112Messages } from './texts/privacy-2026-11.2'
 import { privacy2026113Messages } from './texts/privacy-2026-11.3'
 import { privacy2026114Messages } from './texts/privacy-2026-11.4'
+import { privacy2026115Messages } from './texts/privacy-2026-11.5'
 import { privacy202612Messages } from './texts/privacy-2026-12'
 import { privacy2026121Messages } from './texts/privacy-2026-12.1'
 import { privacy2026122Messages } from './texts/privacy-2026-12.2'
 import { privacy2026123Messages } from './texts/privacy-2026-12.3'
 import { privacy2026124Messages } from './texts/privacy-2026-12.4'
+import { privacy2026125Messages } from './texts/privacy-2026-12.5'
 import { terms202611Messages } from './texts/terms-2026-11'
 import { terms202612Messages } from './texts/terms-2026-12'
 
@@ -34,6 +36,18 @@ export const legalMessages = {
   'bot.when.title': 'Quando ele passa?',
   'bot.when.p1':
     'Duas vezes por dia, às 8h30 e às 19h30 (horário de Brasília). Ele espera entre uma série e outra e se identifica como LiberdadeBot, com o endereço desta página.',
+  'bot.markets.title': 'E os mercados da Feira?',
+  'bot.markets.p1':
+    'Toda segunda-feira, uma rotina do GitHub Actions do projeto baixa da Geofabrik o extrato público do OpenStreetMap (só mercados, sem dado de pessoa), e a nossa API o importa.',
+  'bot.markets.p2':
+    'Quando você busca um endereço na Feira, a nossa API consulta nominatim.openstreetmap.org, uma vez por busca e sem nenhum dado da sua família. Ela espera entre uma busca e outra.',
+  'bot.markets.p3':
+    'Quando você pede para ver o Instagram de um mercado, a nossa API consulta o oEmbed do Instagram, da Meta, só para pegar a incorporação do perfil. Nada seu vai junto.',
+  'bot.third.title': 'Dados de terceiros',
+  'bot.third.p1':
+    '© OpenStreetMap contributors. Os mercados da Feira vêm do OpenStreetMap e estão sob a Open Database License (ODbL).',
+  'bot.third.p2': 'Veja os termos e a atribuição em {link}.',
+  'bot.third.link': 'openstreetmap.org/copyright',
   'bot.contact.title': 'Como falar com o mantenedor?',
   'bot.contact.p1': 'Escreva para {email}. Veja também a {policy}.',
   'bot.contact.policy': 'política de privacidade',
@@ -43,11 +57,13 @@ export const legalMessages = {
   ...privacy2026112Messages,
   ...privacy2026113Messages,
   ...privacy2026114Messages,
+  ...privacy2026115Messages,
   ...privacy202612Messages,
   ...privacy2026121Messages,
   ...privacy2026122Messages,
   ...privacy2026123Messages,
   ...privacy2026124Messages,
+  ...privacy2026125Messages,
   ...terms202611Messages,
   ...terms202612Messages,
 } as const

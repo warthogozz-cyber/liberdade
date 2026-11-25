@@ -76,7 +76,7 @@ class VentureExportIT {
         Map<String, byte[]> files = unzip(exportFamily(ana, ws));
         String json = text(files.get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(8);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(9);
         assertThat(JsonPath.<List<String>>read(json, "$.ventures[*].id"))
                 .containsExactly(doces.toString(), loja.toString());
         assertThat(JsonPath.<String>read(json, "$.ventures[0].name")).isEqualTo("Doces");
@@ -114,7 +114,7 @@ class VentureExportIT {
 
         String json = text(unzip(exportMine(bia)).get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(8);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(9);
         assertThat(JsonPath.<List<String>>read(json, "$.ventures[*].id")).containsExactly(biasVenture.toString());
         assertThat(JsonPath.<String>read(json, "$.ventures[0].familyName")).isNotEmpty();
         assertThat(JsonPath.<String>read(json, "$.ventures[0].items[0].name")).isEqualTo("Contas");
@@ -146,7 +146,7 @@ class VentureExportIT {
 
         Map<String, byte[]> familyFiles = unzip(exportFamily(ana, ws));
         String family = text(familyFiles.get("dados.json"));
-        assertThat(JsonPath.<Integer>read(family, "$.formatVersion")).isEqualTo(8);
+        assertThat(JsonPath.<Integer>read(family, "$.formatVersion")).isEqualTo(9);
         assertThat(JsonPath.<List<String>>read(family, "$.transactions[?(@.id=='" + marked + "')].ventureId"))
                 .containsExactly(doces.toString());
         assertThat(JsonPath.<List<Object>>read(family, "$.transactions[?(@.id=='" + plain + "')].ventureId"))

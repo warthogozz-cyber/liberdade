@@ -92,7 +92,7 @@ describe('DocumentsGate', () => {
     expect(
       await screen.findByRole('navigation', { name: 'Navegação principal' }),
     ).toBeInTheDocument()
-    expect(sent).toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12.4' }])
+    expect(sent).toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12.5' }])
   })
 
   it('postsTheVersionsTheApiListsEvenWhenOlder', async () => {
@@ -161,6 +161,8 @@ describe('DocumentsGate', () => {
 
   it('keptAcceptanceOpensTheAppWithANotice', async () => {
     seedMockFamily()
+    // The policy in force is a version that keeps acceptance (the latest asks for a new one).
+    mockState.currentDocuments.PRIVACY = 'privacy-2026-12.4'
     // The person accepted the policy before the .1 text: the API says it still counts.
     mockState.acceptedDocuments.PRIVACY = { version: 'privacy-2026-12', at: '2026-11-20T10:00:00Z' }
     renderWithProviders(<App />, { path: '/*', route: '/inicio' })

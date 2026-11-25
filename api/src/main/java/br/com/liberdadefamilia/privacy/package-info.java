@@ -12,6 +12,7 @@
             "planning",
             "gamification",
             "ventures",
+            "markets",
             "shared"
         })
 package br.com.liberdadefamilia.privacy;

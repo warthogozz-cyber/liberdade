@@ -16,6 +16,9 @@ import br.com.liberdadefamilia.ledger.ExportedCategory;
 import br.com.liberdadefamilia.ledger.ExportedTag;
 import br.com.liberdadefamilia.ledger.ExportedTransaction;
 import br.com.liberdadefamilia.ledger.LedgerExport;
+import br.com.liberdadefamilia.markets.ExportedMarket;
+import br.com.liberdadefamilia.markets.ExportedMarketHome;
+import br.com.liberdadefamilia.markets.MarketsExport;
 import br.com.liberdadefamilia.planning.ExportedBudget;
 import br.com.liberdadefamilia.planning.ExportedContribution;
 import br.com.liberdadefamilia.planning.ExportedGoal;
@@ -75,7 +78,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 class ExportService {
 
-    private static final int FORMAT_VERSION = 8;
+    private static final int FORMAT_VERSION = 9;
     private static final ZoneId FORTALEZA = ZoneId.of("America/Fortaleza");
     private static final List<String> TRANSACTION_HEADER = List.of(
             "data",
@@ -229,6 +232,8 @@ class ExportService {
             List<ExportedContribution> goalContributions,
             ExportedReserveSettings reserve,
             List<ExportedVenture> ventures,
+            List<ExportedMarket> markets,
+            @Nullable ExportedMarketHome marketHome,
             List<OrderLine> orders,
             @Nullable ExportedPlan plan,
             Map<String, Boolean> modules,
@@ -240,6 +245,7 @@ class ExportService {
     private final LedgerExport ledger;
     private final PlanningExport planning;
     private final VenturesExport ventures;
+    private final MarketsExport markets;
     private final AchievementExport achievements;
     private final BillingExport billing;
     private final AuditTrail audit;
@@ -256,6 +262,7 @@ class ExportService {
             LedgerExport ledger,
             PlanningExport planning,
             VenturesExport ventures,
+            MarketsExport markets,
             AchievementExport achievements,
             BillingExport billing,
             AuditTrail audit,
@@ -269,6 +276,7 @@ class ExportService {
         this.ledger = ledger;
         this.planning = planning;
         this.ventures = ventures;
+        this.markets = markets;
         this.achievements = achievements;
         this.billing = billing;
         this.audit = audit;
@@ -441,6 +449,8 @@ class ExportService {
                 planning.contributions(workspaceId),
                 planning.reserveSettings(workspaceId),
                 ventures.ventures(workspaceId),
+                markets.familyMarkets(workspaceId),
+                markets.home(workspaceId).orElse(null),
                 billing.orders(workspaceId).stream().map(OrderLine::of).toList(),
                 billing.plan(workspaceId).orElse(null),
                 enabled,
@@ -576,6 +586,8 @@ class ExportService {
         root.put("reserveTargetMonths", data.reserve().targetMonths());
         root.put("manualMonthlyCost", data.reserve().manualMonthlyCost());
         root.put("ventures", data.ventures());
+        root.put("markets", data.markets());
+        root.put("marketHome", data.marketHome());
         root.put("modules", data.modules());
         root.put("orders", data.orders());
         root.put("plan", data.plan());
@@ -687,6 +699,31 @@ class ExportService {
                     CsvWriter.amount(c.amount().amount()),
                     c.amount().currency().getCurrencyCode(),
                     member == null ? "" : orEmpty(data.names().get(member))));
+        }
+        List<List<String>> marketRows = new ArrayList<>();
+        for (ExportedMarket m : data.markets()) {
+            LocalDate validUntil = m.flyerValidUntil();
+            Instant archivedAt = m.archivedAt();
+            marketRows.add(List.of(
+                    m.id().toString(),
+                    m.origin(),
+                    orEmpty(m.osmRef()),
+                    orEmpty(m.name()),
+                    m.kind() == null ? "" : Labels.marketKind(m.kind()),
+                    coordinate(m.lat()),
+                    coordinate(m.lon()),
+                    orEmpty(m.cnpj()),
+                    orEmpty(m.website()),
+                    orEmpty(m.instagram()),
+                    orEmpty(m.flyerUrl()),
+                    orEmpty(m.flyerSource()),
+                    validUntil == null ? "" : validUntil.toString(),
+                    archivedAt == null ? "" : archivedAt.toString()));
+        }
+        List<List<String>> homeRows = new ArrayList<>();
+        ExportedMarketHome home = data.marketHome();
+        if (home != null) {
+            homeRows.add(List.of(coordinate(home.lat()), coordinate(home.lon()), orEmpty(home.label())));
         }
         List<List<String>> ventureRows = new ArrayList<>();
         List<List<String>> ventureItemRows = new ArrayList<>();
@@ -807,7 +844,33 @@ class ExportService {
         files.put(
                 "projetos_passos.csv",
                 csv.toBytes(List.of("projeto", "posicao", "passo", "feito_em"), ventureStepRows));
+        files.put(
+                "feira-mercados.csv",
+                csv.toBytes(
+                        List.of(
+                                "id",
+                                "origem",
+                                "ref_osm",
+                                "nome",
+                                "tipo",
+                                "lat",
+                                "lon",
+                                "cnpj",
+                                "site",
+                                "instagram",
+                                "encarte",
+                                "fonte_encarte",
+                                "encarte_valido_ate",
+                                "arquivado_em"),
+                        marketRows,
+                        Set.of(5, 6)));
+        files.put("feira-endereco.csv", csv.toBytes(List.of("lat", "lon", "rotulo"), homeRows, Set.of(0, 1)));
         zip(out, files);
+    }
+
+    /** The point as it is stored, with a comma: {@code -23,00300}. It is a number, so no formula guard applies. */
+    private static String coordinate(@Nullable BigDecimal value) {
+        return value == null ? "" : value.toPlainString().replace('.', ',');
     }
 
     private static List<String> transactionCells(
@@ -934,6 +997,16 @@ class ExportService {
 
         static String ventureItemKind(String kind) {
             return "INITIAL".equals(kind) ? "Inicial" : "Fixo mensal";
+        }
+
+        static String marketKind(String kind) {
+            return switch (kind) {
+                case "SUPERMARKET" -> "Supermercado";
+                case "CONVENIENCE" -> "Conveniência";
+                case "GREENGROCER" -> "Hortifruti";
+                case "MARKETPLACE" -> "Feira";
+                default -> kind;
+            };
         }
 
         static String categoryKind(String kind) {
