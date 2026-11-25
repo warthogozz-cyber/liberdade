@@ -19,7 +19,8 @@ import org.jspecify.annotations.Nullable;
  * version} is the one the screen was opened with; if the transaction changed since, the edit is refused. The
  * description is cleaned as on create. A null {@code memberId} keeps the one the transaction has; a null {@code
  * paymentMethod} clears it. A null {@code tags} keeps the tags the transaction has (a client that predates tags); a list,
- * even an empty one, replaces them.
+ * even an empty one, replaces them. A null {@code ventureId} keeps the venture the transaction has (a client that
+ * predates ventures, the youth); to take the venture off, {@code clearVenture} is true. Sending both is refused.
  */
 record UpdateTransactionRequest(
         @NotNull Long version,
@@ -38,7 +39,9 @@ record UpdateTransactionRequest(
         String description,
 
         @Nullable @Schema(nullable = true) PaymentMethod paymentMethod,
-        @Nullable @Schema(nullable = true) @TagNames List<String> tags) {
+        @Nullable @Schema(nullable = true) @TagNames List<String> tags,
+        @Nullable @Schema(nullable = true) UUID ventureId,
+        @Nullable @Schema(nullable = true) Boolean clearVenture) {
 
     UpdateTransactionRequest {
         description = CreateTransactionRequest.cleanDescription(description);

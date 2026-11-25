@@ -35,7 +35,7 @@ class TransactionRepository {
      */
     private static final String COLUMNS = """
             id, kind, amount, currency, occurred_on, account_id, to_account_id, category_id, description, payment_method,
-            status, scheduled_on, recurring_rule_id, import_key, member_id, created_at, version,
+            status, scheduled_on, recurring_rule_id, import_key, member_id, created_at, version, venture_id,
             (select coalesce(array_agg(tg.name order by lower(tg.name), tg.id), cast('{}' as text[]))
              from transaction_tags tt
              join tags tg on tg.workspace_id = tt.workspace_id and tg.id = tt.tag_id
@@ -87,10 +87,10 @@ class TransactionRepository {
                         insert into transactions
                             (id, workspace_id, kind, amount, currency, occurred_on,
                              account_id, to_account_id, category_id, description, payment_method, member_id,
-                             created_by)
+                             created_by, venture_id)
                         values (:id, :workspaceId, :kind, :amount, :currency, :occurredOn,
                                 :accountId, :toAccountId, :categoryId, :description, :paymentMethod, :memberId,
-                                :createdBy)
+                                :createdBy, :ventureId)
                         on conflict (id) do nothing
                         returning\s""" + COLUMNS)
                 .param("id", request.id())
@@ -106,6 +106,7 @@ class TransactionRepository {
                 .param("paymentMethod", methodName(request.paymentMethod()))
                 .param("memberId", memberId)
                 .param("createdBy", createdBy)
+                .param("ventureId", request.ventureId())
                 .query(TransactionRepository::view)
                 .optional();
     }
@@ -167,6 +168,7 @@ class TransactionRepository {
      * Replaces the transaction's data, if it is still at the given version, confirmed, not deleted and the caller's to
      * change under the scope, and moves it to the next version. Empty when the version moved on, the transaction was
      * deleted or turned planned (or never existed, or is not the caller's): a planned one changes only by confirming.
+     * {@code ventureId} is the venture the row ends with: the service has already resolved keeping or clearing it.
      */
     Optional<TransactionView> update(
             UUID workspaceId,
@@ -174,6 +176,7 @@ class TransactionRepository {
             AccountScope scope,
             UUID caller,
             UUID memberId,
+            @Nullable UUID ventureId,
             UpdateTransactionRequest request) {
         return jdbc.sql("""
                         update transactions
@@ -187,6 +190,7 @@ class TransactionRepository {
                             description = :description,
                             payment_method = :paymentMethod,
                             member_id = :memberId,
+                            venture_id = :ventureId,
                             version = version + 1,
                             updated_at = now()
                         where workspace_id = :workspaceId
@@ -202,6 +206,7 @@ class TransactionRepository {
                 .param("caller", caller)
                 .param("version", request.version())
                 .param("memberId", memberId)
+                .param("ventureId", ventureId)
                 .param("kind", request.kind().name())
                 .param("amount", request.amount().amount())
                 .param("currency", request.amount().currency().getCurrencyCode())
@@ -402,7 +407,8 @@ class TransactionRepository {
     /**
      * The transactions on or after {@code from} and before {@code until}, newest first (D20). With a category, only
      * that category and its subcategories; with an account, the transactions leaving or entering it; with a payment
-     * method, only those paid that way; with a tag, only those that have it. Only those that touch the scope. Planned
+     * method, only those paid that way; with a tag, only those that have it; with a venture, only those marked
+     * with it. Only those that touch the scope. Planned
      * ones come only as {@code planned} says.
      */
     List<TransactionView> between(
@@ -413,6 +419,7 @@ class TransactionRepository {
             @Nullable UUID accountId,
             @Nullable PaymentMethod paymentMethod,
             @Nullable UUID tagId,
+            @Nullable UUID ventureId,
             Planned planned,
             AccountScope scope) {
         return jdbc.sql("select " + COLUMNS + """
@@ -438,6 +445,7 @@ class TransactionRepository {
                                           where tt.workspace_id = transactions.workspace_id
                                             and tt.transaction_id = transactions.id
                                             and tt.tag_id = cast(:tagId as uuid)))
+                          and (cast(:ventureId as uuid) is null or venture_id = cast(:ventureId as uuid))
                           and """ + VISIBLE + """
                         order by occurred_on desc, created_at desc, id desc""")
                 .param("workspaceId", workspaceId)
@@ -447,6 +455,7 @@ class TransactionRepository {
                 .param("accountId", accountId)
                 .param("paymentMethod", methodName(paymentMethod))
                 .param("tagId", tagId)
+                .param("ventureId", ventureId)
                 .param("planning", planned.shown())
                 .param("overdue", planned.overdue())
                 .param("scopeIds", scope.sqlArray())
@@ -574,7 +583,8 @@ class TransactionRepository {
                 rs.getString("import_key"),
                 rs.getObject("member_id", UUID.class),
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
-                rs.getLong("version"));
+                rs.getLong("version"),
+                rs.getObject("venture_id", UUID.class));
     }
 
     private static List<String> tagNames(Array array) throws SQLException {

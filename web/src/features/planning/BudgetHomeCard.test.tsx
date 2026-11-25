@@ -48,6 +48,7 @@ function setUp(role: 'OWNER' | 'VIEWER' = 'OWNER') {
         scheduledOn: null,
         recurringRuleId: null,
         importKey: null,
+        ventureId: null,
         createdAt: new Date().toISOString(),
         memberId: workspace.membershipId,
         version: 0,

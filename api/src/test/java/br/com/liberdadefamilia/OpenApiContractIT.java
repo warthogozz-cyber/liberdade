@@ -80,7 +80,7 @@ class OpenApiContractIT {
 
         contract.extractingPath(TRANSACTIONS + ".get.parameters[*].name")
                 .asArray()
-                .containsExactly("ws", "month", "categoryId", "accountId", "paymentMethod", "tagId");
+                .containsExactly("ws", "month", "categoryId", "accountId", "paymentMethod", "tagId", "ventureId");
         contract.extractingPath(TRANSACTIONS + ".post.parameters[*].name")
                 .asArray()
                 .containsExactly("ws", "Idempotency-Key");

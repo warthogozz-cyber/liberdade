@@ -20,7 +20,8 @@ import org.jspecify.annotations.Nullable;
  * one becomes null, before validation. It may hold any character but U+0000, which PostgreSQL text cannot store.
  * {@code memberId} is who the spending was for; null means whoever records it. {@code paymentMethod} is how it was
  * paid, and a transfer has none. {@code tags} are names: the family's tags with those names are used, and the missing
- * ones are made.
+ * ones are made. {@code ventureId} marks an income or an expense as part of one of the family's ventures; the database
+ * checks that the venture is the family's.
  */
 record CreateTransactionRequest(
         @NotNull UUID id,
@@ -39,7 +40,10 @@ record CreateTransactionRequest(
         String description,
 
         @Nullable @Schema(nullable = true) PaymentMethod paymentMethod,
-        @Nullable @Schema(nullable = true) @TagNames List<String> tags) {
+        @Nullable @Schema(nullable = true) @TagNames List<String> tags,
+
+        @Nullable @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        UUID ventureId) {
 
     static final int MAX_DESCRIPTION_LENGTH = 140;
 

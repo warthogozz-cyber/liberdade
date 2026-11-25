@@ -1487,6 +1487,8 @@ export interface components {
             tags?: (string | null)[] | null;
             /** Format: uuid */
             toAccountId?: string | null;
+            /** Format: uuid */
+            ventureId?: string | null;
         };
         CreateVentureRequest: {
             name: string;
@@ -1990,6 +1992,8 @@ export interface components {
             tags: string[];
             /** Format: uuid */
             toAccountId: string | null;
+            /** Format: uuid */
+            ventureId: string | null;
             /** Format: int64 */
             version: number;
         };
@@ -2072,6 +2076,7 @@ export interface components {
             amount: components["schemas"]["Money"];
             /** Format: uuid */
             categoryId?: string | null;
+            clearVenture?: boolean | null;
             description?: string | null;
             /** @enum {string} */
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
@@ -2084,6 +2089,8 @@ export interface components {
             tags?: (string | null)[] | null;
             /** Format: uuid */
             toAccountId?: string | null;
+            /** Format: uuid */
+            ventureId?: string | null;
             /** Format: int64 */
             version: number;
         };
@@ -3954,6 +3961,7 @@ export interface operations {
                 accountId?: string | null;
                 paymentMethod?: "PIX" | "CREDIT_CARD" | "DEBIT_CARD" | "BOLETO" | "BANK_TRANSFER" | "CASH" | null;
                 tagId?: string | null;
+                ventureId?: string | null;
             };
             header?: never;
             path: {

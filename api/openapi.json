@@ -2778,6 +2778,16 @@
               "format": "uuid",
               "nullable": true
             }
+          },
+          {
+            "in": "query",
+            "name": "ventureId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -4502,6 +4512,11 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          },
+          "ventureId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },
@@ -6069,6 +6084,11 @@
             "format": "uuid",
             "nullable": true
           },
+          "ventureId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
           "version": {
             "type": "integer",
             "format": "int64"
@@ -6381,6 +6401,10 @@
             "format": "uuid",
             "nullable": true
           },
+          "clearVenture": {
+            "type": "boolean",
+            "nullable": true
+          },
           "description": {
             "maxLength": 140,
             "minLength": 0,
@@ -6426,6 +6450,11 @@
             }
           },
           "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "ventureId": {
             "type": "string",
             "format": "uuid",
             "nullable": true
