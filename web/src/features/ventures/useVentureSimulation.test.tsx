@@ -5,7 +5,11 @@ import { prdExampleFigures, seedMockFamily, seedVentureFixture } from '@/mocks/d
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
 import { renderHookWithProviders } from '@/shared/testing'
-import { useVentureSimulation, type VentureDraft } from './useVentureSimulation'
+import {
+  buildSimulationRequest,
+  useVentureSimulation,
+  type VentureDraft,
+} from './useVentureSimulation'
 
 const URL = `${API_URL}/v1/workspaces/:ws/ventures/simulation`
 
@@ -49,6 +53,30 @@ async function advance(ms: number) {
 }
 
 describe('useVentureSimulation', () => {
+  it('leavesOutZeroAmountsAndZeroPrices', () => {
+    const base = draft('300')
+    const request = buildSimulationRequest({
+      ...base,
+      initialItems: [
+        ...base.initialItems,
+        { key: 'i2', id: null, name: 'Zero', amount: '0,00', isExample: false },
+      ],
+      fixedItems: [
+        ...base.fixedItems,
+        { key: 'f2', id: null, name: 'Zero', amount: '0', isExample: false },
+      ],
+      products: [
+        ...base.products,
+        { ...base.products[0]!, key: 'p2', unitPrice: '0,00' },
+        { ...base.products[0]!, key: 'p3', unitVariableCost: '0,00' },
+      ],
+    })
+
+    expect(request.initialItems).toHaveLength(1)
+    expect(request.fixedItems).toHaveLength(1)
+    expect(request.products.map((product) => product.unitVariableCost)).toEqual(['1.80', '0.00'])
+  })
+
   it('waits400ms', async () => {
     const ws = setup()
     const bodies: unknown[] = []

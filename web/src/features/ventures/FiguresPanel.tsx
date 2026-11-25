@@ -14,6 +14,8 @@ interface FiguresPanelProps {
   offline?: boolean
   /** A newer draft is on its way: the figures shown are the last ones. */
   pending?: boolean
+  /** The last calculation failed: say so, calmly, instead of waiting forever. */
+  error?: boolean
   /** The products' names, in the order of `figures.products`; "Produto n" when they do not match. */
   productNames?: readonly string[]
   /** Announces changes to a screen reader. Off on a page whose figures only change on a reload. */
@@ -29,6 +31,7 @@ export function FiguresPanel({
   currency,
   offline = false,
   pending = false,
+  error = false,
   productNames = [],
   live = true,
 }: FiguresPanelProps) {
@@ -48,7 +51,11 @@ export function FiguresPanel({
       {offline ? (
         <p className="text-text-muted">{intl.formatMessage({ id: 'ventures.figures.offline' })}</p>
       ) : figures === undefined ? (
-        <p className="text-text-muted">{intl.formatMessage({ id: 'ventures.figures.loading' })}</p>
+        <p className="text-text-muted">
+          {intl.formatMessage({
+            id: error ? 'ventures.figures.error' : 'ventures.figures.loading',
+          })}
+        </p>
       ) : (
         <>
           <ul className="flex flex-col gap-2">

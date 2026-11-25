@@ -187,17 +187,23 @@ export function VentureForm({ workspace, venture, onReload }: VentureFormProps) 
     const badName = (text: string) => text.trim() === '' || text.trim().length > MAX_NAME_LENGTH
     const nameText = intl.formatMessage({ id: 'ventures.form.errorName' })
     const amountText = intl.formatMessage({ id: 'ventures.form.errorAmount' })
+    const positiveText = intl.formatMessage({ id: 'ventures.form.errorPositive' })
+    const amountError = (text: string) => {
+      const cents = parseAmount(text)
+      return cents === undefined ? amountText : cents === 0n ? positiveText : undefined
+    }
     if (badName(draft.name)) found[idOf('name')] = nameText
     for (const list of ['initialItems', 'fixedItems'] as const) {
       for (const row of draft[list]) {
         if (badName(row.name)) found[idOf(list, row.key, 'name')] = nameText
-        if (parseAmount(row.amount) === undefined) found[idOf(list, row.key, 'amount')] = amountText
+        const amountFound = amountError(row.amount)
+        if (amountFound) found[idOf(list, row.key, 'amount')] = amountFound
       }
     }
     for (const row of draft.products) {
       if (badName(row.name)) found[idOf('products', row.key, 'name')] = nameText
-      if (parseAmount(row.unitPrice) === undefined)
-        found[idOf('products', row.key, 'price')] = amountText
+      const priceFound = amountError(row.unitPrice)
+      if (priceFound) found[idOf('products', row.key, 'price')] = priceFound
       if (parseAmount(row.unitVariableCost) === undefined) {
         found[idOf('products', row.key, 'cost')] = amountText
       }
@@ -508,6 +514,7 @@ export function VentureForm({ workspace, venture, onReload }: VentureFormProps) 
             currency={workspace.currency}
             offline={simulation.offline}
             pending={simulation.pending}
+            error={simulation.error}
             productNames={draft.products.map((row) => row.name)}
           />
         </div>

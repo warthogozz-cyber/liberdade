@@ -70,6 +70,14 @@ describe('FiguresPanel', () => {
     expect(screen.getByText('informe a venda prevista')).toBeVisible()
   })
 
+  it('errorSaysItCouldNotCalculateWithoutAlarm', () => {
+    const { container } = renderWithProviders(<FiguresPanel currency="BRL" error />)
+
+    expect(screen.getByText('Não deu para calcular com esses números.')).toBeVisible()
+    expect(screen.queryByText('Calculando…')).not.toBeInTheDocument()
+    expect(container.innerHTML).not.toMatch(/negative|danger|error|red-|alert/)
+  })
+
   it('offlineSaysToConnect', () => {
     renderWithProviders(<FiguresPanel currency="BRL" offline />)
 

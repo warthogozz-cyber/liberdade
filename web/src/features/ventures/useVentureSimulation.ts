@@ -72,7 +72,7 @@ export function buildSimulationRequest(draft: VentureDraft): SimulationRequest {
   const costs = (rows: readonly DraftCost[]) =>
     rows.flatMap((row) => {
       const amount = apiAmount(row.amount)
-      return amount === undefined ? [] : [{ amount }]
+      return amount === undefined || parseAmount(row.amount) === 0n ? [] : [{ amount }]
     })
   return {
     initialItems: costs(draft.initialItems),
@@ -82,6 +82,7 @@ export function buildSimulationRequest(draft: VentureDraft): SimulationRequest {
       const unitVariableCost = apiAmount(product.unitVariableCost)
       const plannedUnitsMonth = parseUnits(product.plannedUnits)
       return unitPrice === undefined ||
+        parseAmount(product.unitPrice) === 0n ||
         unitVariableCost === undefined ||
         plannedUnitsMonth === undefined
         ? []
@@ -98,7 +99,7 @@ export function buildSimulationRequest(draft: VentureDraft): SimulationRequest {
 export function useVentureSimulation(
   ws: string,
   draft: VentureDraft,
-): { figures?: VentureFigures; offline: boolean; pending: boolean } {
+): { figures?: VentureFigures; offline: boolean; pending: boolean; error: boolean } {
   const online = useOnline()
   const request = buildSimulationRequest(draft)
   const key = JSON.stringify(request)
@@ -124,6 +125,7 @@ export function useVentureSimulation(
   return {
     ...(query.data !== undefined ? { figures: query.data } : {}),
     offline: !online,
+    error: query.isError,
     pending: key !== settled.key || query.isFetching,
   }
 }

@@ -91,6 +91,40 @@ describe('VentureForm', () => {
     expect(saves).toBe(0)
   })
 
+  it('zeroAmountAndZeroPriceShowFieldErrors', async () => {
+    let saves = 0
+    server.use(
+      http.put(`${API_URL}/v1/workspaces/:ws/ventures/:id`, () => {
+        saves += 1
+        return HttpResponse.json(foodSweetsVenture())
+      }),
+    )
+    render(exampleVenture())
+
+    const amount = within(
+      await screen.findByRole('group', { name: 'Custo fixo 1' }),
+    ).getByLabelText('Valor (R$)')
+    fireEvent.change(amount, { target: { value: '0,00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    const error = await screen.findByText('Use um valor maior que zero.')
+    expect(amount).toHaveAttribute('aria-invalid', 'true')
+    expect(amount.getAttribute('aria-describedby')).toContain(error.id)
+    expect(saves).toBe(0)
+  })
+
+  it('zeroUnitCostIsAllowed', async () => {
+    render(exampleVenture())
+
+    const product = await screen.findByRole('group', { name: 'Produto 1' })
+    const cost = within(product).getByLabelText('Custo por unidade (R$)')
+    fireEvent.change(cost, { target: { value: '0,00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => expect(cost).not.toHaveAttribute('aria-invalid', 'true'))
+    expect(screen.queryByText('Use um valor maior que zero.')).not.toBeInTheDocument()
+  })
+
   it('conflictKeepsTheDraft', async () => {
     // The mock has version 0: a project opened at version 3 is a stale one.
     render(exampleVenture({ version: 3 }))

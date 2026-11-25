@@ -64,6 +64,7 @@ export const venturesMessages = {
   'ventures.form.errorName': 'Informe um nome de 1 a 40 caracteres.',
   'ventures.form.errorAmount':
     'Informe um valor de até 999.999.999,99, com no máximo 2 casas decimais.',
+  'ventures.form.errorPositive': 'Use um valor maior que zero.',
   'ventures.form.errorUnits': 'Informe um número inteiro de 0 a 1.000.000.',
   'ventures.form.save': 'Salvar',
   'ventures.form.offline': 'Conecte-se para salvar.',
@@ -76,6 +77,7 @@ export const venturesMessages = {
   'ventures.form.conflictKeep': 'Manter o que digitei',
   'ventures.figures.title': 'Prévia das contas',
   'ventures.figures.loading': 'Calculando…',
+  'ventures.figures.error': 'Não deu para calcular com esses números.',
   'ventures.figures.offline': 'Conecte-se para ver as contas.',
   'ventures.figures.note': 'Com os números que você digitou. Não é promessa de resultado.',
   'ventures.figures.product': 'Produto {n}',
