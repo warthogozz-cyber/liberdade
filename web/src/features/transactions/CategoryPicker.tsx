@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import type { CategoryView } from '@/shared/api'
 import { COLOR_DOT } from '@/features/categories/colorDot'
@@ -14,6 +14,10 @@ interface CategoryPickerProps {
   onChange: (categoryId: string) => void
   /** Tells the page a sheet is open, so the keypad leaves the keyboard alone. */
   onSheetChange: (open: boolean) => void
+  /** The radio group's name; several pickers on one page need one each. */
+  name?: string
+  /** The fieldset's legend, "Categoria" by default. */
+  legend?: ReactNode
 }
 
 const CHIPS = 6
@@ -31,6 +35,8 @@ export function CategoryPicker({
   keepArchivedId,
   onChange,
   onSheetChange,
+  name = 'category',
+  legend,
 }: CategoryPickerProps) {
   const intl = useIntl()
   const [open, setOpen] = useState(false)
@@ -54,14 +60,14 @@ export function CategoryPicker({
   return (
     <fieldset>
       <legend className="mb-2 font-medium">
-        <FormattedMessage id="expense.category" />
+        {legend ?? <FormattedMessage id="expense.category" />}
       </legend>
       <div className="flex flex-wrap gap-2">
         {chips.map((category) => (
           <label key={category.id} className={chip}>
             <input
               type="radio"
-              name="category"
+              name={name}
               value={category.id}
               checked={category.id === value}
               onChange={() => onChange(category.id)}

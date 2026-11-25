@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?OFX OFXHEADER="200" VERSION="220" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
+<OFX>
+  <BANKMSGSRSV1>
+    <STMTTRNRS>
+      <STMTRS>
+        <CURDEF>BRL</CURDEF>
+        <BANKTRANLIST>
+          <DTSTART>20261101</DTSTART>
+          <DTEND>20261130</DTEND>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20261103120000[-3:BRT]</DTPOSTED>
+            <TRNAMT>-45.90</TRNAMT>
+            <FITID>0000</FITID>
+            <NAME>PADARIA PAO QUENTE</NAME>
+            <MEMO>COMPRA NO DEBITO</MEMO>
+          </STMTTRN>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20261104120000[-3:BRT]</DTPOSTED>
+            <TRNAMT>-12.50</TRNAMT>
+            <FITID>0000</FITID>
+            <NAME>MERCADO CENTRAL</NAME>
+            <MEMO>MERCADO CENTRAL</MEMO>
+          </STMTTRN>
+          <STMTTRN>
+            <TRNTYPE>CREDIT</TRNTYPE>
+            <DTPOSTED>20261105120000[-3:BRT]</DTPOSTED>
+            <TRNAMT>100.00</TRNAMT>
+            <FITID>0000</FITID>
+            <NAME>DOAÇÃO MENSAL</NAME>
+          </STMTTRN>
+        </BANKTRANLIST>
+      </STMTRS>
+    </STMTTRNRS>
+  </BANKMSGSRSV1>
+</OFX>

@@ -45,6 +45,7 @@ function setUp(spent: string, month = '2026-11') {
     status: 'CONFIRMED',
     scheduledOn: null,
     recurringRuleId: null,
+    importKey: null,
     createdAt: new Date().toISOString(),
     memberId: workspace.membershipId,
     version: 0,

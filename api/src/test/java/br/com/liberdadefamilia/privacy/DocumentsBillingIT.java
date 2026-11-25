@@ -74,7 +74,7 @@ class DocumentsBillingIT {
         assertThat(result).bodyJson().extractingPath("$[0].currentVersion").isEqualTo("terms-2026-12");
         assertThat(result).bodyJson().extractingPath("$[0].acceptedVersion").isEqualTo("terms-2026-11");
         assertThat(result).bodyJson().extractingPath("$[1].purpose").isEqualTo("PRIVACY");
-        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.3");
+        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.4");
         assertThat(result).bodyJson().extractingPath("$[1].acceptedVersion").isEqualTo("privacy-2026-11");
         // The terms changed, and the policy of November is not in the chain of the December one, so both ask.
         assertThat(result).bodyJson().extractingPath("$[0].acceptanceRequired").isEqualTo(true);
@@ -94,7 +94,7 @@ class DocumentsBillingIT {
                 .with(TestUsers.signedIn(ana, null))
                 .exchange();
 
-        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.3");
+        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.4");
         assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(false);
     }
 
@@ -110,7 +110,7 @@ class DocumentsBillingIT {
                 .with(TestUsers.signedIn(ana, null))
                 .exchange();
 
-        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.3");
+        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.4");
         assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(false);
     }
 
@@ -126,7 +126,7 @@ class DocumentsBillingIT {
                 .with(TestUsers.signedIn(ana, null))
                 .exchange();
 
-        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.3");
+        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.4");
         assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(false);
     }
 
@@ -142,12 +142,29 @@ class DocumentsBillingIT {
                 .with(TestUsers.signedIn(ana, null))
                 .exchange();
 
-        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.3");
+        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.4");
         assertThat(result).bodyJson().extractingPath("$[1].acceptedVersion").isEqualTo("privacy-2026-12.2");
         assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(false);
     }
 
-    /** Before billing, the .3 policy continues the .2, the .1 and the November ones and keeps their acceptance. */
+    @Test
+    void newPrivacyKeepsAcceptance() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        jdbc.sql("""
+                        insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
+                        values (:user, null, 'PRIVACY', 'privacy-2026-12.3', :user)""").param("user", ana).update();
+
+        MvcTestResult result = mvc.get()
+                .uri("/v1/me/documents")
+                .with(TestUsers.signedIn(ana, null))
+                .exchange();
+
+        assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-12.4");
+        assertThat(result).bodyJson().extractingPath("$[1].acceptedVersion").isEqualTo("privacy-2026-12.3");
+        assertThat(result).bodyJson().extractingPath("$[1].acceptanceRequired").isEqualTo(false);
+    }
+
+    /** Before billing, the .4 policy continues the .2, the .1 and the November ones and keeps their acceptance. */
     @Nested
     @TestPropertySource(properties = "liberdade.billing.enabled=false")
     class BillingOff {
@@ -173,7 +190,7 @@ class DocumentsBillingIT {
                     .with(TestUsers.signedIn(ana, null))
                     .exchange();
 
-            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.3");
+            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.4");
             assertThat(result)
                     .bodyJson()
                     .extractingPath("$[1].acceptanceRequired")
@@ -194,7 +211,7 @@ class DocumentsBillingIT {
                     .exchange();
 
             assertThat(result).hasStatusOk();
-            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.3");
+            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.4");
             assertThat(result).bodyJson().extractingPath("$[1].acceptedVersion").isEqualTo("privacy-2026-11");
             assertThat(result)
                     .bodyJson()
@@ -218,7 +235,27 @@ class DocumentsBillingIT {
                     .with(TestUsers.signedIn(ana, null))
                     .exchange();
 
-            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.3");
+            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.4");
+            assertThat(result)
+                    .bodyJson()
+                    .extractingPath("$[1].acceptanceRequired")
+                    .isEqualTo(false);
+        }
+
+        @Test
+        void newPrivacyKeepsAcceptance() {
+            UUID ana = users.create("Ana Teste", "ana@example.com");
+            jdbc.sql("""
+                            insert into consents (user_id, workspace_id, purpose, document_version, granted_by)
+                            values (:user, null, 'PRIVACY', 'privacy-2026-11.3', :user)""").param("user", ana).update();
+
+            MvcTestResult result = mvc.get()
+                    .uri("/v1/me/documents")
+                    .with(TestUsers.signedIn(ana, null))
+                    .exchange();
+
+            assertThat(result).bodyJson().extractingPath("$[1].currentVersion").isEqualTo("privacy-2026-11.4");
+            assertThat(result).bodyJson().extractingPath("$[1].acceptedVersion").isEqualTo("privacy-2026-11.3");
             assertThat(result)
                     .bodyJson()
                     .extractingPath("$[1].acceptanceRequired")
@@ -249,7 +286,7 @@ class DocumentsBillingIT {
             UUID ana = users.create("Ana Teste", "ana@example.com");
             RequestPostProcessor session = TestUsers.signedIn(ana, null);
 
-            MvcTestResult current = accept(session, "terms-2026-11", "privacy-2026-11.3");
+            MvcTestResult current = accept(session, "terms-2026-11", "privacy-2026-11.4");
             MvcTestResult old = accept(session, "terms-2026-11", "privacy-2026-11");
 
             assertThat(current).hasStatus(204);

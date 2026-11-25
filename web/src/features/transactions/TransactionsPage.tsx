@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import {
   useAccounts,
   useCategories,
@@ -17,6 +17,7 @@ import {
   type TagView,
   type TransactionFilters as Filters,
 } from '@/shared/api'
+import { usePlan } from '@/shared/api/billing'
 import { useMembers } from '@/shared/api/family'
 import { addDays, localDate, maxMonth, monthFromParam } from '@/shared/i18n'
 import { isRecentArrival, onArrival } from '@/shared/live/localChanges'
@@ -27,6 +28,7 @@ import { groupByDay, mergeTransactions, plannedOf } from './listItems'
 import { PlannedSection } from './PlannedSection'
 import { TransactionFilters } from './TransactionFilters'
 import { TransactionRow } from './TransactionRow'
+import './more.register'
 
 /** The least time between two announcements of new entries to a screen reader. */
 const ANNOUNCE_EVERY_MS = 10_000
@@ -68,6 +70,10 @@ interface ScreenProps {
 function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
   const intl = useIntl()
   const online = useOnline()
+  // A Viewer never imports, so the plan is not even asked for.
+  const viewer = workspace.role === 'VIEWER'
+  const canImport =
+    usePlan(viewer ? undefined : workspace.id).data?.importAllowed === true && !viewer
   const [params, setParams] = useSearchParams()
   const now = new Date()
   const lastMonth = maxMonth(now, workspace.timezone)
@@ -163,6 +169,14 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
             label={intl.formatMessage({ id: `payment.${paymentMethod}` })}
             onClear={() => update({ paymentMethod: null })}
           />
+        )}
+        {canImport && (
+          <Link
+            to="/lancamentos/importar"
+            className={`ml-auto inline-flex items-center ${outlineButton}`}
+          >
+            <FormattedMessage id="transactions.importStatement" />
+          </Link>
         )}
       </div>
       <TransactionFilters

@@ -9,6 +9,7 @@ export const transactionsMoreMessages = {
   'transactions.deletedPlain': 'Este lançamento foi excluído',
   'transactions.goneNow': 'Este lançamento não existe mais',
   'transactions.backToList': 'Voltar para os lançamentos',
+  'transactions.importStatement': 'Importar extrato',
   'planned.title': 'Previstos',
   'planned.sheetTitle': 'Previsto',
   'planned.confirm': 'Confirmar',

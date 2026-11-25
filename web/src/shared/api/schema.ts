@@ -292,6 +292,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/accounts/{accountId}/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["importStatement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/accounts/{id}": {
         parameters: {
             query?: never;
@@ -670,6 +686,22 @@ export interface paths {
         get: operations["getContributions"];
         put?: never;
         post: operations["createContribution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/imports/category-hints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["categoryHints"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1095,6 +1127,21 @@ export interface components {
             /** @example 2026-11 */
             month: string;
         };
+        CategoryHint: {
+            /** Format: uuid */
+            categoryId: string | null;
+        };
+        CategoryHintItem: {
+            key: string;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE" | "TRANSFER";
+        };
+        CategoryHintsRequest: {
+            items: components["schemas"]["CategoryHintItem"][];
+        };
+        CategoryHintsResponse: {
+            hints: components["schemas"]["CategoryHint"][];
+        };
         CategoryView: {
             /** Format: date-time */
             archivedAt: string | null;
@@ -1303,6 +1350,32 @@ export interface components {
             goals: components["schemas"]["GoalView"][];
             limitReached: boolean;
         };
+        ImportRequest: {
+            rows: components["schemas"]["ImportRow"][];
+        };
+        ImportResult: {
+            /** Format: int32 */
+            confirmed: number;
+            /** Format: int32 */
+            created: number;
+            /** Format: int32 */
+            skipped: number;
+        };
+        ImportRow: {
+            amount: components["schemas"]["Money"];
+            /** Format: uuid */
+            categoryId: string;
+            /** Format: uuid */
+            confirmsPlannedId?: string | null;
+            description?: string | null;
+            /** Format: uuid */
+            id: string;
+            importKey: string;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE" | "TRANSFER";
+            /** Format: date */
+            occurredOn: string;
+        };
         IndicatorView: {
             code: string;
             name: string;
@@ -1431,6 +1504,7 @@ export interface components {
             /** Format: date-time */
             endsAt: string | null;
             founder: boolean;
+            importAllowed: boolean;
             /** @enum {string} */
             key: "FREE" | "FAMILY";
             openOrder: components["schemas"]["OrderView"] | null;
@@ -1553,6 +1627,7 @@ export interface components {
             description: string | null;
             /** Format: uuid */
             id: string;
+            importKey: string | null;
             /** @enum {string} */
             kind: "INCOME" | "EXPENSE" | "TRANSFER";
             /** Format: uuid */
@@ -2111,6 +2186,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccountView"];
+                };
+            };
+        };
+    };
+    importStatement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Stored: how many lines became transactions, confirmed a planned one or were already in */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
                 };
             };
         };
@@ -2842,6 +2945,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContributionView"];
+                };
+            };
+        };
+    };
+    categoryHints: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryHintsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryHintsResponse"];
                 };
             };
         };

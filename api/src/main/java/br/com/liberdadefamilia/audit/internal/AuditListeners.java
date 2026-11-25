@@ -8,6 +8,7 @@ import br.com.liberdadefamilia.billing.PlanEnded;
 import br.com.liberdadefamilia.billing.RefundRequested;
 import br.com.liberdadefamilia.identity.PasskeyRemoved;
 import br.com.liberdadefamilia.identity.SignedIn;
+import br.com.liberdadefamilia.ledger.StatementImported;
 import br.com.liberdadefamilia.planning.GoalArchived;
 import br.com.liberdadefamilia.planning.RecurringRuleArchived;
 import br.com.liberdadefamilia.planning.RecurringRuleCreated;
@@ -280,6 +281,24 @@ class AuditListeners {
     @EventListener
     void on(PlanEnded event) {
         record(event.workspaceId(), null, "plan.ended", "PLAN", event.workspaceId(), Map.of("reason", event.reason()));
+    }
+
+    /** The counts of an import, never what was in the lines. */
+    @EventListener
+    void on(StatementImported event) {
+        record(
+                event.workspaceId(),
+                event.actorUserId(),
+                "transactions.imported",
+                "ACCOUNT",
+                event.accountId(),
+                Map.of(
+                        "created",
+                        String.valueOf(event.created()),
+                        "confirmed",
+                        String.valueOf(event.confirmed()),
+                        "skipped",
+                        String.valueOf(event.skipped())));
     }
 
     private void record(

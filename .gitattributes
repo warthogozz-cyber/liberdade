@@ -5,3 +5,5 @@
 *.png binary
 *.ico binary
 *.woff2 binary
+
+web/src/features/import/fixtures/** -text

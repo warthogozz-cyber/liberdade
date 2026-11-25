@@ -96,8 +96,14 @@ export interface MockState {
   acceptedDocuments: Record<'TERMS' | 'PRIVACY', { version: string; at: string } | null>
   /** The five Banco Central indicators the route returns, in card order (the fake source's values). */
   indicators: Schemas['IndicatorView'][]
-  /** The paid plan: `plan` is FREE until a payment, and `orders` are the checkouts started, newest last. */
-  billing: { plan: MockPlan; orders: MockOrder[] }
+  /**
+   * The paid plan: `plan` is FREE until a payment, and `orders` are the checkouts started, newest last.
+   * `selling` is billing being on (the legal set in force, as in staging and the e2e); with it off, the
+   * API opens the paid features to every family, so the free plan imports too.
+   */
+  billing: { plan: MockPlan; orders: MockOrder[]; selling: boolean }
+  /** The import keys the statement import already took in this session, each line at most once. */
+  importKeys: Set<string>
 }
 
 /** The family's plan as the mock keeps it; `endsAt` is when it stops. */
@@ -119,7 +125,7 @@ export interface MockOrder {
 /** The versions in force, as LegalDocuments.java picks them with billing on (as in staging and the e2e). */
 const CURRENT_DOCUMENTS: MockState['currentDocuments'] = {
   TERMS: 'terms-2026-12',
-  PRIVACY: 'privacy-2026-12.3',
+  PRIVACY: 'privacy-2026-12.4',
 }
 
 /** `LegalDocuments.KEEPS_ACCEPTANCE`: a version keeps the acceptance of the one it continues. */
@@ -130,6 +136,8 @@ export const KEEPS_ACCEPTANCE: Record<string, string> = {
   'privacy-2026-11.3': 'privacy-2026-11.2',
   'privacy-2026-12.2': 'privacy-2026-12.1',
   'privacy-2026-12.3': 'privacy-2026-12.2',
+  'privacy-2026-11.4': 'privacy-2026-11.3',
+  'privacy-2026-12.4': 'privacy-2026-12.3',
 }
 
 /** Whether `accepted` is `current` or a version `current` continues, down the chain (`LegalDocuments.KEEPS_ACCEPTANCE`). */
@@ -319,7 +327,8 @@ function initialState(): MockState {
     deletedTransactionIds: new Set(),
     members: {},
     invitations: [],
-    billing: { plan: { key: 'FREE', endsAt: null }, orders: [] },
+    billing: { plan: { key: 'FREE', endsAt: null }, orders: [], selling: true },
+    importKeys: new Set(),
     indicators: initialIndicators(),
     modules: {},
     rules: [],
@@ -461,6 +470,11 @@ export function seedMockFamily(): MeWorkspace {
   return createFamily('Família Teste', 'America/Fortaleza')
 }
 
+/** Puts the family on the paid plan, until a year from the mock's dates, as a paid checkout would. */
+export function seedFamilyPlan(): void {
+  mockState.billing.plan = { key: 'FAMILY', endsAt: '2027-11-30T03:00:00Z' }
+}
+
 /**
  * Fills the planning data the screens read, for a family that already has its seed: one limit on
  * Mercado that is near (R$ 400,00 spent of R$ 500,00 this month), two goals (one with a due month),
@@ -485,6 +499,7 @@ export function seedPlanningFixture(workspace: MeWorkspace): void {
     status: 'CONFIRMED',
     scheduledOn: null,
     recurringRuleId: null,
+    importKey: null,
     createdAt: new Date().toISOString(),
     memberId: workspace.membershipId,
     version: 0,

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import br.com.liberdadefamilia.TestcontainersConfiguration;
 import br.com.liberdadefamilia.support.CsrfSession;
+import br.com.liberdadefamilia.support.TestIds;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
 import br.com.liberdadefamilia.workspace.MemberRoleChanged;
@@ -249,6 +250,44 @@ class AuditIT {
                         tuple("member.removed", "MEMBERSHIP", biaMembership, ana, Map.of("reason", "BY_OWNER")));
         // A recovery link is recorded once, as recovery.created on the member, never as an invitation.
         assertThat(rows).extracting(Row::targetId).doesNotContain(recoveryId);
+    }
+
+    @Test
+    void importIsAudited() {
+        UUID ana = users.create("Ana Teste", "ana@example.com");
+        UUID ws = workspaces.createFor(ana);
+        jdbc.sql("""
+                        insert into workspace_plans (workspace_id, plan_key, founder, starts_at, ends_at)
+                        values (:ws, 'FAMILY', false, now() - interval '1 minute', now() + interval '1 year')""").param("ws", ws).update();
+        UUID wallet = jdbc.sql("select id from accounts where workspace_id = :ws and name = 'Carteira'")
+                .param("ws", ws)
+                .query(UUID.class)
+                .single();
+        UUID mercado = jdbc.sql("""
+                        select id from categories
+                        where workspace_id = :ws and kind = 'EXPENSE' and name = 'Mercado' and parent_id is null""").param("ws", ws).query(UUID.class).single();
+        StringBuilder rows = new StringBuilder();
+        for (int i = 0; i < 3; i++) {
+            rows.append(i == 0 ? "" : ",").append("""
+                    {"id":"%s","kind":"EXPENSE","amount":{"amount":"1%d.00","currency":"BRL"},"occurredOn":"2026-11-0%d",
+                     "description":"Linha","categoryId":"%s","importKey":"%s","confirmsPlannedId":null}""".formatted(
+                            TestIds.v7(), i, i + 1, mercado, Integer.toString(i).repeat(64)));
+        }
+
+        MvcTestResult result = mvc.post()
+                .uri("/v1/workspaces/" + ws + "/accounts/" + wallet + "/imports")
+                .with(session(ana))
+                .with(CsrfSession.start(mvc, session(ana)))
+                .contentType(JSON)
+                .content("{\"rows\":[" + rows + "]}")
+                .exchange();
+
+        assertThat(result).hasStatusOk();
+        assertThat(rowsOf(ws))
+                .filteredOn(row -> row.action().equals("transactions.imported"))
+                .extracting(Row::targetType, Row::targetId, Row::actorUserId, Row::metadata)
+                .containsExactly(
+                        tuple("ACCOUNT", wallet, ana, Map.of("created", "3", "confirmed", "0", "skipped", "0")));
     }
 
     @Test

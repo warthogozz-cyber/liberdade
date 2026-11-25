@@ -1,9 +1,11 @@
+import { fileURLToPath } from 'node:url'
 import AxeBuilder from '@axe-core/playwright'
 import type { Locator, Page } from '@playwright/test'
 import {
   acceptDocuments,
   addTagAndMethod,
   addVirtualAuthenticator,
+  buyFamilyPlan,
   completeGoogleSignIn,
   createFamily,
   createInvitation,
@@ -432,4 +434,33 @@ test('the planning screens and the home cards meet WCAG 2.2 AA in both themes', 
   await expect(page.getByRole('heading', { level: 2, name: 'Orçamento do mês' })).toBeVisible()
   await expect(page.getByRole('heading', { level: 2, name: 'Reserva de emergência' })).toBeVisible()
   await expect(page.getByRole('heading', { level: 2, name: 'Gastos do mês' })).toBeVisible()
+})
+
+test('the statement import meets WCAG 2.2 AA in both themes', async ({ page, request }) => {
+  await signInWithGoogle(page, newUser())
+  await createFamily(page)
+  await buyFamilyPlan(page, request)
+
+  await page.goto('/lancamentos/importar')
+  const file = page.getByLabel('Arquivo do extrato')
+  await file.setInputFiles(
+    fileURLToPath(new URL('../src/features/import/fixtures/ofx-sgml-1252.ofx', import.meta.url)),
+  )
+  await expectNoViolations(
+    page,
+    'Importar extrato',
+    page.getByRole('list', { name: 'Confira os lançamentos' }),
+  )
+
+  // A CSV whose header says nothing known asks which column is which.
+  await file.setInputFiles({
+    name: 'extrato.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('Quando;O que;Quanto;Outro\n03/11/2026;LOJA A;-45,90;1,00\n'),
+  })
+  await expectNoViolations(
+    page,
+    'Importar extrato',
+    page.getByRole('heading', { level: 2, name: 'Quais colunas são quais?' }),
+  )
 })
