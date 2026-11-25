@@ -1,0 +1,100 @@
+name: OSM markets extract
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/osm/**'
+      - '.github/workflows/osm-markets.yml'
+
+concurrency:
+  # Pull request runs only test; keep them from queueing in front of the weekly publish.
+  group: osm-markets-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  GEOFABRIK_URL: https://download.geofabrik.de/south-america/brazil-latest.osm.pbf
+  BOT_USER_AGENT: LiberdadeBot/1.0 (+https://app.liberdadefamilia.com.br/robo)
+  RELEASE_TAG: osm-markets-data
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test the converter
+        run: python3 -m unittest discover -s scripts/osm
+
+  build:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install osmium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osmium-tool
+      - name: Download the Brazil extract
+        run: |
+          curl -fsSL --retry 3 --max-time 1800 -A "$BOT_USER_AGENT" -o brazil-latest.osm.pbf "$GEOFABRIK_URL"
+          curl -fsSL --retry 3 --max-time 60 -A "$BOT_USER_AGENT" -o brazil-latest.osm.pbf.md5 "$GEOFABRIK_URL.md5"
+          md5sum -c brazil-latest.osm.pbf.md5
+      - name: Filter and export the markets
+        run: |
+          osmium tags-filter brazil-latest.osm.pbf \
+            nwr/shop=supermarket,convenience,greengrocer nwr/amenity=marketplace \
+            -o markets.osm.pbf
+          osmium export markets.osm.pbf -f geojsonseq --add-unique-id=type_id -o markets.geojsonseq
+      - name: Convert to CSV
+        run: |
+          osm_timestamp="$(osmium fileinfo -g header.option.osmosis_replication_timestamp brazil-latest.osm.pbf)"
+          echo "$osm_timestamp" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z$' \
+            || { echo "::error::The extract has no replication timestamp"; exit 1; }
+          python3 scripts/osm/to_csv.py markets.geojsonseq markets-br.csv.gz manifest.json "$osm_timestamp"
+          cat manifest.json
+      - name: Upload the extract
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: osm-markets
+          path: |
+            markets-br.csv.gz
+            manifest.json
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: osm-markets
+      - name: Publish the release assets
+        run: |
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "Dados do OpenStreetMap: mercados" \
+              --notes "© OpenStreetMap contributors. Disponível sob a Open Database License (ODbL) 1.0." \
+              --prerelease --latest=false
+          fi
+          gh release upload "$RELEASE_TAG" markets-br.csv.gz manifest.json --repo "$GITHUB_REPOSITORY" --clobber

@@ -1,0 +1,5 @@
+osm_type,osm_id,kind,name,brand,lat,lon,website,instagram,opening_hours,street,housenumber,suburb,city
+n,1001,SUPERMARKET,Mercado Exemplo Um,Rede Exemplo,-10.00034,-50.00012,https://example.test/um,,Mo-Sa 08:00-20:00,Rua Exemplo,100,Bairro Exemplo,Cidade Exemplo
+w,1001,GREENGROCER,Sacolao Exemplo,,-10.00230,-50.00120,https://example.test/sacolao,,,,,,
+r,1502,MARKETPLACE,Feira Exemplo,,-10.00370,-50.00380,,,,Rua Exemplo,,,
+n,1004,CONVENIENCE,,,-10.00100,-50.00200,,https://www.instagram.com/exemplo.loja/,,,,,
