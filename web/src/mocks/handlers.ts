@@ -1137,6 +1137,47 @@ function ventureHandlers() {
       return HttpResponse.json(venture, { status: 201 })
     }),
 
+    http.get<{ ws: string; id: string }>(
+      url('/v1/workspaces/:ws/ventures/:id/actual-vs-planned'),
+      ({ params }) => {
+        const workspace = ventureGuard(params.ws, false)
+        if (workspace instanceof Response) return workspace
+        const venture = find(workspace.id, params.id)
+        if (!venture) return ventureNotFound()
+        const brl = (amount: string) => ({ amount, currency: 'BRL' })
+        const view: Schemas['ActualVsPlannedView'] = {
+          currency: 'BRL',
+          planned: {
+            initialInvestment: venture.figures.initialInvestment,
+            paybackMonths: venture.figures.paybackMonths,
+            paybackState: venture.figures.paybackState,
+          },
+          real: { state: 'NO_DATA', months: null, investment: null, missing: null },
+          months: [
+            {
+              month: new Date().toISOString().slice(0, 7),
+              income: brl('0.00'),
+              expense: brl('0.00'),
+              result: brl('0.00'),
+              plannedIncome: null,
+              plannedCost: null,
+              plannedResult: null,
+              comparison: null,
+            },
+          ],
+          totals: {
+            income: brl('0.00'),
+            expense: brl('0.00'),
+            result: brl('0.00'),
+            plannedIncome: null,
+            plannedCost: null,
+            plannedResult: null,
+          },
+        }
+        return HttpResponse.json(view)
+      },
+    ),
+
     http.get<{ ws: string; id: string }>(url('/v1/workspaces/:ws/ventures/:id'), ({ params }) => {
       const workspace = ventureGuard(params.ws, false)
       if (workspace instanceof Response) return workspace

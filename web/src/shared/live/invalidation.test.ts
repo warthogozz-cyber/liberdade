@@ -6,7 +6,15 @@ describe('invalidationPrefixes', () => {
   it.each([
     [
       'transaction',
-      [['transactions'], ['dashboard'], ['accounts'], ['tags'], ['planning'], ['gamification']],
+      [
+        ['transactions'],
+        ['dashboard'],
+        ['accounts'],
+        ['tags'],
+        ['planning'],
+        ['gamification'],
+        ['ventures'],
+      ],
     ],
     ['account', [['accounts'], ['transactions'], ['dashboard'], ['planning'], ['gamification']]],
     ['achievement', [['gamification']]],
@@ -44,5 +52,9 @@ describe('ventures', () => {
     // The prefix is written out in invalidation.ts: it must stay the family-key tail of `all`.
     expect(venturesKeys.all('ws1').slice(2)).toEqual(['ventures'])
     expect(invalidationPrefixes('modules')).toContainEqual(['ventures'])
+  })
+
+  it('transactionInvalidatesVentures', () => {
+    expect(invalidationPrefixes('transaction')).toContainEqual(['ventures'])
   })
 })

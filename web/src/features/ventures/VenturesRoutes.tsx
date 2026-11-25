@@ -14,6 +14,10 @@ const VentureEditPage = lazy(() =>
 
 const VenturePage = lazy(() => import('./VenturePage').then((m) => ({ default: m.VenturePage })))
 
+const ActualVsPlannedPage = lazy(() =>
+  import('./ActualVsPlannedPage').then((m) => ({ default: m.ActualVsPlannedPage })),
+)
+
 const InvestmentsPage = lazy(() =>
   import('./investments/InvestmentsPage').then((m) => ({ default: m.InvestmentsPage })),
 )
@@ -40,6 +44,7 @@ export function VenturesRoutes() {
     { index: true, element: <VenturesListPage /> },
     { path: 'comecar', element: <StartPage /> },
     { path: ':id/editar', element: <VentureEditPage /> },
+    { path: ':id/real', element: <ActualVsPlannedPage /> },
     { path: ':id', element: <VenturePage /> },
     { path: 'investimentos', element: <InvestmentsPage /> },
     { path: 'investimentos/simulador', element: <InvestmentSimulatorPage /> },
