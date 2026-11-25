@@ -145,6 +145,66 @@ class MarketCardIT {
     }
 
     @Test
+    void familyLinkWinsWithItsDate() {
+        MarketsTestData.imported(jdbc, Instant.parse("2026-11-18T15:00:00Z"));
+        jdbc.sql("""
+                        insert into osm_markets (osm_type, osm_id, kind, name, lat, lon, website)
+                        values ('n', 1, 'SUPERMARKET', 'Mercado Exemplo 1', -23.001, -46.001, 'https://osm.example.com')""").update();
+        UUID row = markets.ensureOsmRow(ws, new OsmRef('n', 1), workspaces.membershipOf(ws, ana));
+        jdbc.sql("""
+                        update markets set website = 'https://familia.example.com',
+                               website_set_at = timestamptz '2026-11-20 01:30:00+00'
+                        where id = :id""").param("id", row).update();
+
+        MvcTestResult result = get("osm-n-1");
+
+        assertThat(result).bodyJson().extractingPath("$.website.source").isEqualTo("FAMILY");
+        // 01:30 UTC is still the 19th in America/Sao_Paulo.
+        assertThat(result).bodyJson().extractingPath("$.website.date").isEqualTo("2026-11-19");
+    }
+
+    @Test
+    void osmLinkCarriesDatasetDate() {
+        MarketsTestData.imported(jdbc, Instant.parse("2026-11-18T15:00:00Z"));
+        jdbc.sql("""
+                        insert into osm_markets (osm_type, osm_id, kind, name, lat, lon, website)
+                        values ('n', 1, 'SUPERMARKET', 'Mercado Exemplo 1', -23.001, -46.001, 'https://osm.example.com')""").update();
+
+        MvcTestResult result = get("osm-n-1");
+
+        assertThat(result).bodyJson().extractingPath("$.website.source").isEqualTo("OSM");
+        assertThat(result).bodyJson().extractingPath("$.website.date").isEqualTo("2026-11-18");
+        assertThat(result).bodyJson().extractingPath("$.datasetDate").isEqualTo("2026-11-18");
+    }
+
+    @Test
+    void badOsmInstagramIsHidden() {
+        jdbc.sql("""
+                        insert into osm_markets (osm_type, osm_id, kind, name, lat, lon, instagram)
+                        values ('n', 1, 'SUPERMARKET', 'Mercado Exemplo 1', -23.001, -46.001, 'não sei')""").update();
+
+        MvcTestResult result = get("osm-n-1");
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.instagram").isNull();
+        assertThat(result).bodyJson().extractingPath("$.instagramEmbeddable").isEqualTo(false);
+    }
+
+    @Test
+    void moduleOffIs403() {
+        UUID bia = users.create("Bia Teste", "bia@example.com");
+        UUID off = workspaces.createFor(bia);
+
+        MvcTestResult result = mvc.get()
+                .uri("/v1/workspaces/" + off + "/markets/osm-n-1")
+                .with(TestUsers.signedIn(bia, null))
+                .exchange();
+
+        assertThat(result).hasStatus(403);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("module.disabled");
+    }
+
+    @Test
     void unsafeOsmWebsiteIsDropped() {
         jdbc.sql("""
                         insert into osm_markets (osm_type, osm_id, kind, name, lat, lon, website)
