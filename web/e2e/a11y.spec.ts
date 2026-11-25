@@ -521,7 +521,13 @@ test('the projects screens meet WCAG 2.2 AA in both themes', async ({ page }) =>
   await setModules(page, true)
 
   // From the model, so the form and the project screen have example stamps, figures and steps.
-  await page.goto('/mais/projetos/comecar')
+  // Right after the modules change, a fresh load can still read the old modules from the cache
+  // and bounce: load again until the start screen holds with its tracks.
+  await expect(async () => {
+    await page.goto('/mais/projetos/comecar')
+    await expect(page.getByRole('button', { name: /^Culinária/ })).toBeVisible({ timeout: 3_000 })
+    await expect(page).toHaveURL(/\/mais\/projetos\/comecar$/)
+  }).toPass({ timeout: 45_000 })
   await expectNoViolations(
     page,
     'Começar um projeto',

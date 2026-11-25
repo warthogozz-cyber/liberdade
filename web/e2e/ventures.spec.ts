@@ -124,7 +124,13 @@ test('investmentsTrack: the texts and the simulator both carry the notice, and a
   page,
 }) => {
   await signInWithModules(page)
-  await page.goto('/mais/projetos/comecar')
+  // Right after the modules change, a fresh load can still read the old modules from the cache
+  // and bounce: load again until the start screen holds with its tracks.
+  await expect(async () => {
+    await page.goto('/mais/projetos/comecar')
+    await expect(page.getByRole('link', { name: /^Investimentos/ })).toBeVisible({ timeout: 3_000 })
+    await expect(page).toHaveURL(/\/mais\/projetos\/comecar$/)
+  }).toPass({ timeout: 45_000 })
   await page.getByRole('link', { name: /^Investimentos/ }).click()
   await expect(page).toHaveURL('/mais/projetos/investimentos')
   await expect(page.getByRole('heading', { level: 1, name: 'Investimentos' })).toBeVisible()
