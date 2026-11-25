@@ -118,7 +118,7 @@ export function AchievementsPage() {
           )}
         </div>
       ) : achievements.isError ? (
-        <div className="flex flex-col items-start gap-2">
+        <div data-tour="achievements-list" className="flex flex-col items-start gap-2">
           <p>
             <FormattedMessage id="common.error" />
           </p>
@@ -128,6 +128,7 @@ export function AchievementsPage() {
         </div>
       ) : (
         <ul
+          data-tour="achievements-list"
           aria-busy="true"
           aria-label={intl.formatMessage({ id: 'gamification.loading' })}
           className="flex flex-col gap-2"

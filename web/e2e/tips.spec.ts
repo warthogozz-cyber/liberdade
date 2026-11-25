@@ -115,7 +115,13 @@ test.describe('first visit tips and tours', () => {
     await createFamily(page)
     await setModules(page, true)
 
-    await page.goto('/mais/conquistas')
+    // After a module toggle a fresh load can still bounce to /inicio, so retry until the screen holds.
+    await expect(async () => {
+      await page.goto('/mais/conquistas')
+      await expect(page.getByRole('heading', { level: 1, name: 'Conquistas' })).toBeVisible({
+        timeout: 3_000,
+      })
+    }).toPass({ timeout: 30_000 })
     const tour = page.getByRole('dialog', { name: /Sua sequência conta as semanas/ })
     await expect(tour).toBeVisible()
     await expect(tour.getByText('Passo 1 de 2')).toBeVisible()
