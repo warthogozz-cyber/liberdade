@@ -1172,6 +1172,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/ventures/{id}/actual-vs-planned": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getActualVsPlanned"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/ventures/{id}/status": {
         parameters: {
             query?: never;
@@ -1279,6 +1295,13 @@ export interface components {
             occurredAt: string;
             /** Format: uuid */
             workspaceId: string | null;
+        };
+        ActualVsPlannedView: {
+            currency: string;
+            months: components["schemas"]["MonthView"][];
+            planned: components["schemas"]["PlannedView"];
+            real: components["schemas"]["RealView"];
+            totals: components["schemas"]["TotalsView"];
         };
         BreakEvenView: {
             revenue: components["schemas"]["Money"] | null;
@@ -1720,6 +1743,18 @@ export interface components {
             /** @example BRL */
             currency: string;
         };
+        MonthView: {
+            /** @enum {string|null} */
+            comparison: "BELOW" | "ABOVE" | "EQUAL" | null;
+            expense: components["schemas"]["Money"];
+            income: components["schemas"]["Money"];
+            /** @example 2026-11 */
+            month: string;
+            plannedCost: components["schemas"]["Money"];
+            plannedIncome: components["schemas"]["Money"];
+            plannedResult: components["schemas"]["Money"];
+            result: components["schemas"]["Money"];
+        };
         NewUser: {
             displayName: string;
         } | null;
@@ -1756,6 +1791,13 @@ export interface components {
             refundDeadline: string | null;
             /** @enum {string} */
             theme: "TEAL" | "OCEAN" | "FOREST" | "PLUM";
+        };
+        PlannedView: {
+            initialInvestment: components["schemas"]["Money"];
+            /** Format: int64 */
+            paybackMonths: number | null;
+            /** @enum {string} */
+            paybackState: "MONTHS" | "NEVER";
         };
         PreviewInvitationRequest: {
             token: string;
@@ -1803,6 +1845,14 @@ export interface components {
             points: components["schemas"]["ProjectionPointView"][];
             /** Format: date */
             today: string;
+        };
+        RealView: {
+            investment: components["schemas"]["Money"];
+            missing: components["schemas"]["Money"];
+            /** Format: int32 */
+            months: number | null;
+            /** @enum {string} */
+            state: "PAID_BACK" | "NOT_YET" | "NEVER_NEGATIVE" | "NO_DATA";
         };
         RecurringRuleView: {
             /** Format: uuid */
@@ -1955,6 +2005,14 @@ export interface components {
         ThemeRequest: {
             /** @enum {string} */
             theme: "TEAL" | "OCEAN" | "FOREST" | "PLUM";
+        };
+        TotalsView: {
+            expense: components["schemas"]["Money"];
+            income: components["schemas"]["Money"];
+            plannedCost: components["schemas"]["Money"];
+            plannedIncome: components["schemas"]["Money"];
+            plannedResult: components["schemas"]["Money"];
+            result: components["schemas"]["Money"];
         };
         TrackView: {
             description: string;
@@ -4371,6 +4429,30 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getActualVsPlanned: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActualVsPlannedView"];
+                };
             };
         };
     };
