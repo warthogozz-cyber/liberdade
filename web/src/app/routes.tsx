@@ -222,24 +222,10 @@ export const routes: RouteObject[] = [
                       import('@/app/NoYouthRoute').then((m) => ({ Component: m.NoYouthRoute })),
                     children: [
                       {
-                        path: '/mais/projetos',
+                        path: '/mais/projetos/*',
                         lazy: () =>
-                          import('@/features/ventures/VenturesListPage').then((m) => ({
-                            Component: m.VenturesListPage,
-                          })),
-                      },
-                      {
-                        path: '/mais/projetos/comecar',
-                        lazy: () =>
-                          import('@/features/ventures/StartPage').then((m) => ({
-                            Component: m.StartPage,
-                          })),
-                      },
-                      {
-                        path: '/mais/projetos/:id/editar',
-                        lazy: () =>
-                          import('@/features/ventures/VentureEditPage').then((m) => ({
-                            Component: m.VentureEditPage,
+                          import('@/features/ventures/VenturesRoutes').then((m) => ({
+                            Component: m.VenturesRoutes,
                           })),
                       },
                     ],
