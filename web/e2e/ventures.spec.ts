@@ -11,6 +11,7 @@ import {
   test,
   typeAmount,
   waitForOfflineReady,
+  waitForQueueToEmpty,
 } from './support.ts'
 
 const DISCLAIMER = 'Conteúdo educativo. Não é recomendação de investimento.'
@@ -213,6 +214,8 @@ test('markATransactionAndSeeTheActual: an expense and an income marked with the 
 
   await recordMarked(page, 'gasto', '80000', '🛒 Mercado')
   await recordMarked(page, 'receita', '30000', '💼 Salário')
+  // Saved on the device first: the real only counts them once they reached the server.
+  await waitForQueueToEmpty(page)
 
   await page.goto(venturePage)
   await page.getByRole('link', { name: 'Real vs. planejado ›' }).click()
@@ -273,10 +276,12 @@ test('filterFromTheProject: "Ver lançamentos do projeto" lists only the marked 
 
   await recordMarked(page, 'gasto', '1200', '🛒 Mercado')
   await recordExpense(page, '700', '🚌 Transporte')
+  await waitForQueueToEmpty(page)
 
   await page.goto(`/mais/projetos/${id}/real`)
   await page.getByRole('link', { name: 'Ver lançamentos do projeto' }).click()
-  await expect(page).toHaveURL(`/lancamentos?projeto=${id}`)
+  // The link opens the project's newest month.
+  await expect(page).toHaveURL(new RegExp(`/lancamentos\\?projeto=${id}&mes=\\d{4}-\\d{2}$`))
   await expect(page.getByRole('listitem').filter({ hasText: '🛒 Mercado' })).toBeVisible()
   await expect(page.getByRole('listitem').filter({ hasText: '🚌 Transporte' })).toHaveCount(0)
 })
