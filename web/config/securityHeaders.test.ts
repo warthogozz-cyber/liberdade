@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildEmbedHeaders,
   buildSecurityHeaders,
+  embedMiddleware,
   resolveApiUrl,
   securityHeadersPlugin,
   toHeadersFile,
@@ -59,10 +61,79 @@ describe('buildSecurityHeaders', () => {
   })
 })
 
+describe('frame policy', () => {
+  it('appCspAllowsOnlyGoogleFrames', () => {
+    const csp = buildSecurityHeaders(API)['Content-Security-Policy']
+    expect(directive(csp, 'frame-src')).toBe("frame-src 'self' https://www.google.com")
+    expect(directive(csp, 'script-src')).toBe("script-src 'self'")
+  })
+
+  it('geolocationSelfCameraOff', () => {
+    const policy = buildSecurityHeaders(API)['Permissions-Policy']
+    expect(policy).toContain('geolocation=(self)')
+    expect(policy).toContain('camera=()')
+  })
+
+  it('embedBlockReplacesCsp', () => {
+    const file = toHeadersFile(buildSecurityHeaders(API))
+    const block = file.slice(file.indexOf('/embed/instagram*'))
+    expect(block).toContain('  ! Content-Security-Policy')
+    expect(block).toContain('  ! X-Frame-Options')
+    expect(block).toContain('  ! Permissions-Policy')
+    expect(block).toContain(
+      `  Content-Security-Policy: ${buildEmbedHeaders()['Content-Security-Policy']}`,
+    )
+    expect(block).toContain('  X-Frame-Options: SAMEORIGIN')
+    expect(buildEmbedHeaders()['Content-Security-Policy']).toBe(
+      "default-src 'none'; script-src 'self' https://www.instagram.com; frame-src https://www.instagram.com; img-src https://*.cdninstagram.com data:; style-src 'unsafe-inline'; frame-ancestors 'self'; base-uri 'none'",
+    )
+    expect(block).toContain('/embed/instagram.js')
+    expect(block).toContain('Access-Control-Allow-Origin: *')
+    expect(file.startsWith('/*\n')).toBe(true)
+  })
+})
+
+describe('embedMiddleware', () => {
+  function run(url: string) {
+    const headers: Record<string, string> = {}
+    const req = { url }
+    const res = { setHeader: (name: string, value: string) => (headers[name] = value) }
+    let nexted = false
+    embedMiddleware()(req, res, () => {
+      nexted = true
+      // The preview server's own header middleware runs after ours.
+      res.setHeader('Content-Security-Policy', 'app-csp')
+    })
+    return { headers, url: req.url, nexted }
+  }
+
+  it('rewritesTheExtensionlessPageAndAppliesTheEmbedCsp', () => {
+    const out = run('/embed/instagram')
+    expect(out.url).toBe('/embed/instagram.html')
+    expect(out.headers['Content-Security-Policy']).toBe(
+      buildEmbedHeaders()['Content-Security-Policy'],
+    )
+    expect(out.headers['X-Frame-Options']).toBe('SAMEORIGIN')
+    expect(out.nexted).toBe(true)
+  })
+
+  it('allowsCorsOnTheScriptOnly', () => {
+    expect(run('/embed/instagram.js').headers['Access-Control-Allow-Origin']).toBe('*')
+    expect(run('/embed/instagram').headers['Access-Control-Allow-Origin']).toBeUndefined()
+  })
+
+  it('leavesOtherPathsAlone', () => {
+    const out = run('/markets')
+    expect(out.headers).toEqual({ 'Content-Security-Policy': 'app-csp' })
+    expect(out.url).toBe('/markets')
+    expect(out.nexted).toBe(true)
+  })
+})
+
 describe('toHeadersFile', () => {
   it('headersFileFormat', () => {
     const file = toHeadersFile({ 'X-A': '1', 'X-B': 'two words' })
-    expect(file.split('\n')).toEqual(['/*', '  X-A: 1', '  X-B: two words', ''])
+    expect(file.split('\n').slice(0, 4)).toEqual(['/*', '  X-A: 1', '  X-B: two words', ''])
   })
 })
 

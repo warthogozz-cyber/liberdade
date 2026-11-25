@@ -16,7 +16,14 @@ export const CORE = [
   'settings',
   'import',
 ]
-export const OPTIONAL = ['planning', 'recurrences', 'indicators', 'gamification', 'ventures']
+export const OPTIONAL = [
+  'planning',
+  'recurrences',
+  'indicators',
+  'gamification',
+  'ventures',
+  'markets',
+]
 
 const ALL = [...CORE, ...OPTIONAL]
 
