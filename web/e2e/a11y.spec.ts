@@ -12,6 +12,7 @@ import {
   createRule,
   expect,
   joinAsYouth,
+  money,
   newUser,
   openInvitation,
   familyMonth,
@@ -512,4 +513,55 @@ test.describe('with the tips on', () => {
       page.getByRole('dialog', { name: /Sua sequência conta as semanas/ }),
     )
   })
+})
+
+test('the projects screens meet WCAG 2.2 AA in both themes', async ({ page }) => {
+  await signInWithGoogle(page, newUser())
+  await createFamily(page)
+  await setModules(page, true)
+
+  // From the model, so the form and the project screen have example stamps, figures and steps.
+  await page.goto('/mais/projetos/comecar')
+  await expectNoViolations(
+    page,
+    'Começar um projeto',
+    page.getByRole('button', { name: /^Culinária/ }),
+  )
+  await page.getByRole('button', { name: /^Culinária/ }).click()
+  await page
+    .getByRole('dialog', { name: 'Começar com o modelo' })
+    .getByRole('button', { name: 'Criar projeto' })
+    .click()
+  await expect(page).toHaveURL(/\/mais\/projetos\/[^/]+\/editar$/)
+
+  const figures = page.getByRole('region', { name: 'Prévia das contas' })
+  await expectNoViolations(page, 'Editar projeto', figures.getByText(money('540,00')))
+
+  await page.getByRole('button', { name: 'Salvar' }).click()
+  await expectNoViolations(
+    page,
+    'Doces por encomenda',
+    page.getByRole('heading', { level: 2, name: 'Passos' }),
+  )
+
+  await page.goto('/mais/projetos')
+  await expectNoViolations(
+    page,
+    'Projetos',
+    page.getByRole('link', { name: /Doces por encomenda/ }),
+  )
+
+  await page.goto('/mais/projetos/investimentos')
+  await expectNoViolations(
+    page,
+    'Investimentos',
+    page.getByText('Conteúdo educativo. Não é recomendação de investimento.'),
+  )
+
+  await page.goto('/mais/projetos/investimentos/simulador')
+  await expectNoViolations(
+    page,
+    'Simulador de juros compostos',
+    page.getByRole('button', { name: 'Simular', exact: true }),
+  )
 })
