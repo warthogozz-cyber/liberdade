@@ -3790,7 +3790,8 @@
           "RESERVE_1_MONTH",
           "RESERVE_3_MONTHS",
           "RESERVE_6_MONTHS",
-          "MONTH_IN_BUDGET"
+          "MONTH_IN_BUDGET",
+          "FIRST_VENTURE"
         ]
       },
       "AchievementView": {

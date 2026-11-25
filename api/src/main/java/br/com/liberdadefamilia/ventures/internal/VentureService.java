@@ -3,6 +3,7 @@ package br.com.liberdadefamilia.ventures.internal;
 import br.com.liberdadefamilia.billing.PlanKey;
 import br.com.liberdadefamilia.billing.Plans;
 import br.com.liberdadefamilia.shared.Money;
+import br.com.liberdadefamilia.ventures.VentureActivated;
 import br.com.liberdadefamilia.ventures.VentureChanged;
 import br.com.liberdadefamilia.ventures.VentureClosed;
 import br.com.liberdadefamilia.ventures.VentureDeleted;
@@ -227,6 +228,10 @@ class VentureService {
         }
         if (!ventures.changeStatus(workspaceId, id, to, startedOn, closedOn, request.version(), clock.instant())) {
             throw VentureRejectedException.versionConflict();
+        }
+        if (from == VentureStatus.PLANNING && to == VentureStatus.ACTIVE) {
+            events.publishEvent(new VentureActivated(
+                    workspaceId, id, ventures.createdBy(workspaceId, id).orElse(null)));
         }
         if (to == VentureStatus.CLOSED) {
             events.publishEvent(new VentureClosed(workspaceId, id, member.userId()));

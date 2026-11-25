@@ -11,4 +11,7 @@ public interface VenturesExport {
 
     /** The projects the membership created, by creation, with their items, products and steps. */
     List<ExportedVenture> venturesCreatedBy(UUID workspaceId, UUID membershipId);
+
+    /** Whether the membership created a project that has been started, closed or not. */
+    boolean anyStartedBy(UUID workspaceId, UUID membershipId);
 }

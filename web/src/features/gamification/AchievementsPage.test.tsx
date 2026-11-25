@@ -18,6 +18,7 @@ describe('AchievementsPage', () => {
       { key: 'FIRST_TRANSACTION', earnedAt: '2026-11-10T12:00:00Z', silent: false },
       { key: 'STREAK_4_WEEKS', earnedAt: null, silent: false },
       { key: 'FIRST_GOAL', earnedAt: null, silent: false },
+      { key: 'FIRST_VENTURE', earnedAt: null, silent: false },
     ]
     renderWithProviders(<AchievementsPage />, { path: '/mais/conquistas' })
 
@@ -30,6 +31,10 @@ describe('AchievementsPage', () => {
     expect(within(next).getByText('Registre algo em 4 semanas seguidas.')).toBeInTheDocument()
     expect(within(next).getByText('Primeira meta')).toBeInTheDocument()
     expect(within(next).getByText('Crie uma meta em Planejar.')).toBeInTheDocument()
+    expect(within(next).getByText('Primeiro projeto de renda extra')).toBeInTheDocument()
+    expect(
+      within(next).getByText('Começar a vender num projeto de renda extra.'),
+    ).toBeInTheDocument()
     expect(within(next).queryByText(/Ganha em/)).not.toBeInTheDocument()
 
     expect(screen.getByText('3 semanas seguidas')).toBeInTheDocument()

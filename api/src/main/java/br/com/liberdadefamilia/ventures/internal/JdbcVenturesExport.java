@@ -75,6 +75,19 @@ class JdbcVenturesExport implements VenturesExport {
                         .list());
     }
 
+    @Override
+    public boolean anyStartedBy(UUID workspaceId, UUID membershipId) {
+        return jdbc.sql("""
+                        select exists (
+                            select 1 from ventures
+                            where workspace_id = :workspaceId and created_by = :membershipId
+                              and started_on is not null)""")
+                .param("workspaceId", workspaceId)
+                .param("membershipId", membershipId)
+                .query(Boolean.class)
+                .single();
+    }
+
     private List<ExportedVenture> assemble(UUID workspaceId, List<Head> heads) {
         if (heads.isEmpty()) {
             return List.of();

@@ -1272,7 +1272,7 @@ export interface components {
             type: "CHECKING" | "SAVINGS" | "CASH" | "CREDIT_CARD" | "WALLET" | "INVESTMENT";
         };
         /** @enum {string} */
-        AchievementKey: "FIRST_TRANSACTION" | "STREAK_4_WEEKS" | "FIRST_GOAL" | "GOAL_ACHIEVED" | "RESERVE_1_MONTH" | "RESERVE_3_MONTHS" | "RESERVE_6_MONTHS" | "MONTH_IN_BUDGET";
+        AchievementKey: "FIRST_TRANSACTION" | "STREAK_4_WEEKS" | "FIRST_GOAL" | "GOAL_ACHIEVED" | "RESERVE_1_MONTH" | "RESERVE_3_MONTHS" | "RESERVE_6_MONTHS" | "MONTH_IN_BUDGET" | "FIRST_VENTURE";
         AchievementView: {
             /** Format: date-time */
             earnedAt: string | null;

@@ -31,4 +31,6 @@ export const gamificationMessages = {
   'gamification.achievement.MONTH_IN_BUDGET.name': 'Mês dentro do orçamento',
   'gamification.achievement.MONTH_IN_BUDGET.hint':
     'Um mês fecha com todas as categorias dentro do limite.',
+  'gamification.achievement.FIRST_VENTURE.name': 'Primeiro projeto de renda extra',
+  'gamification.achievement.FIRST_VENTURE.hint': 'Começar a vender num projeto de renda extra.',
 } as const

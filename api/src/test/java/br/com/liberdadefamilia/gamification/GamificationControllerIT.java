@@ -149,7 +149,8 @@ class GamificationControllerIT {
                         "RESERVE_1_MONTH",
                         "RESERVE_3_MONTHS",
                         "RESERVE_6_MONTHS",
-                        "MONTH_IN_BUDGET");
+                        "MONTH_IN_BUDGET",
+                        "FIRST_VENTURE");
         assertThat(result)
                 .bodyJson()
                 .extractingPath("$.items[*].earnedAt")
@@ -239,7 +240,7 @@ class GamificationControllerIT {
                 .bodyJson()
                 .extractingPath("$.items[*].key")
                 .asArray()
-                .containsExactly("FIRST_TRANSACTION", "STREAK_4_WEEKS", "GOAL_ACHIEVED");
+                .containsExactly("FIRST_TRANSACTION", "STREAK_4_WEEKS", "GOAL_ACHIEVED", "FIRST_VENTURE");
         assertThat(result).bodyJson().extractingPath("$.items[2].earnedAt").isNotNull();
     }
 

@@ -224,6 +224,15 @@ class VentureRepository {
                 .update();
     }
 
+    /** Who created the project; empty when that member has left the family. */
+    Optional<UUID> createdBy(UUID workspaceId, UUID id) {
+        return jdbc.sql("select created_by from ventures where workspace_id = :workspaceId and id = :id")
+                .param("workspaceId", workspaceId)
+                .param("id", id)
+                .query((rs, row) -> Optional.ofNullable(rs.getObject("created_by", UUID.class)))
+                .single();
+    }
+
     /** The project when the family has it, with its lines and steps. */
     Optional<StoredVenture> find(UUID workspaceId, UUID id) {
         return load(workspaceId, id).stream().findFirst();

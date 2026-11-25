@@ -5,6 +5,7 @@ import br.com.liberdadefamilia.ledger.TransactionChanged;
 import br.com.liberdadefamilia.planning.GoalChanged;
 import br.com.liberdadefamilia.planning.ReserveCostChanged;
 import br.com.liberdadefamilia.planning.ReserveTargetChanged;
+import br.com.liberdadefamilia.ventures.VentureActivated;
 import br.com.liberdadefamilia.workspace.MemberJoined;
 import br.com.liberdadefamilia.workspace.MemberRemoved;
 import br.com.liberdadefamilia.workspace.MemberRoleChanged;
@@ -72,6 +73,15 @@ class AchievementListeners {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(ReserveTargetChanged event) {
         family(event.workspaceId());
+    }
+
+    /** Starting a project is the action of whoever created it, so it is celebrated; a creator who left gets nothing. */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void on(VentureActivated event) {
+        UUID creator = event.createdByMembershipId();
+        if (creator != null) {
+            run(() -> service.evaluate(event.workspaceId(), creator, false));
+        }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
