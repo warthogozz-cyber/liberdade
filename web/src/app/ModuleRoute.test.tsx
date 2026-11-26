@@ -4,8 +4,8 @@ import { Route, Routes } from 'react-router'
 import { afterEach, describe, expect, it } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
-import { API_URL } from '@/shared/api'
-import { renderWithProviders } from '@/shared/testing'
+import { API_URL, queryKeys } from '@/shared/api'
+import { createTestQueryClient, renderWithProviders } from '@/shared/testing'
 import { ModuleRoute } from './ModuleRoute'
 
 afterEach(cleanup)
@@ -83,5 +83,39 @@ describe('ModuleRoute', () => {
     expect(screen.queryByText('Hub do planejamento')).toBeNull()
     expect(router.state.location.pathname).toBe('/planejar')
     expect(await screen.findByText('Hub do planejamento')).toBeTruthy()
+  })
+
+  it('asks again before sending the family home on a cached list that says off', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: true }
+    // The list saved on the device (or read a moment ago) still says off: the family has just
+    // switched the module on.
+    const queryClient = createTestQueryClient()
+    queryClient.setQueryData(queryKeys.modules(workspace.id), [{ key: 'planning', enabled: false }])
+
+    const { router } = renderWithProviders(<App />, {
+      path: '/*',
+      route: '/planejar',
+      queryClient,
+    })
+
+    expect(await screen.findByText('Hub do planejamento')).toBeTruthy()
+    expect(router.state.location.pathname).toBe('/planejar')
+  })
+
+  it('sends the family home on the cached list when the server cannot be reached', async () => {
+    const workspace = seedMockFamily()
+    server.use(http.get(`${API_URL}/v1/workspaces/:ws/modules`, () => HttpResponse.error()))
+    const queryClient = createTestQueryClient()
+    queryClient.setQueryData(queryKeys.modules(workspace.id), [{ key: 'planning', enabled: false }])
+
+    const { router } = renderWithProviders(<App />, {
+      path: '/*',
+      route: '/planejar',
+      queryClient,
+    })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
+    expect(screen.queryByText('Hub do planejamento')).toBeNull()
   })
 })

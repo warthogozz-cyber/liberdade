@@ -1,6 +1,6 @@
-import { cleanup, screen, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mockState, seedMockFamily, seedMockInvitation } from '@/mocks/data'
+import { mockState, seedFamilyPlan, seedMockFamily, seedMockInvitation } from '@/mocks/data'
 import type { MemberView } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
 import { FamilyPage } from './FamilyPage'
@@ -100,5 +100,23 @@ describe('FamilyPage', () => {
     ).toBeInTheDocument()
     expect(revoke).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Renomear' })).toBeDisabled()
+  })
+
+  it('showsTheFeiraAddressOnlyWhenThePlanOpensIt', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { markets: true }
+    mockState.billing.plan = { key: 'FREE', endsAt: null }
+    const { unmount } = renderFamily()
+
+    expect(await screen.findByRole('button', { name: 'Renomear' })).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    expect(screen.queryByText('Endereço da família na Feira')).not.toBeInTheDocument()
+    unmount()
+
+    seedFamilyPlan()
+    renderFamily()
+    await waitFor(() =>
+      expect(screen.getByText('Endereço da família na Feira')).toBeInTheDocument(),
+    )
   })
 })

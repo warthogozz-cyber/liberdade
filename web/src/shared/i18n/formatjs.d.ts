@@ -43,6 +43,7 @@ import type { recurrencesMessages } from '@/features/recurrences/messages.pt-BR'
 import type { venturesMessages } from '@/features/ventures/messages.pt-BR'
 import type { reauthMessages } from '@/shared/auth/messages.pt-BR'
 import type { tipsMessages } from '@/shared/tips/messages.pt-BR'
+import type { planRequiredMessages } from '@/shared/ui/planRequired.messages.pt-BR'
 import type { sourceStampMessages } from '@/shared/ui/sourceStamp.messages.pt-BR'
 import type { messages } from './messages.pt-BR'
 
@@ -71,6 +72,7 @@ declare global {
         | keyof typeof settingsMessages
         | keyof typeof recurrencesMessages
         | keyof typeof venturesMessages
+        | keyof typeof planRequiredMessages
         | keyof typeof reauthMessages
         | keyof typeof sourceStampMessages
         | keyof typeof signInMessages
