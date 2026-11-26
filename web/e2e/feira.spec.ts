@@ -32,11 +32,12 @@ const POST_URL = 'https://www.instagram.com/p/Exemplo1/'
 async function watchRequests(page: Page): Promise<Request[]> {
   const seen: Request[] = []
   page.on('request', (request) => seen.push(request))
-  await page
-    .context()
-    .route('**/*', (route) =>
-      isThirdParty(route.request().url()) ? route.abort() : route.continue(),
-    )
+  // Only the third parties are routed: passing every request of the app through the test as well
+  // slowed WebKit past the assertions' wait.
+  await page.context().route(
+    (url) => isThirdParty(url.href),
+    (route) => route.abort(),
+  )
   return seen
 }
 
