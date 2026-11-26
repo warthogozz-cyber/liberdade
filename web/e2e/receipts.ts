@@ -139,6 +139,7 @@ export async function fillItem(page: Page, issuedOn: string): Promise<void> {
   await page.getByLabel('Data da compra').fill(issuedOn)
   await page.getByLabel('Produto', { exact: true }).fill(ITEM_NAME)
   await page.getByRole('button', { name: `Novo: ${ITEM_NAME}` }).click()
-  await page.getByLabel('Unidade', { exact: true }).selectOption('UN')
+  // A new product starts as UN: the select only has to say so.
+  await expect(page.getByRole('combobox', { name: /^Unidade/ })).toHaveValue('UN')
   await page.getByLabel('Preço da unidade').fill('4,99')
 }

@@ -409,7 +409,7 @@ OpenStreetMap e o mesmo CNPJ aparecem uma vez só por família. As linhas somem 
 deixa os mercados sem autor (`ON DELETE SET NULL`). A V40 também deixou `markets` entre os módulos
 aceitos e `MARKET` entre os alvos da auditoria.
 
-### Notas e preços (Plano 10.2, migração `V41__receipts_and_prices.sql`)
+### Notas e preços (Plano 10.2, migração `V41__receipts.sql`)
 
 | Tabela | Colunas principais |
 |---|---|

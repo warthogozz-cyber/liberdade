@@ -16,7 +16,11 @@ import { expect, money, test } from './support.ts'
 test.use({ serviceWorkers: 'block' })
 
 /** Only the app and its API run on this machine; anything else would have left the app. */
-const isOutside = (url: string): boolean => new URL(url).hostname !== 'localhost'
+const isOutside = (url: string): boolean => {
+  const parsed = new URL(url)
+  // data: and blob: URLs have no host and never leave the page.
+  return /^(https?|wss?):$/.test(parsed.protocol) && parsed.hostname !== 'localhost'
+}
 
 test('registerReceiptByHand: a typed key becomes prices on the market card, once', async ({
   page,

@@ -46,7 +46,7 @@ Faça com o navegador, sem robô, e sem pressa. Marque cada item e anote a data.
 5. **Cabe numa tabela só?** Diga se a página é a mesma para todos os estados do portal (SVRS) ou se
    cada estado tem a sua.
 
-Passou nos cinco: registre na tabela do fim e peça o plano 10.2.x.
+Passou nos cinco **e** o plano do leitor prevê cache, limite de requisições e a identificação do robô (as cinco regras abaixo, regra 2): registre na tabela do fim e peça o plano 10.2.x. Sem essas três condições, o estado não passa.
 
 ## Como salvar a página de exemplo
 
@@ -78,15 +78,15 @@ Cada plano de leitor segue estas regras (spec 6.5, "Leitor por estado"):
    `MARKETS_ALERT type=NFCE_PARSE_FAILED uf=<UF>` (sem a chave).
 4. **O teste usa uma página de exemplo** feita a partir da página real, com a parte do consumidor
    trocada por dados inventados. A página real nunca entra no repositório.
-5. **No staging, o estado fica na lista só durante a conferência.** Depois do merge do plano, ponha o
-   estado em `LIBERDADE_MARKETS_NFCE_FETCH_STATES` do staging, confira, e só então da produção.
+5. **Primeiro o staging, depois a produção.** Depois do merge do plano, ponha o estado em
+   `LIBERDADE_MARKETS_NFCE_FETCH_STATES` do staging só durante a conferência; só depois que ela passar, na produção.
 
 O primeiro plano 10.2.x também traz a política nova (a API passa a consultar a SEFAZ) e a linha da
 NFC-e na página `/robo`.
 
 ## Registro das conferências
 
-Preencha uma linha por estado conferido. "Resultado" diz passou ou parou, e em qual item da lista.
+Preencha uma linha por estado conferido. "Resultado" diz passou ou parou, e em qual item da lista, e **precisa dizer que o cache, o limite de requisições e a identificação do robô estão previstos** (um estado sem eles não passa).
 
 | Estado | Data | Resultado | Plano |
 | --- | --- | --- | --- |
