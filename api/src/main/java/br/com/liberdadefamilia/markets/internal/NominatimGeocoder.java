@@ -27,6 +27,7 @@ public class NominatimGeocoder implements Geocoder {
     static final int LABEL_MAX = 40;
 
     private static final String SEARCH = "/search?q={query}&format=jsonv2&addressdetails=1&limit=5&countrycodes=br";
+    private static final String NO_AREA_LABEL = "Ponto encontrado no mapa";
     private static final List<String> DISTRICT_KEYS = List.of("suburb", "neighbourhood", "quarter", "city_district");
     private static final List<String> CITY_KEYS = List.of("city", "town", "village", "municipality");
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
@@ -109,7 +110,7 @@ public class NominatimGeocoder implements Geocoder {
         return new GeocodedPlace(point, label);
     }
 
-    /** District and city, or city and state; the first words of the full name when the address has neither. */
+    /** Area fields only (district, city, state); never the street, the number or the postcode. */
     private static String label(JsonNode item) {
         JsonNode address = item.get("address");
         String district = first(address, DISTRICT_KEYS);
@@ -124,10 +125,12 @@ public class NominatimGeocoder implements Geocoder {
             label = city;
         } else if (district != null) {
             label = district;
+        } else if (state != null) {
+            label = state;
         } else {
-            label = firstWords(item.get("display_name"));
+            label = NO_AREA_LABEL;
         }
-        return label == null ? null : cut(label);
+        return cut(label);
     }
 
     private static String first(JsonNode address, List<String> keys) {
@@ -141,16 +144,6 @@ public class NominatimGeocoder implements Geocoder {
             }
         }
         return null;
-    }
-
-    private static String firstWords(JsonNode displayName) {
-        if (displayName == null
-                || !displayName.isString()
-                || displayName.stringValue().isBlank()) {
-            return null;
-        }
-        String[] parts = displayName.stringValue().split(",");
-        return parts.length > 1 ? (parts[0].strip() + ", " + parts[1].strip()) : parts[0].strip();
     }
 
     private static String cut(String label) {

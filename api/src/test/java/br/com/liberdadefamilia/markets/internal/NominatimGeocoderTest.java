@@ -93,6 +93,23 @@ class NominatimGeocoderTest {
     }
 
     @Test
+    void labelNeverCarriesTheStreetOrTheNumber() throws Exception {
+        answer("[{\"lat\":\"-10.0\",\"lon\":\"-50.0\",\"display_name\":\"120, Estrada do Sitio, Estado Exemplo\","
+                + "\"address\":{\"road\":\"Estrada do Sitio\",\"house_number\":\"120\",\"postcode\":\"00000-000\","
+                + "\"state\":\"Estado Exemplo\"}}]");
+
+        assertThat(geocoder.search("x").get(0).label()).isEqualTo("Estado Exemplo");
+    }
+
+    @Test
+    void labelWithNoAreaUsesTheFixedText() throws Exception {
+        answer("[{\"lat\":\"-10.0\",\"lon\":\"-50.0\",\"display_name\":\"120, Estrada do Sitio\","
+                + "\"address\":{\"road\":\"Estrada do Sitio\",\"house_number\":\"120\"}}]");
+
+        assertThat(geocoder.search("x").get(0).label()).isEqualTo("Ponto encontrado no mapa");
+    }
+
+    @Test
     void aLongNameIsCutToTheLabelLimit() throws Exception {
         String district = "Bairro Exemplo ".repeat(4).strip(); // 59 characters
         answer("[" + result("-10.0", "-50.0", "{\"suburb\":\"" + district + "\",\"city\":\"Cidade Exemplo\"}") + "]");
