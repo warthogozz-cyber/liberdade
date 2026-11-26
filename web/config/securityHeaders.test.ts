@@ -68,10 +68,11 @@ describe('frame policy', () => {
     expect(directive(csp, 'script-src')).toBe("script-src 'self'")
   })
 
-  it('geolocationSelfCameraOff', () => {
+  it('geolocationAndCameraSelfRestOff', () => {
     const policy = buildSecurityHeaders(API)['Permissions-Policy']
-    expect(policy).toContain('geolocation=(self)')
-    expect(policy).toContain('camera=()')
+    expect(policy).toBe(
+      'camera=(self), microphone=(), geolocation=(self), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)',
+    )
   })
 
   it('embedBlockReplacesCsp', () => {

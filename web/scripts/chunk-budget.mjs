@@ -4,6 +4,11 @@
  */
 export const LIMITS = { initialKb: 200, chunkKb: 260 }
 
+/** The receipt QR reader and its jsQR worker load only after "Ler o QR" is tapped (D16). */
+export const scannerFiles = ['QrScanner.tsx', 'detectQr.ts', 'qrWorker.ts'].map(
+  (file) => `src/features/markets/receipt/scanner/${file}`,
+)
+
 /** The entry's files and, through static `imports` only, theirs, with their CSS. Each once. */
 export function initialFiles(manifest) {
   const files = new Set()

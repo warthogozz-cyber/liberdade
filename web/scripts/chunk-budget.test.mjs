@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { checkBudget, composition, groupOf, initialFiles, lazyOnly } from './chunk-budget.mjs'
+import {
+  checkBudget,
+  composition,
+  groupOf,
+  initialFiles,
+  lazyOnly,
+  scannerFiles,
+} from './chunk-budget.mjs'
 
 const KB = 1024
 
@@ -179,5 +186,19 @@ describe('lazy-only sources', () => {
     }
 
     expect(lazyOnly(manifest, [SYNTH])).toEqual({ ok: true, offenders: [] })
+  })
+
+  it('scannerFilesAreLazyOnly', () => {
+    expect(scannerFiles).toEqual([
+      'src/features/markets/receipt/scanner/QrScanner.tsx',
+      'src/features/markets/receipt/scanner/detectQr.ts',
+      'src/features/markets/receipt/scanner/qrWorker.ts',
+    ])
+    const manifest = {
+      'index.html': { file: 'assets/index.js', isEntry: true, imports: ['s'] },
+      s: { file: 'assets/s.js', src: scannerFiles[0] },
+    }
+
+    expect(lazyOnly(manifest, scannerFiles)).toEqual({ ok: false, offenders: [scannerFiles[0]] })
   })
 })

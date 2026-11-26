@@ -143,4 +143,10 @@ export const marketsMessages = {
   'markets.receipt.error.duplicate': 'Esta nota já foi registrada.',
   'markets.receipt.error.keyInvalid':
     'Esta chave não parece de uma nota fiscal de consumidor válida.',
+  'markets.receipt.scanner.video': 'Câmera para ler o QR da nota',
+  'markets.receipt.scanner.hint': 'Aponte a câmera de trás para o QR da nota.',
+  'markets.receipt.scanner.unavailable':
+    'Não deu para usar a câmera. Cole o link da nota ou digite a chave de 44 números.',
+  'markets.receipt.scanner.paused':
+    'A câmera foi desligada porque a tela saiu de vista. Toque em Ler o QR para tentar de novo, ou cole o link da nota ou digite a chave.',
 } as const
