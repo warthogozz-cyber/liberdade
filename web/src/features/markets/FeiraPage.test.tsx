@@ -43,7 +43,7 @@ function osm(index: number, lat: number, name: string | null = `Mercado ${index}
     suburb: null,
     city: null,
     brand: null,
-    familyId: null,
+    familyId: null as string | null,
   }
 }
 
@@ -124,6 +124,29 @@ describe('FeiraPage', () => {
     render()
 
     expect(await screen.findByRole('button', { name: /Adicionar mercado/ })).toBeVisible()
+  })
+
+  it('linksByFamilyIdWhenTheOsmMarketHasOne', async () => {
+    seed()
+    const withFamily = { ...osm(1, -10.001), familyId: '0192f3a4-0000-7000-8000-0000000000d1' }
+    answerSearch([withFamily, osm(2, -10.002)])
+    render()
+
+    await screen.findByText('Mercado 1')
+    expect(marketLinks().map((link) => link.getAttribute('href'))).toEqual([
+      '/mais/feira/mercado/0192f3a4-0000-7000-8000-0000000000d1',
+      '/mais/feira/mercado/osm-n-2',
+    ])
+  })
+
+  it('theAddButtonOpensTheAddSheet', async () => {
+    seed('OWNER')
+    render()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Adicionar mercado/ }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('heading', { name: 'Adicionar mercado' })).toBeVisible()
   })
 
   it('youthMakesNoHomeRequestAndHasNoFamilyAddress', async () => {

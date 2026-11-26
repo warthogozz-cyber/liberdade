@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { ApiError } from '@/shared/api'
 import type { MarketCard, MarketLinksBody } from '@/shared/api/markets'
 import { registerMessages } from '@/shared/i18n'
 import { Sheet } from '@/shared/ui/Sheet'
@@ -10,7 +9,7 @@ import {
   MAX_FLYER_SOURCE_LENGTH,
   MAX_LINK_LENGTH,
 } from './links'
-import { useSaveLinks } from './useMarketWrites'
+import { useSaveLinks, useWriteError } from './useMarketWrites'
 import { marketsMessages } from './messages.pt-BR'
 
 registerMessages(marketsMessages)
@@ -83,11 +82,7 @@ export function LinksSheet({ open, onOpenChange, workspaceId, marketRef, card }:
     save.mutate(body, { onSuccess: () => onOpenChange(false) })
   }
 
-  const apiError = !save.isError
-    ? null
-    : save.error instanceof ApiError && save.error.detail
-      ? save.error.detail
-      : intl.formatMessage({ id: 'markets.form.saveFailed' })
+  const apiError = useWriteError(save)
 
   const text = (
     id:

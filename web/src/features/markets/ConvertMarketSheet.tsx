@@ -1,10 +1,9 @@
-import { FormattedMessage, useIntl } from 'react-intl'
-import { ApiError } from '@/shared/api'
+import { FormattedMessage } from 'react-intl'
 import type { MarketCard } from '@/shared/api/markets'
 import { registerMessages } from '@/shared/i18n'
 import { Sheet } from '@/shared/ui/Sheet'
 import { MarketDetailsForm } from './MarketDetailsForm'
-import { useConvertMarket } from './useMarketWrites'
+import { useConvertMarket, useWriteError } from './useMarketWrites'
 import { marketsMessages } from './messages.pt-BR'
 
 registerMessages(marketsMessages)
@@ -31,13 +30,8 @@ export function ConvertMarketSheet({
   geocodingEnabled,
   onConverted,
 }: ConvertMarketSheetProps) {
-  const intl = useIntl()
   const convert = useConvertMarket(workspaceId, marketRef)
-  const error = !convert.isError
-    ? null
-    : convert.error instanceof ApiError && convert.error.detail
-      ? convert.error.detail
-      : intl.formatMessage({ id: 'markets.form.saveFailed' })
+  const error = useWriteError(convert)
   return (
     <Sheet
       open={open}

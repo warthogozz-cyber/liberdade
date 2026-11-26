@@ -7,6 +7,7 @@ import { API_URL } from '@/shared/api'
 import type { MarketCard } from '@/shared/api/markets'
 import { renderWithProviders } from '@/shared/testing'
 import { MarketCardPage } from './MarketCardPage'
+import { distanceMeters, formatDistance } from './geo'
 import { writeLocation } from './locationStore'
 
 const REF = 'osm-n-9001'
@@ -210,6 +211,20 @@ describe('MarketCardPage', () => {
     expect(await screen.findByRole('heading', { name: 'Mercado Exemplo' })).toBeVisible()
     expect(screen.getByText(/Supermercado · Rua Exemplo, 10/)).toBeVisible()
     expect(screen.getByText(/Mo-Sa 08:00-20:00/)).toBeVisible()
+    const meters = distanceMeters({ lat: -10, lon: -50 }, { lat: -10.00012, lon: -50.00034 })
+    expect(
+      screen.getByText(`Supermercado · Rua Exemplo, 10 · ${formatDistance(meters, true)}`),
+    ).toBeVisible()
+  })
+
+  it('hidesTheDistanceForAPreciseChoice', async () => {
+    seed()
+    writeLocation(mockState.user.id, { mode: 'precise' })
+    answerCard(cardOf())
+    render()
+
+    await screen.findByRole('heading', { name: 'Mercado Exemplo' })
+    expect(screen.getByText('Supermercado · Rua Exemplo, 10')).toBeVisible()
   })
 
   it('giveLocationForUnlocatedFamily', async () => {

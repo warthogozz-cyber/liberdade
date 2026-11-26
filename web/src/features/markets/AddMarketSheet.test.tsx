@@ -121,4 +121,43 @@ describe('AddMarketSheet', () => {
     expect(screen.getByRole('button', { name: 'Estou no mercado agora' })).toBeEnabled()
     expect(getCurrentPosition.mock.calls[0]?.[2]).toMatchObject({ timeout: 15000 })
   })
+
+  it('searchingAnAddressDoesNotSubmitTheDetails', async () => {
+    const errors = vi.spyOn(console, 'error')
+    const { bodies } = open()
+
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Nome do mercado' }), {
+      target: { value: 'Mercado do Bairro' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar endereço' }))
+    const address = screen.getByRole('textbox', { name: 'Endereço do mercado' })
+    fireEvent.change(address, { target: { value: 'Rua Exemplo 10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
+    await screen.findAllByRole('radio')
+    fireEvent.keyDown(address, { key: 'Enter', code: 'Enter' })
+    await screen.findAllByRole('radio')
+
+    expect(bodies).toEqual([])
+    expect(screen.queryByText('Digite o nome do mercado.')).not.toBeInTheDocument()
+    expect(errors.mock.calls.flat().join(' ')).not.toContain('validateDOMNesting')
+    errors.mockRestore()
+  })
+
+  it('pressingEnterInTheAddressSearchesAgain', async () => {
+    let searches = 0
+    server.use(
+      http.post(`${API_URL}/v1/workspaces/:ws/markets/geocode`, () => {
+        searches += 1
+        return HttpResponse.json({ places: [{ lat: '-10.000', lon: '-50.000', label: 'Bairro' }] })
+      }),
+    )
+    open()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Buscar endereço' }))
+    const address = screen.getByRole('textbox', { name: 'Endereço do mercado' })
+    fireEvent.change(address, { target: { value: 'Rua Exemplo 10' } })
+    fireEvent.keyDown(address, { key: 'Enter', code: 'Enter' })
+
+    await waitFor(() => expect(searches).toBe(1))
+  })
 })

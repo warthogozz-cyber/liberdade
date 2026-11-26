@@ -1,4 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useIntl } from 'react-intl'
+import { ApiError } from '@/shared/api'
 import {
   archiveMarket,
   convertMarket,
@@ -37,3 +39,12 @@ export const useArchiveMarket = (ws: string, ref: string) =>
 
 export const useConvertMarket = (ws: string, ref: string) =>
   useRefreshing(ws, (body: NewMarketBody) => convertMarket(ws, ref, body))
+
+/** What to tell the person about a failed write: the API's own message, else the generic one. */
+export function useWriteError(failure: { isError: boolean; error: unknown }): string | null {
+  const intl = useIntl()
+  if (!failure.isError) return null
+  return failure.error instanceof ApiError && failure.error.detail
+    ? failure.error.detail
+    : intl.formatMessage({ id: 'markets.form.saveFailed' })
+}

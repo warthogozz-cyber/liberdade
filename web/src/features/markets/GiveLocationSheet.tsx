@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { FormattedMessage, useIntl } from 'react-intl'
-import { ApiError } from '@/shared/api'
+import { FormattedMessage } from 'react-intl'
 import { registerMessages } from '@/shared/i18n'
 import { Sheet } from '@/shared/ui/Sheet'
 import { PositionPicker, type PickedPosition } from './PositionPicker'
-import { useSetPosition } from './useMarketWrites'
+import { useSetPosition, useWriteError } from './useMarketWrites'
 import { marketsMessages } from './messages.pt-BR'
 
 registerMessages(marketsMessages)
@@ -25,14 +24,9 @@ export function GiveLocationSheet({
   marketRef,
   geocodingEnabled,
 }: GiveLocationSheetProps) {
-  const intl = useIntl()
   const save = useSetPosition(workspaceId, marketRef)
   const [position, setPosition] = useState<PickedPosition | null>(null)
-  const error = !save.isError
-    ? null
-    : save.error instanceof ApiError && save.error.detail
-      ? save.error.detail
-      : intl.formatMessage({ id: 'markets.form.saveFailed' })
+  const error = useWriteError(save)
   return (
     <Sheet
       open={open}

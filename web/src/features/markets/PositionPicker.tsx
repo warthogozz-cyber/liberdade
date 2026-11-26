@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { geocodeAddress, type GeocodedPlace, type MarketPoint } from '@/shared/api/markets'
 import { registerMessages } from '@/shared/i18n'
@@ -56,8 +56,7 @@ export function PositionPicker({
     onChange({ lat: roundTo(point.lat, 5), lon: roundTo(point.lon, 5) })
   }
 
-  const find = (event: FormEvent) => {
-    event.preventDefault()
+  const find = () => {
     const text = query.trim()
     if (text === '') return
     setFailure(null)
@@ -85,7 +84,8 @@ export function PositionPicker({
 
       {geocodingEnabled && searching && (
         <div className="flex flex-col gap-3">
-          <form onSubmit={find} className="flex items-end gap-2">
+          {/* Not a <form>: the picker sits inside the details form, and forms must not nest. */}
+          <div className="flex items-end gap-2">
             <label className="flex flex-1 flex-col gap-1 text-sm">
               <FormattedMessage id="markets.picker.query" />
               <input
@@ -93,12 +93,19 @@ export function PositionPicker({
                 value={query}
                 maxLength={120}
                 onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event: KeyboardEvent) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    find()
+                  }
+                }}
                 autoComplete="off"
                 className="min-h-12 rounded-field border border-text-muted bg-background px-3 text-base"
               />
             </label>
             <button
-              type="submit"
+              type="button"
+              onClick={find}
               disabled={lookup.isPending || query.trim() === ''}
               className={button}
             >
@@ -106,7 +113,7 @@ export function PositionPicker({
                 id={lookup.isPending ? 'markets.picker.finding' : 'markets.picker.find'}
               />
             </button>
-          </form>
+          </div>
           {places !== null &&
             (places.length === 0 ? (
               <p role="status">

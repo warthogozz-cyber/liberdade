@@ -1,10 +1,9 @@
-import { FormattedMessage, useIntl } from 'react-intl'
-import { ApiError } from '@/shared/api'
+import { FormattedMessage } from 'react-intl'
 import type { MarketCard } from '@/shared/api/markets'
 import { registerMessages } from '@/shared/i18n'
 import { Sheet } from '@/shared/ui/Sheet'
 import { MarketDetailsForm } from './MarketDetailsForm'
-import { useAddMarket } from './useMarketWrites'
+import { useAddMarket, useWriteError } from './useMarketWrites'
 import { marketsMessages } from './messages.pt-BR'
 
 registerMessages(marketsMessages)
@@ -28,13 +27,8 @@ export function AddMarketSheet({
   geocodingEnabled,
   onCreated,
 }: AddMarketSheetProps) {
-  const intl = useIntl()
   const add = useAddMarket(workspaceId)
-  const error = !add.isError
-    ? null
-    : add.error instanceof ApiError && add.error.detail
-      ? add.error.detail
-      : intl.formatMessage({ id: 'markets.form.saveFailed' })
+  const error = useWriteError(add)
   return (
     <Sheet
       open={open}
