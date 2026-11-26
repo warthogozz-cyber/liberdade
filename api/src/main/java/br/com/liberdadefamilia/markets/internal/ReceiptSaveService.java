@@ -15,9 +15,9 @@ import br.com.liberdadefamilia.markets.domain.ProductUnit;
 import br.com.liberdadefamilia.markets.domain.TextNorm;
 import br.com.liberdadefamilia.markets.internal.ReceiptLookupService.ValidatedKey;
 import br.com.liberdadefamilia.markets.internal.ReceiptViews.SaveView;
-import br.com.liberdadefamilia.markets.internal.SaveReceiptRequest.Item;
 import br.com.liberdadefamilia.markets.internal.SaveReceiptRequest.MarketChoice;
 import br.com.liberdadefamilia.markets.internal.SaveReceiptRequest.NewMarketChoice;
+import br.com.liberdadefamilia.markets.internal.SaveReceiptRequest.ReceiptItem;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -158,12 +158,12 @@ class ReceiptSaveService {
     }
 
     /** All the shape rules of the items, before anything is written. */
-    private static List<Line> lines(@Nullable List<Item> items) {
+    private static List<Line> lines(@Nullable List<ReceiptItem> items) {
         if (items == null || items.isEmpty() || items.size() > MAX_ITEMS) {
             throw ReceiptRuleException.itemsInvalid();
         }
         List<Line> lines = new ArrayList<>(items.size());
-        for (Item item : items) {
+        for (ReceiptItem item : items) {
             if (item == null || item.unit() == null || (item.productId() == null) == (item.newProductName() == null)) {
                 throw ReceiptRuleException.itemsInvalid();
             }

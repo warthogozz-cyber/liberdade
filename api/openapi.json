@@ -2247,7 +2247,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProductsView"
+                  "$ref": "#/components/schemas/FamilyProductsView"
                 }
               }
             },
@@ -5474,6 +5474,36 @@
           }
         }
       },
+      "FamilyProductView": {
+        "type": "object",
+        "properties": {
+          "gtin": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      },
+      "FamilyProductsView": {
+        "type": "object",
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FamilyProductView"
+            }
+          }
+        }
+      },
       "FiguresView": {
         "type": "object",
         "properties": {
@@ -5936,42 +5966,6 @@
           "token": {
             "type": "string",
             "nullable": true
-          }
-        }
-      },
-      "Item": {
-        "type": "object",
-        "properties": {
-          "newProductName": {
-            "type": "string",
-            "nullable": true
-          },
-          "productId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
-          },
-          "quantity": {
-            "type": "string",
-            "nullable": true,
-            "example": "1.5"
-          },
-          "unit": {
-            "type": "string",
-            "enum": [
-              "UN",
-              "KG",
-              "G",
-              "L",
-              "ML",
-              "CX",
-              "PCT",
-              "DZ"
-            ]
-          },
-          "unitPrice": {
-            "type": "string",
-            "example": "4.99"
           }
         }
       },
@@ -6897,17 +6891,6 @@
           }
         }
       },
-      "ProductsView": {
-        "type": "object",
-        "properties": {
-          "products": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProductView"
-            }
-          }
-        }
-      },
       "ProjectionPointView": {
         "type": "object",
         "properties": {
@@ -6987,6 +6970,42 @@
               "NEVER_NEGATIVE",
               "NO_DATA"
             ]
+          }
+        }
+      },
+      "ReceiptItem": {
+        "type": "object",
+        "properties": {
+          "newProductName": {
+            "type": "string",
+            "nullable": true
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "string",
+            "nullable": true,
+            "example": "1.5"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          },
+          "unitPrice": {
+            "type": "string",
+            "example": "4.99"
           }
         }
       },
@@ -7173,7 +7192,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Item"
+              "$ref": "#/components/schemas/ReceiptItem"
             }
           },
           "market": {

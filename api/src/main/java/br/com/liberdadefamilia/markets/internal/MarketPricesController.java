@@ -7,8 +7,8 @@ import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 
 import br.com.liberdadefamilia.billing.PlanKey;
 import br.com.liberdadefamilia.billing.RequiresPlan;
+import br.com.liberdadefamilia.markets.internal.MarketViews.FamilyProductsView;
 import br.com.liberdadefamilia.markets.internal.MarketViews.PricesView;
-import br.com.liberdadefamilia.markets.internal.MarketViews.ProductsView;
 import br.com.liberdadefamilia.workspace.ModuleKey;
 import br.com.liberdadefamilia.workspace.RequiresModule;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
@@ -43,7 +43,7 @@ class MarketPricesController {
     @RequiresModule(ModuleKey.MARKETS)
     @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
     @RequiresPlan(value = PlanKey.FAMILY, openWhileBillingOff = true)
-    ProductsView products(@RequestParam(defaultValue = "") @Size(max = 80) String q, WorkspaceMember member) {
+    FamilyProductsView products(@RequestParam(defaultValue = "") @Size(max = 80) String q, WorkspaceMember member) {
         return service.products(member.workspaceId(), q);
     }
 }

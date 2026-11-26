@@ -172,12 +172,12 @@ final class MarketViews {
     record PricesView(List<PriceView> prices) {}
 
     /** A product of the family. */
-    record ProductView(
+    record FamilyProductView(
             UUID id,
             String name,
             String unit,
             @Nullable @Schema(nullable = true) String gtin) {}
 
     /** The family's products, by name, up to 50. */
-    record ProductsView(List<ProductView> products) {}
+    record FamilyProductsView(List<FamilyProductView> products) {}
 }

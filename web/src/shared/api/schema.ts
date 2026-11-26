@@ -1814,6 +1814,16 @@ export interface components {
             name: string;
             ref: string;
         };
+        FamilyProductView: {
+            gtin: string | null;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            unit: string;
+        };
+        FamilyProductsView: {
+            products: components["schemas"]["FamilyProductView"][];
+        };
         FiguresView: {
             breakEven: components["schemas"]["BreakEvenView"];
             fixedMonthly: components["schemas"]["Money"];
@@ -1963,17 +1973,6 @@ export interface components {
             /** @enum {string} */
             role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
             token: string | null;
-        };
-        Item: {
-            newProductName: string | null;
-            /** Format: uuid */
-            productId: string | null;
-            /** @example 1.5 */
-            quantity: string | null;
-            /** @enum {string} */
-            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
-            /** @example 4.99 */
-            unitPrice: string;
         };
         LeftItem: {
             cnpj: string | null;
@@ -2259,9 +2258,6 @@ export interface components {
             unitPrice: components["schemas"]["Money"];
             unitVariableCost: components["schemas"]["Money"];
         };
-        ProductsView: {
-            products: components["schemas"]["ProductView"][];
-        };
         ProjectionPointView: {
             balance: components["schemas"]["Money"];
             estimatedSpending: components["schemas"]["Money"];
@@ -2284,6 +2280,17 @@ export interface components {
             months: number | null;
             /** @enum {string} */
             state: "PAID_BACK" | "NOT_YET" | "NEVER_NEGATIVE" | "NO_DATA";
+        };
+        ReceiptItem: {
+            newProductName: string | null;
+            /** Format: uuid */
+            productId: string | null;
+            /** @example 1.5 */
+            quantity: string | null;
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+            /** @example 4.99 */
+            unitPrice: string;
         };
         RecurringRuleView: {
             /** Format: uuid */
@@ -2341,7 +2348,7 @@ export interface components {
              * @example 2026-11-10
              */
             issuedOn?: string | null;
-            items?: components["schemas"]["Item"][];
+            items?: components["schemas"]["ReceiptItem"][];
             market?: components["schemas"]["MarketChoice"] | null;
             newMarket?: components["schemas"]["NewMarketChoice"] | null;
             p?: string | null;
@@ -4229,7 +4236,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProductsView"];
+                    "application/json": components["schemas"]["FamilyProductsView"];
                 };
             };
         };

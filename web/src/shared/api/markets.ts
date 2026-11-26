@@ -22,19 +22,10 @@ export type GeocodedPlace = Schemas['PlaceView']
 export type ReceiptLookup = Schemas['LookupView']
 export type ReceiptLookupBody = Schemas['LookupRequest']
 export type SaveReceiptBody = Schemas['SaveReceiptRequest']
-export type SaveReceiptItem = Schemas['Item']
+export type SaveReceiptItem = Schemas['ReceiptItem']
 export type SavedReceipt = Schemas['SaveView']
 export type MarketPrice = Schemas['PriceView']
-/**
- * A product of the family's price book. Written by hand on purpose: the generated `ProductsView`
- * is the Ventures one (both modules call their records `ProductView`, so the contract keeps only one).
- */
-export type FamilyProduct = {
-  id: string
-  name: string
-  unit: SaveReceiptItem['unit']
-  gtin: string | null
-}
+export type FamilyProduct = Schemas['FamilyProductView']
 
 /** The area a search sends: the center is always rounded to 2 decimals, so it never reveals a precise spot. */
 export type SearchArea = { lat: string; lon: string; radiusKm: number }
@@ -119,7 +110,7 @@ export async function getFamilyProducts(ws: string, q: string): Promise<FamilyPr
       params: { path: { ws }, query: q === '' ? {} : { q } },
     }),
   )
-  return (view as unknown as { products: FamilyProduct[] }).products
+  return view.products
 }
 
 /** The fields of a family market's links: `null` clears the family's value (the OSM one shows again). */

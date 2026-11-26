@@ -26,7 +26,7 @@ record SaveReceiptRequest(
 
         @Nullable MarketChoice market,
         @Nullable NewMarketChoice newMarket,
-        @Nullable List<Item> items) {
+        @Nullable List<ReceiptItem> items) {
 
     /** A market the family has or that is in OpenStreetMap: {@code osm-<type>-<id>} or the id of its row. */
     record MarketChoice(@Nullable String ref) {}
@@ -38,7 +38,7 @@ record SaveReceiptRequest(
      * One line: a product of the family ({@code productId}) or a new name, in one {@code unit}. Quantity and price are
      * decimal text with up to 4 places.
      */
-    record Item(
+    record ReceiptItem(
             @Nullable @Schema(nullable = true) UUID productId,
             @Nullable @Schema(nullable = true) String newProductName,
             @Nullable ProductUnit unit,
@@ -50,7 +50,7 @@ record SaveReceiptRequest(
 
         @Override
         public String toString() {
-            return "Item[***]";
+            return "ReceiptItem[***]";
         }
     }
 

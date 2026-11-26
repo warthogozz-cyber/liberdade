@@ -3,10 +3,10 @@ package br.com.liberdadefamilia.markets.internal;
 import br.com.liberdadefamilia.markets.domain.FamilyRef;
 import br.com.liberdadefamilia.markets.domain.MarketRef;
 import br.com.liberdadefamilia.markets.domain.OsmRef;
+import br.com.liberdadefamilia.markets.internal.MarketViews.FamilyProductView;
+import br.com.liberdadefamilia.markets.internal.MarketViews.FamilyProductsView;
 import br.com.liberdadefamilia.markets.internal.MarketViews.PriceView;
 import br.com.liberdadefamilia.markets.internal.MarketViews.PricesView;
-import br.com.liberdadefamilia.markets.internal.MarketViews.ProductView;
-import br.com.liberdadefamilia.markets.internal.MarketViews.ProductsView;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -57,9 +57,9 @@ class MarketPricesService {
     }
 
     @Transactional(readOnly = true)
-    ProductsView products(UUID workspaceId, String q) {
-        return new ProductsView(products.search(workspaceId, q, MAX_PRODUCTS).stream()
-                .map(each -> new ProductView(each.id(), each.name(), each.unit(), each.gtin()))
+    FamilyProductsView products(UUID workspaceId, String q) {
+        return new FamilyProductsView(products.search(workspaceId, q, MAX_PRODUCTS).stream()
+                .map(each -> new FamilyProductView(each.id(), each.name(), each.unit(), each.gtin()))
                 .toList());
     }
 }
