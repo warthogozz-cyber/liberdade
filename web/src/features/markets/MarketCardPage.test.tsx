@@ -271,4 +271,51 @@ describe('MarketCardPage', () => {
     expect(await screen.findByText('Lista da Feira')).toBeVisible()
     expect(archived).toBe(true)
   })
+
+  it('noIframeBeforeConsent', async () => {
+    seed()
+    vi.stubEnv('VITE_GOOGLE_MAPS_EMBED_KEY', 'chave-de-teste')
+    answerCard(
+      cardOf({
+        instagram: { value: 'https://www.instagram.com/p/x/', source: 'OSM', date: null },
+        instagramEmbeddable: true,
+      }),
+    )
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/markets/settings`, () =>
+        HttpResponse.json({ geocodingEnabled: true, instagramEnabled: true }),
+      ),
+    )
+    render()
+
+    expect(await screen.findByRole('button', { name: 'Ver no mapa' })).toBeVisible()
+    expect(await screen.findByRole('button', { name: 'Ver aqui' })).toBeVisible()
+    expect(document.querySelector('iframe')).toBeNull()
+    vi.unstubAllEnvs()
+  })
+
+  it('showsHereOnlyWhenEmbeddableAndOn', async () => {
+    seed()
+    answerCard(
+      cardOf({
+        instagram: { value: 'https://www.instagram.com/exemplo.loja/', source: 'OSM', date: null },
+        instagramEmbeddable: false,
+      }),
+    )
+    render()
+
+    await screen.findByRole('heading', { name: 'Mercado Exemplo' })
+    expect(screen.queryByRole('button', { name: 'Ver aqui' })).not.toBeInTheDocument()
+  })
+
+  it('noMapButtonWithoutAPosition', async () => {
+    seed()
+    vi.stubEnv('VITE_GOOGLE_MAPS_EMBED_KEY', 'chave-de-teste')
+    answerCard(cardOf({ lat: null, lon: null }))
+    render()
+
+    await screen.findByRole('heading', { name: 'Mercado Exemplo' })
+    expect(screen.queryByRole('button', { name: 'Ver no mapa' })).not.toBeInTheDocument()
+    vi.unstubAllEnvs()
+  })
 })

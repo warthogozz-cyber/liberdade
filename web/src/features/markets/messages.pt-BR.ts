@@ -114,4 +114,23 @@ export const marketsMessages = {
     'Use @perfil, perfil, o endereço do perfil ou o de uma publicação do Instagram.',
   'markets.links.flyerSourceRequired': 'Diga de onde veio o encarte (até 60 letras).',
   'markets.links.hint': 'Deixe em branco para apagar o que a família colocou.',
+  'markets.notice.dontAsk': 'Não perguntar de novo',
+  'markets.notice.later': 'Agora não',
+  'markets.map.show': 'Ver no mapa',
+  'markets.map.hide': 'Esconder o mapa',
+  'markets.map.title': 'Mapa de {name}',
+  'markets.map.noticeTitle': 'Mapa do Google',
+  'markets.map.notice':
+    'O mapa é do Google. Ao abrir, o Google recebe o seu IP e pode gravar cookies.',
+  'markets.map.open': 'Abrir mapa',
+  'markets.instagram.show': 'Ver aqui',
+  'markets.instagram.hide': 'Esconder a publicação',
+  'markets.instagram.title': 'Publicação do Instagram',
+  'markets.instagram.noticeTitle': 'Publicação do Instagram',
+  'markets.instagram.notice':
+    'A publicação é do Instagram, da Meta. Ao abrir, a Meta recebe o seu IP e pode gravar cookies.',
+  'markets.instagram.open': 'Ver publicação',
+  'markets.instagram.loading': 'Carregando a publicação…',
+  'markets.instagram.unavailable': 'Este perfil não pode ser mostrado aqui',
+  'markets.instagram.link': 'Abrir no Instagram',
 } as const

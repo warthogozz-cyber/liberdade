@@ -14,6 +14,8 @@ interface ImportMetaEnv {
   readonly VITE_PRIVACY_CONTROLLER_ADDRESS?: string
   /** The privacy contact e-mail, shown in the policy and the terms; empty or unset uses the default. */
   readonly VITE_PRIVACY_CONTACT?: string
+  /** Browser key of Google's Maps Embed API (restricted by referrer); unset hides the map button. */
+  readonly VITE_GOOGLE_MAPS_EMBED_KEY?: string
 }
 
 interface ImportMeta {

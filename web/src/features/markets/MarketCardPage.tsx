@@ -2,21 +2,23 @@ import { useState, type ReactNode } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useCurrentWorkspace, useMe } from '@/shared/api'
-import type { MarketCard } from '@/shared/api/markets'
+import { useMarketHome, useMarketsSettings, type MarketCard } from '@/shared/api/markets'
 import { registerMessages } from '@/shared/i18n'
 import { useDocumentTitle } from '@/shared/ui'
 import { SourceStamp } from '@/shared/ui/SourceStamp'
 import { ConvertMarketSheet } from './ConvertMarketSheet'
 import { distanceMeters, formatDistance, type GeoPoint } from './geo'
 import { GiveLocationSheet } from './GiveLocationSheet'
+import { InstagramEmbed } from './InstagramEmbed'
 import { isSafeLink, mapsDirectionsUrl, mapsSearchUrl, wazeUrl } from './links'
 import { LinksSheet } from './LinksSheet'
 import { readLocation } from './locationStore'
+import { MapEmbed } from './MapEmbed'
 import { marketsMessages } from './messages.pt-BR'
 import { OsmAttribution } from './OsmAttribution'
 import { useKindLabel } from './useKindLabel'
 import { useArchiveMarket } from './useMarketWrites'
-import { useMarketCard, useMarketHome, useMarketsSettings } from './useMarkets'
+import { useMarketCard } from './useMarkets'
 
 registerMessages(marketsMessages)
 
@@ -196,7 +198,9 @@ export function MarketCardPage() {
         </ul>
       )}
 
-      {/* The map slot: Task 12 puts the map here. */}
+      {point !== null && (
+        <MapEmbed userId={userId} name={name} lat={card.lat as string} lon={card.lon as string} />
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="font-medium">
@@ -279,7 +283,16 @@ export function MarketCardPage() {
             />
           </div>
         )}
-        {/* The Instagram slot: Task 12 puts the embed here. */}
+        {card.instagramEmbeddable &&
+          settings.data?.instagramEnabled === true &&
+          card.instagram !== null && (
+            <InstagramEmbed
+              userId={userId}
+              workspaceId={ws}
+              marketRef={ref}
+              url={card.instagram.value}
+            />
+          )}
       </section>
 
       {canWrite && !archived && (

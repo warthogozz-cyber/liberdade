@@ -4,6 +4,7 @@
  * of it weighs on the initial load. Every call needs the connection and none goes through the
  * offline queue (ADR-0007).
  */
+import { useQuery } from '@tanstack/react-query'
 import { client, unwrap } from './client'
 import { queryKeys } from './queryKeys'
 import type { components } from './schema'
@@ -120,4 +121,45 @@ export function convertMarket(ws: string, ref: string, body: NewMarketBody): Pro
       body,
     }),
   )
+}
+
+/** Saves the family's address: a point of 3 decimals at most and an optional label. */
+export function putMarketHome(
+  ws: string,
+  body: { lat: string; lon: string; label: string | null },
+): Promise<MarketHome> {
+  return unwrap(client.PUT('/v1/workspaces/{ws}/markets/home', { params: { path: { ws } }, body }))
+}
+
+/** Erases the family's address. */
+export async function deleteMarketHome(ws: string): Promise<void> {
+  await unwrap(client.DELETE('/v1/workspaces/{ws}/markets/home', { params: { path: { ws } } }))
+}
+
+/** The Instagram embed's markup for a market, or an `ApiError` (422) when Meta does not give it. */
+export async function getInstagramEmbed(ws: string, ref: string): Promise<string> {
+  const view = await unwrap(
+    client.POST('/v1/workspaces/{ws}/markets/{ref}/instagram-embed', {
+      params: { path: { ws, ref } },
+    }),
+  )
+  return view.html
+}
+
+/** The family's address, or null without one. Only an Owner or an Adult may ask (`enabled`). */
+export function useMarketHome(ws: string | undefined, enabled: boolean = true) {
+  return useQuery({
+    queryKey: marketsKeys.home(ws ?? ''),
+    queryFn: () => getMarketHome(ws as string),
+    enabled: ws !== undefined && enabled,
+  })
+}
+
+/** Whether the address lookup and the Instagram embed are on. */
+export function useMarketsSettings(ws: string | undefined) {
+  return useQuery({
+    queryKey: marketsKeys.settings(ws ?? ''),
+    queryFn: () => getMarketsSettings(ws as string),
+    enabled: ws !== undefined,
+  })
 }

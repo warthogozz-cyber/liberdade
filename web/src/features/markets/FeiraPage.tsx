@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, useNavigate } from 'react-router'
 import { useCurrentWorkspace, useMe } from '@/shared/api'
-import type { MarketSearchResult } from '@/shared/api/markets'
+import { useMarketHome, useMarketsSettings, type MarketSearchResult } from '@/shared/api/markets'
 import { registerMessages } from '@/shared/i18n'
 import { useDocumentTitle } from '@/shared/ui'
 import { AddMarketSheet } from './AddMarketSheet'
@@ -13,7 +13,7 @@ import { MarketRow, type MarketListItem } from './MarketRow'
 import { useKindLabel } from './useKindLabel'
 import { marketsMessages } from './messages.pt-BR'
 import { OsmAttribution } from './OsmAttribution'
-import { DEFAULT_RADIUS_KM, useMarketHome, useMarketSearch, useMarketsSettings } from './useMarkets'
+import { DEFAULT_RADIUS_KM, useMarketSearch } from './useMarkets'
 
 // The text loads with this lazy screen, not with the app.
 registerMessages(marketsMessages)

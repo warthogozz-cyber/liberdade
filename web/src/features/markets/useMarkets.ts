@@ -1,12 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import {
-  getMarketCard,
-  getMarketHome,
-  getMarketsSettings,
-  marketsKeys,
-  searchMarkets,
-  type SearchArea,
-} from '@/shared/api/markets'
+import { getMarketCard, marketsKeys, searchMarkets, type SearchArea } from '@/shared/api/markets'
 import { roundTo, type GeoPoint } from './geo'
 
 /** The default radius of a search, in kilometers. */
@@ -39,23 +32,5 @@ export function useMarketCard(ws: string | undefined, ref: string | undefined) {
     queryKey: marketsKeys.card(ws ?? '', ref ?? ''),
     queryFn: () => getMarketCard(ws as string, ref as string),
     enabled: ws !== undefined && ref !== undefined,
-  })
-}
-
-/** The family's address, or null without one. Only an Owner or an Adult may ask (`enabled`). */
-export function useMarketHome(ws: string | undefined, enabled: boolean = true) {
-  return useQuery({
-    queryKey: marketsKeys.home(ws ?? ''),
-    queryFn: () => getMarketHome(ws as string),
-    enabled: ws !== undefined && enabled,
-  })
-}
-
-/** Whether the address lookup and the Instagram embed are on. */
-export function useMarketsSettings(ws: string | undefined) {
-  return useQuery({
-    queryKey: marketsKeys.settings(ws ?? ''),
-    queryFn: () => getMarketsSettings(ws as string),
-    enabled: ws !== undefined,
   })
 }

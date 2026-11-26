@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
 import {
@@ -9,13 +9,20 @@ import {
   type MemberView,
 } from '@/shared/api'
 import { useInvitations, useMembers, useRevokeInvitation } from '@/shared/api/family'
+import { useModuleEnabled } from '@/shared/modules'
 import { useOnline } from '@/shared/offline'
 import { useDocumentTitle, useToast } from '@/shared/ui'
 import { MemberRow } from './MemberRow'
 import { MemberSheet } from './MemberSheet'
-import { canInvite, canOpenMember } from './permissions'
+import { canInvite, canOpenMember, canSetMarketHome } from './permissions'
 import { RenameFamilySheet } from './RenameFamilySheet'
 import './register'
+
+// The address section belongs to the Feira module: its code and its requests wait for a family that
+// switched the module on, so the family screen stays as light as before.
+const MarketHomeSection = lazy(() =>
+  import('./MarketHomeSection').then((module) => ({ default: module.MarketHomeSection })),
+)
 
 const button =
   'flex min-h-12 items-center justify-center rounded-field px-4 font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50'
@@ -47,6 +54,7 @@ function FamilyScreen({ workspace }: { workspace: MeWorkspace }) {
   const online = useOnline()
   const members = useMembers(workspace.id)
   const invites = canInvite(workspace.role)
+  const marketsOn = useModuleEnabled('markets')
   const [renaming, setRenaming] = useState(false)
   const [openId, setOpenId] = useState<string>()
 
@@ -109,6 +117,12 @@ function FamilyScreen({ workspace }: { workspace: MeWorkspace }) {
       )}
 
       {invites && <PendingInvitations workspaceId={workspace.id} />}
+
+      {marketsOn && canSetMarketHome(workspace.role) && (
+        <Suspense fallback={null}>
+          <MarketHomeSection />
+        </Suspense>
+      )}
 
       {removed.length > 0 && <RemovedMembers members={removed} />}
 
