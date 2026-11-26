@@ -1,7 +1,7 @@
 /**
  * The paid plan: the family's plan, the checkout, the order the person comes back to, the refund and
- * the Founder theme. Only the Plan screen and the account-deletion sheet use them, so the
- * `shared/api` barrel does not re-export this file.
+ * the Founder theme. Only the Plan screen, the account-deletion sheet and the screens of the Family
+ * plan use them, so the `shared/api` barrel does not re-export this file.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
@@ -34,6 +34,15 @@ export function usePlan(ws: string | undefined) {
       unwrap(client.GET('/v1/workspaces/{ws}/billing/plan', { params: { path: { ws: ws! } } })),
     enabled: ws !== undefined,
   })
+}
+
+/**
+ * True when the family may use the Family plan's screens (statement import, the Feira): on the
+ * Family plan, or while the plan is not on sale. It is the server's `openWhileBillingOff` rule,
+ * which `importAllowed` already carries for every such screen.
+ */
+export function familyFeaturesOpen(plan: PlanDetails): boolean {
+  return plan.importAllowed
 }
 
 /** Starts the checkout and sends the person to the payment page. */

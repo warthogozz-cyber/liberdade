@@ -8,6 +8,7 @@ import {
   type MeWorkspace,
   type MemberView,
 } from '@/shared/api'
+import { familyFeaturesOpen, usePlan } from '@/shared/api/billing'
 import { useInvitations, useMembers, useRevokeInvitation } from '@/shared/api/family'
 import { useModuleEnabled } from '@/shared/modules'
 import { useOnline } from '@/shared/offline'
@@ -55,6 +56,11 @@ function FamilyScreen({ workspace }: { workspace: MeWorkspace }) {
   const members = useMembers(workspace.id)
   const invites = canInvite(workspace.role)
   const marketsOn = useModuleEnabled('markets')
+  // The address is a Feira setting, so it follows the Feira's plan rule; a plan that cannot be read
+  // leaves it to the server, which refuses what the plan does not allow.
+  const askPlan = marketsOn && canSetMarketHome(workspace.role)
+  const plan = usePlan(askPlan ? workspace.id : undefined)
+  const marketHomeOpen = askPlan && (plan.data ? familyFeaturesOpen(plan.data) : plan.isError)
   const [renaming, setRenaming] = useState(false)
   const [openId, setOpenId] = useState<string>()
 
@@ -118,7 +124,7 @@ function FamilyScreen({ workspace }: { workspace: MeWorkspace }) {
 
       {invites && <PendingInvitations workspaceId={workspace.id} />}
 
-      {marketsOn && canSetMarketHome(workspace.role) && (
+      {marketHomeOpen && (
         <Suspense fallback={null}>
           <MarketHomeSection />
         </Suspense>

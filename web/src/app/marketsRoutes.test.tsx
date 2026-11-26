@@ -2,7 +2,7 @@ import { cleanup, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { routes } from '@/app/routes'
 import { writeLocation } from '@/features/markets/locationStore'
-import { mockState, seedMockFamily } from '@/mocks/data'
+import { mockState, seedFamilyPlan, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { renderWithProviders } from '@/shared/testing'
 
@@ -15,6 +15,7 @@ describe('MarketsRoutes', () => {
   it('opensTheFeiraWhenTheModuleIsOn', async () => {
     const workspace = seedMockFamily()
     mockState.modules[workspace.id] = { markets: true }
+    seedFamilyPlan()
     writeLocation(mockState.user.id, {
       mode: 'approximate',
       point: { lat: '-10.00', lon: '-50.00' },
