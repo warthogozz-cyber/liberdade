@@ -4,7 +4,7 @@ import { renderWithProviders } from '@/shared/testing'
 import { ReceiptKeyStep } from './ReceiptKeyStep'
 import { pickDetector, type DetectorKind } from './scanner/detectQr'
 
-const mounts = vi.hoisted(() => ({ count: 0 }))
+const mounts = vi.hoisted(() => ({ count: 0, broken: false }))
 
 vi.mock('./scanner/detectQr', () => ({ pickDetector: vi.fn() }))
 vi.mock('./scanner/QrScanner', async () => {
@@ -14,6 +14,8 @@ vi.mock('./scanner/QrScanner', async () => {
       useEffect(() => {
         mounts.count += 1
       }, [])
+      // Stands for a reader chunk that failed to load or broke while opening.
+      if (mounts.broken) throw new Error('reader chunk failed')
       return <p>Leitor aberto</p>
     },
   }
@@ -29,6 +31,7 @@ function renderStep() {
 
 beforeEach(() => {
   mounts.count = 0
+  mounts.broken = false
 })
 afterEach(() => cleanup())
 
@@ -73,6 +76,24 @@ describe('ReceiptKeyStep reader', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ler o QR' }))
     await screen.findByText('Leitor aberto')
     expect(mounts.count).toBe(2)
+  })
+})
+
+describe('ReceiptKeyStep broken reader', () => {
+  it('brokenReaderFallsBackToPaste', async () => {
+    pick.mockResolvedValue('native')
+    mounts.broken = true
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    renderStep()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Ler o QR' }))
+
+    expect(
+      await screen.findByText('Não deu para abrir o leitor. Cole o link ou digite a chave.'),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Link da nota')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Digitar a chave' })).toBeInTheDocument()
+    quiet.mockRestore()
   })
 })
 

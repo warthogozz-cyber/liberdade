@@ -25,6 +25,9 @@ interface ProductPickerProps {
   ws: string
   value: ProductChoice | null
   onChange: (choice: ProductChoice | null) => void
+  /** The search text, when the caller keeps it (so it outlives this picker); kept here otherwise. */
+  text?: string
+  onTextChange?: (text: string) => void
   /** The id of the search field, so a form can send focus to it. */
   inputId?: string
   invalid?: boolean
@@ -36,12 +39,16 @@ export function ProductPicker({
   ws,
   value,
   onChange,
+  text: keptText,
+  onTextChange,
   inputId,
   invalid,
   describedBy,
 }: ProductPickerProps) {
   const intl = useIntl()
-  const [text, setText] = useState('')
+  const [ownText, setOwnText] = useState('')
+  const text = keptText ?? ownText
+  const setText = onTextChange ?? setOwnText
   const query = useDeferredValue(text.trim())
   // Nothing is asked of the API until something is typed.
   const products = useFamilyProducts(query === '' ? undefined : ws, query)

@@ -19,6 +19,8 @@ const primary = `flex min-h-12 items-center justify-center rounded-field border 
 export interface Row {
   key: number
   product: ProductChoice | null
+  /** What is typed in the product search, kept while no product is chosen. */
+  search: string
   unit: ProductUnit
   quantity: string
   price: string
@@ -31,7 +33,14 @@ export interface ItemsDraft {
   nextKey: number
 }
 
-const blankRow = (key: number): Row => ({ key, product: null, unit: 'UN', quantity: '', price: '' })
+const blankRow = (key: number): Row => ({
+  key,
+  product: null,
+  search: '',
+  unit: 'UN',
+  quantity: '',
+  price: '',
+})
 
 /** A typed quantity ("1,5") as the API's decimal text; empty is "no quantity"; null is invalid. */
 function quantityText(typed: string): string | null | undefined {
@@ -213,6 +222,8 @@ export function ReceiptItemsStep({
               ws={ws}
               value={row.product}
               onChange={(product) => choose(row.key, product)}
+              text={row.search}
+              onTextChange={(search) => change(row.key, { search })}
               inputId={fieldId(row.key, 'product')}
               invalid={showing(row.key, 'product')}
               describedBy={

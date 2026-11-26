@@ -61,6 +61,16 @@ export function ReceiptMarketStep({ ws, known, onChosen }: ReceiptMarketStepProp
           <FormattedMessage id="markets.receipt.market.known" />
         </p>
         <p className="text-lg font-semibold">{name}</p>
+        {known.status === 'ARCHIVED' && (
+          <p className="text-text-muted">
+            <FormattedMessage id="markets.receipt.market.archived" />
+          </p>
+        )}
+        {known.status === 'LEFT_OSM' && (
+          <p className="text-text-muted">
+            <FormattedMessage id="markets.receipt.market.leftOsm" />
+          </p>
+        )}
         <button
           type="button"
           onClick={() => onChosen({ market: { ref: known.ref } })}
@@ -142,6 +152,26 @@ function ChooseMarket({ ws, onChosen }: { ws: string; onChosen: (choice: MarketC
               <FormattedMessage id="markets.receipt.market.chooseLocation" />
             </button>
           </div>
+        )}
+        {from !== null && search.isPending && (
+          <p role="status" className="text-text-muted">
+            <FormattedMessage id="markets.loading" />
+          </p>
+        )}
+        {from !== null && search.isError && (
+          <div className="flex flex-col items-start gap-2">
+            <p>
+              <FormattedMessage id="markets.loadFailed" />
+            </p>
+            <button type="button" onClick={() => void search.refetch()} className={outline}>
+              <FormattedMessage id="common.retry" />
+            </button>
+          </div>
+        )}
+        {from !== null && search.isSuccess && nearby.length === 0 && (
+          <p className="text-text-muted">
+            <FormattedMessage id="markets.receipt.market.none" />
+          </p>
         )}
         {nearby.map((each) => (
           <label key={each.ref} className={radioRow}>
