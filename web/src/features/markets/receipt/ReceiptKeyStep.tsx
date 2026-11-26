@@ -43,7 +43,8 @@ export function ReceiptKeyStep({ pending, error, onParsed }: ReceiptKeyStepProps
   const [input, setInput] = useState<'paste' | 'type' | null>(null)
   const [text, setText] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
-  const [canScan, setCanScan] = useState(true)
+  // Unknown until the browser has been asked, so the button never flashes where there is no reader.
+  const [canScan, setCanScan] = useState<boolean | null>(null)
 
   useEffect(() => {
     let current = true
