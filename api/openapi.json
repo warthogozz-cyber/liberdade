@@ -2216,6 +2216,48 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets/receipts/lookup": {
+      "post": {
+        "operationId": "lookup",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LookupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "receipt-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/search": {
       "post": {
         "operationId": "searchMarkets",
@@ -5841,6 +5883,101 @@
           "website": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "LookupItem": {
+        "type": "object"
+      },
+      "LookupMarket": {
+        "type": "object",
+        "properties": {
+          "familyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "SUPERMARKET",
+              "CONVENIENCE",
+              "GREENGROCER",
+              "MARKETPLACE"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "ref": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "LEFT_OSM",
+              "ARCHIVED"
+            ]
+          }
+        },
+        "nullable": true
+      },
+      "LookupRequest": {
+        "required": [
+          "chave"
+        ],
+        "type": "object",
+        "properties": {
+          "chave": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string",
+            "description": "The 44 positions; spaces and dots are ignored"
+          },
+          "p": {
+            "maxLength": 1000,
+            "minLength": 0,
+            "type": "string",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "enum": [
+              0,
+              1,
+              2,
+              3
+            ]
+          }
+        }
+      },
+      "LookupView": {
+        "type": "object",
+        "properties": {
+          "issuedMonth": {
+            "type": "string",
+            "example": "2026-11"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LookupItem"
+            }
+          },
+          "market": {
+            "$ref": "#/components/schemas/LookupMarket"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "MANUAL"
+            ]
+          },
+          "uf": {
+            "type": "string"
           }
         }
       },

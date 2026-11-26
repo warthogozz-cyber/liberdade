@@ -1,8 +1,12 @@
 package br.com.liberdadefamilia.markets.internal;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 /**
  * How the Feira collects its outside data (D2).
@@ -11,19 +15,27 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param osm the weekly OpenStreetMap extract
  * @param geocoding the address lookup
  * @param instagram the Instagram embed
+ * @param nfce the state readers of the NFC-e (D8)
  */
 @ConfigurationProperties("liberdade.markets")
-public record MarketsProperties(String botUrl, Osm osm, Geocoding geocoding, Instagram instagram) {
+public record MarketsProperties(String botUrl, Osm osm, Geocoding geocoding, Instagram instagram, Nfce nfce) {
 
     /** Where the extract the workflow publishes lives: the release of this repository. */
     static final String DEFAULT_DATASET_URL =
             "https://github.com/warthogozz-cyber/liberdade/releases/download/osm-markets-data";
 
+    /** Without the NFC-e block, which has no value to set before the first state reader exists. */
+    public MarketsProperties(String botUrl, Osm osm, Geocoding geocoding, Instagram instagram) {
+        this(botUrl, osm, geocoding, instagram, null);
+    }
+
+    @ConstructorBinding
     public MarketsProperties {
         botUrl = botUrl == null ? "" : botUrl;
         osm = osm == null ? new Osm(null, null, null, null, null, null) : osm;
         geocoding = geocoding == null ? new Geocoding(null, null, null, null, null, null) : geocoding;
         instagram = instagram == null ? new Instagram(null, null, null, null, null) : instagram;
+        nfce = nfce == null ? new Nfce(null, null) : nfce;
     }
 
     /** True when any of the three sources is the fake one. */
@@ -120,6 +132,34 @@ public record MarketsProperties(String botUrl, Osm osm, Geocoding geocoding, Ins
             return "fake".equals(source);
         }
     }
+
+    /**
+     * The NFC-e readers, one per state (D8). The 10.2 only defines the shape: no reader exists, so any state in
+     * {@code fetchStates} stops the start.
+     *
+     * @param fetchStates the acronyms of the states whose receipts are read from the state's page (upper case)
+     * @param states the settings of each state by acronym
+     */
+    public record Nfce(List<String> fetchStates, Map<String, StateConfig> states) {
+
+        public Nfce {
+            fetchStates = fetchStates == null
+                    ? List.of()
+                    : fetchStates.stream()
+                            .filter(Objects::nonNull)
+                            .map(state -> state.strip().toUpperCase(Locale.ROOT))
+                            .filter(state -> !state.isEmpty())
+                            .toList();
+            states = states == null ? Map.of() : Map.copyOf(states);
+        }
+    }
+
+    /**
+     * One state's settings.
+     *
+     * @param url the model of the page address; unused in the 10.2
+     */
+    public record StateConfig(String url) {}
 
     private static String normalise(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.strip().toLowerCase(Locale.ROOT);

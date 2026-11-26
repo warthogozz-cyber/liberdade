@@ -58,6 +58,15 @@ public class MarketRepository {
         };
     }
 
+    /** The family's market with this CNPJ, archived or not; there is at most one ({@code markets_cnpj_once}). */
+    Optional<MarketRow> findByCnpj(UUID workspaceId, String cnpj) {
+        return jdbc.sql("select " + COLUMNS + " from markets where workspace_id = :ws and cnpj = :cnpj")
+                .param("ws", workspaceId)
+                .param("cnpj", cnpj)
+                .query(MarketRepository::map)
+                .optional();
+    }
+
     /**
      * The id of the family's {@code OSM} row for this object, created when it is missing. {@code actor} is the
      * membership that caused it.

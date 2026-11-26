@@ -836,6 +836,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/receipts/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lookup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/search": {
         parameters: {
             query?: never;
@@ -1922,6 +1938,36 @@ export interface components {
             flyerValidUntil: string | null;
             instagram: string | null;
             website: string | null;
+        };
+        LookupItem: Record<string, never>;
+        LookupMarket: {
+            /** Format: uuid */
+            familyId: string;
+            /** @enum {string|null} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE" | null;
+            name: string | null;
+            ref: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "LEFT_OSM" | "ARCHIVED";
+        } | null;
+        LookupRequest: {
+            /** @description The 44 positions; spaces and dots are ignored */
+            chave: string;
+            p?: string | null;
+            /**
+             * Format: int32
+             * @enum {integer}
+             */
+            version?: 0 | 1 | 2 | 3;
+        };
+        LookupView: {
+            /** @example 2026-11 */
+            issuedMonth: string;
+            items: components["schemas"]["LookupItem"][];
+            market: components["schemas"]["LookupMarket"];
+            /** @enum {string} */
+            mode: "MANUAL";
+            uf: string;
         };
         MarketCardView: {
             address: components["schemas"]["AddressView"] | null;
@@ -4052,6 +4098,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    lookup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LookupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LookupView"];
+                };
             };
         };
     };

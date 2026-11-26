@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
@@ -33,7 +35,7 @@ class MarketsStartupCheckTest {
             properties("github", "nominatim", "fake"),
             properties("fake", "fake", "fake"),
         }) {
-            assertThatThrownBy(() -> new MarketsStartupCheck(fake, profile("prod")).run(null))
+            assertThatThrownBy(() -> new MarketsStartupCheck(fake, profile("prod"), List.of()).run(null))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("not allowed in prod");
         }
@@ -41,14 +43,46 @@ class MarketsStartupCheckTest {
 
     @Test
     void realSourcesAreFineUnderProd() {
-        assertThatCode(() -> new MarketsStartupCheck(properties(null, null, null), profile("prod")).run(null))
+        assertThatCode(() ->
+                        new MarketsStartupCheck(properties(null, null, null), profile("prod"), List.of()).run(null))
                 .doesNotThrowAnyException();
     }
 
     @Test
     void fakeIsFineOutsideProd() {
-        assertThatCode(() -> new MarketsStartupCheck(properties("fake", "fake", "fake"), profile("dev")).run(null))
+        assertThatCode(() -> new MarketsStartupCheck(properties("fake", "fake", "fake"), profile("dev"), List.of())
+                        .run(null))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void fetchStateWithoutReaderRefused() {
+        MarketsProperties withRs =
+                new MarketsProperties(null, null, null, null, new MarketsProperties.Nfce(List.of("RS"), null));
+
+        assertThatThrownBy(() -> new MarketsStartupCheck(withRs, profile("dev"), List.of()).run(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("RS");
+    }
+
+    @Test
+    void fetchStateWithItsReaderIsFine() {
+        MarketsProperties withRs =
+                new MarketsProperties(null, null, null, null, new MarketsProperties.Nfce(List.of("rs"), null));
+        NfceStateReader reader = () -> "RS";
+
+        assertThatCode(() -> new MarketsStartupCheck(withRs, profile("dev"), List.of(reader)).run(null))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void nfceDefaultsAndNormalising() {
+        MarketsProperties.Nfce defaults = new MarketsProperties(null, null, null, null).nfce();
+
+        assertThat(defaults.fetchStates()).isEmpty();
+        assertThat(defaults.states()).isEmpty();
+        assertThat(new MarketsProperties.Nfce(Arrays.asList(" rs ", "", null, "MG"), null).fetchStates())
+                .containsExactly("RS", "MG");
     }
 
     @Test

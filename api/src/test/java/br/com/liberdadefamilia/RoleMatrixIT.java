@@ -7,6 +7,7 @@ import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.live.internal.LiveStreams;
+import br.com.liberdadefamilia.markets.domain.NfceKeyFixtures;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestIds;
 import br.com.liberdadefamilia.support.TestUsers;
@@ -428,7 +429,11 @@ class RoleMatrixIT {
                                 Outcome.OK,
                                 Outcome.OK,
                                 Outcome.OK,
-                                Outcome.OK))
+                                Outcome.OK),
+                        ownerAndAdult(
+                                "POST " + W + "/markets/receipts/lookup",
+                                W + "/markets/receipts/lookup",
+                                "{\"chave\":\"" + NfceKeyFixtures.make("43", "2611") + "\",\"version\":0}"))
                 .flatMap(group -> group);
     }
 
