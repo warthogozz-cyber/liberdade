@@ -836,6 +836,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["products"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/receipts": {
         parameters: {
             query?: never;
@@ -989,6 +1005,22 @@ export interface paths {
         };
         get?: never;
         put: operations["putPosition"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["prices"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2185,6 +2217,19 @@ export interface components {
         PreviewInvitationRequest: {
             token: string;
         };
+        PriceView: {
+            name: string;
+            /** Format: date */
+            observedOn: string;
+            /** Format: uuid */
+            productId: string;
+            unit: string;
+            /** @example 4.99 */
+            unitPrice: string;
+        };
+        PricesView: {
+            prices: components["schemas"]["PriceView"][];
+        };
         ProductFiguresView: {
             /** Format: int64 */
             breakEvenUnits: number | null;
@@ -2213,6 +2258,9 @@ export interface components {
             plannedUnitsMonth: number;
             unitPrice: components["schemas"]["Money"];
             unitVariableCost: components["schemas"]["Money"];
+        };
+        ProductsView: {
+            products: components["schemas"]["ProductView"][];
         };
         ProjectionPointView: {
             balance: components["schemas"]["Money"];
@@ -4161,6 +4209,31 @@ export interface operations {
             };
         };
     };
+    products: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductsView"];
+                };
+            };
+        };
+    };
     save: {
         parameters: {
             query?: never;
@@ -4415,6 +4488,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
+    prices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricesView"];
                 };
             };
         };

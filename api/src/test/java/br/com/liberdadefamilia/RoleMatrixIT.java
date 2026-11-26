@@ -391,6 +391,22 @@ class RoleMatrixIT {
                                 Outcome.OK,
                                 Outcome.OK),
                         each(
+                                "GET " + W + "/markets/{ref}/prices",
+                                W + "/markets/{market}/prices",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        each(
+                                "GET " + W + "/markets/products",
+                                W + "/markets/products?q=leite",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        each(
                                 "POST " + W + "/markets/{ref}/instagram-embed",
                                 W + "/markets/{instagramMarket}/instagram-embed",
                                 null,

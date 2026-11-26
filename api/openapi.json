@@ -2216,6 +2216,49 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets/products": {
+      "get": {
+        "operationId": "products",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 80,
+              "minLength": 0,
+              "type": "string",
+              "default": ""
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductsView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-prices-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/receipts": {
       "post": {
         "operationId": "save",
@@ -2634,6 +2677,46 @@
         },
         "tags": [
           "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/{ref}/prices": {
+      "get": {
+        "operationId": "prices",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricesView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-prices-controller"
         ]
       }
     },
@@ -6708,6 +6791,40 @@
           }
         }
       },
+      "PriceView": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "observedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "unitPrice": {
+            "type": "string",
+            "example": "4.99"
+          }
+        }
+      },
+      "PricesView": {
+        "type": "object",
+        "properties": {
+          "prices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceView"
+            }
+          }
+        }
+      },
       "ProductFiguresView": {
         "type": "object",
         "properties": {
@@ -6777,6 +6894,17 @@
           },
           "unitVariableCost": {
             "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "ProductsView": {
+        "type": "object",
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductView"
+            }
           }
         }
       },

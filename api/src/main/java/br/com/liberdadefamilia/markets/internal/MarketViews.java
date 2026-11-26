@@ -159,4 +159,25 @@ final class MarketViews {
 
     /** The switches the app reads to hide what is off. */
     record SettingsView(boolean geocodingEnabled, boolean instagramEnabled) {}
+
+    /** The last price of a product at a market; {@code unitPrice} is decimal text with four places. */
+    record PriceView(
+            UUID productId,
+            String name,
+            String unit,
+            @Schema(example = "4.9900") String unitPrice,
+            LocalDate observedOn) {}
+
+    /** The last prices of a market, by product name. */
+    record PricesView(List<PriceView> prices) {}
+
+    /** A product of the family. */
+    record ProductView(
+            UUID id,
+            String name,
+            String unit,
+            @Nullable @Schema(nullable = true) String gtin) {}
+
+    /** The family's products, by name, up to 50. */
+    record ProductsView(List<ProductView> products) {}
 }
