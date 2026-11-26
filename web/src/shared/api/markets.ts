@@ -152,6 +152,8 @@ export function useMarketHome(ws: string | undefined, enabled: boolean = true) {
     queryKey: marketsKeys.home(ws ?? ''),
     queryFn: () => getMarketHome(ws as string),
     enabled: ws !== undefined && enabled,
+    // The home point is about 100 m: it stays out of the copy kept on the device.
+    meta: { persist: false },
   })
 }
 
