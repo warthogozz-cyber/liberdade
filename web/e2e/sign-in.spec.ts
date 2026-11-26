@@ -1,4 +1,5 @@
 import { expect, test } from './support.ts'
+import { API_URL, WEB_URL } from './urls.ts'
 
 test('sends a visitor without a session to the sign-in screen', async ({ page }) => {
   await page.goto('/')
@@ -11,8 +12,8 @@ test('sends a visitor without a session to the sign-in screen', async ({ page })
 test('brings a sign-in refused at Google back to the sign-in screen (Review Focus 3)', async ({
   page,
 }) => {
-  await page.goto('http://localhost:8080/login/oauth2/code/google?error=access_denied&state=x')
+  await page.goto(`${API_URL}/login/oauth2/code/google?error=access_denied&state=x`)
 
-  await expect(page).toHaveURL('http://localhost:5173/entrar?erro=login')
+  await expect(page).toHaveURL(`${WEB_URL}/entrar?erro=login`)
   await expect(page.getByRole('alert')).toHaveText('Não deu para entrar. Tente de novo.')
 })
