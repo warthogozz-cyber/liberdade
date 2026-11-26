@@ -90,8 +90,10 @@ public class OsmMarketImporter {
         } catch (OsmImportException e) {
             alerts.importFailed(e.reason());
             return ImportOutcome.FAILED;
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+        } catch (IOException | RuntimeException e) {
+            // Nothing from the exception goes to the log: it could carry a path or a row.
+            alerts.importFailed(Reason.OTHER);
+            return ImportOutcome.FAILED;
         } finally {
             deleteQuietly(file);
         }

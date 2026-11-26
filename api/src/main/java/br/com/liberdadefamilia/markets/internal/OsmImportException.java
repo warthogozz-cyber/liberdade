@@ -16,7 +16,8 @@ public class OsmImportException extends IOException {
         HTTP,
         TIMEOUT,
         TOO_LARGE,
-        BAD_MANIFEST
+        BAD_MANIFEST,
+        OTHER
     }
 
     private static final long serialVersionUID = 1L;

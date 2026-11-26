@@ -72,12 +72,14 @@ class OsmMarketImportIT {
         volatile OsmManifest manifest;
         volatile byte[] gz = new byte[0];
         volatile OsmImportException failure;
+        volatile boolean brokenStream;
         final AtomicInteger opened = new AtomicInteger();
 
         void serve(Instant timestamp, String csv) {
             gz = OsmTestData.gzip(csv);
             manifest = OsmTestData.manifest(timestamp, csv, gz);
             failure = null;
+            brokenStream = false;
         }
 
         @Override
@@ -91,6 +93,14 @@ class OsmMarketImportIT {
         @Override
         public java.io.InputStream open() throws OsmImportException {
             opened.incrementAndGet();
+            if (brokenStream) {
+                return new java.io.InputStream() {
+                    @Override
+                    public int read() throws java.io.IOException {
+                        throw new java.io.EOFException("secret detail that must not be logged");
+                    }
+                };
+            }
             return new java.io.ByteArrayInputStream(gz);
         }
     }
@@ -273,6 +283,20 @@ class OsmMarketImportIT {
                         .single())
                 .isZero();
         assertThat(output).contains("MARKETS_ALERT type=IMPORT_FAILED reason=BAD_ROW");
+    }
+
+    @Test
+    void anUnexpectedIoFailureIsAnAlertAndKeepsOldRows(CapturedOutput output) {
+        importer.importNow();
+        dataset.serve(SECOND, OsmTestData.sampleCsv());
+        dataset.brokenStream = true;
+
+        assertThat(importer.importNow()).isEqualTo(ImportOutcome.FAILED);
+
+        assertThat(markets()).isEqualTo(4);
+        assertThat(imports()).isEqualTo(1);
+        assertThat(output).contains("MARKETS_ALERT type=IMPORT_FAILED reason=OTHER");
+        assertThat(output).doesNotContain("secret detail");
     }
 
     @Test
