@@ -107,24 +107,31 @@ class ReceiptSaveIT {
     @Test
     void savesReceiptAndPrices() {
         UUID market = familyMarket("Mercado Exemplo", CNPJ);
+        UUID existing = product("Feijao");
+        String known = "{\"productId\":\"" + existing + "\",\"unit\":\"UN\",\"quantity\":\"2\",\"unitPrice\":\"7.50\"}";
 
-        MvcTestResult result = save(body(KEY, "2026-11-10", market.toString(), null, item("Arroz 5kg", "1", "4.99")));
+        MvcTestResult result =
+                save(body(KEY, "2026-11-10", market.toString(), null, known, item("Arroz 5kg", "1", "4.99")));
 
         assertThat(result).hasStatus(201);
         assertThat(result).bodyJson().extractingPath("$.marketRef").isEqualTo(market.toString());
-        assertThat(result).bodyJson().extractingPath("$.prices").isEqualTo(1);
+        assertThat(result).bodyJson().extractingPath("$.prices").isEqualTo(2);
         assertThat(count("receipts")).isEqualTo(1);
-        assertThat(count("products")).isEqualTo(1);
-        assertThat(count("price_records")).isEqualTo(1);
-        var row = jdbc.sql("""
-                        select r.market_id, r.mode, r.item_count, p.unit_price::text as price, p.unit
-                        from receipts r join price_records p on p.receipt_id = r.id
-                        where r.workspace_id = :ws""").param("ws", ws).query().singleRow();
-        assertThat(row.get("market_id")).isEqualTo(market);
-        assertThat(row.get("mode")).isEqualTo("MANUAL");
-        assertThat(row.get("item_count")).isEqualTo(1);
-        assertThat(row.get("unit")).isEqualTo("UN");
-        assertThat(row.get("price")).isEqualTo("4.9900");
+        assertThat(count("products")).isEqualTo(2);
+        assertThat(count("product_aliases")).isEqualTo(1);
+        assertThat(count("price_records")).isEqualTo(2);
+        var receipt = jdbc.sql("select market_id, mode, item_count from receipts where workspace_id = :ws")
+                .param("ws", ws)
+                .query()
+                .singleRow();
+        assertThat(receipt.get("market_id")).isEqualTo(market);
+        assertThat(receipt.get("mode")).isEqualTo("MANUAL");
+        assertThat(receipt.get("item_count")).isEqualTo(2);
+        assertThat(jdbc.sql("select unit_price::text from price_records where product_id = :p")
+                        .param("p", existing)
+                        .query(String.class)
+                        .single())
+                .isEqualTo("7.5000");
     }
 
     @Test
@@ -142,6 +149,23 @@ class ReceiptSaveIT {
         assertThat(row.get("origin")).isEqualTo("OSM");
         assertThat(row.get("cnpj")).isEqualTo(CNPJ);
         assertThat(events.stream(MarketEdited.class).map(MarketEdited::change)).contains(MarketEdited.Change.CNPJ);
+    }
+
+    @Test
+    void cnpjChangeIsAuditedWithoutTheCnpj() {
+        UUID market = familyMarket("Mercado Exemplo", null);
+
+        assertThat(save(body(KEY, "2026-11-10", market.toString(), null, item("Arroz", "1", "4.99"))))
+                .hasStatus(201);
+
+        var row = jdbc.sql("""
+                        select target_type, target_id, actor_user_id, metadata::text as metadata
+                        from audit_events where workspace_id = :ws and action = 'market.edited'""").param("ws", ws).query().singleRow();
+        assertThat(row.get("target_type")).isEqualTo("MARKET");
+        assertThat(row.get("target_id")).isEqualTo(market);
+        assertThat(row.get("actor_user_id")).isEqualTo(ana);
+        assertThat(row.get("metadata").toString().replace(" ", "")).isEqualTo("{\"change\":\"CNPJ\"}");
+        assertThat(row.toString()).doesNotContain(CNPJ).doesNotContain(KEY.substring(0, 20));
     }
 
     @Test
@@ -280,14 +304,14 @@ class ReceiptSaveIT {
     void fourDecimalsKept() {
         UUID market = familyMarket("Mercado Exemplo", CNPJ);
 
-        MvcTestResult result = save(body(KEY, "2026-11-10", market.toString(), null, item("Arroz", "1", "4.9912")));
+        MvcTestResult result = save(body(KEY, "2026-11-10", market.toString(), null, item("Arroz", "1", "29.9990")));
 
         assertThat(result).hasStatus(201);
         assertThat(jdbc.sql("select unit_price::text from price_records where workspace_id = :ws")
                         .param("ws", ws)
                         .query(String.class)
                         .single())
-                .isEqualTo("4.9912");
+                .isEqualTo("29.9990");
     }
 
     @Test
