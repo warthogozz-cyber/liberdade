@@ -21,12 +21,12 @@ export default defineConfig({
     timezoneId: 'America/Fortaleza',
     trace: 'retain-on-failure',
   },
-  // The same suite on a desktop, an Android phone and an iPhone. CI runs each in its own job; locally,
-  // `--project` picks one.
+  // The same suite on a desktop and an Android phone. CI runs each in its own job; locally,
+  // `--project` picks one. The iPhone (WebKit) comes back once the suite runs over HTTPS: WebKit on
+  // Linux refuses the Secure session cookie on http://localhost, so no sign-in would complete.
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
-    { name: 'mobile-safari', use: { ...devices['iPhone 15'] } },
   ],
   // `vite preview` serves the build with the PWA's service worker, which the offline test needs;
   // `vite dev` does not register it. With `strictPort`, a forgotten `dev` on 5173 fails the run.

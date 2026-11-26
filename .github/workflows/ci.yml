@@ -107,7 +107,8 @@ jobs:
         if: ${{ always() }}
         run: docker compose -f compose.yaml -f compose.e2e.yaml down -v
 
-  # The same suite on an Android phone and an iPhone, one job each, beside the desktop run above.
+  # The same suite on an Android phone, beside the desktop run above. The iPhone (WebKit) joins the
+  # matrix once the suite runs over HTTPS (see web/playwright.config.ts).
   e2e-mobile:
     name: e2e-mobile (${{ matrix.project }})
     runs-on: ubuntu-24.04
@@ -118,8 +119,6 @@ jobs:
         include:
           - project: mobile-chrome
             browser: chromium
-          - project: mobile-safari
-            browser: webkit
     permissions:
       contents: read
     steps:

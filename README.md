@@ -79,14 +79,14 @@ Suba a stack, instale o navegador do Playwright (uma vez só) e rode a suíte:
 
 ```bash
 docker compose -f compose.yaml -f compose.e2e.yaml up -d --build --wait
-corepack pnpm --filter web exec playwright install chromium webkit
+corepack pnpm --filter web exec playwright install chromium
 corepack pnpm --filter web e2e
 ```
 
-A suíte roda em três projetos: `chromium` (desktop), `mobile-chrome` (Android, Pixel 7) e
-`mobile-safari` (iPhone 15, WebKit). Para rodar só um, use `--project`, por exemplo
-`corepack pnpm --filter web e2e --project=mobile-safari`. Os testes de passkey precisam do
-dispositivo virtual do Chromium e ficam de fora no WebKit.
+A suíte roda em dois projetos: `chromium` (desktop) e `mobile-chrome` (Android, Pixel 7). Para rodar
+só um, use `--project`, por exemplo `corepack pnpm --filter web e2e --project=mobile-chrome`. O
+iPhone (WebKit) volta quando a suíte rodar em HTTPS: no Linux, o WebKit recusa o cookie de sessão
+(Secure) em `http://localhost`, e nenhum login completa.
 
 A suíte usa a porta 5173, então pare o `dev` da web antes de rodar.
 
