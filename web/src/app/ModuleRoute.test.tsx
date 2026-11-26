@@ -1,7 +1,7 @@
 import { cleanup, screen, waitFor } from '@testing-library/react'
 import { delay, http, HttpResponse } from 'msw'
 import { Route, Routes } from 'react-router'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { API_URL, queryKeys } from '@/shared/api'
@@ -92,6 +92,62 @@ describe('ModuleRoute', () => {
     // switched the module on.
     const queryClient = createTestQueryClient()
     queryClient.setQueryData(queryKeys.modules(workspace.id), [{ key: 'planning', enabled: false }])
+
+    const { router } = renderWithProviders(<App />, {
+      path: '/*',
+      route: '/planejar',
+      queryClient,
+    })
+
+    expect(await screen.findByText('Hub do planejamento')).toBeTruthy()
+    expect(router.state.location.pathname).toBe('/planejar')
+  })
+
+  it('asks again before opening the screen on a list saved on the device that says on', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: false }
+    // Saved before this page load (another device switched the module off since): the screen
+    // must not mount and fire requests the server now refuses.
+    const queryClient = createTestQueryClient()
+    queryClient.setQueryData(
+      queryKeys.modules(workspace.id),
+      [{ key: 'planning', enabled: true }],
+      { updatedAt: 1 },
+    )
+    const rendered = vi.fn()
+    function Planning() {
+      rendered()
+      return <p>Hub do planejamento</p>
+    }
+
+    const { router } = renderWithProviders(
+      <Routes>
+        <Route
+          path="/planejar"
+          element={
+            <ModuleRoute module="planning">
+              <Planning />
+            </ModuleRoute>
+          }
+        />
+        <Route path="/inicio" element={<p>Início</p>} />
+      </Routes>,
+      { path: '/*', route: '/planejar', queryClient },
+    )
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'))
+    expect(rendered).not.toHaveBeenCalled()
+  })
+
+  it('opens the screen on a list saved on the device when the server cannot be reached', async () => {
+    const workspace = seedMockFamily()
+    server.use(http.get(`${API_URL}/v1/workspaces/:ws/modules`, () => HttpResponse.error()))
+    const queryClient = createTestQueryClient()
+    queryClient.setQueryData(
+      queryKeys.modules(workspace.id),
+      [{ key: 'planning', enabled: true }],
+      { updatedAt: 1 },
+    )
 
     const { router } = renderWithProviders(<App />, {
       path: '/*',
