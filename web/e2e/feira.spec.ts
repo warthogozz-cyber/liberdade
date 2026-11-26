@@ -1,5 +1,13 @@
-import type { Page, Request } from '@playwright/test'
-import { createFamily, expect, newUser, setModules, signInWithGoogle, test } from './support.ts'
+import type { APIRequestContext, Page, Request } from '@playwright/test'
+import {
+  buyFamilyPlan,
+  createFamily,
+  expect,
+  newUser,
+  setModules,
+  signInWithGoogle,
+  test,
+} from './support.ts'
 
 // The service worker could answer a request before the routes below see it; blocked, every request
 // goes through them.
@@ -40,23 +48,26 @@ function marketLink(page: Page) {
   return page.getByRole('link', { name: /Mercado Exemplo 3/ })
 }
 
-/** A new family with every module on, on the Feira with a typed address, listing the fake markets. */
-async function openFeira(page: Page): Promise<void> {
+/**
+ * A new family on the Família plan (billing is on here and the Feira needs it) with every module on,
+ * on the Feira with a typed address, listing the fake markets.
+ */
+async function openFeira(page: Page, request: APIRequestContext): Promise<void> {
   await signInWithGoogle(page, newUser())
   await createFamily(page)
+  await buyFamilyPlan(page, request)
   await setModules(page, true)
 
-  // Right after the modules change, a fresh load can still read the old modules from the cache
-  // and bounce: load again until the Feira holds.
+  // Right after the plan and the modules change, a fresh load can still read the old ones from the
+  // cache and bounce: load again until the Feira holds with the address option.
+  const chooser = page.getByRole('dialog', { name: 'Onde procurar mercados?' })
+  const typed = chooser.getByRole('radio', { name: 'Digitar um endereço' })
   await expect(async () => {
     await page.goto('/mais/feira')
-    await expect(page.getByRole('heading', { level: 1, name: 'Feira' })).toBeVisible({
-      timeout: 3_000,
-    })
+    await expect(typed).toBeVisible({ timeout: 3_000 })
     await expect(page).toHaveURL(/\/mais\/feira$/)
   }).toPass({ timeout: 45_000 })
-  const chooser = page.getByRole('dialog', { name: 'Onde procurar mercados?' })
-  await chooser.getByRole('radio', { name: 'Digitar um endereço' }).check()
+  await typed.check()
   await chooser.getByLabel('Endereço', { exact: true }).fill('Rua Exemplo')
   await chooser.getByRole('button', { name: 'Buscar', exact: true }).click()
   await chooser.getByRole('radio', { name: 'Bairro Exemplo, Cidade Exemplo' }).check()
@@ -73,9 +84,10 @@ async function openCard(page: Page): Promise<void> {
 
 test('noThirdPartyRequestBeforeTap: the list and the card load nothing from Google or Meta', async ({
   page,
+  request,
 }) => {
   const seen = await watchRequests(page)
-  await openFeira(page)
+  await openFeira(page, request)
 
   // The list shows the fake source's markets and the credit the data's license asks for.
   await expect(page.getByRole('link', { name: /Mercado Exemplo/ }).first()).toBeVisible()
@@ -91,9 +103,9 @@ test('noThirdPartyRequestBeforeTap: the list and the card load nothing from Goog
   expect(thirdPartyUrls(seen)).toEqual([])
 })
 
-test('mapAfterConsent: the map asks first, then asks Google for it', async ({ page }) => {
+test('mapAfterConsent: the map asks first, then asks Google for it', async ({ page, request }) => {
   const seen = await watchRequests(page)
-  await openFeira(page)
+  await openFeira(page, request)
   await openCard(page)
 
   await page.getByRole('button', { name: 'Ver no mapa' }).click()
@@ -101,11 +113,11 @@ test('mapAfterConsent: the map asks first, then asks Google for it', async ({ pa
   await expect(notice).toBeVisible()
   expect(thirdPartyUrls(seen)).toEqual([])
 
-  const mapRequest = page.waitForRequest((request) => request.url().startsWith(MAPS_EMBED))
+  const mapRequest = page.waitForRequest((each) => each.url().startsWith(MAPS_EMBED))
   await notice.getByRole('button', { name: 'Abrir mapa' }).click()
-  const request = await mapRequest
+  const mapCall = await mapRequest
 
-  expect(new URL(request.url()).searchParams.get('key')).toBe('e2e-key')
+  expect(new URL(mapCall.url()).searchParams.get('key')).toBe('e2e-key')
   await expect(page.locator('iframe[title="Mapa de Mercado Exemplo 3"]')).toBeVisible()
   // Aborted by the route above: nothing reached Google.
   expect(thirdPartyUrls(seen).every((url) => url.startsWith(MAPS_EMBED))).toBe(true)
@@ -113,9 +125,10 @@ test('mapAfterConsent: the map asks first, then asks Google for it', async ({ pa
 
 test('instagramAfterConsent: a post shows in the isolated frame only after the notice', async ({
   page,
+  request,
 }) => {
   const seen = await watchRequests(page)
-  await openFeira(page)
+  await openFeira(page, request)
   await openCard(page)
 
   // A post address saved by the family (a profile has no "Ver aqui").
@@ -142,9 +155,9 @@ test('instagramAfterConsent: a post shows in the isolated frame only after the n
   expect(thirdPartyUrls(seen).every((url) => url === INSTAGRAM_SCRIPT)).toBe(true)
 })
 
-test('addFamilyMarket: a market added by address shows in the list', async ({ page }) => {
+test('addFamilyMarket: a market added by address shows in the list', async ({ page, request }) => {
   await watchRequests(page)
-  await openFeira(page)
+  await openFeira(page, request)
 
   await page.getByRole('button', { name: '+ Adicionar mercado' }).click()
   const sheet = page.getByRole('dialog', { name: 'Adicionar mercado' })

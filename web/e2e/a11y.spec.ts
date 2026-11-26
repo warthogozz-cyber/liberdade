@@ -633,6 +633,7 @@ test('the actual versus planned screen and the form with the project field meet 
 
 test('the Feira list, the market card with the map notice and the location dialog meet WCAG 2.2 AA in both themes', async ({
   page,
+  request,
 }) => {
   // The notice is never accepted here, but nothing may reach Google or Meta even by mistake.
   await page
@@ -642,14 +643,18 @@ test('the Feira list, the market card with the map notice and the location dialo
     )
   await signInWithGoogle(page, newUser())
   await createFamily(page)
+  // Billing is on here, and the Feira is a Família plan feature.
+  await buyFamilyPlan(page, request)
   await setModules(page, true)
 
-  // Right after the modules change, a fresh load can still read the old modules from the cache
-  // and bounce: load again until the Feira holds with its location dialog.
+  // Right after the plan and the modules change, a fresh load can still read the old ones from the
+  // cache and bounce: load again until the Feira holds with its location dialog and address option.
   const chooser = page.getByRole('dialog', { name: 'Onde procurar mercados?' })
   await expect(async () => {
     await page.goto('/mais/feira')
-    await expect(chooser).toBeVisible({ timeout: 3_000 })
+    await expect(chooser.getByRole('radio', { name: 'Digitar um endereço' })).toBeVisible({
+      timeout: 3_000,
+    })
     await expect(page).toHaveURL(/\/mais\/feira$/)
   }).toPass({ timeout: 45_000 })
   await expectNoViolationsOpen(page, chooser)
