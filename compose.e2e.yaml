@@ -29,8 +29,5 @@ services:
         - -c
         - >-
           exec 3<>/dev/tcp/localhost/8081 &&
-          printf 'GET /actuator/health/readiness HTTP/1.0
-Host: localhost
-
-' >&3 &&
+          printf 'GET /actuator/health/readiness HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3 &&
           grep -q '"status":"UP"' <&3
