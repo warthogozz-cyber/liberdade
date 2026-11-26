@@ -6,6 +6,20 @@
 > existir no código. Antes da Task 1, o controlador confere contra o `main` os nomes que este plano
 > usa da 10.1 (seção "Interfaces"), as versões da exportação e as migrações. Onde o código mudou, o
 > plano é ajustado num PR de docs pequeno antes de começar.
+>
+> **Conferido em 2026-11-26** contra o `main` em `924a61f` (10.1, #76 e o e2e em HTTPS já no
+> `main`). O que mudou está corrigido no texto abaixo:
+> - `FORMAT_VERSION` do `ExportService` está em 9: esta entrega escreve 10.
+> - A V41 está livre (a última migração é a V40).
+> - `MarketRef.parse(String)` devolve `Optional<MarketRef>`.
+> - As rotas da Feira ficam em `features/markets/MarketsRoutes.tsx` (`useRoutes`), atrás do
+>   `PlanRequired` e do `familyFeaturesOpen` do #76, e não em `app/routes.tsx`. A rota da nota entra
+>   ali e herda a tela do plano.
+> - O e2e roda em HTTPS (`e2e/urls.ts`), com a cobrança ligada (o spec compra o plano Família com
+>   `buyFamilyPlan` antes de abrir a Feira) e também no iPhone (WebKit). Um spec que intercepta
+>   pedidos usa `NO_SERVICE_WORKER`, e só intercepta os hosts de fora, como o `feira.spec.ts`.
+> - O e2e roda só no CI (o Docker local é do mantenedor).
+> - O resto da seção "Interfaces" bate com o código.
 
 **Goal:**
 - A família registra uma nota fiscal de supermercado (NFC-e) pelo QR, por um link colado ou pela
@@ -102,14 +116,14 @@ Conferir os nomes no `main` antes de começar (aviso do topo).
 - `MarketRepository.findByRef(UUID ws, MarketRef ref): Optional<MarketRow>`.
 - `MarketRepository.ensureOsmRow(UUID ws, OsmRef ref, UUID actor): UUID` (cria a linha `OSM` na
   mesma transação).
-- `MarketRef.parse(String)` → `OsmRef` ou `FamilyRef`.
+- `MarketRef.parse(String): Optional<MarketRef>` (`OsmRef` ou `FamilyRef`).
 - `FamilyMarketService` (cria mercado `FAMILY` e publica `MarketAdded`).
 - `MarketEdited(workspaceId, marketId, actorUserId, change)` com o enum de `change`.
 - `TextNorm.normalize(String)`, `MarketKind`, `MarketsProperties`, `MarketsStartupCheck`.
 - `MarketController`, `MarketViews` (o cartão), `MarketsExport` com `ExportedMarket`.
 - Web: `useMarketSearch`, `useMarketCard`, `readLocation`, `LocationChooser`, `SourceStamp`,
-  `features/markets/messages.pt-BR.ts`, as rotas em `app/routes.tsx` dentro de
-  `<ModuleRoute module="markets">`, `MarketCardPage.tsx`, MSW em `mocks/handlers.ts` e `data.ts`,
+  `features/markets/messages.pt-BR.ts`, as rotas em `features/markets/MarketsRoutes.tsx` (montado
+  em `app/routes.tsx` dentro de `<ModuleRoute module="markets">`, atrás do `PlanRequired`), `MarketCardPage.tsx`, MSW em `mocks/handlers.ts` e `data.ts`,
   `FakeOsmDataset` (6 mercados inventados perto de `(-10.00000, -50.00000)`, sem CNPJ).
 
 ## Decisões deste plano
@@ -274,7 +288,7 @@ Conferir os nomes no `main` antes de começar (aviso do topo).
 - **A mais que o spec:** `feira-apelidos.csv`. Os apelidos são texto da família (nesta entrega, o
   nome digitado; nos 10.2.x, a descrição da nota), então entram.
 - Os ids de mercado são os de `feira-mercados.csv` (10.1).
-- `FORMAT_VERSION` vai para a seguinte à do `main` (pré-requisito).
+- `FORMAT_VERSION` vai de 9 para 10 (conferido em 2026-11-26).
 - Exclusão: em cascata pela `workspace_id`; `created_by` segue o padrão sem FK da 10.1.
 
 **D14. Logs.** Nada da nota em log: nem chave, nem `p`, nem CNPJ, nem nome de produto, nem preço.
@@ -399,7 +413,7 @@ Caminhos da API relativos a `api/src/main/java/br/com/liberdadefamilia/` (testes
 | `markets/MarketsExport.java`, `markets/internal/JdbcMarketsExport.java`, `privacy/internal/ExportService.java`, `audit/internal/AuditListeners.java`, `audit/AuditEntry.java` | 5 | exportação e auditoria |
 | `features/markets/receipt/{nfceQr.ts,testing/nfceFixtures.ts}`, `features/markets/{useReceipts.ts,price.ts}`, `mocks/{handlers.ts,data.ts}` | 6 | leitura no aparelho e MSW |
 | `features/markets/receipt/scanner/{QrScanner.tsx,qrWorker.ts,detectQr.ts}`, `web/config/securityHeaders.ts`, `web/scripts/check-chunks.mjs`, `web/package.json` | 7 | câmera |
-| `features/markets/receipt/{ReceiptPage.tsx,ReceiptKeyStep.tsx,ReceiptMarketStep.tsx,ReceiptItemsStep.tsx,ProductPicker.tsx}`, `features/markets/MarketPrices.tsx`, `app/routes.tsx` | 8 | tela da nota e preços no cartão |
+| `features/markets/receipt/{ReceiptPage.tsx,ReceiptKeyStep.tsx,ReceiptMarketStep.tsx,ReceiptItemsStep.tsx,ProductPicker.tsx}`, `features/markets/MarketPrices.tsx`, `features/markets/MarketsRoutes.tsx` | 8 | tela da nota e preços no cartão |
 | `docs/runbooks/nfce-states.md`, `web/e2e/{feira-nota.spec.ts,a11y.spec.ts}`, `docs/{architecture.md,data-model.md}` | 9 | runbook, e2e e docs |
 
 ## Tasks
@@ -712,7 +726,7 @@ Caminhos da API relativos a `api/src/main/java/br/com/liberdadefamilia/` (testes
 
 **Files:**
 - Create: os arquivos da Task 8 no mapa.
-- Modify: `app/routes.tsx`, `features/markets/{FeiraPage.tsx,MarketCardPage.tsx,messages.pt-BR.ts}`.
+- Modify: `features/markets/{MarketsRoutes.tsx,FeiraPage.tsx,MarketCardPage.tsx,messages.pt-BR.ts}`.
 - Test: `features/markets/receipt/{ReceiptPage.test.tsx,ReceiptItemsStep.test.tsx,ProductPicker.test.tsx}`,
   `features/markets/MarketPrices.test.tsx`, `MarketCardPage.test.tsx`.
 
@@ -758,14 +772,17 @@ Caminhos da API relativos a `api/src/main/java/br/com/liberdadefamilia/` (testes
 
 **Como fica:**
 - Runbook: D19.
-- `feira-nota.spec.ts` (perfil `e2e` da API, fontes falsas da 10.1):
-  1. Dono liga a Feira, escolhe "Digitar um endereço" e vê os mercados de exemplo.
+- `feira-nota.spec.ts` (perfil `e2e` da API, fontes falsas da 10.1; URLs de `e2e/urls.ts`):
+  1. Dono compra o plano Família (`buyFamilyPlan`), liga a Feira, escolhe "Digitar um endereço" e vê os mercados de exemplo.
   2. "Registrar nota" → "Digitar a chave" com uma chave inventada (`makeChave` copiado para o e2e).
   3. O mercado não é achado; escolhe "Mercado Exemplo 1".
   4. Um item novo, "Leite Exemplo 1 L", `UN`, 4,99; grava e vê a frase final.
   5. Abre o cartão e vê "R$ 4,99" com a data.
   6. Registrar a mesma chave de novo → "Esta nota já foi registrada.".
-  7. Com `page.route` registrando os pedidos, confere que nenhum foi a um host de fora do app.
+  7. Registrando os pedidos com `page.on('request')` e abortando só os hosts de fora (rota com
+     predicado de URL e `NO_SERVICE_WORKER`, como o `feira.spec.ts`), confere que nenhum saiu do app.
+  - O spec roda nos três projetos do CI (Chrome, Android e iPhone): o caminho é o da chave
+    digitada, sem câmera.
 - `a11y.spec.ts`: axe nos três passos da nota e no cartão com preços.
 - Docs:
   - `architecture.md`: as notas no módulo `markets`, o `lookup` sempre manual e o leitor de QR no
@@ -773,8 +790,8 @@ Caminhos da API relativos a `api/src/main/java/br/com/liberdadefamilia/` (testes
   - `data-model.md`: a V41 e o mapa de dados (só o hash da chave, nada do consumidor).
 
 - [ ] **Step 1: Escrever o runbook, o e2e e o axe.**
-- [ ] **Step 2: Rodar.** Em `web/`: `npm run e2e -- feira-nota a11y core-without-modules` → PASS (se
-  um contêiner antigo atrapalhar localmente, o CI confere; nunca recriar contêineres com `down -v`).
+- [ ] **Step 2: Rodar.** O e2e roda só no CI: `e2e` e `e2e-mobile` (Android e iPhone) verdes no PR.
+  Localmente, só `tsc` e `eslint` dos specs.
 - [ ] **Step 3: Conferir tudo.** `./gradlew build` em `api/`; `npm run lint`, `typecheck`, `test`,
   `build` e `check:chunks` em `web/`.
 - [ ] **Step 4: Commit.** `git commit -m "test(markets): register a receipt by hand end to end and add the states runbook"`.

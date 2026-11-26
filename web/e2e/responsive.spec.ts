@@ -40,10 +40,21 @@ function clippedElements(page: Page): Promise<string[]> {
   })
 }
 
+/** Screens that open a dialog on arrival: it is closed first, so the checks measure the screen behind it. */
+const ARRIVAL_DIALOGS: Record<string, string> = { '/mais/feira': 'Onde procurar mercados?' }
+
 /** Opens the screen (again while a module switched on a moment ago still bounces) until it holds. */
 async function open(page: Page, path: string): Promise<void> {
+  const dialogName = ARRIVAL_DIALOGS[path]
   await expect(async () => {
     await page.goto(path)
+    if (dialogName !== undefined) {
+      // The modal dialog hides the page from the accessibility tree, the heading with it.
+      const dialog = page.getByRole('dialog', { name: dialogName })
+      await expect(dialog).toBeVisible({ timeout: 3_000 })
+      await dialog.getByRole('button', { name: 'Fechar' }).click()
+      await expect(dialog).toBeHidden()
+    }
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 3_000 })
     await expect(page).toHaveURL(new RegExp(`${path}$`))
   }).toPass({ timeout: 45_000 })
