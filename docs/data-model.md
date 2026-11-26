@@ -394,6 +394,36 @@ produtos e passos. A exportação da família traz todos os projetos no JSON e q
 pessoal não tem planilha de projetos. Quem sai da família leva só o que criou; os projetos ficam com a
 família.
 
+### Feira (módulo `markets`, Plano 10.1, migração `V40__markets.sql`)
+
+| Tabela | Colunas principais |
+|---|---|
+| `osm_market_imports` | Global. `osm_timestamp` (a data do dado no OpenStreetMap), `row_count`, `sha256`, `imported_at` |
+| `osm_markets` | Global, dado público. Chave `(osm_type, osm_id)`; `kind` (`SUPERMARKET` `CONVENIENCE` `GREENGROCER` `MARKETPLACE`), `name`, `brand`, `lat`, `lon` (5 casas), `website`, `instagram`, `opening_hours`, endereço. Índice por `(lat, lon)` para a busca |
+| `markets` | `workspace_id`, `origin` (`OSM` ou `FAMILY`), `osm_type` e `osm_id` (sem chave estrangeira: o mercado pode sair do OpenStreetMap), `name`, `kind`, `lat` e `lon` (5 casas, só em `FAMILY`), `cnpj`, links da família (`website`, `instagram`, `flyer_*`, cada um com a data em que foi posto), `archived_at`, `created_by` e `updated_by` (opcionais) |
+| `market_home` | Uma linha por família: `lat` e `lon` com 3 casas (cerca de 110 m) e `label` de até 40 letras |
+
+Regras no banco: uma linha `OSM` guarda só a referência ao objeto (nome e posição ficam vazios, e o que
+vale é o do OpenStreetMap); uma linha `FAMILY` tem nome e nenhuma referência. O mesmo mercado do
+OpenStreetMap e o mesmo CNPJ aparecem uma vez só por família. As linhas somem com a família, e quem sai
+deixa os mercados sem autor (`ON DELETE SET NULL`). A V40 também deixou `markets` entre os módulos
+aceitos e `MARKET` entre os alvos da auditoria.
+
+**Mapa de dados da localização.**
+
+| Dado | Onde fica | Precisão |
+|---|---|---|
+| Posição precisa do aparelho | Só na memória da tela. Nunca é guardada nem enviada | exata, só para medir a distância |
+| Posição aproximada | No aparelho (`localStorage`) | 2 casas (cerca de 1 km) |
+| Endereço digitado | No aparelho | 3 casas, com o rótulo do lugar |
+| Região enviada à busca | Vai ao servidor, sem ser guardada | 2 casas |
+| Endereço da família | No servidor (`market_home`), só Dono e Adulto leem | 3 casas |
+| Mercado da família | No servidor (`markets`) | até 5 casas |
+| Avisos de mapa e Instagram já aceitos | No aparelho | só a marca "não perguntar de novo" |
+
+A consulta de endereço vai ao OpenStreetMap (Nominatim) sem dado da família e não fica registrada. A
+exportação da família traz `feira-mercados.csv` e `feira-endereco.csv`; a pessoal não muda.
+
 ## 6. Retenção (LGPD)
 
 | Dado | Retenção |
@@ -402,6 +432,7 @@ família.
 | Família excluída | 30 dias de carência e depois apagamento definitivo |
 | Lançamento excluído | Apagado de vez após 30 dias; o de uma recorrência (excluído ou pulado) espera também até o segundo mês depois da data prevista |
 | Convites usados ou vencidos | Apagados após 90 dias |
+| `markets`, `market_home` | Ficam com a família; ao sair, o autor vira vazio. Somem com a família. `osm_markets` é dado público, sem dono |
 | `ventures` | Ficam com a família; ao sair, o autor vira vazio (`created_by` nulo). Somem com a família |
 | `achievements` | Somem com a participação: ao sair da família, ao excluir a conta ou com a família |
 | `import_tombstones` | 13 meses depois do apagamento definitivo do lançamento (só o hash); apagados junto com a conta bancária ou a família |

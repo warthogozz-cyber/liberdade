@@ -237,6 +237,39 @@ O módulo `ventures` guarda os projetos de renda extra, com custos, produtos e p
 e `VentureDeleted`, e o `privacy` por `VenturesExport`, a interface que entrega os projetos prontos para
 a exportação (versão 8). A exportação lê os projetos só por ela, nunca pelas tabelas.
 
+### Feira (módulo `markets`, Plano 10.1)
+
+O módulo `markets` é opcional (desligado por padrão) e fica no pacote `br.com.liberdadefamilia.markets`.
+Ele depende só de `workspace`, `billing` e `shared`. As rotas pedem o módulo ligado e o plano da família
+(aberto enquanto a cobrança está desligada). `audit` e `privacy` o enxergam pelos eventos e pela interface
+`MarketsExport`, nunca pelo `internal`.
+
+- **Dados públicos do OpenStreetMap.** O workflow `osm-markets` (GitHub Actions, toda segunda) baixa o
+  extrato do Brasil da Geofabrik, filtra os mercados e publica o `markets-br.csv.gz` com o
+  `manifest.json` (data, número de linhas e SHA-256) num release do próprio repositório,
+  `osm-markets-data`. O release é pré-lançamento e fica fora de "latest".
+- **Importação na API.** O `OsmMarketImportJob` baixa o manifesto, pula se a data não mudou, confere o
+  SHA-256 e recusa um extrato com linhas demais a menos. Grava tudo numa transação só, então quem lê vê o
+  dado antigo até o commit. Roda toda terça de manhã e uma vez na subida, quando `osm_markets` está
+  vazia. O log diz `MARKETS_IMPORT ok`, e o que falha vira `MARKETS_ALERT` (com alarme no Terraform).
+- **Busca.** A web manda só a região (2 casas, cerca de 1 km); a API devolve os mercados da caixa de
+  busca. A posição precisa nunca sai do aparelho. A distância é calculada na web.
+- **No servidor, só dois serviços de terceiros**, ambos com `User-Agent` do robô, tempo limite e limite
+  por família: a geocodificação de endereço (Nominatim, sem dados da família, cache e fila) e o oEmbed do
+  Instagram (só o HTML do `blockquote`, sem token). Nada disso vai para log, banco ou auditoria. Em `dev`,
+  `e2e` e testes, as três fontes são falsas, e o perfil `prod` recusa as falsas.
+- **Mapa e Instagram só carregam ao tocar.** A web não pede nada ao Google nem à Meta antes do toque e do
+  aviso aceito. O mapa é um `iframe` do Maps Embed (chave restrita por domínio). O Instagram aparece na
+  página isolada `/embed/instagram`, num `iframe` com `sandbox="allow-scripts allow-popups"` (sem
+  `allow-same-origin`); o app manda o HTML por `postMessage` e a página só aceita um `blockquote` limpo.
+- **CSP.** O app libera `frame-src 'self' https://www.google.com`. A página `/embed/instagram` tem a
+  própria CSP (`script-src` e `frame-src` só para `www.instagram.com`, imagens do `cdninstagram.com`,
+  `frame-ancestors 'self'`), por um bloco do `_headers` e, no `vite preview`, por um middleware. O
+  service worker não a responde (`navigateFallbackDenylist`).
+- **Front.** As telas (`/mais/feira` e `/mais/feira/mercado/:ref`) e a seção da home carregam sob demanda e
+  ficam fora do pacote inicial (`check:chunks`). A escolha de onde procurar e os avisos aceitos ficam no
+  `localStorage` do aparelho e saem com o sair da conta.
+
 ### Avisos ao vivo (módulo `live`, Plano 7.3)
 
 O módulo `live` leva ao navegador o aviso de que algo mudou na família, para as telas abertas em
@@ -305,7 +338,7 @@ web/src/
   features/
     auth/  onboarding/  transactions/  accounts/  categories/
     dashboard/  members/  modules/  privacy/
-    recurrences/  planning/ (v0.2)  indicators/ gamification/ (v0.3)  ventures/ (v0.4)
+    recurrences/  planning/ (v0.2)  indicators/ gamification/ (v0.3)  ventures/ (v0.4)  markets/ (Feira)
   shared/
     ui/         componentes do design system (Radix + Tailwind)
     money/      centavos em bigint, formatação com Intl

@@ -30,6 +30,6 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000,
     // The e2e app talks to the real API, even from a shell that set VITE_API_MOCKS.
-    env: { VITE_API_MOCKS: '' },
+    env: { VITE_API_MOCKS: '', VITE_GOOGLE_MAPS_EMBED_KEY: 'e2e-key' },
   },
 })

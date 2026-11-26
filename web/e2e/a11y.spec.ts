@@ -630,3 +630,39 @@ test('the actual versus planned screen and the form with the project field meet 
     page.getByRole('table', { name: 'Real e previsto, mês a mês' }),
   )
 })
+
+test('the Feira list, the market card with the map notice and the location dialog meet WCAG 2.2 AA in both themes', async ({
+  page,
+}) => {
+  // The notice is never accepted here, but nothing may reach Google or Meta even by mistake.
+  await page
+    .context()
+    .route(/^https:\/\/([^/]+\.)?(google|instagram|cdninstagram|facebook)\.com\//, (route) =>
+      route.abort(),
+    )
+  await signInWithGoogle(page, newUser())
+  await createFamily(page)
+  await setModules(page, true)
+
+  await page.goto('/mais/feira')
+  const chooser = page.getByRole('dialog', { name: 'Onde procurar mercados?' })
+  await expectNoViolationsOpen(page, chooser)
+
+  await chooser.getByRole('radio', { name: 'Digitar um endereço' }).check()
+  await chooser.getByLabel('Endereço', { exact: true }).fill('Rua Exemplo')
+  await chooser.getByRole('button', { name: 'Buscar', exact: true }).click()
+  await chooser.getByRole('radio', { name: 'Bairro Exemplo, Cidade Exemplo' }).check()
+  await expectNoViolationsOpen(
+    page,
+    chooser.getByRole('radio', { name: 'Bairro Exemplo, Cidade Exemplo' }),
+  )
+  await chooser.getByRole('button', { name: 'Continuar', exact: true }).click()
+
+  const market = page.getByRole('link', { name: /Mercado Exemplo 3/ })
+  await expectNoViolations(page, 'Feira', market)
+
+  await market.click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Mercado Exemplo 3' })).toBeVisible()
+  await page.getByRole('button', { name: 'Ver no mapa' }).click()
+  await expectNoViolationsOpen(page, page.getByRole('alertdialog', { name: 'Mapa do Google' }))
+})
