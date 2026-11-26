@@ -28,6 +28,17 @@ import {
   waitForQueueToEmpty,
   withContext,
 } from './support.ts'
+import {
+  chooseMarket,
+  expectMarketChoice,
+  fillItem,
+  freshReceipt,
+  ITEM_NAME,
+  openFeira,
+  openKeyField,
+  RECEIPT_MARKET,
+  submitKey,
+} from './receipts.ts'
 
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
 
@@ -676,4 +687,41 @@ test('the Feira list, the market card with the map notice and the location dialo
   await expect(page.getByRole('heading', { level: 1, name: 'Mercado Exemplo 3' })).toBeVisible()
   await page.getByRole('button', { name: 'Ver no mapa' }).click()
   await expectNoViolationsOpen(page, page.getByRole('alertdialog', { name: 'Mapa do Google' }))
+})
+
+test('the three receipt steps and the market card with prices meet WCAG 2.2 AA in both themes', async ({
+  page,
+  request,
+}) => {
+  const { chave, issuedOn } = freshReceipt()
+  // Nothing may reach Google or Meta even by mistake while the Feira is open.
+  await page
+    .context()
+    .route(/^https:\/\/([^/]+\.)?(google|instagram|cdninstagram|facebook)\.com\//, (route) =>
+      route.abort(),
+    )
+  await openFeira(page, request)
+
+  await openKeyField(page)
+  await expectNoViolations(page, 'Registrar nota', page.getByLabel('Chave de 44 números'))
+
+  await submitKey(page, chave)
+  await expectMarketChoice(page)
+  await expectNoViolations(
+    page,
+    'Registrar nota',
+    page.getByRole('radio', { name: 'Outro mercado' }),
+  )
+  await chooseMarket(page, RECEIPT_MARKET)
+
+  await fillItem(page, issuedOn)
+  await expectNoViolations(page, 'Registrar nota', page.getByLabel('Preço da unidade'))
+
+  await page.getByRole('button', { name: 'Gravar' }).click()
+  await page.getByRole('link', { name: 'Ver o cartão do mercado' }).click()
+  await expectNoViolations(
+    page,
+    RECEIPT_MARKET,
+    page.getByRole('listitem').filter({ hasText: ITEM_NAME }),
+  )
 })

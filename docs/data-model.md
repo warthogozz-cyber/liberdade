@@ -409,6 +409,32 @@ OpenStreetMap e o mesmo CNPJ aparecem uma vez só por família. As linhas somem 
 deixa os mercados sem autor (`ON DELETE SET NULL`). A V40 também deixou `markets` entre os módulos
 aceitos e `MARKET` entre os alvos da auditoria.
 
+### Notas e preços (Plano 10.2, migração `V41__receipts_and_prices.sql`)
+
+| Tabela | Colunas principais |
+|---|---|
+| `products` | `workspace_id`, `name` (1 a 80), `gtin` (8, 12, 13 ou 14 dígitos; único por família quando existe), `unit` (`UN` `KG` `G` `L` `ML` `CX` `PCT` `DZ`) |
+| `product_aliases` | Chave `(workspace_id, market_id, description_norm)`; aponta para o produto. "Esta descrição, neste mercado, é este produto" |
+| `receipts` | `workspace_id`, `market_id`, `key_hash` (único por família), `issued_on`, `mode` (`FETCHED` ou `MANUAL`; a 10.2 grava só `MANUAL`), `item_count` (1 a 200), `created_by` (opcional) |
+| `price_records` | `workspace_id`, `market_id`, `product_id`, `receipt_id` (opcional), `observed_on`, `unit`, `quantity` (opcional), `unit_price` (até 4 casas), `created_by` (opcional). Índice por produto, mercado e data para o último preço |
+
+A V41 também deixou `RECEIPT` entre os alvos da auditoria. Tudo some em cascata com a família.
+
+**Mapa de dados da nota.**
+
+| Dado | Onde fica | Observação |
+|---|---|---|
+| Chave de acesso (44 posições) | Em lugar nenhum | Só o hash SHA-256 de `<família>\|<chave>` é guardado (`key_hash`); o `<família>` no texto impede comparar hashes entre famílias |
+| `p` do QR | Em lugar nenhum | A API valida e descarta; só os leitores 10.2.x o usarão |
+| Documento de quem comprou (CPF ou CNPJ) | Em lugar nenhum | Sai do QR no aparelho e nunca é enviado |
+| Link do QR | Só na memória da tela | Vai ao navegador da pessoa, nunca à API |
+| CNPJ de quem vendeu | No servidor (`markets.cnpj`) | Ligado ao mercado da família |
+| Nome do produto, unidade, quantidade e preço | No servidor (`products`, `price_records`) | Digitados pela pessoa |
+| Data da compra | No servidor (`receipts.issued_on`, `price_records.observed_on`) | Nada do consumidor |
+
+Nada da nota vai para log, auditoria ou exportação além do que a tabela mostra: a auditoria guarda só o
+modo e a contagem de itens, e a exportação não traz a chave nem o hash.
+
 **Mapa de dados da localização.**
 
 | Dado | Onde fica | Precisão |
@@ -433,6 +459,7 @@ exportação da família traz `feira-mercados.csv` e `feira-endereco.csv`; a pes
 | Lançamento excluído | Apagado de vez após 30 dias; o de uma recorrência (excluído ou pulado) espera também até o segundo mês depois da data prevista |
 | Convites usados ou vencidos | Apagados após 90 dias |
 | `markets`, `market_home` | Ficam com a família; ao sair, o autor vira vazio. Somem com a família. `osm_markets` é dado público, sem dono |
+| `products`, `product_aliases`, `receipts`, `price_records` | Ficam com a família; ao sair, o autor vira vazio. Somem com a família. A nota guarda só o hash da chave |
 | `ventures` | Ficam com a família; ao sair, o autor vira vazio (`created_by` nulo). Somem com a família |
 | `achievements` | Somem com a participação: ao sair da família, ao excluir a conta ou com a família |
 | `import_tombstones` | 13 meses depois do apagamento definitivo do lançamento (só o hash); apagados junto com a conta bancária ou a família |
