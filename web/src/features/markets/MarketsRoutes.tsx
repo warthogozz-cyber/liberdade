@@ -11,6 +11,9 @@ registerMessages(marketsMessages)
 
 // One lazy module for every Feira screen, so the app's own routes carry a single stub.
 const FeiraPage = lazy(() => import('./FeiraPage').then((m) => ({ default: m.FeiraPage })))
+const ReceiptPage = lazy(() =>
+  import('./receipt/ReceiptPage').then((m) => ({ default: m.ReceiptPage })),
+)
 const MarketCardPage = lazy(() =>
   import('./MarketCardPage').then((m) => ({ default: m.MarketCardPage })),
 )
@@ -38,6 +41,7 @@ export function MarketsRoutes() {
   const screen = useRoutes([
     { index: true, element: <FeiraPage /> },
     { path: 'mercado/:ref', element: <MarketCardPage /> },
+    { path: 'nota', element: <ReceiptPage /> },
   ])
   // Offline with no saved plan the query waits for a connection: the saved Feira opens meanwhile.
   if (plan.isPending && plan.fetchStatus !== 'paused') return <Loading />

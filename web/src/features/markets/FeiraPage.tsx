@@ -206,9 +206,14 @@ export function FeiraPage() {
       ) : null}
 
       {canWrite && (
-        <button type="button" onClick={() => setAdding(true)} className={`${outline} self-start`}>
-          <FormattedMessage id="markets.add" />
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" onClick={() => setAdding(true)} className={outline}>
+            <FormattedMessage id="markets.add" />
+          </button>
+          <Link to="/mais/feira/nota" className={outline}>
+            <FormattedMessage id="markets.receipt.register" />
+          </Link>
+        </div>
       )}
 
       <OsmAttribution date={search.data?.datasetDate ?? null} />

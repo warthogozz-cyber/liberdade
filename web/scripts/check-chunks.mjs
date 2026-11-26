@@ -38,9 +38,15 @@ const marketsFiles = [
   'MarketCardPage.tsx',
   'MarketDetailsForm.tsx',
   'MarketRow.tsx',
+  'MarketPrices.tsx',
   'MarketsRoutes.tsx',
   'OsmAttribution.tsx',
   'PositionPicker.tsx',
+  'receipt/ProductPicker.tsx',
+  'receipt/ReceiptItemsStep.tsx',
+  'receipt/ReceiptKeyStep.tsx',
+  'receipt/ReceiptMarketStep.tsx',
+  'receipt/ReceiptPage.tsx',
   'ThirdPartyNotice.tsx',
 ].map((file) => `src/features/markets/${file}`)
 const lazy = lazyOnly(

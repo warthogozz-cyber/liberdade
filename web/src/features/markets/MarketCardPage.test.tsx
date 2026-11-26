@@ -318,4 +318,25 @@ describe('MarketCardPage', () => {
     expect(screen.queryByRole('button', { name: 'Ver no mapa' })).not.toBeInTheDocument()
     vi.unstubAllEnvs()
   })
+
+  it('showsTheLatestPricesAndTheRegisterLinkToTheOwner', async () => {
+    seed('OWNER')
+    answerCard(cardOf())
+    render()
+
+    expect(await screen.findByText('Arroz tipo 1')).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Registrar nota' })).toHaveAttribute(
+      'href',
+      '/mais/feira/nota',
+    )
+  })
+
+  it.each(['YOUTH', 'VIEWER'] as const)('%s sees prices but cannot register', async (role) => {
+    seed(role)
+    answerCard(cardOf())
+    render()
+
+    expect(await screen.findByText('Arroz tipo 1')).toBeVisible()
+    expect(screen.queryByRole('link', { name: 'Registrar nota' })).not.toBeInTheDocument()
+  })
 })
