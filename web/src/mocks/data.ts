@@ -37,7 +37,43 @@ export interface MockMarkets {
   /** Links the family set on an OpenStreetMap market, by its `osm-<type>-<id>` ref. */
   osmLinks: Record<string, { instagram: string | null; website: string | null }>
   archivedOsm: string[]
+  /** The keys of the receipts already saved (the real API keeps only a hash). */
+  receipts?: string[]
+  /** Products the family's receipts created. */
+  products?: MockProduct[]
+  /** Prices the family's receipts recorded. */
+  prices?: MockPrice[]
 }
+
+/** A product of the family's price book. */
+export interface MockProduct {
+  id: string
+  name: string
+  unit: 'UN' | 'KG' | 'G' | 'L' | 'ML' | 'CX' | 'PCT' | 'DZ'
+  gtin: string | null
+}
+
+/** One observed price: the unit price has 4 decimals, as the API sends it. */
+export interface MockPrice {
+  marketRef: string
+  productId: string
+  unitPrice: string
+  observedOn: string
+}
+
+/** Invented products every family starts with (a price book is never empty in the mock). */
+export const FAKE_PRODUCTS: MockProduct[] = [
+  { id: '00000000-0000-4000-8000-00000000a001', name: 'Arroz tipo 1', unit: 'KG', gtin: null },
+  { id: '00000000-0000-4000-8000-00000000a002', name: 'Feijão preto', unit: 'KG', gtin: null },
+  { id: '00000000-0000-4000-8000-00000000a003', name: 'Leite integral', unit: 'L', gtin: null },
+]
+
+/** Invented prices at the first of the six markets. */
+export const FAKE_PRICES: MockPrice[] = [
+  { marketRef: 'osm-n-9001', productId: FAKE_PRODUCTS[0]!.id, unitPrice: '4.9900', observedOn: '2026-11-12' },
+  { marketRef: 'osm-n-9001', productId: FAKE_PRODUCTS[1]!.id, unitPrice: '7.4900', observedOn: '2026-11-12' },
+  { marketRef: 'osm-n-9001', productId: FAKE_PRODUCTS[2]!.id, unitPrice: '5.2900', observedOn: '2026-11-05' },
+] // prettier-ignore
 
 /** The six invented markets of the API's `FakeOsmDataset`, around (-10.000, -50.000). */
 export const FAKE_OSM_MARKETS = Array.from({ length: 6 }, (_, index) => {

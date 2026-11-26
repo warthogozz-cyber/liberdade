@@ -7,6 +7,7 @@ import br.com.liberdadefamilia.markets.domain.FamilyRef;
 import br.com.liberdadefamilia.markets.domain.GeoPoint;
 import br.com.liberdadefamilia.markets.domain.HttpsLink;
 import br.com.liberdadefamilia.markets.domain.InstagramRef;
+import br.com.liberdadefamilia.markets.domain.MarketKind;
 import br.com.liberdadefamilia.markets.domain.MarketRef;
 import br.com.liberdadefamilia.markets.domain.OsmRef;
 import br.com.liberdadefamilia.markets.internal.MarketRepository.FamilyLinks;
@@ -54,9 +55,18 @@ class FamilyMarketService {
                 member.membershipId(),
                 request.name().strip(),
                 request.kind(),
-                position.orElse(null));
+                position.orElse(null),
+                null);
         events.publishEvent(new MarketAdded(member.workspaceId(), id, member.userId()));
         return cards.card(member, id.toString());
+    }
+
+    /** A market of the family's own made from a receipt: no position, the seller's CNPJ. Joins the caller's transaction. */
+    @Transactional
+    UUID addFromReceipt(WorkspaceMember member, String name, MarketKind kind, String cnpj) {
+        UUID id = markets.insertFamily(member.workspaceId(), member.membershipId(), name, kind, null, cnpj);
+        events.publishEvent(new MarketAdded(member.workspaceId(), id, member.userId()));
+        return id;
     }
 
     @Transactional

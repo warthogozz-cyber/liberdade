@@ -152,7 +152,7 @@ class ExportMarketsIT {
     void formatVersionBumped() {
         String json = text(unzip(exportFamily(ana, ws)).get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(9);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(10);
     }
 
     private MvcTestResult exportFamily(UUID user, UUID workspace) {

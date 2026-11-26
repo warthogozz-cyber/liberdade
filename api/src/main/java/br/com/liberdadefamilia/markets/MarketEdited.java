@@ -13,6 +13,7 @@ public record MarketEdited(UUID workspaceId, UUID marketId, UUID actorUserId, Ch
         LINKS,
         POSITION,
         ARCHIVE,
-        CONVERT
+        CONVERT,
+        CNPJ
     }
 }

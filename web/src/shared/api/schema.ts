@@ -836,6 +836,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["products"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["save"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/receipts/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lookup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/search": {
         parameters: {
             query?: never;
@@ -957,6 +1005,22 @@ export interface paths {
         };
         get?: never;
         put: operations["putPosition"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["prices"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1750,6 +1814,16 @@ export interface components {
             name: string;
             ref: string;
         };
+        FamilyProductView: {
+            gtin: string | null;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            unit: string;
+        };
+        FamilyProductsView: {
+            products: components["schemas"]["FamilyProductView"][];
+        };
         FiguresView: {
             breakEven: components["schemas"]["BreakEvenView"];
             fixedMonthly: components["schemas"]["Money"];
@@ -1923,6 +1997,36 @@ export interface components {
             instagram: string | null;
             website: string | null;
         };
+        LookupItem: Record<string, never>;
+        LookupMarket: {
+            /** Format: uuid */
+            familyId: string;
+            /** @enum {string|null} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE" | null;
+            name: string | null;
+            ref: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "LEFT_OSM" | "ARCHIVED";
+        } | null;
+        LookupRequest: {
+            /** @description The 44 positions; spaces and dots are ignored */
+            chave: string;
+            p?: string | null;
+            /**
+             * Format: int32
+             * @enum {integer}
+             */
+            version?: 0 | 1 | 2 | 3;
+        };
+        LookupView: {
+            /** @example 2026-11 */
+            issuedMonth: string;
+            items: components["schemas"]["LookupItem"][];
+            market: components["schemas"]["LookupMarket"];
+            /** @enum {string} */
+            mode: "MANUAL";
+            uf: string;
+        };
         MarketCardView: {
             address: components["schemas"]["AddressView"] | null;
             cnpj: string | null;
@@ -1947,6 +2051,9 @@ export interface components {
             /** Format: date-time */
             updatedAt: string | null;
             website: components["schemas"]["LinkView"] | null;
+        };
+        MarketChoice: {
+            ref: string;
         };
         MeUser: {
             /** Format: date-time */
@@ -2021,6 +2128,11 @@ export interface components {
             plannedIncome: components["schemas"]["Money"] | null;
             plannedResult: components["schemas"]["Money"] | null;
             result: components["schemas"]["Money"];
+        };
+        NewMarketChoice: {
+            /** @enum {string} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE";
+            name: string;
         };
         NewMarketRequest: {
             /** @enum {string} */
@@ -2104,6 +2216,19 @@ export interface components {
         PreviewInvitationRequest: {
             token: string;
         };
+        PriceView: {
+            name: string;
+            /** Format: date */
+            observedOn: string;
+            /** Format: uuid */
+            productId: string;
+            unit: string;
+            /** @example 4.99 */
+            unitPrice: string;
+        };
+        PricesView: {
+            prices: components["schemas"]["PriceView"][];
+        };
         ProductFiguresView: {
             /** Format: int64 */
             breakEvenUnits: number | null;
@@ -2156,6 +2281,17 @@ export interface components {
             /** @enum {string} */
             state: "PAID_BACK" | "NOT_YET" | "NEVER_NEGATIVE" | "NO_DATA";
         };
+        ReceiptItem: {
+            newProductName: string | null;
+            /** Format: uuid */
+            productId: string | null;
+            /** @example 1.5 */
+            quantity: string | null;
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+            /** @example 4.99 */
+            unitPrice: string;
+        };
         RecurringRuleView: {
             /** Format: uuid */
             accountId: string;
@@ -2203,6 +2339,31 @@ export interface components {
             months: number | null;
             /** Format: int32 */
             targetMonths: number;
+        };
+        SaveReceiptRequest: {
+            /** @description The 44 positions; spaces and dots are ignored */
+            chave: string;
+            /**
+             * Format: date
+             * @example 2026-11-10
+             */
+            issuedOn?: string | null;
+            items?: components["schemas"]["ReceiptItem"][];
+            market?: components["schemas"]["MarketChoice"] | null;
+            newMarket?: components["schemas"]["NewMarketChoice"] | null;
+            p?: string | null;
+            /**
+             * Format: int32
+             * @enum {integer}
+             */
+            version?: 0 | 1 | 2 | 3;
+        };
+        SaveView: {
+            marketRef: string;
+            /** Format: int32 */
+            prices: number;
+            /** Format: uuid */
+            receiptId: string;
         };
         ScenarioInput: {
             /** @example 10.5 */
@@ -4055,6 +4216,85 @@ export interface operations {
             };
         };
     };
+    products: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyProductsView"];
+                };
+            };
+        };
+    };
+    save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveReceiptRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaveView"];
+                };
+            };
+        };
+    };
+    lookup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LookupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LookupView"];
+                };
+            };
+        };
+    };
     searchMarkets: {
         parameters: {
             query?: never;
@@ -4255,6 +4495,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
+    prices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricesView"];
                 };
             };
         };

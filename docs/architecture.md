@@ -270,6 +270,26 @@ Ele depende só de `workspace`, `billing` e `shared`. As rotas pedem o módulo l
   ficam fora do pacote inicial (`check:chunks`). A escolha de onde procurar e os avisos aceitos ficam no
   `localStorage` do aparelho e saem com o sair da conta.
 
+#### Notas fiscais e preços (Plano 10.2)
+
+As notas (NFC-e) entram no mesmo módulo `markets`, com a tela `/mais/feira/nota` e os preços no cartão do
+mercado. Só Dono e Adulto registram; os demais leem os preços.
+
+- **O `lookup` é sempre manual.** `POST …/markets/receipts/lookup` valida a chave, calcula o hash, recusa a
+  nota já registrada (409) e acha o mercado pelo CNPJ da chave. Não existe leitor de estado: a resposta é
+  sempre `MANUAL`, e a pessoa digita os preços. Os leitores por estado (planos 10.2.x) só entram depois da
+  conferência do runbook `docs/runbooks/nfce-states.md`.
+- **O leitor de QR roda no aparelho.** A câmera (`getUserMedia`, câmera de trás) abre só depois do toque, num
+  chunk próprio, com o `BarcodeDetector` do navegador ou o `jsQR` num Web Worker. A imagem nunca sai do
+  aparelho e a câmera para ao sair da tela. Colar o link e digitar a chave são as alternativas sem câmera.
+- **O QR é limpo no aparelho.** O documento de quem comprou (`cDest` na v1; CPF ou CNPJ na v3 offline) nunca
+  sai do aparelho. O link original do QR só aparece como "Abrir a nota no site da SEFAZ", aberto no
+  navegador da pessoa, e nunca vai à API nem ao `localStorage`.
+- **A gravação refaz a validação.** A API recebe a chave no corpo, confere de novo, calcula o hash e tira o
+  CNPJ e o mês dela. A chave não é guardada nem registrada em log; vale o mesmo para o `p` do QR.
+- **O estado da tela fica só na memória.** Sair da tela descarta tudo. Depois de gravar, a tela invalida a
+  lista de mercados da família (cartão, preços, produtos).
+
 ### Avisos ao vivo (módulo `live`, Plano 7.3)
 
 O módulo `live` leva ao navegador o aviso de que algo mudou na família, para as telas abertas em

@@ -13,6 +13,8 @@ import {
   foodSweetsVenture,
   prdExampleFigures,
   FAKE_OSM_MARKETS,
+  FAKE_PRICES,
+  FAKE_PRODUCTS,
   keepsAcceptance,
   type MockAccount,
   type MockBudget,
@@ -20,6 +22,8 @@ import {
   type MockFamilyMarket,
   type MockInvitation,
   type MockMarkets,
+  type MockPrice,
+  type MockProduct,
   type MockRule,
   mockState,
   ventureTracks,
@@ -1138,7 +1142,209 @@ function marketsHandlers() {
     }
   }
 
+  const UF_BY_CODE: Record<string, string> = {
+    '11': 'RO', '12': 'AC', '13': 'AM', '14': 'RR', '15': 'PA', '16': 'AP', '17': 'TO',
+    '21': 'MA', '22': 'PI', '23': 'CE', '24': 'RN', '25': 'PB', '26': 'PE', '27': 'AL',
+    '28': 'SE', '29': 'BA', '31': 'MG', '32': 'ES', '33': 'RJ', '35': 'SP', '41': 'PR',
+    '42': 'SC', '43': 'RS', '50': 'MS', '51': 'MT', '52': 'GO', '53': 'DF',
+  } // prettier-ignore
+  const UNITS: unknown[] = ['UN', 'KG', 'G', 'L', 'ML', 'CX', 'PCT', 'DZ']
+  const keyInvalid = () =>
+    problem(
+      422,
+      'receipt.key_invalid',
+      'Esta chave não parece de uma nota fiscal de consumidor válida.',
+    )
+  const duplicate = () => problem(409, 'receipt.duplicate', 'Esta nota já foi registrada.')
+  const cleanKey = (value: unknown) =>
+    typeof value === 'string' ? value.replace(/[\s.]/g, '') : undefined
+
+  function allProducts(ws: string): MockProduct[] {
+    return [...FAKE_PRODUCTS, ...(owned(ws).products ?? [])]
+  }
+
+  /** The routes of the receipts and the price book. They come first: `products` is not a market ref. */
+  function receiptRoutes() {
+    return [
+      http.post<{ ws: string }>(
+        url('/v1/workspaces/:ws/markets/receipts/lookup'),
+        async ({ request, params }) => {
+          const workspace = marketsGuard(params.ws, true)
+          if (workspace instanceof Response) return workspace
+          const body = (await readJson(request)) as { chave?: unknown } | undefined
+          if (!body) return malformed()
+          const chave = cleanKey(body.chave)
+          const uf = chave === undefined ? undefined : UF_BY_CODE[chave.slice(0, 2)]
+          if (chave?.length !== 44 || uf === undefined) return keyInvalid()
+          if ((owned(workspace.id).receipts ?? []).includes(chave)) return duplicate()
+          return HttpResponse.json({
+            mode: 'MANUAL',
+            uf,
+            issuedMonth: `20${chave.slice(2, 4)}-${chave.slice(4, 6)}`,
+            market: null,
+            items: [],
+          })
+        },
+      ),
+
+      http.post<{ ws: string }>(
+        url('/v1/workspaces/:ws/markets/receipts'),
+        async ({ request, params }) => {
+          const workspace = marketsGuard(params.ws, true)
+          if (workspace instanceof Response) return workspace
+          const body = (await readJson(request)) as
+            | {
+                chave?: unknown
+                issuedOn?: unknown
+                market?: { ref?: unknown } | null
+                newMarket?: { name?: unknown; kind?: unknown } | null
+                items?: unknown
+              }
+            | undefined
+          if (!body) return malformed()
+          const chave = cleanKey(body.chave)
+          if (chave?.length !== 44) return keyInvalid()
+          const state = owned(workspace.id)
+          state.receipts ??= []
+          if (state.receipts.includes(chave)) return duplicate()
+          if (typeof body.issuedOn !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.issuedOn)) {
+            return invalid([{ field: 'issuedOn', code: 'invalid' }])
+          }
+          if (!body.market === !body.newMarket) {
+            return problem(
+              422,
+              'receipt.market_required',
+              'Escolha o mercado da nota ou informe um novo.',
+            )
+          }
+          const items = Array.isArray(body.items) ? (body.items as Record<string, unknown>[]) : []
+          for (const item of items) {
+            if (typeof item.unitPrice !== 'string' || !/^\d+(\.\d{1,4})?$/.test(item.unitPrice)) {
+              return invalid([{ field: 'items.unitPrice', code: 'invalid' }])
+            }
+            if (!UNITS.includes(item.unit))
+              return invalid([{ field: 'items.unit', code: 'invalid' }])
+          }
+
+          let marketRef: string
+          if (body.market) {
+            if (typeof body.market.ref !== 'string' || !card(workspace.id, body.market.ref)) {
+              return notFound()
+            }
+            marketRef = body.market.ref
+          } else {
+            const choice = body.newMarket as { name?: unknown; kind?: unknown }
+            if (typeof choice.name !== 'string' || choice.name.trim() === '') {
+              return invalid([{ field: 'newMarket.name', code: 'required' }])
+            }
+            if (!MARKET_KINDS.includes(choice.kind)) {
+              return invalid([{ field: 'newMarket.kind', code: 'invalid' }])
+            }
+            const row: MockFamilyMarket = {
+              id: crypto.randomUUID(),
+              name: choice.name.trim(),
+              kind: choice.kind as MockFamilyMarket['kind'],
+              lat: null,
+              lon: null,
+              archived: false,
+              instagram: null,
+              website: null,
+            }
+            state.family.push(row)
+            marketRef = row.id
+          }
+
+          state.products ??= []
+          state.prices ??= []
+          for (const item of items) {
+            let productId = typeof item.productId === 'string' ? item.productId : undefined
+            if (
+              productId !== undefined &&
+              !allProducts(workspace.id).some((p) => p.id === productId)
+            ) {
+              return invalid([{ field: 'items.productId', code: 'invalid' }])
+            }
+            if (productId === undefined) {
+              const name = typeof item.newProductName === 'string' ? item.newProductName.trim() : ''
+              if (name === '') return invalid([{ field: 'items.newProductName', code: 'required' }])
+              productId = crypto.randomUUID()
+              state.products.push({
+                id: productId,
+                name,
+                unit: item.unit as MockProduct['unit'],
+                gtin: null,
+              })
+            }
+            const [whole = '0', fraction = ''] = (item.unitPrice as string).split('.')
+            state.prices.push({
+              marketRef,
+              productId,
+              unitPrice: `${whole}.${fraction.padEnd(4, '0')}`,
+              observedOn: body.issuedOn,
+            })
+          }
+          state.receipts.push(chave)
+          return HttpResponse.json(
+            { receiptId: crypto.randomUUID(), marketRef, prices: items.length },
+            { status: 201 },
+          )
+        },
+      ),
+
+      http.get<{ ws: string }>(
+        url('/v1/workspaces/:ws/markets/products'),
+        ({ request, params }) => {
+          const workspace = marketsGuard(params.ws, false)
+          if (workspace instanceof Response) return workspace
+          const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+          const q = fold(new URL(request.url).searchParams.get('q') ?? '')
+          const products = allProducts(workspace.id)
+            .filter((each) => fold(each.name).includes(q))
+            .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+            .slice(0, 50)
+          return HttpResponse.json({ products })
+        },
+      ),
+
+      http.get<{ ws: string; ref: string }>(
+        url('/v1/workspaces/:ws/markets/:ref/prices'),
+        ({ params }) => {
+          const workspace = marketsGuard(params.ws, false)
+          if (workspace instanceof Response) return workspace
+          if (!card(workspace.id, params.ref)) return notFound()
+          const products = allProducts(workspace.id)
+          const latest = new Map<string, MockPrice>()
+          for (const price of [...FAKE_PRICES, ...(owned(workspace.id).prices ?? [])]) {
+            if (price.marketRef !== params.ref) continue
+            const current = latest.get(price.productId)
+            if (!current || price.observedOn >= current.observedOn)
+              latest.set(price.productId, price)
+          }
+          const prices = [...latest.values()]
+            .flatMap((price) => {
+              const product = products.find((each) => each.id === price.productId)
+              return product
+                ? [
+                    {
+                      productId: product.id,
+                      name: product.name,
+                      unit: product.unit,
+                      unitPrice: price.unitPrice,
+                      observedOn: price.observedOn,
+                    },
+                  ]
+                : []
+            })
+            .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+            .slice(0, 200)
+          return HttpResponse.json({ prices })
+        },
+      ),
+    ]
+  }
+
   return [
+    ...receiptRoutes(),
     http.get<{ ws: string }>(url('/v1/workspaces/:ws/markets/settings'), ({ params }) => {
       const workspace = marketsGuard(params.ws, false)
       if (workspace instanceof Response) return workspace

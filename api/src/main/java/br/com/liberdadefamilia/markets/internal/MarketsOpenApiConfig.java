@@ -20,7 +20,9 @@ class MarketsOpenApiConfig {
             new NullableRef("MarketCardView", "address"),
             new NullableRef("MarketCardView", "website"),
             new NullableRef("MarketCardView", "instagram"),
-            new NullableRef("MarketCardView", "flyer"));
+            new NullableRef("MarketCardView", "flyer"),
+            new NullableRef("SaveReceiptRequest", "market"),
+            new NullableRef("SaveReceiptRequest", "newMarket"));
 
     /** A bare {@code $ref} cannot say the property may be null, so it is wrapped: {@code nullable} next to an allOf. */
     @Bean

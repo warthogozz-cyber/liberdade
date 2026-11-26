@@ -7,6 +7,7 @@ import static br.com.liberdadefamilia.workspace.Role.YOUTH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.liberdadefamilia.live.internal.LiveStreams;
+import br.com.liberdadefamilia.markets.domain.NfceKeyFixtures;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestIds;
 import br.com.liberdadefamilia.support.TestUsers;
@@ -390,6 +391,22 @@ class RoleMatrixIT {
                                 Outcome.OK,
                                 Outcome.OK),
                         each(
+                                "GET " + W + "/markets/{ref}/prices",
+                                W + "/markets/{market}/prices",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        each(
+                                "GET " + W + "/markets/products",
+                                W + "/markets/products?q=leite",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        each(
                                 "POST " + W + "/markets/{ref}/instagram-embed",
                                 W + "/markets/{instagramMarket}/instagram-embed",
                                 null,
@@ -428,7 +445,16 @@ class RoleMatrixIT {
                                 Outcome.OK,
                                 Outcome.OK,
                                 Outcome.OK,
-                                Outcome.OK))
+                                Outcome.OK),
+                        ownerAndAdult(
+                                "POST " + W + "/markets/receipts/lookup",
+                                W + "/markets/receipts/lookup",
+                                "{\"chave\":\"" + NfceKeyFixtures.make("43", "2611") + "\",\"version\":0}"),
+                        ownerAndAdult("POST " + W + "/markets/receipts", W + "/markets/receipts", """
+                                {"chave":"%s","version":0,"issuedOn":"2026-11-01",
+                                 "newMarket":{"name":"Mercado Exemplo","kind":"GREENGROCER"},
+                                 "items":[{"newProductName":"Arroz","unit":"UN","quantity":"1","unitPrice":"4.99"}]}""".formatted(
+                                        NfceKeyFixtures.make("43", "2611"))))
                 .flatMap(group -> group);
     }
 

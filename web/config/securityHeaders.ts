@@ -55,7 +55,7 @@ export function buildSecurityHeaders(apiUrl: string): Record<string, string> {
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'no-referrer',
     'Permissions-Policy':
-      'camera=(), microphone=(), geolocation=(self), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)',
+      'camera=(self), microphone=(), geolocation=(self), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)',
   }
 }
 

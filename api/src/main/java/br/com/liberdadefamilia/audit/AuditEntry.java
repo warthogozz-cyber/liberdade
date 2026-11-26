@@ -6,7 +6,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * One sensitive action to record. {@code targetType} is one of USER, MEMBERSHIP, INVITATION, WORKSPACE, MODULE,
- * CONSENT, ORDER, PLAN, RECURRING_RULE, GOAL, ACCOUNT, VENTURE or MARKET. {@code metadata} holds fixed labels only: never a
+ * CONSENT, ORDER, PLAN, RECURRING_RULE, GOAL, ACCOUNT, VENTURE, MARKET or RECEIPT. {@code metadata} holds fixed labels only: never a
  * name, a value, a description, a link, a point or an address.
  */
 public record AuditEntry(

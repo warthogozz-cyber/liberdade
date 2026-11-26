@@ -14,6 +14,7 @@ import { isSafeLink, mapsDirectionsUrl, mapsSearchUrl, wazeUrl } from './links'
 import { LinksSheet } from './LinksSheet'
 import { readLocation } from './locationStore'
 import { MapEmbed } from './MapEmbed'
+import { MarketPrices } from './MarketPrices'
 import { marketsMessages } from './messages.pt-BR'
 import { OsmAttribution } from './OsmAttribution'
 import { useKindLabel } from './useKindLabel'
@@ -294,6 +295,8 @@ export function MarketCardPage() {
             />
           )}
       </section>
+
+      <MarketPrices ws={ws} marketRef={ref} canRegister={canWrite && !archived} />
 
       {canWrite && !archived && (
         <div className="flex flex-wrap gap-3">

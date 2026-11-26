@@ -2216,6 +2216,133 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets/products": {
+      "get": {
+        "operationId": "products",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 80,
+              "minLength": 0,
+              "type": "string",
+              "default": ""
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyProductsView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-prices-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/receipts": {
+      "post": {
+        "operationId": "save",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveReceiptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveView"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "receipt-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/receipts/lookup": {
+      "post": {
+        "operationId": "lookup",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LookupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "receipt-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/search": {
       "post": {
         "operationId": "searchMarkets",
@@ -2550,6 +2677,46 @@
         },
         "tags": [
           "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/{ref}/prices": {
+      "get": {
+        "operationId": "prices",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricesView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-prices-controller"
         ]
       }
     },
@@ -5307,6 +5474,36 @@
           }
         }
       },
+      "FamilyProductView": {
+        "type": "object",
+        "properties": {
+          "gtin": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      },
+      "FamilyProductsView": {
+        "type": "object",
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FamilyProductView"
+            }
+          }
+        }
+      },
       "FiguresView": {
         "type": "object",
         "properties": {
@@ -5844,6 +6041,101 @@
           }
         }
       },
+      "LookupItem": {
+        "type": "object"
+      },
+      "LookupMarket": {
+        "type": "object",
+        "properties": {
+          "familyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "SUPERMARKET",
+              "CONVENIENCE",
+              "GREENGROCER",
+              "MARKETPLACE"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "ref": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "LEFT_OSM",
+              "ARCHIVED"
+            ]
+          }
+        },
+        "nullable": true
+      },
+      "LookupRequest": {
+        "required": [
+          "chave"
+        ],
+        "type": "object",
+        "properties": {
+          "chave": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string",
+            "description": "The 44 positions; spaces and dots are ignored"
+          },
+          "p": {
+            "maxLength": 1000,
+            "minLength": 0,
+            "type": "string",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "enum": [
+              0,
+              1,
+              2,
+              3
+            ]
+          }
+        }
+      },
+      "LookupView": {
+        "type": "object",
+        "properties": {
+          "issuedMonth": {
+            "type": "string",
+            "example": "2026-11"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LookupItem"
+            }
+          },
+          "market": {
+            "$ref": "#/components/schemas/LookupMarket"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "MANUAL"
+            ]
+          },
+          "uf": {
+            "type": "string"
+          }
+        }
+      },
       "MarketCardView": {
         "type": "object",
         "properties": {
@@ -5944,6 +6236,14 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "MarketChoice": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string"
           }
         }
       },
@@ -6195,6 +6495,23 @@
           },
           "result": {
             "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "NewMarketChoice": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SUPERMARKET",
+              "CONVENIENCE",
+              "GREENGROCER",
+              "MARKETPLACE"
+            ]
+          },
+          "name": {
+            "type": "string"
           }
         }
       },
@@ -6468,6 +6785,40 @@
           }
         }
       },
+      "PriceView": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "observedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "unitPrice": {
+            "type": "string",
+            "example": "4.99"
+          }
+        }
+      },
+      "PricesView": {
+        "type": "object",
+        "properties": {
+          "prices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceView"
+            }
+          }
+        }
+      },
       "ProductFiguresView": {
         "type": "object",
         "properties": {
@@ -6619,6 +6970,42 @@
               "NEVER_NEGATIVE",
               "NO_DATA"
             ]
+          }
+        }
+      },
+      "ReceiptItem": {
+        "type": "object",
+        "properties": {
+          "newProductName": {
+            "type": "string",
+            "nullable": true
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "string",
+            "nullable": true,
+            "example": "1.5"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          },
+          "unitPrice": {
+            "type": "string",
+            "example": "4.99"
           }
         }
       },
@@ -6783,6 +7170,76 @@
           "targetMonths": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "SaveReceiptRequest": {
+        "required": [
+          "chave"
+        ],
+        "type": "object",
+        "properties": {
+          "chave": {
+            "type": "string",
+            "description": "The 44 positions; spaces and dots are ignored"
+          },
+          "issuedOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "example": "2026-11-10"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReceiptItem"
+            }
+          },
+          "market": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MarketChoice"
+              }
+            ],
+            "nullable": true
+          },
+          "newMarket": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NewMarketChoice"
+              }
+            ],
+            "nullable": true
+          },
+          "p": {
+            "type": "string",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "enum": [
+              0,
+              1,
+              2,
+              3
+            ]
+          }
+        }
+      },
+      "SaveView": {
+        "type": "object",
+        "properties": {
+          "marketRef": {
+            "type": "string"
+          },
+          "prices": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "receiptId": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },

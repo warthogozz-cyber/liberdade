@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
-import { checkBudget, composition, lazyOnly } from './chunk-budget.mjs'
+import { checkBudget, composition, lazyOnly, scannerFiles } from './chunk-budget.mjs'
 
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist')
 const manifest = JSON.parse(readFileSync(join(dist, '.vite', 'manifest.json'), 'utf8'))
@@ -38,9 +38,15 @@ const marketsFiles = [
   'MarketCardPage.tsx',
   'MarketDetailsForm.tsx',
   'MarketRow.tsx',
+  'MarketPrices.tsx',
   'MarketsRoutes.tsx',
   'OsmAttribution.tsx',
   'PositionPicker.tsx',
+  'receipt/ProductPicker.tsx',
+  'receipt/ReceiptItemsStep.tsx',
+  'receipt/ReceiptKeyStep.tsx',
+  'receipt/ReceiptMarketStep.tsx',
+  'receipt/ReceiptPage.tsx',
   'ThirdPartyNotice.tsx',
 ].map((file) => `src/features/markets/${file}`)
 const lazy = lazyOnly(
@@ -50,6 +56,7 @@ const lazy = lazyOnly(
     'src/shared/offline/db.ts',
     'node_modules/dexie/dist/dexie.js',
     ...marketsFiles,
+    ...scannerFiles,
     'src/features/members/MarketHomeSection.tsx',
     'src/shared/api/markets.ts',
   ],

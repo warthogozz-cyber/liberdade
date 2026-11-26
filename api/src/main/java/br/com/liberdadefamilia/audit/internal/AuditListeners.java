@@ -13,6 +13,7 @@ import br.com.liberdadefamilia.markets.MarketAdded;
 import br.com.liberdadefamilia.markets.MarketEdited;
 import br.com.liberdadefamilia.markets.MarketHomeCleared;
 import br.com.liberdadefamilia.markets.MarketHomeSet;
+import br.com.liberdadefamilia.markets.ReceiptAdded;
 import br.com.liberdadefamilia.planning.GoalArchived;
 import br.com.liberdadefamilia.planning.RecurringRuleArchived;
 import br.com.liberdadefamilia.planning.RecurringRuleCreated;
@@ -167,6 +168,17 @@ class AuditListeners {
                 "MARKET",
                 event.marketId(),
                 Map.of("change", event.change().name()));
+    }
+
+    @EventListener
+    void on(ReceiptAdded event) {
+        record(
+                event.workspaceId(),
+                event.actorUserId(),
+                "receipt.added",
+                "RECEIPT",
+                event.receiptId(),
+                Map.of("mode", event.mode(), "itemCount", String.valueOf(event.itemCount())));
     }
 
     @EventListener

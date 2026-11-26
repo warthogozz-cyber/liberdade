@@ -219,4 +219,22 @@ describe('FeiraPage', () => {
     expect(await screen.findByText(/Não deu para carregar/)).toBeVisible()
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeVisible()
   })
+
+  it.each(['OWNER', 'ADULT'] as const)('%s has the register receipt link', async (role) => {
+    seed(role)
+    render()
+
+    expect(await screen.findByRole('link', { name: 'Registrar nota' })).toHaveAttribute(
+      'href',
+      '/mais/feira/nota',
+    )
+  })
+
+  it.each(['YOUTH', 'VIEWER'] as const)('%s has no register receipt link', async (role) => {
+    seed(role)
+    render()
+
+    await screen.findByText('Mercado Exemplo 3')
+    expect(screen.queryByRole('link', { name: 'Registrar nota' })).not.toBeInTheDocument()
+  })
 })

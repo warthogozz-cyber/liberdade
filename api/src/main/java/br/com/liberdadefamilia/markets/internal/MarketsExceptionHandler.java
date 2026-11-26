@@ -1,5 +1,6 @@
 package br.com.liberdadefamilia.markets.internal;
 
+import br.com.liberdadefamilia.markets.domain.InvalidKeyException;
 import br.com.liberdadefamilia.markets.domain.LocationTooPreciseException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -32,6 +33,12 @@ class MarketsExceptionHandler {
     ResponseEntity<ProblemDetail> handleInstagramUnavailable(InstagramUnavailableException ex) {
         return unprocessable(
                 "markets.instagram_unavailable", "Não foi possível mostrar o Instagram aqui. Abra o link.");
+    }
+
+    /** The key failed a rule of the key itself. The answer never says which rule, and never carries the key. */
+    @ExceptionHandler(InvalidKeyException.class)
+    ResponseEntity<ProblemDetail> handleInvalidKey(InvalidKeyException ex) {
+        return unprocessable("receipt.key_invalid", "Esta chave não parece de uma nota fiscal de consumidor válida.");
     }
 
     private static ResponseEntity<ProblemDetail> unprocessable(String code, String detail) {
