@@ -133,4 +133,14 @@ export const marketsMessages = {
   'markets.instagram.loading': 'Carregando a publicação…',
   'markets.instagram.unavailable': 'Este perfil não pode ser mostrado aqui',
   'markets.instagram.link': 'Abrir no Instagram',
+  'markets.receipt.error.not-nfce': 'Este código não é de uma nota fiscal de consumidor.',
+  'markets.receipt.error.check-digit':
+    'A chave não confere. Veja se algum número foi digitado errado.',
+  'markets.receipt.error.model':
+    'Esta nota não é de consumidor. Use a nota que veio com a sua compra no mercado.',
+  'markets.receipt.error.homologation': 'Esta nota é de teste e não vale para registrar preços.',
+  'markets.receipt.error.format': 'A chave tem 44 posições. Confira o que foi digitado.',
+  'markets.receipt.error.duplicate': 'Esta nota já foi registrada.',
+  'markets.receipt.error.keyInvalid':
+    'Esta chave não parece de uma nota fiscal de consumidor válida.',
 } as const

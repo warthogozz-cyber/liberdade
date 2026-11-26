@@ -19,6 +19,22 @@ export type MarketKind = Schemas['OsmItem']['kind']
 export type MarketHome = Schemas['HomeView']
 export type MarketsSettings = Schemas['SettingsView']
 export type GeocodedPlace = Schemas['PlaceView']
+export type ReceiptLookup = Schemas['LookupView']
+export type ReceiptLookupBody = Schemas['LookupRequest']
+export type SaveReceiptBody = Schemas['SaveReceiptRequest']
+export type SaveReceiptItem = Schemas['Item']
+export type SavedReceipt = Schemas['SaveView']
+export type MarketPrice = Schemas['PriceView']
+/**
+ * A product of the family's price book. Written by hand on purpose: the generated `ProductsView`
+ * is the Ventures one (both modules call their records `ProductView`, so the contract keeps only one).
+ */
+export type FamilyProduct = {
+  id: string
+  name: string
+  unit: SaveReceiptItem['unit']
+  gtin: string | null
+}
 
 /** The area a search sends: the center is always rounded to 2 decimals, so it never reveals a precise spot. */
 export type SearchArea = { lat: string; lon: string; radiusKm: number }
@@ -31,6 +47,8 @@ export const marketsKeys = {
   card: (ws: string, ref: string) => [...marketsKeys.all(ws), 'card', ref] as const,
   home: (ws: string) => [...marketsKeys.all(ws), 'home'] as const,
   settings: (ws: string) => [...marketsKeys.all(ws), 'settings'] as const,
+  prices: (ws: string, ref: string) => [...marketsKeys.all(ws), 'prices', ref] as const,
+  products: (ws: string, q: string) => [...marketsKeys.all(ws), 'products', q] as const,
 }
 
 /** The markets around a center, as two separate lists: OpenStreetMap's and the family's own. */
@@ -70,6 +88,38 @@ export async function geocodeAddress(ws: string, query: string): Promise<Geocode
     }),
   )
   return result.places
+}
+
+/** Checks an NFC-e key against the API (nothing is saved): its market, when the CNPJ is already one. */
+export function lookupReceipt(ws: string, body: ReceiptLookupBody): Promise<ReceiptLookup> {
+  return unwrap(
+    client.POST('/v1/workspaces/{ws}/markets/receipts/lookup', { params: { path: { ws } }, body }),
+  )
+}
+
+/** Saves a receipt's prices in one transaction. */
+export function saveReceipt(ws: string, body: SaveReceiptBody): Promise<SavedReceipt> {
+  return unwrap(
+    client.POST('/v1/workspaces/{ws}/markets/receipts', { params: { path: { ws } }, body }),
+  )
+}
+
+/** The last price of each product at one market. */
+export async function getMarketPrices(ws: string, ref: string): Promise<MarketPrice[]> {
+  const view = await unwrap(
+    client.GET('/v1/workspaces/{ws}/markets/{ref}/prices', { params: { path: { ws, ref } } }),
+  )
+  return view.prices
+}
+
+/** The family's products whose name contains `q` (all of them, up to the API's limit, when empty). */
+export async function getFamilyProducts(ws: string, q: string): Promise<FamilyProduct[]> {
+  const view = await unwrap(
+    client.GET('/v1/workspaces/{ws}/markets/products', {
+      params: { path: { ws }, query: q === '' ? {} : { q } },
+    }),
+  )
+  return (view as unknown as { products: FamilyProduct[] }).products
 }
 
 /** The fields of a family market's links: `null` clears the family's value (the OSM one shows again). */
