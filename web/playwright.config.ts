@@ -21,7 +21,13 @@ export default defineConfig({
     timezoneId: 'America/Fortaleza',
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // The same suite on a desktop, an Android phone and an iPhone. CI runs each in its own job; locally,
+  // `--project` picks one.
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
+    { name: 'mobile-safari', use: { ...devices['iPhone 15'] } },
+  ],
   // `vite preview` serves the build with the PWA's service worker, which the offline test needs;
   // `vite dev` does not register it. With `strictPort`, a forgotten `dev` on 5173 fails the run.
   webServer: {
