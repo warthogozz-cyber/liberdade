@@ -98,6 +98,7 @@ class MarketCardService {
         }
         return switch (InstagramRef.parse(instagram.value()).orElse(null)) {
             case InstagramRef.Post ignored -> true;
+            case InstagramRef.Reel ignored -> true;
             case InstagramRef.Profile ignored -> properties.instagram().profileEmbeds();
             case null -> false;
         };

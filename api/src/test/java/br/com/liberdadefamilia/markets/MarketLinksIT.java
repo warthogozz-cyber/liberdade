@@ -180,6 +180,20 @@ class MarketLinksIT {
     }
 
     @Test
+    void reelLinkIsAcceptedAndStoredCanonical() {
+        UUID own = MarketsTestData.family(jdbc, ws, "Feira Exemplo", "-23.00300", "-45.99900");
+
+        MvcTestResult result =
+                links(own.toString(), null, "https://www.instagram.com/reel/AbC123/?igsh=x", null, null, null);
+
+        assertThat(result).hasStatus(200);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.instagram.value")
+                .isEqualTo("https://www.instagram.com/reel/AbC123/");
+    }
+
+    @Test
     void flyerNeedsSource() {
         UUID own = MarketsTestData.family(jdbc, ws, "Feira Exemplo", "-23.00300", "-45.99900");
 

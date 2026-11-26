@@ -6,7 +6,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 /** An Instagram profile or post, always written back as its canonical https URL without query or fragment. */
-public sealed interface InstagramRef permits InstagramRef.Profile, InstagramRef.Post {
+public sealed interface InstagramRef permits InstagramRef.Profile, InstagramRef.Post, InstagramRef.Reel {
 
     Pattern USERNAME = Pattern.compile("[A-Za-z0-9._]{1,30}");
     Pattern SHORTCODE = Pattern.compile("[A-Za-z0-9_-]{1,40}");
@@ -27,6 +27,14 @@ public sealed interface InstagramRef permits InstagramRef.Profile, InstagramRef.
         @Override
         public String canonicalUrl() {
             return ORIGIN + "p/" + shortcode + "/";
+        }
+    }
+
+    /** A reel, by its shortcode. It embeds like a post. */
+    record Reel(String shortcode) implements InstagramRef {
+        @Override
+        public String canonicalUrl() {
+            return ORIGIN + "reel/" + shortcode + "/";
         }
     }
 
@@ -68,6 +76,11 @@ public sealed interface InstagramRef permits InstagramRef.Profile, InstagramRef.
                 && segments[0].equals("p")
                 && SHORTCODE.matcher(segments[1]).matches()) {
             return Optional.of(new Post(segments[1]));
+        }
+        if (segments.length == 2
+                && segments[0].equals("reel")
+                && SHORTCODE.matcher(segments[1]).matches()) {
+            return Optional.of(new Reel(segments[1]));
         }
         return Optional.empty();
     }

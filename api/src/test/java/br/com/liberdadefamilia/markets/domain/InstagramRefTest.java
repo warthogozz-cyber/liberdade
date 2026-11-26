@@ -27,6 +27,20 @@ class InstagramRefTest {
     }
 
     @Test
+    void acceptsReelUrl() {
+        for (String raw : new String[] {
+            "https://www.instagram.com/reel/AbC123/",
+            "https://instagram.com/reel/AbC123",
+            "https://www.instagram.com/reel/AbC123/?igsh=x"
+        }) {
+            InstagramRef ref = InstagramRef.parse(raw).orElseThrow();
+            assertThat(ref).as(raw).isInstanceOf(InstagramRef.Reel.class);
+            assertThat(ref.canonicalUrl()).as(raw).isEqualTo("https://www.instagram.com/reel/AbC123/");
+        }
+        assertThat(InstagramRef.parse("https://www.instagram.com/reel/a/b/")).isEmpty();
+    }
+
+    @Test
     void rejectsOthers() {
         for (String raw : new String[] {
             "http://instagram.com/x",

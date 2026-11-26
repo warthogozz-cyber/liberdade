@@ -262,6 +262,7 @@ class MarketCardIT {
     @Test
     void embeddableFollowsTheGate() {
         assertThat(embeddable("https://www.instagram.com/p/Abc123/")).isTrue();
+        assertThat(embeddable("https://www.instagram.com/reel/Abc123/")).isTrue();
         assertThat(embeddable("@perfil")).isFalse();
     }
 
