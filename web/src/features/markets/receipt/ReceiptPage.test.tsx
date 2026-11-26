@@ -255,6 +255,60 @@ describe('ReceiptPage', () => {
     )
   })
 
+  async function reachItems(code: string, status: number, detail: string) {
+    seed()
+    answerLookup(null)
+    server.use(
+      http.post(SAVE, () =>
+        HttpResponse.json(
+          { title: 'Conflito', status, code, detail },
+          { status, headers: problemHeaders },
+        ),
+      ),
+    )
+    render()
+    await typeKey()
+    fireEvent.click(await screen.findByRole('radio', { name: 'Outro mercado' }))
+    fireEvent.change(screen.getByLabelText('Nome do mercado'), { target: { value: 'Padaria' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+    await screen.findByLabelText('Data da compra')
+    fireEvent.change(screen.getByLabelText('Produto'), { target: { value: 'pão' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'Novo: pão' }))
+    fireEvent.change(screen.getByLabelText('Preço da unidade'), { target: { value: '1,50' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Gravar' }))
+  }
+
+  it('cnpjDiffersShowsApiDetailAndChangeMarket', async () => {
+    const detail = 'Este mercado já tem outro CNPJ. Confira se é o mercado da nota.'
+    await reachItems('receipt.market_cnpj_differs', 409, detail)
+
+    expect(await screen.findByText(detail)).toBeVisible()
+    expect(screen.queryByText('Esta nota já foi registrada.')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Trocar o mercado' }))
+
+    fireEvent.click(await screen.findByRole('radio', { name: /Mercado Exemplo 3/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+    await screen.findByLabelText('Data da compra')
+    expect(screen.getByText('pão')).toBeVisible()
+    expect(screen.getByLabelText('Preço da unidade')).toHaveValue('1,50')
+    expect(screen.queryByText(detail)).not.toBeInTheDocument()
+  })
+
+  it('cnpjTakenOffersChangeMarket', async () => {
+    const detail = 'Outro mercado já usa este CNPJ.'
+    await reachItems('market.cnpj_taken', 409, detail)
+
+    expect(await screen.findByText(detail)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Trocar o mercado' })).toBeVisible()
+  })
+
+  it('duplicateOnSaveKeepsTheDuplicateCopy', async () => {
+    await reachItems('receipt.duplicate', 409, 'Detalhe qualquer')
+
+    expect(await screen.findByText('Esta nota já foi registrada.')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Trocar o mercado' })).not.toBeInTheDocument()
+  })
+
   it('nothingInLocalStorage', async () => {
     seed()
     answerLookup(null)

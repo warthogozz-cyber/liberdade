@@ -25,10 +25,21 @@ interface ProductPickerProps {
   ws: string
   value: ProductChoice | null
   onChange: (choice: ProductChoice | null) => void
+  /** The id of the search field, so a form can send focus to it. */
+  inputId?: string
+  invalid?: boolean
+  describedBy?: string
 }
 
 /** Searches the family's products as the person types; a name with no match becomes "Novo: …". */
-export function ProductPicker({ ws, value, onChange }: ProductPickerProps) {
+export function ProductPicker({
+  ws,
+  value,
+  onChange,
+  inputId,
+  invalid,
+  describedBy,
+}: ProductPickerProps) {
   const intl = useIntl()
   const [text, setText] = useState('')
   const query = useDeferredValue(text.trim())
@@ -52,22 +63,34 @@ export function ProductPicker({ ws, value, onChange }: ProductPickerProps) {
   }
 
   const typed = text.trim()
-  const found = query === typed ? (products.data ?? []) : []
+  // A failed search also counts as settled, so the person is never stuck without "Novo".
+  // "Novo" only once the search for exactly what is typed has answered: aliases are per market, so an
+  // early "Novo" could create a second product for a name the family already has.
+  const settled = query === typed && !products.isFetching && !products.isPending
+  const found = settled ? (products.data ?? []) : []
   const exact = found.some((each) => fold(each.name) === fold(typed))
   return (
     <div className="flex flex-col gap-2">
       <label className="flex flex-col gap-1 text-sm font-medium">
         {label}
         <input
+          id={inputId}
           type="text"
           value={text}
+          aria-invalid={invalid ? true : undefined}
+          aria-describedby={describedBy}
           maxLength={MAX_PRODUCT_NAME}
           autoComplete="off"
           onChange={(event) => setText(event.target.value)}
           className={`${field} font-normal`}
         />
       </label>
-      {typed !== '' && (
+      {typed !== '' && !settled && (
+        <p role="status" className="text-sm text-text-muted">
+          <FormattedMessage id="markets.receipt.product.searching" />
+        </p>
+      )}
+      {typed !== '' && settled && (
         <ul className="flex flex-col gap-2">
           {found.map((each) => (
             <li key={each.id}>
@@ -87,7 +110,7 @@ export function ProductPicker({ ws, value, onChange }: ProductPickerProps) {
               </button>
             </li>
           ))}
-          {!exact && (
+          {settled && !exact && (
             <li>
               <button
                 type="button"

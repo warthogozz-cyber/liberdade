@@ -1,6 +1,9 @@
 import { cleanup, fireEvent, screen } from '@testing-library/react'
+import { delay, http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
+import { server } from '@/mocks/server'
+import { API_URL } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
 import { ProductPicker } from './ProductPicker'
 
@@ -42,6 +45,40 @@ describe('ProductPicker', () => {
     render()
 
     fireEvent.change(screen.getByLabelText('Produto'), { target: { value: 'Leite integral' } })
+
+    await screen.findByRole('button', { name: 'Leite integral' })
+    expect(screen.queryByRole('button', { name: /^Novo:/ })).not.toBeInTheDocument()
+  })
+
+  it('newOptionHiddenWhilePending', async () => {
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/markets/products`, async () => {
+        await delay(300)
+        return HttpResponse.json({ products: [] })
+      }),
+    )
+    render()
+
+    fireEvent.change(screen.getByLabelText('Produto'), { target: { value: 'leite x' } })
+
+    expect(screen.queryByRole('button', { name: /^Novo:/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Procurando…')
+    expect(await screen.findByRole('button', { name: 'Novo: leite x' })).toBeVisible()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('newOptionShownAfterSearchSettlesWithoutMatch', async () => {
+    render()
+
+    fireEvent.change(screen.getByLabelText('Produto'), { target: { value: 'zzz sem par' } })
+
+    expect(await screen.findByRole('button', { name: 'Novo: zzz sem par' })).toBeVisible()
+  })
+
+  it('newOptionHiddenWhenExactMatchExists', async () => {
+    render()
+
+    fireEvent.change(screen.getByLabelText('Produto'), { target: { value: 'leite integral' } })
 
     await screen.findByRole('button', { name: 'Leite integral' })
     expect(screen.queryByRole('button', { name: /^Novo:/ })).not.toBeInTheDocument()

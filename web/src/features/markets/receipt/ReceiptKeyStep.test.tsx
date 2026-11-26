@@ -75,3 +75,30 @@ describe('ReceiptKeyStep reader', () => {
     expect(mounts.count).toBe(2)
   })
 })
+
+describe('ReceiptKeyStep key field', () => {
+  beforeEach(() => pick.mockResolvedValue('none'))
+
+  it('keyFieldIsNumericByDefault', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: 'Digitar a chave' }))
+
+    expect(screen.getByLabelText('Chave de 44 números')).toHaveAttribute('inputmode', 'numeric')
+  })
+
+  it('lettersButtonSwitchesToTextKeepingValue', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: 'Digitar a chave' }))
+    const input = screen.getByLabelText('Chave de 44 números')
+    fireEvent.change(input, { target: { value: '4326' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'A chave tem letras' }))
+    expect(input).toHaveAttribute('inputmode', 'text')
+    expect(input).toHaveAttribute('autocapitalize', 'characters')
+    expect(input).toHaveValue('4326')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Só números' }))
+    expect(input).toHaveAttribute('inputmode', 'numeric')
+    expect(input).toHaveValue('4326')
+  })
+})

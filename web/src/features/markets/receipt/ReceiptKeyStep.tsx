@@ -42,6 +42,8 @@ export function ReceiptKeyStep({ pending, error, onParsed }: ReceiptKeyStepProps
   const [scanRun, setScanRun] = useState(0)
   const [input, setInput] = useState<'paste' | 'type' | null>(null)
   const [text, setText] = useState('')
+  // The typed key keeps a numeric keyboard until the person says it has letters (positions 7-18).
+  const [letters, setLetters] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   // Unknown until the browser has been asked, so the button never flashes where there is no reader.
   const [canScan, setCanScan] = useState<boolean | null>(null)
@@ -75,6 +77,7 @@ export function ReceiptKeyStep({ pending, error, onParsed }: ReceiptKeyStepProps
     setScanning(false)
     setInput(mode)
     setText('')
+    setLetters(false)
     setProblem(null)
   }
 
@@ -138,13 +141,25 @@ export function ReceiptKeyStep({ pending, error, onParsed }: ReceiptKeyStepProps
               value={text}
               autoComplete="off"
               spellCheck={false}
-              autoCapitalize={input === 'type' ? 'characters' : 'none'}
+              inputMode={input === 'type' ? (letters ? 'text' : 'numeric') : undefined}
+              autoCapitalize={input === 'type' && letters ? 'characters' : 'none'}
               onChange={(event) =>
                 setText(input === 'type' ? groupKey(event.target.value) : event.target.value)
               }
               className={`${field} font-normal`}
             />
           </label>
+          {input === 'type' && (
+            <button
+              type="button"
+              onClick={() => setLetters((current) => !current)}
+              className={`${outline} self-start`}
+            >
+              <FormattedMessage
+                id={letters ? 'markets.receipt.key.numbersOnly' : 'markets.receipt.key.letters'}
+              />
+            </button>
+          )}
           <button type="submit" disabled={pending || text.trim() === ''} className={primary}>
             <FormattedMessage
               id={pending ? 'markets.receipt.key.checking' : 'markets.receipt.key.next'}

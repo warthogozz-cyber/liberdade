@@ -64,21 +64,59 @@ describe('ReceiptItemsStep', () => {
   })
 
   it('dateRequiredWhenUnknown', async () => {
-    render(undefined)
+    const onSubmit = render(undefined)
     await fillItem()
 
-    expect(screen.getByRole('button', { name: 'Gravar' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Gravar' }))
+    expect(onSubmit).not.toHaveBeenCalled()
     fireEvent.change(screen.getByLabelText('Data da compra'), { target: { value: '2026-11-10' } })
-    expect(screen.getByRole('button', { name: 'Gravar' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Gravar' }))
+    expect(onSubmit).toHaveBeenCalled()
   })
 
-  it('anInvalidPriceKeepsSaveOff', async () => {
-    render('2026-11-10')
+  it('submitWithInvalidRowMarksItAndFocusesFirst', async () => {
+    const onSubmit = render('2026-11-10')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gravar' }))
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    const product = screen.getByLabelText('Produto')
+    expect(product).toHaveAttribute('aria-invalid', 'true')
+    expect(product).toHaveAccessibleDescription('Escolha o produto.')
+    expect(product).toHaveFocus()
+    expect(screen.getByLabelText('Preço da unidade')).toHaveAttribute('aria-invalid', 'true')
+
+    await fillItem()
+    fireEvent.change(screen.getByLabelText('Quantidade (opcional)'), { target: { value: 'x' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Gravar' }))
+    const quantity = screen.getByLabelText('Quantidade (opcional)')
+    expect(quantity).toHaveAccessibleDescription('Confira a quantidade.')
+    expect(quantity).toHaveFocus()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('unitPriceAcceptsFourDecimals', async () => {
+    const onSubmit = render('2026-11-10')
     await fillItem()
 
     fireEvent.change(screen.getByLabelText('Preço da unidade'), { target: { value: '4,999' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Gravar' }))
 
-    expect(screen.getByRole('button', { name: 'Gravar' })).toBeDisabled()
+    expect(onSubmit.mock.calls[0]?.[0].items[0].unitPrice).toBe('4.999')
+  })
+
+  it('unitPriceRejectsFiveDecimalsAndZero', async () => {
+    const onSubmit = render('2026-11-10')
+    await fillItem()
+
+    for (const bad of ['4,99999', '0', '0,0000']) {
+      fireEvent.change(screen.getByLabelText('Preço da unidade'), { target: { value: bad } })
+      fireEvent.click(screen.getByRole('button', { name: 'Gravar' }))
+      const price = screen.getByLabelText('Preço da unidade')
+      expect(price).toHaveAttribute('aria-invalid', 'true')
+      expect(price).toHaveAccessibleDescription('Confira o preço: maior que zero, até 4 casas.')
+    }
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 
   it('addsAndRemovesItems', () => {

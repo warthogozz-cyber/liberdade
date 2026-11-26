@@ -9,13 +9,14 @@ import { useDocumentTitle } from '@/shared/ui'
 import { marketsMessages } from '../messages.pt-BR'
 import { useReceiptLookup, useSaveReceipt } from '../useReceipts'
 import { defaultIssuedOn, lookupBody, type ParsedNfce } from './nfceQr'
-import { ReceiptItemsStep } from './ReceiptItemsStep'
+import { ReceiptItemsStep, type ItemsDraft } from './ReceiptItemsStep'
 import { ReceiptKeyStep } from './ReceiptKeyStep'
 import { ReceiptMarketStep, type MarketChoice } from './ReceiptMarketStep'
 
 registerMessages(marketsMessages)
 
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+const outline = `flex min-h-12 items-center justify-center rounded-field border border-primary px-4 font-medium text-primary ${focus}`
 const anchor = `font-medium text-primary underline ${focus}`
 
 function Step({
@@ -50,6 +51,7 @@ export function ReceiptPage() {
   const [parsed, setParsed] = useState<ParsedNfce | null>(null)
   const [found, setFound] = useState<ReceiptLookup | null>(null)
   const [choice, setChoice] = useState<MarketChoice | null>(null)
+  const [draft, setDraft] = useState<ItemsDraft | null>(null)
   const [savedRef, setSavedRef] = useState<string | null>(null)
 
   if (workspace === undefined) {
@@ -74,14 +76,25 @@ export function ReceiptPage() {
         : lookup.isError
           ? intl.formatMessage({ id: 'markets.receipt.key.lookupFailed' })
           : null
+  // A market the API refuses (another CNPJ, or one already taken) can be swapped without retyping rows.
+  const marketRefused =
+    save.error instanceof ApiError &&
+    (save.error.code === 'receipt.market_cnpj_differs' || save.error.code === 'market.cnpj_taken')
   const saveError =
-    save.error instanceof ApiError && save.error.status === 409
+    save.error instanceof ApiError && save.error.code === 'receipt.duplicate'
       ? intl.formatMessage({ id: 'markets.receipt.error.duplicate' })
-      : save.error instanceof ApiError && save.error.status === 422 && save.error.detail
+      : save.error instanceof ApiError &&
+          (save.error.status === 409 || save.error.status === 422) &&
+          save.error.detail
         ? save.error.detail
         : save.isError
           ? intl.formatMessage({ id: 'markets.receipt.items.saveFailed' })
           : null
+
+  const changeMarket = () => {
+    save.reset()
+    setChoice(null)
+  }
 
   const onParsed = (next: ParsedNfce) => {
     setParsed(next)
@@ -135,10 +148,17 @@ export function ReceiptPage() {
             uf={found.uf}
             sefazUrl={parsed.sefazUrl}
             defaultDate={defaultIssuedOn(parsed, today)}
+            draft={draft}
+            onDraftChange={setDraft}
             pending={save.isPending}
             error={saveError}
             onSubmit={onSubmit}
           />
+          {marketRefused && found.market === null && (
+            <button type="button" onClick={changeMarket} className={`${outline} self-start`}>
+              <FormattedMessage id="markets.receipt.items.changeMarket" />
+            </button>
+          )}
         </Step>
       )}
     </main>
