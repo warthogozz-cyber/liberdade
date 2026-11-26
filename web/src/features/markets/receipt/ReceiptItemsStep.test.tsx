@@ -2,11 +2,11 @@ import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { renderWithProviders } from '@/shared/testing'
-import { ReceiptItemsStep } from './ReceiptItemsStep'
+import { ReceiptItemsStep, type ItemsDraft } from './ReceiptItemsStep'
 
 afterEach(cleanup)
 
-function render(defaultDate: string | undefined, onSubmit = vi.fn()) {
+function render(defaultDate: string | undefined, onSubmit = vi.fn(), draft?: ItemsDraft) {
   const workspace = seedMockFamily()
   mockState.modules[workspace.id] = { markets: true }
   renderWithProviders(
@@ -14,6 +14,7 @@ function render(defaultDate: string | undefined, onSubmit = vi.fn()) {
       ws={workspace.id}
       uf="RS"
       defaultDate={defaultDate}
+      draft={draft}
       pending={false}
       error={null}
       onSubmit={onSubmit}
@@ -128,12 +129,19 @@ describe('ReceiptItemsStep', () => {
     expect(screen.getAllByLabelText('Produto')).toHaveLength(1)
   })
 
-  it('stopsAtTwoHundredItems', { timeout: 30000 }, () => {
-    render('2026-11-10')
+  it('stopsAtTwoHundredItems', () => {
+    // Start from 199 typed rows, as the page does after going back a step: clicking 199 times
+    // re-renders every row on each click and timed out on CI.
+    const rows = Array.from({ length: 199 }, (_, key) => ({
+      key,
+      product: null,
+      unit: 'UN' as const,
+      quantity: '',
+      price: '',
+    }))
+    render('2026-11-10', vi.fn(), { issuedOn: '2026-11-10', rows, nextKey: 199 })
 
-    for (let count = 1; count < 200; count += 1) {
-      fireEvent.click(screen.getByRole('button', { name: 'Adicionar item' }))
-    }
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar item' }))
 
     expect(screen.getAllByLabelText('Produto')).toHaveLength(200)
     expect(screen.getByRole('button', { name: 'Adicionar item' })).toBeDisabled()
