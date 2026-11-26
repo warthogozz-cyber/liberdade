@@ -14,9 +14,12 @@ export const PENDING_PASSKEY_KEY = 'liberdade.pendingPasskey'
 /** Where the invitation page keeps the token of the link it opened. */
 export const INVITATION_TOKEN_KEY = 'liberdade.invitationToken'
 
+/** Where the Feira keeps each person's chosen way of locating (`features/markets/locationStore.ts`). */
+const MARKETS_STORAGE_PREFIX = 'liberdade.markets.'
+
 /**
  * Forgets the session's data on this device: the cache, its saved copy, the CSRF token, the chosen
- * family, the pending return path and an invitation's token. The outbox stays, because each item
+ * family, the pending return path, an invitation's token and the Feira's saved location choice. The outbox stays, because each item
  * carries its `userId`. A page that still needs the token stores it again afterwards.
  */
 export async function clearSession(queryClient: QueryClient): Promise<void> {
@@ -28,6 +31,9 @@ export async function clearSession(queryClient: QueryClient): Promise<void> {
     sessionStorage.removeItem(REAUTH_USER_KEY)
     sessionStorage.removeItem(PENDING_PASSKEY_KEY)
     sessionStorage.removeItem(INVITATION_TOKEN_KEY)
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith(MARKETS_STORAGE_PREFIX)) localStorage.removeItem(key)
+    }
   } catch {
     // Nothing to forget without storage.
   }

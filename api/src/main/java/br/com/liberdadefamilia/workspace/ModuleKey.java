@@ -12,7 +12,8 @@ public enum ModuleKey {
     PLANNING,
     INDICATORS,
     GAMIFICATION,
-    VENTURES;
+    VENTURES,
+    MARKETS;
 
     /** The lowercase name, as it travels in JSON and paths and is stored. */
     @JsonValue

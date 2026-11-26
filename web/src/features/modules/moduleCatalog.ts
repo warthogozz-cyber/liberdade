@@ -7,6 +7,7 @@ export const OPTIONAL_MODULES: readonly ModuleKey[] = [
   'indicators',
   'gamification',
   'ventures',
+  'markets',
 ]
 
 /**

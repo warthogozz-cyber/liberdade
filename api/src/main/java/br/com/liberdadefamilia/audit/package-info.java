@@ -3,7 +3,8 @@
  * the other modules publish; it never keeps an address, a value or a name.
  */
 @ApplicationModule(
-        allowedDependencies = {"identity", "workspace", "billing", "planning", "ledger", "ventures", "shared"})
+        allowedDependencies = {"identity", "workspace", "billing", "planning", "ledger", "ventures", "markets", "shared"
+        })
 package br.com.liberdadefamilia.audit;
 
 import org.springframework.modulith.ApplicationModule;

@@ -34,6 +34,8 @@ import type { importMessages } from '@/features/import/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { indicatorsMessages } from '@/features/indicators/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
+import type { marketsMessages } from '@/features/markets/messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
 import type { planningMessages } from '@/features/planning/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { recurrencesMessages } from '@/features/recurrences/messages.pt-BR'
@@ -60,6 +62,7 @@ declare global {
         | keyof typeof indicatorsMessages
         | keyof typeof legalLabelsMessages
         | keyof typeof legalMessages
+        | keyof typeof marketsMessages
         | keyof typeof membersMessages
         | keyof typeof modulesMessages
         | keyof typeof planningMessages

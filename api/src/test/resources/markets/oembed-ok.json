@@ -1,0 +1,8 @@
+{
+  "version": "1.0",
+  "type": "rich",
+  "provider_name": "Instagram",
+  "provider_url": "https://www.instagram.com",
+  "width": 320,
+  "html": "<blockquote class=\"instagram-media\" data-instgrm-permalink=\"https://www.instagram.com/p/Exemplo123/\" data-instgrm-version=\"14\"><a href=\"https://www.instagram.com/p/Exemplo123/\">Post de exemplo</a></blockquote>"
+}

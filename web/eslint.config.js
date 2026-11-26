@@ -36,5 +36,10 @@ export default defineConfig([
       globals: globals.node,
     },
   },
+  {
+    // The isolated Instagram page runs in a browser frame, not in node.
+    files: ['public/embed/*.js'],
+    languageOptions: { globals: globals.browser },
+  },
   ...boundaryConfigs(),
 ])

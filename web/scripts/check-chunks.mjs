@@ -23,10 +23,36 @@ if (existsSync(modulesPath)) {
   }
 }
 // The achievement sound's synthesizer loads only when a sound plays (D13). The offline database
-// and Dexie load only through `openOfflineDb()` (the lazy offline database plan, 2026-11-25).
+// and Dexie load only through `openOfflineDb()` (the lazy offline database plan, 2026-11-25). The
+// Feira (screens, embeds, the home section and its API client) loads only with its routes (D17);
+// `register.ts` and `locationStore.ts` are left out on purpose: the app's routes and sign-out use them.
+const marketsFiles = [
+  'AddMarketSheet.tsx',
+  'ConvertMarketSheet.tsx',
+  'FeiraPage.tsx',
+  'GiveLocationSheet.tsx',
+  'InstagramEmbed.tsx',
+  'LinksSheet.tsx',
+  'LocationChooser.tsx',
+  'MapEmbed.tsx',
+  'MarketCardPage.tsx',
+  'MarketDetailsForm.tsx',
+  'MarketRow.tsx',
+  'MarketsRoutes.tsx',
+  'OsmAttribution.tsx',
+  'PositionPicker.tsx',
+  'ThirdPartyNotice.tsx',
+].map((file) => `src/features/markets/${file}`)
 const lazy = lazyOnly(
   manifest,
-  ['src/shared/sound/synth.ts', 'src/shared/offline/db.ts', 'node_modules/dexie/dist/dexie.js'],
+  [
+    'src/shared/sound/synth.ts',
+    'src/shared/offline/db.ts',
+    'node_modules/dexie/dist/dexie.js',
+    ...marketsFiles,
+    'src/features/members/MarketHomeSection.tsx',
+    'src/shared/api/markets.ts',
+  ],
   existsSync(modulesPath) ? JSON.parse(readFileSync(modulesPath, 'utf8')) : {},
 )
 if (!lazy.ok)

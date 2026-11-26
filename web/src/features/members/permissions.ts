@@ -22,3 +22,8 @@ export function canRecover(viewer: MemberRole, member: MemberView): boolean {
 export function canOpenMember(viewer: MemberRole, member: MemberView): boolean {
   return member.status === 'ACTIVE' && (viewer === 'OWNER' || canRecover(viewer, member))
 }
+
+/** The family's address for the Feira is for Owners and Adults only (it is where the family lives). */
+export function canSetMarketHome(role: MemberRole): boolean {
+  return role === 'OWNER' || role === 'ADULT'
+}

@@ -23,11 +23,13 @@ describe('legal texts', () => {
       'privacy-2026-11.2',
       'privacy-2026-11.3',
       'privacy-2026-11.4',
+      'privacy-2026-11.5',
       'privacy-2026-12',
       'privacy-2026-12.1',
       'privacy-2026-12.2',
       'privacy-2026-12.3',
       'privacy-2026-12.4',
+      'privacy-2026-12.5',
       'terms-2026-11',
       'terms-2026-12',
     ])
@@ -45,7 +47,7 @@ describe('legal texts', () => {
   })
 
   it('latestIsEmbedded', () => {
-    expect(legalConfig.latest).toEqual({ terms: 'terms-2026-12', privacy: 'privacy-2026-12.4' })
+    expect(legalConfig.latest).toEqual({ terms: 'terms-2026-12', privacy: 'privacy-2026-12.5' })
     expect(legalConfig.texts).toHaveProperty([legalConfig.latest.terms])
     expect(legalConfig.texts).toHaveProperty([legalConfig.latest.privacy])
   })
@@ -75,7 +77,6 @@ describe('legal texts', () => {
   })
 
   it('privacy 11.4 and 12.4 explain the statement import', () => {
-    expect(legalConfig.latest.privacy).toBe('privacy-2026-12.4')
     for (const version of ['privacy-2026-11.4', 'privacy-2026-12.4']) {
       const shown = idsOf(legalConfig.texts[version])
         .map((id) => legalMessages[id as keyof typeof legalMessages])
@@ -83,6 +84,39 @@ describe('legal texts', () => {
       expect(shown).toContain('Importação de extrato')
       expect(shown).toContain('13 meses')
       expect(shown).toContain('O app busca indicadores públicos no Banco Central do Brasil.')
+    }
+  })
+
+  it('privacy 11.5 and 12.5 add the Feira section', () => {
+    expect(legalConfig.latest.privacy).toBe('privacy-2026-12.5')
+    for (const version of ['privacy-2026-11.5', 'privacy-2026-12.5']) {
+      const text = legalConfig.texts[version]
+      expect(text.updatedAt).toBe('25 de novembro de 2026')
+      const feira = text.sections.find(
+        (section) =>
+          legalMessages[section.title as keyof typeof legalMessages] ===
+          'E a Feira, os mercados perto de você?',
+      )
+      expect(feira).toBeDefined()
+      const shown = idsOf({ ...text, sections: [feira!] })
+        .map((id) => legalMessages[id as keyof typeof legalMessages])
+        .join(' ')
+      expect(shown).toContain('guarda só preços, mercado e data, nunca o CPF nem a chave da nota')
+      expect(shown).toContain('CPF')
+      // The older version of the same line does not have it.
+      const before = version.replace('.5', '.4')
+      expect(idsOf(legalConfig.texts[before]).some((id) => id.includes('.feira.'))).toBe(false)
+    }
+  })
+
+  it('privacy 11.5 and 12.5 say where the Feira data goes abroad', () => {
+    for (const version of ['privacy-2026-11.5', 'privacy-2026-12.5']) {
+      const shown = idsOf(legalConfig.texts[version])
+        .map((id) => legalMessages[id as keyof typeof legalMessages])
+        .join(' ')
+      expect(shown).toContain('OpenStreetMap Foundation, no Reino Unido')
+      expect(shown).toContain('Google e a publicação do Instagram vem da Meta, nos Estados Unidos')
+      expect(shown).toContain('endereço de IP')
     }
   })
 

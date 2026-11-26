@@ -112,9 +112,27 @@ funciona igual sem eles.
 | `Tabs`, `Nav` | Navegação principal: Início, Lançamentos, + Lançar, Planejar, Mais. |
 | `SourceStamp` | "Fonte: Banco Central do Brasil · atualizado em 31/10/2026"; vira "desatualizado" após 3 dias úteis, em texto e não só em cor. Já existe em `shared/ui` e fecha cada cartão de indicador. |
 | `Disclaimer` | Faixa fixa: "Conteúdo educativo. Não é recomendação de investimento." Já existe em `shared/ui` e fica no topo das duas telas de indicadores. |
+| `ThirdPartyNotice` | Aviso antes de carregar algo de terceiros. Diálogo de confirmação com o que o terceiro recebe, "Abrir…" (confirma), "Agora não" e a caixa "Não perguntar de novo". Textos: Google ("O mapa é do Google. Ao abrir, o Google recebe o seu IP e pode gravar cookies.") e Meta ("A publicação é do Instagram, da Meta. Ao abrir, a Meta recebe o seu IP e pode gravar cookies."). |
 | `ModuleToggle` | Linha com nome, descrição de uma linha e chave liga/desliga. |
 
 Base: primitivas Radix + Tailwind, no estilo shadcn/ui (o código dos componentes fica no repositório).
+
+### Padrão "carrega ao tocar"
+
+Tudo que vem de terceiros (hoje o mapa do Google e as publicações do Instagram, da Meta) segue o mesmo
+caminho:
+
+1. A tela mostra só um botão ("Ver no mapa", "Ver aqui"). Nada é pedido ao terceiro antes do toque.
+2. O toque abre o aviso (`ThirdPartyNotice`), que diz em linguagem simples o que o terceiro recebe: o IP
+   e a possibilidade de gravar cookies.
+3. Só depois de "Abrir mapa" ou "Ver publicação" o `iframe` entra na tela. "Agora não" fecha sem carregar.
+4. "Não perguntar de novo" guarda a escolha no aparelho (por pessoa); o toque seguinte carrega direto,
+   e o botão vira "Esconder".
+5. Sem a chave do mapa na compilação, o botão nem aparece. Se o terceiro recusar, a tela mostra um
+   link comum para abrir lá fora.
+
+Links de saída (Maps, Waze, Instagram) são `<a target="_blank" rel="noopener noreferrer">`: são do
+navegador, não carregam nada na tela.
 
 ## 7. Voz e tom
 

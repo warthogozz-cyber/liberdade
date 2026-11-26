@@ -397,6 +397,51 @@ run "indicator_alarms_notify_alerts" {
   }
 }
 
+run "markets_alert_filters" {
+  command = plan
+
+  assert {
+    condition     = toset([for f in aws_cloudwatch_log_metric_filter.markets_alert : f.log_group_name]) == toset(["/liberdade/staging", "/liberdade/production"])
+    error_message = "Markets alert filters must watch the staging and production API log groups."
+  }
+
+  assert {
+    condition     = length(aws_cloudwatch_log_metric_filter.markets_alert) == 2 && alltrue([for f in aws_cloudwatch_log_metric_filter.markets_alert : f.pattern == "\"MARKETS_ALERT\""])
+    error_message = "Each filter must match the quoted MARKETS_ALERT term."
+  }
+}
+
+run "markets_alarms_notify_alerts" {
+  command = plan
+
+  assert {
+    condition     = length(aws_cloudwatch_metric_alarm.markets_alert) == 2
+    error_message = "There must be one markets alarm per environment."
+  }
+
+  assert {
+    condition = alltrue([
+      for a in aws_cloudwatch_metric_alarm.markets_alert :
+      toset(a.alarm_actions) == toset([aws_sns_topic.alerts.arn]) && toset(a.ok_actions) == toset([aws_sns_topic.alerts.arn])
+    ])
+    error_message = "Markets alarms must notify the alerts topic on alarm and on return to OK."
+  }
+
+  assert {
+    condition = alltrue([
+      for env, a in aws_cloudwatch_metric_alarm.markets_alert :
+      a.metric_name == one(aws_cloudwatch_log_metric_filter.markets_alert[env].metric_transformation).name &&
+      a.namespace == one(aws_cloudwatch_log_metric_filter.markets_alert[env].metric_transformation).namespace
+    ])
+    error_message = "Each markets alarm must watch the metric its environment's filter writes."
+  }
+
+  assert {
+    condition     = alltrue([for a in aws_cloudwatch_metric_alarm.markets_alert : a.period == 3600 && a.treat_missing_data == "notBreaching"])
+    error_message = "Markets alarms must use a 3600 s period and treat missing data as not breaching."
+  }
+}
+
 run "indicator_run_missing_only_production" {
   command = plan
 

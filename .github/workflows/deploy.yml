@@ -198,6 +198,7 @@ jobs:
       - name: Build the web app
         env:
           VITE_API_URL: ${{ vars.API_URL }}
+          VITE_GOOGLE_MAPS_EMBED_KEY: ${{ vars.GOOGLE_MAPS_EMBED_KEY }}
           VITE_PRIVACY_CONTROLLER: ${{ vars.PRIVACY_CONTROLLER }}
           VITE_PRIVACY_CONTROLLER_DOCUMENT: ${{ vars.PRIVACY_CONTROLLER_DOCUMENT }}
           VITE_PRIVACY_CONTROLLER_ADDRESS: ${{ vars.PRIVACY_CONTROLLER_ADDRESS }}

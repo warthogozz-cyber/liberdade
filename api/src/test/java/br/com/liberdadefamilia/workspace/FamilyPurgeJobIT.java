@@ -122,6 +122,13 @@ class FamilyPurgeJobIT {
                 .param("hash", UUID.randomUUID().toString().getBytes())
                 .param("ana", ana)
                 .update();
+        jdbc.sql(
+                        "insert into markets (workspace_id, origin, name, kind) values (:ws, 'FAMILY', 'Feira Exemplo', 'GREENGROCER')")
+                .param("ws", ws)
+                .update();
+        jdbc.sql("insert into market_home (workspace_id, lat, lon, label) values (:ws, -23.123, -46.456, 'Casa')")
+                .param("ws", ws)
+                .update();
         RequestPostProcessor session = TestUsers.signedIn(ana, null);
         assertThat(mvc.post()
                         .uri("/v1/workspaces/" + ws + "/deletion")
@@ -143,7 +150,9 @@ class FamilyPurgeJobIT {
             "consents",
             "recurring_rules",
             "tags",
-            "transaction_tags"
+            "transaction_tags",
+            "markets",
+            "market_home"
         }) {
             assertThat(jdbc.sql("select count(*) from " + table + " where workspace_id = :ws")
                             .param("ws", ws)

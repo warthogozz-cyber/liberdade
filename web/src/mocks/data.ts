@@ -18,6 +18,50 @@ export interface MockInvitation {
   targetMembershipId?: string
 }
 
+/** A market a family added, as stored; an archived one stays, out of the lists. */
+export interface MockFamilyMarket {
+  id: string
+  name: string
+  kind: NonNullable<Schemas['FamilyItem']['kind']>
+  lat: string | null
+  lon: string | null
+  archived: boolean
+  instagram: string | null
+  website: string | null
+}
+
+/** What the Feira keeps for one family: its markets, its address, and the person's OSM links. */
+export interface MockMarkets {
+  family: MockFamilyMarket[]
+  home: Schemas['HomeView'] | null
+  /** Links the family set on an OpenStreetMap market, by its `osm-<type>-<id>` ref. */
+  osmLinks: Record<string, { instagram: string | null; website: string | null }>
+  archivedOsm: string[]
+}
+
+/** The six invented markets of the API's `FakeOsmDataset`, around (-10.000, -50.000). */
+export const FAKE_OSM_MARKETS = Array.from({ length: 6 }, (_, index) => {
+  const n = index + 1
+  const kinds = [
+    'SUPERMARKET',
+    'CONVENIENCE',
+    'GREENGROCER',
+    'MARKETPLACE',
+    'SUPERMARKET',
+    'CONVENIENCE',
+  ] as const
+  return {
+    ref: `osm-n-${9000 + n}`,
+    name: n === 4 ? null : `Mercado Exemplo ${n}`,
+    kind: kinds[index],
+    lat: (-10 + (n - 3) * 0.002).toFixed(5),
+    lon: (-50 + (n - 3) * 0.003).toFixed(5),
+    street: 'Rua Exemplo',
+    housenumber: String(n * 10),
+    instagram: n === 5 ? 'https://www.instagram.com/exemplo.loja/' : null,
+  }
+})
+
 /** A recurring rule as stored: an archived one stays, out of the lists. */
 export type MockRule = Schemas['RecurringRuleView'] & { archived: boolean }
 
@@ -80,6 +124,8 @@ export interface MockState {
   goals: MockGoal[]
   /** The family's projects (ventures) by workspace id, in creation order. */
   ventures: Record<string, Schemas['VentureView'][]>
+  /** The Feira (markets) module's data by workspace id. */
+  markets: Record<string, MockMarkets>
   /** The emergency reserve settings: the target in months and the monthly cost the family typed in. */
   reserve: { targetMonths: number; manualMonthlyCost: Schemas['ReserveView']['manualMonthlyCost'] }
   /** The family's average monthly spending over its history, in cents; null while it has none. */
@@ -131,7 +177,7 @@ export interface MockOrder {
 /** The versions in force, as LegalDocuments.java picks them with billing on (as in staging and the e2e). */
 const CURRENT_DOCUMENTS: MockState['currentDocuments'] = {
   TERMS: 'terms-2026-12',
-  PRIVACY: 'privacy-2026-12.4',
+  PRIVACY: 'privacy-2026-12.5',
 }
 
 /** `LegalDocuments.KEEPS_ACCEPTANCE`: a version keeps the acceptance of the one it continues. */
@@ -343,6 +389,7 @@ function initialState(): MockState {
     budgets: [],
     goals: [],
     ventures: {},
+    markets: {},
     reserve: { targetMonths: 6, manualMonthlyCost: null },
     spendingHistoryCents: null,
     activity: initialActivity(),

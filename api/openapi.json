@@ -2034,6 +2034,525 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets": {
+      "post": {
+        "operationId": "addMarket",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewMarketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketCardView"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/geocode": {
+      "post": {
+        "operationId": "geocode",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeocodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeocodeResultView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-home-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/home": {
+      "delete": {
+        "operationId": "deleteHome",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Address removed"
+          }
+        },
+        "tags": [
+          "market-home-controller"
+        ]
+      },
+      "get": {
+        "operationId": "getHome",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeView"
+                }
+              }
+            },
+            "description": "The family's address"
+          },
+          "204": {
+            "description": "No address yet"
+          }
+        },
+        "tags": [
+          "market-home-controller"
+        ]
+      },
+      "put": {
+        "operationId": "putHome",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-home-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/search": {
+      "post": {
+        "operationId": "searchMarkets",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResultView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/settings": {
+      "get": {
+        "operationId": "getMarketsSettings",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/{ref}": {
+      "get": {
+        "operationId": "getMarket",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketCardView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/{ref}/archive": {
+      "post": {
+        "operationId": "archiveMarket",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Hidden"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/{ref}/convert": {
+      "post": {
+        "operationId": "convertMarket",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewMarketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketCardView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/{ref}/instagram-embed": {
+      "post": {
+        "operationId": "instagramEmbed",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstagramEmbedView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/{ref}/links": {
+      "put": {
+        "operationId": "putLinks",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinksRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketCardView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/{ref}/position": {
+      "put": {
+        "operationId": "putPosition",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PositionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketCardView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "market-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/members": {
       "get": {
         "operationId": "listMembers",
@@ -2252,7 +2771,8 @@
                 "planning",
                 "indicators",
                 "gamification",
-                "ventures"
+                "ventures",
+                "markets"
               ]
             }
           }
@@ -3878,6 +4398,28 @@
           }
         }
       },
+      "AddressView": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "housenumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "street": {
+            "type": "string",
+            "nullable": true
+          },
+          "suburb": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "nullable": true
+      },
       "BreakEvenView": {
         "type": "object",
         "properties": {
@@ -4738,6 +5280,33 @@
           }
         }
       },
+      "FamilyItem": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "SUPERMARKET",
+              "CONVENIENCE",
+              "GREENGROCER",
+              "MARKETPLACE"
+            ]
+          },
+          "lat": {
+            "type": "string"
+          },
+          "lon": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          }
+        }
+      },
       "FiguresView": {
         "type": "object",
         "properties": {
@@ -4791,6 +5360,53 @@
           },
           "totalMargin": {
             "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "FlyerView": {
+        "type": "object",
+        "properties": {
+          "setAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string"
+          },
+          "validUntil": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          }
+        },
+        "nullable": true
+      },
+      "GeocodeRequest": {
+        "required": [
+          "query"
+        ],
+        "type": "object",
+        "properties": {
+          "query": {
+            "maxLength": 120,
+            "type": "string",
+            "example": "Rua Exemplo 10"
+          }
+        }
+      },
+      "GeocodeResultView": {
+        "type": "object",
+        "properties": {
+          "places": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlaceView"
+            }
           }
         }
       },
@@ -4861,6 +5477,42 @@
           },
           "limitReached": {
             "type": "boolean"
+          }
+        }
+      },
+      "HomeRequest": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "maxLength": 40,
+            "type": "string",
+            "nullable": true,
+            "example": "Casa"
+          },
+          "lat": {
+            "type": "string",
+            "nullable": true,
+            "example": "-23.123"
+          },
+          "lon": {
+            "type": "string",
+            "nullable": true,
+            "example": "-46.123"
+          }
+        }
+      },
+      "HomeView": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "lat": {
+            "type": "string"
+          },
+          "lon": {
+            "type": "string"
           }
         }
       },
@@ -5002,6 +5654,15 @@
           }
         }
       },
+      "InstagramEmbedView": {
+        "type": "object",
+        "properties": {
+          "html": {
+            "type": "string",
+            "example": "<blockquote class=\"instagram-media\"></blockquote>"
+          }
+        }
+      },
       "InvestmentSimulationRequest": {
         "type": "object",
         "properties": {
@@ -5111,6 +5772,18 @@
           }
         }
       },
+      "LeftItem": {
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "nullable": true
+          },
+          "ref": {
+            "type": "string"
+          }
+        }
+      },
       "LegalVersions": {
         "type": "object",
         "properties": {
@@ -5119,6 +5792,158 @@
           },
           "terms": {
             "type": "string"
+          }
+        }
+      },
+      "LinkView": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "FAMILY",
+              "OSM"
+            ]
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "nullable": true
+      },
+      "LinksRequest": {
+        "type": "object",
+        "properties": {
+          "flyerSource": {
+            "maxLength": 60,
+            "minLength": 0,
+            "type": "string",
+            "nullable": true
+          },
+          "flyerUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "flyerValidUntil": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "instagram": {
+            "type": "string",
+            "nullable": true
+          },
+          "website": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "MarketCardView": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressView"
+              }
+            ],
+            "nullable": true
+          },
+          "cnpj": {
+            "type": "string",
+            "nullable": true
+          },
+          "datasetDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "familyId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "flyer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FlyerView"
+              }
+            ],
+            "nullable": true
+          },
+          "instagram": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LinkView"
+              }
+            ],
+            "nullable": true
+          },
+          "instagramEmbeddable": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "SUPERMARKET",
+              "CONVENIENCE",
+              "GREENGROCER",
+              "MARKETPLACE"
+            ]
+          },
+          "lat": {
+            "type": "string",
+            "nullable": true
+          },
+          "lon": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "openingHours": {
+            "type": "string",
+            "nullable": true
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "OSM",
+              "FAMILY"
+            ]
+          },
+          "ref": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "LEFT_OSM",
+              "ARCHIVED"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "website": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LinkView"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5288,7 +6113,8 @@
               "planning",
               "indicators",
               "gamification",
-              "ventures"
+              "ventures",
+              "markets"
             ]
           }
         }
@@ -5372,6 +6198,39 @@
           }
         }
       },
+      "NewMarketRequest": {
+        "required": [
+          "kind",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SUPERMARKET",
+              "CONVENIENCE",
+              "GREENGROCER",
+              "MARKETPLACE"
+            ]
+          },
+          "lat": {
+            "type": "string",
+            "nullable": true,
+            "example": "-10.00012"
+          },
+          "lon": {
+            "type": "string",
+            "nullable": true,
+            "example": "-50.00012"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 0,
+            "type": "string"
+          }
+        }
+      },
       "NewUser": {
         "required": [
           "displayName"
@@ -5416,6 +6275,58 @@
           }
         }
       },
+      "OsmItem": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "type": "string",
+            "nullable": true
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "familyId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "housenumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SUPERMARKET",
+              "CONVENIENCE",
+              "GREENGROCER",
+              "MARKETPLACE"
+            ]
+          },
+          "lat": {
+            "type": "string"
+          },
+          "lon": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "ref": {
+            "type": "string"
+          },
+          "street": {
+            "type": "string",
+            "nullable": true
+          },
+          "suburb": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "PasskeyView": {
         "type": "object",
         "properties": {
@@ -5433,6 +6344,20 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          }
+        }
+      },
+      "PlaceView": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "string"
+          },
+          "lon": {
+            "type": "string"
           }
         }
       },
@@ -5512,6 +6437,21 @@
               "MONTHS",
               "NEVER"
             ]
+          }
+        }
+      },
+      "PositionRequest": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "string",
+            "nullable": true,
+            "example": "-10.00012"
+          },
+          "lon": {
+            "type": "string",
+            "nullable": true,
+            "example": "-50.00012"
           }
         }
       },
@@ -5876,6 +6816,64 @@
           }
         }
       },
+      "SearchRequest": {
+        "required": [
+          "lat",
+          "lon"
+        ],
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "string",
+            "example": "-10.0"
+          },
+          "lon": {
+            "type": "string",
+            "example": "-50.0"
+          },
+          "radiusKm": {
+            "maximum": 10,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
+      "SearchResultView": {
+        "type": "object",
+        "properties": {
+          "datasetDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "family": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FamilyItem"
+            }
+          },
+          "left": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeftItem"
+            }
+          },
+          "osm": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OsmItem"
+            }
+          },
+          "unlocated": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnlocatedItem"
+            }
+          }
+        }
+      },
       "SetBudgetRequest": {
         "required": [
           "limitAmount"
@@ -5889,6 +6887,17 @@
             "type": "integer",
             "format": "int64",
             "nullable": true
+          }
+        }
+      },
+      "SettingsView": {
+        "type": "object",
+        "properties": {
+          "geocodingEnabled": {
+            "type": "boolean"
+          },
+          "instagramEnabled": {
+            "type": "boolean"
           }
         }
       },
@@ -6327,6 +7336,27 @@
           "version": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "UnlocatedItem": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "SUPERMARKET",
+              "CONVENIENCE",
+              "GREENGROCER",
+              "MARKETPLACE"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
           }
         }
       },

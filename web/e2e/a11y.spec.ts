@@ -630,3 +630,50 @@ test('the actual versus planned screen and the form with the project field meet 
     page.getByRole('table', { name: 'Real e previsto, mês a mês' }),
   )
 })
+
+test('the Feira list, the market card with the map notice and the location dialog meet WCAG 2.2 AA in both themes', async ({
+  page,
+  request,
+}) => {
+  // The notice is never accepted here, but nothing may reach Google or Meta even by mistake.
+  await page
+    .context()
+    .route(/^https:\/\/([^/]+\.)?(google|instagram|cdninstagram|facebook)\.com\//, (route) =>
+      route.abort(),
+    )
+  await signInWithGoogle(page, newUser())
+  await createFamily(page)
+  // Billing is on here, and the Feira is a Família plan feature.
+  await buyFamilyPlan(page, request)
+  await setModules(page, true)
+
+  // Right after the plan and the modules change, a fresh load can still read the old ones from the
+  // cache and bounce: load again until the Feira holds with its location dialog and address option.
+  const chooser = page.getByRole('dialog', { name: 'Onde procurar mercados?' })
+  await expect(async () => {
+    await page.goto('/mais/feira')
+    await expect(chooser.getByRole('radio', { name: 'Digitar um endereço' })).toBeVisible({
+      timeout: 3_000,
+    })
+    await expect(page).toHaveURL(/\/mais\/feira$/)
+  }).toPass({ timeout: 45_000 })
+  await expectNoViolationsOpen(page, chooser)
+
+  await chooser.getByRole('radio', { name: 'Digitar um endereço' }).check()
+  await chooser.getByLabel('Endereço', { exact: true }).fill('Rua Exemplo')
+  await chooser.getByRole('button', { name: 'Buscar', exact: true }).click()
+  await chooser.getByRole('radio', { name: 'Bairro Exemplo, Cidade Exemplo' }).check()
+  await expectNoViolationsOpen(
+    page,
+    chooser.getByRole('radio', { name: 'Bairro Exemplo, Cidade Exemplo' }),
+  )
+  await chooser.getByRole('button', { name: 'Continuar', exact: true }).click()
+
+  const market = page.getByRole('link', { name: /Mercado Exemplo 3/ })
+  await expectNoViolations(page, 'Feira', market)
+
+  await market.click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Mercado Exemplo 3' })).toBeVisible()
+  await page.getByRole('button', { name: 'Ver no mapa' }).click()
+  await expectNoViolationsOpen(page, page.getByRole('alertdialog', { name: 'Mapa do Google' }))
+})

@@ -30,7 +30,7 @@ class ModuleController {
         this.repository = repository;
     }
 
-    /** Always the four modules, in the order of {@link ModuleKey}. */
+    /** Always every module, in the order of {@link ModuleKey}. */
     @GetMapping("/v1/workspaces/{ws}/modules")
     @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH, VIEWER})
     List<ModuleView> listModules(WorkspaceMember member) {
@@ -47,7 +47,16 @@ class ModuleController {
     @PutMapping("/v1/workspaces/{ws}/modules/{key}")
     @WorkspaceScoped(allow = {OWNER, ADULT})
     ModuleView setModule(
-            @Parameter(schema = @Schema(allowableValues = {"planning", "indicators", "gamification", "ventures"}))
+            @Parameter(
+                            schema =
+                                    @Schema(
+                                            allowableValues = {
+                                                "planning",
+                                                "indicators",
+                                                "gamification",
+                                                "ventures",
+                                                "markets"
+                                            }))
                     @PathVariable
                     String key,
             @Valid @RequestBody UpdateModuleRequest request,

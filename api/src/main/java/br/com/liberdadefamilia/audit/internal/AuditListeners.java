@@ -9,6 +9,10 @@ import br.com.liberdadefamilia.billing.RefundRequested;
 import br.com.liberdadefamilia.identity.PasskeyRemoved;
 import br.com.liberdadefamilia.identity.SignedIn;
 import br.com.liberdadefamilia.ledger.StatementImported;
+import br.com.liberdadefamilia.markets.MarketAdded;
+import br.com.liberdadefamilia.markets.MarketEdited;
+import br.com.liberdadefamilia.markets.MarketHomeCleared;
+import br.com.liberdadefamilia.markets.MarketHomeSet;
 import br.com.liberdadefamilia.planning.GoalArchived;
 import br.com.liberdadefamilia.planning.RecurringRuleArchived;
 import br.com.liberdadefamilia.planning.RecurringRuleCreated;
@@ -147,6 +151,38 @@ class AuditListeners {
     @EventListener
     void on(VentureDeleted event) {
         record(event.workspaceId(), event.actorUserId(), "venture.deleted", "VENTURE", event.ventureId(), Map.of());
+    }
+
+    @EventListener
+    void on(MarketAdded event) {
+        record(event.workspaceId(), event.actorUserId(), "market.added", "MARKET", event.marketId(), Map.of());
+    }
+
+    @EventListener
+    void on(MarketEdited event) {
+        record(
+                event.workspaceId(),
+                event.actorUserId(),
+                "market.edited",
+                "MARKET",
+                event.marketId(),
+                Map.of("change", event.change().name()));
+    }
+
+    @EventListener
+    void on(MarketHomeSet event) {
+        record(event.workspaceId(), event.actorUserId(), "market_home.set", "WORKSPACE", event.workspaceId(), Map.of());
+    }
+
+    @EventListener
+    void on(MarketHomeCleared event) {
+        record(
+                event.workspaceId(),
+                event.actorUserId(),
+                "market_home.cleared",
+                "WORKSPACE",
+                event.workspaceId(),
+                Map.of());
     }
 
     @EventListener

@@ -26,6 +26,7 @@ function answerNovember() {
 const REQUIRED_SECTIONS = [
   'Quem cuida dos seus dados?',
   'Que dados guardamos e para quê?',
+  'E a Feira, os mercados perto de você?',
   'Em que a lei nos autoriza a tratar esses dados?',
   'E os dados de crianças e adolescentes?',
   'Com quem os dados são tratados?',
@@ -145,7 +146,7 @@ describe('PrivacyPolicyPage', () => {
 
     await waitFor(() => expect(asked).toBe(true))
     expect(
-      await screen.findByText(/Versão privacy-2026-12.4 · atualizada em 24 de novembro de 2026/),
+      await screen.findByText(/Versão privacy-2026-12.5 · atualizada em 25 de novembro de 2026/),
     ).toBeVisible()
   })
 })

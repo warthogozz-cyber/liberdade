@@ -788,6 +788,182 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addMarket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/geocode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["geocode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getHome"];
+        put: operations["putHome"];
+        post?: never;
+        delete: operations["deleteHome"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["searchMarkets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMarketsSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMarket"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveMarket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["convertMarket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}/instagram-embed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["instagramEmbed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["putLinks"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/{ref}/position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["putPosition"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/members": {
         parameters: {
             query?: never;
@@ -1303,6 +1479,12 @@ export interface components {
             real: components["schemas"]["RealView"];
             totals: components["schemas"]["TotalsView"];
         };
+        AddressView: {
+            city: string | null;
+            housenumber: string | null;
+            street: string | null;
+            suburb: string | null;
+        } | null;
         BreakEvenView: {
             revenue: components["schemas"]["Money"] | null;
             /** @enum {string} */
@@ -1560,6 +1742,14 @@ export interface components {
             /** @enum {string} */
             purpose: "TERMS" | "PRIVACY" | "PARENTAL";
         };
+        FamilyItem: {
+            /** @enum {string|null} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE" | null;
+            lat: string;
+            lon: string;
+            name: string;
+            ref: string;
+        };
         FiguresView: {
             breakEven: components["schemas"]["BreakEvenView"];
             fixedMonthly: components["schemas"]["Money"];
@@ -1577,6 +1767,21 @@ export interface components {
             /** @enum {string} */
             roiState: "OK" | "NO_INVESTMENT";
             totalMargin: components["schemas"]["Money"];
+        };
+        FlyerView: {
+            /** Format: date-time */
+            setAt: string | null;
+            source: string | null;
+            url: string;
+            /** Format: date */
+            validUntil: string | null;
+        } | null;
+        GeocodeRequest: {
+            /** @example Rua Exemplo 10 */
+            query: string;
+        };
+        GeocodeResultView: {
+            places: components["schemas"]["PlaceView"][];
         };
         GoalView: {
             /** Format: date-time */
@@ -1601,6 +1806,19 @@ export interface components {
         GoalsView: {
             goals: components["schemas"]["GoalView"][];
             limitReached: boolean;
+        };
+        HomeRequest: {
+            /** @example Casa */
+            label: string | null;
+            /** @example -23.123 */
+            lat: string | null;
+            /** @example -46.123 */
+            lon: string | null;
+        };
+        HomeView: {
+            label: string | null;
+            lat: string;
+            lon: string;
         };
         ImportRequest: {
             rows: components["schemas"]["ImportRow"][];
@@ -1644,6 +1862,10 @@ export interface components {
         IndicatorsView: {
             indicators: components["schemas"]["IndicatorView"][];
         };
+        InstagramEmbedView: {
+            /** @example <blockquote class="instagram-media"></blockquote> */
+            html: string;
+        };
         InvestmentSimulationRequest: {
             /** @example 5000.0 */
             initialAmount: string;
@@ -1678,9 +1900,53 @@ export interface components {
             role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
             token: string | null;
         };
+        LeftItem: {
+            cnpj: string | null;
+            ref: string;
+        };
         LegalVersions: {
             privacy: string;
             terms: string;
+        };
+        LinkView: {
+            /** Format: date */
+            date: string | null;
+            /** @enum {string} */
+            source: "FAMILY" | "OSM";
+            value: string;
+        } | null;
+        LinksRequest: {
+            flyerSource: string | null;
+            flyerUrl: string | null;
+            /** Format: date */
+            flyerValidUntil: string | null;
+            instagram: string | null;
+            website: string | null;
+        };
+        MarketCardView: {
+            address: components["schemas"]["AddressView"] | null;
+            cnpj: string | null;
+            /** Format: date */
+            datasetDate: string | null;
+            /** Format: uuid */
+            familyId: string | null;
+            flyer: components["schemas"]["FlyerView"] | null;
+            instagram: components["schemas"]["LinkView"] | null;
+            instagramEmbeddable: boolean;
+            /** @enum {string|null} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE" | null;
+            lat: string | null;
+            lon: string | null;
+            name: string | null;
+            openingHours: string | null;
+            /** @enum {string} */
+            origin: "OSM" | "FAMILY";
+            ref: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "LEFT_OSM" | "ARCHIVED";
+            /** Format: date-time */
+            updatedAt: string | null;
+            website: components["schemas"]["LinkView"] | null;
         };
         MeUser: {
             /** Format: date-time */
@@ -1735,7 +2001,7 @@ export interface components {
         ModuleView: {
             enabled: boolean;
             /** @enum {string} */
-            key: "planning" | "indicators" | "gamification" | "ventures";
+            key: "planning" | "indicators" | "gamification" | "ventures" | "markets";
         };
         Money: {
             /** @example 12.34 */
@@ -1756,6 +2022,15 @@ export interface components {
             plannedResult: components["schemas"]["Money"] | null;
             result: components["schemas"]["Money"];
         };
+        NewMarketRequest: {
+            /** @enum {string} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE";
+            /** @example -10.00012 */
+            lat?: string | null;
+            /** @example -50.00012 */
+            lon?: string | null;
+            name: string;
+        };
         NewUser: {
             displayName: string;
         } | null;
@@ -1767,6 +2042,21 @@ export interface components {
             /** @enum {string} */
             status: "CREATED" | "PAID" | "EXPIRED" | "CANCELED" | "REFUND_PENDING" | "REFUNDED" | "CHARGEBACK";
         };
+        OsmItem: {
+            brand: string | null;
+            city: string | null;
+            /** Format: uuid */
+            familyId: string | null;
+            housenumber: string | null;
+            /** @enum {string} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE";
+            lat: string;
+            lon: string;
+            name: string | null;
+            ref: string;
+            street: string | null;
+            suburb: string | null;
+        };
         PasskeyView: {
             /** Format: date-time */
             createdAt: string;
@@ -1774,6 +2064,11 @@ export interface components {
             label: string;
             /** Format: date-time */
             lastUsedAt: string | null;
+        };
+        PlaceView: {
+            label: string;
+            lat: string;
+            lon: string;
         };
         PlanDetails: {
             canPurchase: boolean;
@@ -1799,6 +2094,12 @@ export interface components {
             paybackMonths: number | null;
             /** @enum {string} */
             paybackState: "MONTHS" | "NEVER";
+        };
+        PositionRequest: {
+            /** @example -10.00012 */
+            lat: string | null;
+            /** @example -50.00012 */
+            lon: string | null;
         };
         PreviewInvitationRequest: {
             token: string;
@@ -1914,10 +2215,30 @@ export interface components {
             name: string;
             totalContributed: components["schemas"]["Money"];
         };
+        SearchRequest: {
+            /** @example -10.0 */
+            lat: string;
+            /** @example -50.0 */
+            lon: string;
+            /** Format: int32 */
+            radiusKm?: number | null;
+        };
+        SearchResultView: {
+            /** Format: date */
+            datasetDate: string | null;
+            family: components["schemas"]["FamilyItem"][];
+            left: components["schemas"]["LeftItem"][];
+            osm: components["schemas"]["OsmItem"][];
+            unlocated: components["schemas"]["UnlocatedItem"][];
+        };
         SetBudgetRequest: {
             limitAmount: components["schemas"]["Money"];
             /** Format: int64 */
             version?: number | null;
+        };
+        SettingsView: {
+            geocodingEnabled: boolean;
+            instagramEnabled: boolean;
         };
         SimulationCost: {
             /** @example 12.5 */
@@ -2058,6 +2379,12 @@ export interface components {
             ventureId: string | null;
             /** Format: int64 */
             version: number;
+        };
+        UnlocatedItem: {
+            /** @enum {string|null} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE" | null;
+            name: string;
+            ref: string;
         };
         UpdateAccountOwnerRequest: {
             /** Format: uuid */
@@ -3596,6 +3923,342 @@ export interface operations {
             };
         };
     };
+    addMarket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewMarketRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
+    geocode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GeocodeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeocodeResultView"];
+                };
+            };
+        };
+    };
+    getHome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The family's address */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeView"];
+                };
+            };
+            /** @description No address yet */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    putHome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HomeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeView"];
+                };
+            };
+        };
+    };
+    deleteHome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Address removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    searchMarkets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResultView"];
+                };
+            };
+        };
+    };
+    getMarketsSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+        };
+    };
+    getMarket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
+    archiveMarket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hidden */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    convertMarket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewMarketRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
+    instagramEmbed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramEmbedView"];
+                };
+            };
+        };
+    };
+    putLinks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinksRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
+    putPosition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PositionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
     listMembers: {
         parameters: {
             query?: never;
@@ -3723,7 +4386,7 @@ export interface operations {
             path: {
                 /** @description Workspace (family) id */
                 ws: string;
-                key: "planning" | "indicators" | "gamification" | "ventures";
+                key: "planning" | "indicators" | "gamification" | "ventures" | "markets";
             };
             cookie?: never;
         };

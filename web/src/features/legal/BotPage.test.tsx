@@ -44,4 +44,27 @@ describe('BotPage', () => {
       '/privacidade',
     )
   })
+
+  it('listsTheNewCollections', () => {
+    renderBot()
+
+    const shown = document.body.textContent ?? ''
+    expect(shown).toContain('Geofabrik')
+    expect(shown).toContain('GitHub Actions')
+    expect(shown).toContain('nominatim.openstreetmap.org')
+    expect(shown).toMatch(/oEmbed do Instagram/)
+  })
+
+  it('showsOsmAttribution', () => {
+    renderBot()
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Dados de terceiros' })).toBeVisible()
+    const shown = document.body.textContent ?? ''
+    expect(shown).toContain('© OpenStreetMap contributors')
+    expect(shown).toContain('ODbL')
+    expect(screen.getByRole('link', { name: 'openstreetmap.org/copyright' })).toHaveAttribute(
+      'href',
+      'https://www.openstreetmap.org/copyright',
+    )
+  })
 })
