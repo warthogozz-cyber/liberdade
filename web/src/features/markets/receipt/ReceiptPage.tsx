@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, Navigate } from 'react-router'
 import { useCurrentWorkspace } from '@/shared/api'
@@ -26,9 +26,16 @@ function Step({
   id: 'markets.receipt.step.key' | 'markets.receipt.step.market' | 'markets.receipt.step.items'
   children: ReactNode
 }) {
+  const heading = useRef<HTMLHeadingElement>(null)
+  // A later step replaces the one the person just finished: take focus there, so a screen
+  // reader announces it and the keyboard does not fall back to the top of the page. The first
+  // step opens with the screen and leaves focus where the browser put it.
+  useEffect(() => {
+    if (id !== 'markets.receipt.step.key') heading.current?.focus()
+  }, [id])
   return (
     <section aria-labelledby={id} className="flex flex-col gap-4">
-      <h2 id={id} className="text-lg font-medium">
+      <h2 ref={heading} id={id} tabIndex={-1} className="text-lg font-medium focus:outline-none">
         <FormattedMessage id={id} />
       </h2>
       {children}

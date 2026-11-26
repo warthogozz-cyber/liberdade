@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, screen } from '@testing-library/react'
-import { http, HttpResponse } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
@@ -14,6 +14,7 @@ const grouped = chave.replace(/(.{4})/g, '$1 ').trim()
 const BUYER = '12345678909'
 const LOOKUP = `${API_URL}/v1/workspaces/:ws/markets/receipts/lookup`
 const SAVE = `${API_URL}/v1/workspaces/:ws/markets/receipts`
+const SEARCH = `${API_URL}/v1/workspaces/:ws/markets/search`
 const KNOWN = {
   ref: 'osm-n-9001',
   familyId: '0192f3a4-0000-7000-8000-0000000000c1',
@@ -161,6 +162,32 @@ describe('ReceiptPage', () => {
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
   })
 
+  it.each([
+    ['ARCHIVED', 'Arquivado. A nota é registrada neste mercado mesmo assim.'],
+    ['LEFT_OSM', 'Saiu do mapa. A nota é registrada neste mercado mesmo assim.'],
+  ])('knownMarketWithStatus%sShowsTheNoticeAndContinues', async (status, notice) => {
+    seed()
+    answerLookup({ ...KNOWN, status })
+    render()
+
+    await typeKey()
+
+    expect(await screen.findByText(notice)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+    expect(await screen.findByLabelText('Data da compra')).toBeVisible()
+  })
+
+  it('activeKnownMarketShowsNoStatusNotice', async () => {
+    seed()
+    answerLookup(KNOWN)
+    render()
+
+    await typeKey()
+
+    await screen.findByText('Esta nota é deste mercado')
+    expect(screen.queryByText(/mesmo assim/)).not.toBeInTheDocument()
+  })
+
   it('unknownMarketOffersNearbyAndNew', async () => {
     seed()
     answerLookup(null)
@@ -170,6 +197,72 @@ describe('ReceiptPage', () => {
 
     expect(await screen.findByRole('radio', { name: /Mercado Exemplo 3/ })).toBeVisible()
     expect(screen.getByRole('radio', { name: 'Outro mercado' })).toBeVisible()
+  })
+
+  it('focusMovesToEachNewStep', async () => {
+    seed()
+    answerLookup(KNOWN)
+    render()
+
+    const keyHeading = await screen.findByRole('heading', { name: 'A nota' })
+    expect(keyHeading).not.toHaveFocus()
+    await typeKey()
+
+    expect(await screen.findByRole('heading', { name: 'O mercado' })).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+    expect(await screen.findByRole('heading', { name: 'Os preços' })).toHaveFocus()
+  })
+
+  it('marketSearchShowsLoading', async () => {
+    seed()
+    answerLookup(null)
+    server.use(http.post(SEARCH, () => delay('infinite')))
+    render()
+
+    await typeKey()
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Carregando os mercados…')
+    expect(screen.getByRole('radio', { name: 'Outro mercado' })).toBeVisible()
+  })
+
+  it('marketSearchWithNothingNearbySaysSo', async () => {
+    seed()
+    answerLookup(null)
+    server.use(http.post(SEARCH, () => HttpResponse.json({ osm: [], family: [] })))
+    render()
+
+    await typeKey()
+
+    expect(
+      await screen.findByText('Nenhum mercado conhecido por perto. Escolha Outro mercado.'),
+    ).toBeVisible()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('marketSearchFailureOffersRetry', async () => {
+    seed()
+    answerLookup(null)
+    server.use(
+      http.post(
+        SEARCH,
+        () =>
+          HttpResponse.json(
+            { title: 'Erro', status: 500, code: 'internal', detail: 'Falhou' },
+            { status: 500, headers: problemHeaders },
+          ),
+        { once: true },
+      ),
+    )
+    render()
+
+    await typeKey()
+
+    expect(
+      await screen.findByText('Não deu para carregar os mercados. Tente de novo.'),
+    ).toBeVisible()
+    expect(screen.getByRole('radio', { name: 'Outro mercado' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(await screen.findByRole('radio', { name: /Mercado Exemplo 3/ })).toBeVisible()
   })
 
   it('sefazLinkNeverSent', async () => {
@@ -292,6 +385,21 @@ describe('ReceiptPage', () => {
     expect(screen.getByText('pão')).toBeVisible()
     expect(screen.getByLabelText('Preço da unidade')).toHaveValue('1,50')
     expect(screen.queryByText(detail)).not.toBeInTheDocument()
+  })
+
+  it('productSearchTextSurvivesChangingTheMarket', async () => {
+    await reachItems('receipt.market_cnpj_differs', 409, 'Detalhe qualquer')
+    await screen.findByText('Detalhe qualquer')
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar item' }))
+    const fields = screen.getAllByLabelText('Produto')
+    fireEvent.change(fields[fields.length - 1]!, { target: { value: 'arr' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trocar o mercado' }))
+    fireEvent.click(await screen.findByRole('radio', { name: /Mercado Exemplo 3/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+    await screen.findByLabelText('Data da compra')
+
+    expect(screen.getByLabelText('Produto')).toHaveValue('arr')
   })
 
   it('cnpjTakenOffersChangeMarket', async () => {

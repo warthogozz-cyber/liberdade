@@ -135,6 +135,7 @@ describe('ReceiptItemsStep', () => {
     const rows = Array.from({ length: 199 }, (_, key) => ({
       key,
       product: null,
+      search: '',
       unit: 'UN' as const,
       quantity: '',
       price: '',
