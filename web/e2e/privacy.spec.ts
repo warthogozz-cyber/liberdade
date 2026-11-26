@@ -8,6 +8,7 @@ import {
   expect,
   invitationBudget,
   newUser,
+  NO_SERVICE_WORKER,
   notices,
   openInvitation,
   signInBudget,
@@ -59,46 +60,50 @@ test('deleteAndCancel: an Adult asks to delete the account, confirms with Google
   const eva = newUser('Eva')
   const link = await createInvitation(await owner.newPage(), 'Eva', 'Adulto')
 
-  await withContext(browser, async (_context, page) => {
-    await openInvitation(page, link, /como Adulto/)
-    await invitationBudget.reserve(1)
-    await signInBudget.reserve(1)
-    await page.getByRole('button', { name: 'Entrar com Google' }).click()
-    await completeGoogleSignIn(page, eva)
-    await invitationBudget.reserve(1)
-    await page.getByRole('button', { name: 'Entrar na família' }).click()
-    await expect(page).toHaveURL('/inicio')
+  await withContext(
+    browser,
+    async (_context, page) => {
+      await openInvitation(page, link, /como Adulto/)
+      await invitationBudget.reserve(1)
+      await signInBudget.reserve(1)
+      await page.getByRole('button', { name: 'Entrar com Google' }).click()
+      await completeGoogleSignIn(page, eva)
+      await invitationBudget.reserve(1)
+      await page.getByRole('button', { name: 'Entrar na família' }).click()
+      await expect(page).toHaveURL('/inicio')
 
-    // The API asks for a sign-in from the last 10 minutes, and this one is seconds old. So the first
-    // request is answered with the API's own refusal, to bring the dialog up; the one after the
-    // confirmation is real. The API side is covered by AccountDeletionIT.deletionNeedsRecentSignIn.
-    await stubFirstReauthRequired(page, /\/v1\/me\/deletion$/, 'POST')
-    await page.goto('/mais/privacidade')
-    await page.getByRole('button', { name: 'Excluir minha conta' }).click()
-    const sheet = page.getByRole('dialog', { name: 'Excluir minha conta' })
-    await sheet.getByRole('button', { name: 'Excluir minha conta' }).click()
+      // The API asks for a sign-in from the last 10 minutes, and this one is seconds old. So the first
+      // request is answered with the API's own refusal, to bring the dialog up; the one after the
+      // confirmation is real. The API side is covered by AccountDeletionIT.deletionNeedsRecentSignIn.
+      await stubFirstReauthRequired(page, /\/v1\/me\/deletion$/, 'POST')
+      await page.goto('/mais/privacidade')
+      await page.getByRole('button', { name: 'Excluir minha conta' }).click()
+      const sheet = page.getByRole('dialog', { name: 'Excluir minha conta' })
+      await sheet.getByRole('button', { name: 'Excluir minha conta' }).click()
 
-    const reauth = page.getByRole('dialog', { name: 'Confirme que é você' })
-    await expect(reauth).toBeVisible()
-    await signInBudget.reserve(1)
-    await reauth.getByRole('button', { name: 'Entrar com Google' }).click()
-    await completeGoogleSignIn(page, eva)
+      const reauth = page.getByRole('dialog', { name: 'Confirme que é você' })
+      await expect(reauth).toBeVisible()
+      await signInBudget.reserve(1)
+      await reauth.getByRole('button', { name: 'Entrar com Google' }).click()
+      await completeGoogleSignIn(page, eva)
 
-    // Back where she was, she asks again, and this time the API accepts.
-    await expect(page).toHaveURL('/mais/privacidade')
-    await page.getByRole('button', { name: 'Excluir minha conta' }).click()
-    await page
-      .getByRole('dialog', { name: 'Excluir minha conta' })
-      .getByRole('button', { name: 'Excluir minha conta' })
-      .click()
-    await expect(
-      page.getByRole('heading', { level: 1, name: /Sua conta será excluída em/ }),
-    ).toBeVisible()
+      // Back where she was, she asks again, and this time the API accepts.
+      await expect(page).toHaveURL('/mais/privacidade')
+      await page.getByRole('button', { name: 'Excluir minha conta' }).click()
+      await page
+        .getByRole('dialog', { name: 'Excluir minha conta' })
+        .getByRole('button', { name: 'Excluir minha conta' })
+        .click()
+      await expect(
+        page.getByRole('heading', { level: 1, name: /Sua conta será excluída em/ }),
+      ).toBeVisible()
 
-    await page.getByRole('button', { name: 'Cancelar exclusão' }).click()
-    await expect(page).toHaveURL('/inicio')
-    await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible()
-  })
+      await page.getByRole('button', { name: 'Cancelar exclusão' }).click()
+      await expect(page).toHaveURL('/inicio')
+      await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible()
+    },
+    NO_SERVICE_WORKER,
+  )
 })
 
 test('soleOwnerBlocked: the only Dona is told to hand the family over first', async () => {

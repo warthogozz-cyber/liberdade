@@ -1,4 +1,5 @@
-const READINESS_URL = 'http://localhost:8080/actuator/health/readiness'
+import { READINESS_URL } from './urls.ts'
+
 const INTERVAL_MS = 2_000
 const TIMEOUT_MS = 120_000
 const REQUEST_TIMEOUT_MS = 5_000
@@ -23,6 +24,6 @@ export default async function globalSetup(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS))
   }
   throw new Error(
-    'A API não respondeu em http://localhost:8080. Suba o Compose: docker compose -f compose.yaml -f compose.e2e.yaml up -d --build --wait',
+    `A API não respondeu em ${READINESS_URL}. Crie o certificado de teste e suba o Compose: corepack pnpm --filter web e2e:cert && docker compose -f compose.yaml -f compose.e2e.yaml up -d --build --wait`,
   )
 }

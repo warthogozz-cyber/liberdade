@@ -15,10 +15,12 @@ import {
   type APIRequestContext,
   type Browser,
   type BrowserContext,
+  type BrowserContextOptions,
   type CDPSession,
   type Locator,
   type Page,
 } from '@playwright/test'
+import { API_URL, WEB_URL } from './urls.ts'
 
 export { expect }
 
@@ -227,7 +229,7 @@ export async function addVirtualAuthenticator(
 
 /** The signed-in page's own family id, read from the API the way the app does. */
 export async function currentWorkspaceId(page: Page): Promise<string> {
-  const response = await page.request.get('http://localhost:8080/v1/me')
+  const response = await page.request.get(`${API_URL}/v1/me`)
   expect(response.ok()).toBe(true)
   const me = (await response.json()) as { workspaces: { id: string }[] }
   return me.workspaces[0]!.id
@@ -235,7 +237,7 @@ export async function currentWorkspaceId(page: Page): Promise<string> {
 
 /** Switches every module of the page's family on or off through the API, with the page's CSRF token. */
 export async function setModules(page: Page, enabled: boolean): Promise<void> {
-  const api = 'http://localhost:8080'
+  const api = API_URL
   const ws = await currentWorkspaceId(page)
   const csrf = (await (await page.request.get(`${api}/v1/csrf`)).json()) as {
     headerName: string
@@ -254,14 +256,29 @@ export async function setModules(page: Page, enabled: boolean): Promise<void> {
 }
 
 /** The same browser settings the config gives every test, for the extra contexts of one test. */
-export const CONTEXT_OPTIONS = { locale: 'pt-BR', timezoneId: 'America/Fortaleza' } as const
+export const CONTEXT_OPTIONS = {
+  locale: 'pt-BR',
+  timezoneId: 'America/Fortaleza',
+  ignoreHTTPSErrors: true,
+} as const
 
-/** Runs `body` with a new, signed-out browser context and closes it afterwards. */
+/**
+ * For a test that stubs the API with `page.route`: on WebKit, the requests of a page the service worker
+ * controls go through the worker, where `page.route` does not see them. Playwright's advice is to block
+ * the worker in such tests; the offline test, which needs it, does not stub.
+ */
+export const NO_SERVICE_WORKER = { serviceWorkers: 'block' } as const
+
+/**
+ * Runs `body` with a new, signed-out browser context and closes it afterwards. `options` adds to
+ * the suite's own, such as `NO_SERVICE_WORKER`.
+ */
 export async function withContext<T>(
   browser: Browser,
   body: (context: BrowserContext, page: Page) => Promise<T>,
+  options: BrowserContextOptions = {},
 ): Promise<T> {
-  const context = await browser.newContext(CONTEXT_OPTIONS)
+  const context = await browser.newContext({ ...CONTEXT_OPTIONS, ...options })
   // Inside a test the patched `newContext` did it already; the script is idempotent, so a hook is covered too.
   if (!activeFindings) await silenceTips(context, activeTips)
   // Inside a test the guard already listens to this context; in a hook it only has this list.
@@ -423,7 +440,7 @@ export async function stubFirstReauthRequired(
       status: 403,
       contentType: 'application/problem+json',
       headers: {
-        'access-control-allow-origin': 'http://localhost:5173',
+        'access-control-allow-origin': WEB_URL,
         'access-control-allow-credentials': 'true',
       },
       body: JSON.stringify({
@@ -445,7 +462,7 @@ export async function postAsaasWebhook(
   request: APIRequestContext,
   body: Record<string, unknown>,
 ): Promise<void> {
-  const response = await request.post('http://localhost:8080/v1/billing/webhooks/asaas', {
+  const response = await request.post(`${API_URL}/v1/billing/webhooks/asaas`, {
     headers: { 'asaas-access-token': ASAAS_WEBHOOK_TOKEN },
     data: { id: `evt_e2e_${crypto.randomUUID()}`, ...body },
   })
@@ -479,7 +496,7 @@ export async function buyFamilyPlan(page: Page, request: APIRequestContext): Pro
   await expect(page.getByRole('heading', { name: '★ Família Fundadora' })).toBeVisible()
 }
 
-const API = 'http://localhost:8080'
+const API = API_URL
 
 /** The page's own family: its id and the time zone its months are counted in. */
 async function currentWorkspace(page: Page): Promise<{ id: string; timezone: string }> {

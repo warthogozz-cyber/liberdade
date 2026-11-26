@@ -84,6 +84,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium
+      - name: Create the test certificate
+        run: pnpm --filter web e2e:cert
       - name: Start the API with the test provider
         run: |
           cp .env.example .env
@@ -107,8 +109,7 @@ jobs:
         if: ${{ always() }}
         run: docker compose -f compose.yaml -f compose.e2e.yaml down -v
 
-  # The same suite on an Android phone, beside the desktop run above. The iPhone (WebKit) joins the
-  # matrix once the suite runs over HTTPS (see web/playwright.config.ts).
+  # The same suite on an Android phone and an iPhone, one job each, beside the desktop run above.
   e2e-mobile:
     name: e2e-mobile (${{ matrix.project }})
     runs-on: ubuntu-24.04
@@ -119,6 +120,8 @@ jobs:
         include:
           - project: mobile-chrome
             browser: chromium
+          - project: mobile-safari
+            browser: webkit
     permissions:
       contents: read
     steps:
@@ -134,6 +137,8 @@ jobs:
       - run: pnpm --filter web exec playwright install --with-deps "$BROWSER"
         env:
           BROWSER: ${{ matrix.browser }}
+      - name: Create the test certificate
+        run: pnpm --filter web e2e:cert
       - name: Start the API with the test provider
         run: |
           cp .env.example .env

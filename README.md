@@ -75,18 +75,24 @@ corepack pnpm --filter web test
 ## Testes de ponta a ponta
 
 Os testes de ponta a ponta usam o Playwright, a API no Docker e o login de teste no lugar do Google.
-Suba a stack, instale o navegador do Playwright (uma vez só) e rode a suíte:
+Tudo roda em HTTPS com um certificado de teste, porque o WebKit recusa o cookie de sessão (Secure) em
+`http://localhost`. Crie o certificado e instale os navegadores do Playwright (uma vez só), suba a
+stack e rode a suíte:
 
 ```bash
+corepack pnpm --filter web e2e:cert
+corepack pnpm --filter web exec playwright install chromium webkit
 docker compose -f compose.yaml -f compose.e2e.yaml up -d --build --wait
-corepack pnpm --filter web exec playwright install chromium
 corepack pnpm --filter web e2e
 ```
 
-A suíte roda em dois projetos: `chromium` (desktop) e `mobile-chrome` (Android, Pixel 7). Para rodar
-só um, use `--project`, por exemplo `corepack pnpm --filter web e2e --project=mobile-chrome`. O
-iPhone (WebKit) volta quando a suíte rodar em HTTPS: no Linux, o WebKit recusa o cookie de sessão
-(Secure) em `http://localhost`, e nenhum login completa.
+O certificado fica em `.e2e-tls/`, fora do git, e precisa do `openssl` (o Git para Windows já traz
+um). Nenhum navegador confia nele, e a suíte ignora o aviso só nos navegadores de teste.
+
+A suíte roda em três projetos: `chromium` (desktop), `mobile-chrome` (Android, Pixel 7) e
+`mobile-safari` (iPhone 15, WebKit). Para rodar só um, use `--project`, por exemplo
+`corepack pnpm --filter web e2e --project=mobile-safari`. Os testes de passkey precisam do
+dispositivo virtual do Chromium e ficam de fora no WebKit.
 
 A suíte usa a porta 5173, então pare o `dev` da web antes de rodar.
 

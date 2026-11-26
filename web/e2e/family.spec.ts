@@ -18,6 +18,7 @@ import {
   waitForQueueToEmpty,
   withContext,
 } from './support.ts'
+import { WEB_URL } from './urls.ts'
 
 const AUTH_FILE = 'test-results/.auth/family.json'
 
@@ -166,7 +167,7 @@ test('tokenNotInHistory: opening the link leaves no token in the address', async
   await withContext(browser, async (_context, guest) => {
     await openInvitation(guest, link, /convidou você para a .+ como Adulto/)
     expect(guest.url()).not.toContain(token)
-    expect(guest.url()).toBe('http://localhost:5173/convite')
+    expect(guest.url()).toBe(`${WEB_URL}/convite`)
     expect(await guest.evaluate(() => window.location.hash)).toBe('')
   })
 })

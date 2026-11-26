@@ -75,8 +75,16 @@ test('the PRD example shows up on the month dashboard', async ({ page }) => {
   await expect(card(page, 'Gastos')).toContainText(money('1.234,56'))
   await expect(card(page, 'Resultado do mês')).toContainText(money('3.765,44'))
 
-  await page.getByRole('group').filter({ hasText: 'Ver tabela' }).first().click()
-  const donut = page.getByRole('table', { name: 'Gastos por categoria' })
+  // The category section shows once the spending and the category names have loaded; until then the
+  // first "Ver tabela" on the page can be another chart's, so the toggle is opened inside the section.
+  const byCategory = page.getByRole('region', { name: 'Gastos por categoria' })
+  await expect(
+    byCategory
+      .getByRole('list', { name: 'Gastos por categoria' })
+      .getByRole('link', { name: /Mercado/ }),
+  ).toContainText(money('1.234,56'))
+  await byCategory.getByText('Ver tabela', { exact: true }).click()
+  const donut = byCategory.getByRole('table', { name: 'Gastos por categoria' })
   await expect(donut.getByRole('row', { name: /Mercado/ })).toContainText(money('1.234,56'))
 
   await page.goto('/mais/contas')

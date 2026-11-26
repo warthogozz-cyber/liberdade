@@ -1,6 +1,7 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { isAbsolute, relative } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { isAbsolute, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { VitePWA } from 'vite-plugin-pwa'
 import { securityHeadersPlugin } from './config/securityHeaders.ts'
@@ -41,6 +42,16 @@ function chunkModules(): Plugin {
       })
     },
   }
+}
+
+/**
+ * The e2e suite serves the preview over HTTPS with a local test certificate (`scripts/e2e-cert.mjs`),
+ * whose folder it passes in `E2E_TLS_DIR`. Without it, the preview stays on plain HTTP.
+ */
+function previewHttps(): { cert: Buffer; key: Buffer } | undefined {
+  const dir = process.env.E2E_TLS_DIR
+  if (!dir) return undefined
+  return { cert: readFileSync(join(dir, 'cert.pem')), key: readFileSync(join(dir, 'key.pem')) }
 }
 
 // https://vite.dev/config/
@@ -118,7 +129,7 @@ export default defineConfig({
     },
   },
   server: { port: 5173, strictPort: true },
-  preview: { port: 5173, strictPort: true },
+  preview: { port: 5173, strictPort: true, https: previewHttps() },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],

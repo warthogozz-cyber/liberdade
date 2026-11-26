@@ -508,7 +508,12 @@ export function VentureForm({ workspace, venture, onReload }: VentureFormProps) 
             {intl.formatMessage({ id: 'ventures.form.save' })}
           </button>
         </form>
-        <div className="fixed inset-x-0 bottom-0 z-30 max-h-[45vh] overflow-y-auto bg-surface p-3 shadow-lg lg:sticky lg:top-4 lg:max-h-none lg:bg-transparent lg:p-0 lg:shadow-none">
+        {/* On a short phone the figures overflow the 45vh and nothing inside takes the focus, so the
+            panel itself does: the keyboard can scroll it (WCAG 2.1.1). */}
+        <div
+          tabIndex={0}
+          className="fixed inset-x-0 bottom-0 z-30 max-h-[45vh] overflow-y-auto bg-surface p-3 shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:sticky lg:top-4 lg:max-h-none lg:bg-transparent lg:p-0 lg:shadow-none"
+        >
           <FiguresPanel
             {...(simulation.figures ? { figures: simulation.figures } : {})}
             currency={workspace.currency}

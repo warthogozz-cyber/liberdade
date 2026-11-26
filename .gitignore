@@ -21,3 +21,5 @@ blob-report/
 !*.tfvars.example
 backend.hcl
 crash.log
+# Test certificate for the e2e stack (web/scripts/e2e-cert.mjs)
+.e2e-tls/

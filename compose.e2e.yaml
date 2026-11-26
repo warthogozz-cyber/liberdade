@@ -1,4 +1,5 @@
 # Sign-in without a Google account: a mock OIDC provider stands in for Google.
+# The API serves HTTPS with the test certificate: create it first with `corepack pnpm --filter web e2e:cert`.
 # Use: docker compose -f compose.yaml -f compose.e2e.yaml up -d --build
 services:
   mock-oauth2:
@@ -16,3 +17,17 @@ services:
       - mock-oauth2
     # OIDC discovery fails at startup while the mock is still coming up.
     restart: on-failure
+    volumes:
+      - ./.e2e-tls:/certs:ro
+    # Health moves to plain HTTP on 8081 (application-e2e.properties), so the check follows it.
+    ports:
+      - "127.0.0.1:8081:8081"
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/localhost/8081 &&
+          printf 'GET /actuator/health/readiness HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3 &&
+          grep -q '"status":"UP"' <&3
