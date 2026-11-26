@@ -6,7 +6,13 @@ test('sends a visitor without a session to the sign-in screen', async ({ page })
 
   await expect(page).toHaveURL('/entrar')
   await expect(page.getByRole('button', { name: 'Entrar com Google' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Entrar com passkey' })).toBeVisible()
+  // The app offers a passkey only where the browser has WebAuthn, and the test WebKit has none.
+  const passkey = page.getByRole('button', { name: 'Entrar com passkey' })
+  if (await page.evaluate(() => typeof window.PublicKeyCredential === 'function')) {
+    await expect(passkey).toBeVisible()
+  } else {
+    await expect(passkey).toHaveCount(0)
+  }
 })
 
 test('brings a sign-in refused at Google back to the sign-in screen (Review Focus 3)', async ({

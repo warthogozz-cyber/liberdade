@@ -15,6 +15,7 @@ import {
   type APIRequestContext,
   type Browser,
   type BrowserContext,
+  type BrowserContextOptions,
   type CDPSession,
   type Locator,
   type Page,
@@ -261,12 +262,23 @@ export const CONTEXT_OPTIONS = {
   ignoreHTTPSErrors: true,
 } as const
 
-/** Runs `body` with a new, signed-out browser context and closes it afterwards. */
+/**
+ * For a test that stubs the API with `page.route`: on WebKit, the requests of a page the service worker
+ * controls go through the worker, where `page.route` does not see them. Playwright's advice is to block
+ * the worker in such tests; the offline test, which needs it, does not stub.
+ */
+export const NO_SERVICE_WORKER = { serviceWorkers: 'block' } as const
+
+/**
+ * Runs `body` with a new, signed-out browser context and closes it afterwards. `options` adds to
+ * the suite's own, such as `NO_SERVICE_WORKER`.
+ */
 export async function withContext<T>(
   browser: Browser,
   body: (context: BrowserContext, page: Page) => Promise<T>,
+  options: BrowserContextOptions = {},
 ): Promise<T> {
-  const context = await browser.newContext(CONTEXT_OPTIONS)
+  const context = await browser.newContext({ ...CONTEXT_OPTIONS, ...options })
   // Inside a test the patched `newContext` did it already; the script is idempotent, so a hook is covered too.
   if (!activeFindings) await silenceTips(context, activeTips)
   // Inside a test the guard already listens to this context; in a hook it only has this list.

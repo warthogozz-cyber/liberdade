@@ -177,4 +177,13 @@ describe('VentureForm', () => {
       screen.getByRole('button', { name: 'Acrescentar custo fixo' }).getAttribute('style'),
     ).toContain('scroll-margin-bottom: 50vh')
   })
+
+  it('letsTheKeyboardScrollTheMobilePanel', () => {
+    render(exampleVenture())
+
+    // On a short phone the panel's figures overflow its 45vh, and nothing inside it takes the focus.
+    const panel = screen.getByRole('region', { name: 'Prévia das contas' }).parentElement
+    expect(panel).toHaveClass('overflow-y-auto')
+    expect(panel).toHaveAttribute('tabindex', '0')
+  })
 })
