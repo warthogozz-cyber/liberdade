@@ -1,4 +1,12 @@
-import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react'
+import {
+  Component,
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { registerMessages } from '@/shared/i18n'
 import { marketsMessages } from '../messages.pt-BR'
@@ -16,6 +24,36 @@ const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visi
 const field = 'min-h-12 rounded-field border border-text-muted bg-background px-3 text-base'
 const outline = `flex min-h-12 items-center justify-center rounded-field border border-primary px-4 font-medium text-primary ${focus}`
 const primary = `flex min-h-12 items-center justify-center rounded-field border border-primary bg-primary px-4 font-medium text-on-primary disabled:opacity-60 ${focus}`
+
+/**
+ * Keeps a reader that fails to load (a dropped connection, a stale deploy) or breaks while opening
+ * from taking the screen down: it says so and hands over to paste and type.
+ */
+class ReaderBoundary extends Component<
+  { onFailed: () => void; children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  componentDidCatch(error: unknown) {
+    console.error('The QR reader failed', error)
+    this.props.onFailed()
+  }
+
+  render() {
+    return this.state.failed ? (
+      <p role="alert" className="text-sm">
+        <FormattedMessage id="markets.receipt.scanner.failed" />
+      </p>
+    ) : (
+      this.props.children
+    )
+  }
+}
 
 /** The typed key as the screen shows it: no separators, capitals, groups of 4. */
 const groupKey = (text: string) =>
@@ -107,23 +145,24 @@ export function ReceiptKeyStep({ pending, error, onParsed }: ReceiptKeyStepProps
       </div>
 
       {scanning && (
-        <Suspense
-          fallback={
-            <p role="status">
-              <FormattedMessage id="common.loading" />
-            </p>
-          }
-        >
-          <QrScanner
-            key={scanRun}
-            onResult={(raw) => {
-              setScanning(false)
-              handle(raw)
-            }}
-            // The scanner keeps its own alert on screen; paste and type are the way on.
-            onUnavailable={() => setInput((current) => current ?? 'paste')}
-          />
-        </Suspense>
+        <ReaderBoundary key={scanRun} onFailed={() => setInput((current) => current ?? 'paste')}>
+          <Suspense
+            fallback={
+              <p role="status">
+                <FormattedMessage id="common.loading" />
+              </p>
+            }
+          >
+            <QrScanner
+              onResult={(raw) => {
+                setScanning(false)
+                handle(raw)
+              }}
+              // The scanner keeps its own alert on screen; paste and type are the way on.
+              onUnavailable={() => setInput((current) => current ?? 'paste')}
+            />
+          </Suspense>
+        </ReaderBoundary>
       )}
 
       {input !== null && (
