@@ -10,6 +10,6 @@ final class FakeGeocoder implements Geocoder {
     @Override
     public List<GeocodedPlace> search(String query) {
         return List.of(new GeocodedPlace(
-                new GeoPoint(new BigDecimal("-23.000"), new BigDecimal("-46.000")), "Bairro Exemplo, Cidade Exemplo"));
+                new GeoPoint(new BigDecimal("-10.000"), new BigDecimal("-50.000")), "Bairro Exemplo, Cidade Exemplo"));
     }
 }
