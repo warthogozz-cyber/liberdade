@@ -186,3 +186,26 @@ describe('MorePage projects entry', () => {
     expect(screen.queryByRole('link', { name: 'Projetos' })).not.toBeInTheDocument()
   })
 })
+
+describe('MorePage feira entry', () => {
+  it.each(['OWNER', 'ADULT', 'YOUTH', 'VIEWER'] as const)('showsFeiraWhenOnFor%s', async (role) => {
+    const workspace = seedMockFamily()
+    workspace.role = role
+    mockState.modules[workspace.id] = { markets: true }
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByRole('link', { name: 'Feira' })).toHaveAttribute(
+      'href',
+      '/mais/feira',
+    )
+  })
+
+  it('showsNoFeiraEntryWhenOff', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { markets: false }
+    renderWithProviders(<MorePage />, { path: '/mais' })
+
+    expect(await screen.findByText(workspace.name)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Feira' })).not.toBeInTheDocument()
+  })
+})

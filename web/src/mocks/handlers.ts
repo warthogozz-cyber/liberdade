@@ -12,11 +12,14 @@ import {
   createFamily,
   foodSweetsVenture,
   prdExampleFigures,
+  FAKE_OSM_MARKETS,
   keepsAcceptance,
   type MockAccount,
   type MockBudget,
   type MockGoal,
+  type MockFamilyMarket,
   type MockInvitation,
+  type MockMarkets,
   type MockRule,
   mockState,
   ventureTracks,
@@ -75,9 +78,10 @@ const MODULE_KEYS: Schemas['ModuleView']['key'][] = [
   'indicators',
   'gamification',
   'ventures',
+  'markets',
 ]
 
-/** The four modules in the API's order, off unless the family switched them on. */
+/** The modules in the API's order, off unless the family switched them on. */
 const SAO_PAULO_OFFSET_MS = 3 * 60 * 60 * 1000
 
 /**
@@ -1037,6 +1041,365 @@ function ventureSummary(view: Schemas['VentureView']): Schemas['VentureSummary']
     paybackMonths: view.figures.paybackMonths,
     paybackState: view.figures.paybackState,
   }
+}
+
+/** The routes of the Feira (markets) module: the same six invented markets as the API's fake dataset. */
+function marketsHandlers() {
+  const COORDINATE = /^-?\d+(\.\d+)?$/
+  const KM_PER_DEGREE = 111.2
+  const DATASET_DATE = '2026-01-01'
+  const MARKET_KINDS: unknown[] = ['SUPERMARKET', 'CONVENIENCE', 'GREENGROCER', 'MARKETPLACE']
+  const tooPrecise = () =>
+    problem(
+      422,
+      'markets.location_too_precise',
+      'Esta localização é mais precisa do que o app aceita aqui.',
+    )
+  const badLocation = () =>
+    problem(
+      422,
+      'markets.location_invalid',
+      'Essa localização não existe. Confira latitude e longitude.',
+    )
+  const notFound = () => problem(404, 'markets.not_found', 'Mercado não encontrado.')
+  const embedUnavailable = () =>
+    problem(422, 'markets.instagram_unavailable', 'Não deu para mostrar essa página do Instagram.')
+
+  /** The family, the module on, and a writer when asked (reads are open to the four roles). */
+  function marketsGuard(ws: string, write: boolean): MeWorkspace | Response {
+    const workspace = guard(ws)
+    if (workspace instanceof Response) return workspace
+    if (mockState.modules[workspace.id]?.markets !== true) {
+      return problem(403, 'module.disabled', 'O módulo Feira está desligado.')
+    }
+    return write && !canManageRules(workspace) ? roleDenied() : workspace
+  }
+  const owned = (ws: string): MockMarkets =>
+    (mockState.markets[ws] ??= { family: [], home: null, osmLinks: {}, archivedOsm: [] })
+
+  const decimals = (text: string) => text.split('.')[1]?.length ?? 0
+  /** A coordinate pair as text, or the answer to give when it is not one. */
+  function readPoint(lat: unknown, lon: unknown, maxDecimals: number): [string, string] | Response {
+    if (typeof lat !== 'string' || typeof lon !== 'string') return badLocation()
+    if (!COORDINATE.test(lat) || !COORDINATE.test(lon)) return badLocation()
+    if (Math.abs(Number(lat)) > 90 || Math.abs(Number(lon)) > 180) return badLocation()
+    if (decimals(lat) > maxDecimals || decimals(lon) > maxDecimals) return tooPrecise()
+    return [lat, lon]
+  }
+
+  function card(ws: string, ref: string): Schemas['MarketCardView'] | undefined {
+    const state = owned(ws)
+    const osm = FAKE_OSM_MARKETS.find((each) => each.ref === ref)
+    const link = (value: string | null | undefined, source: 'FAMILY' | 'OSM') =>
+      value ? { value, source, date: null } : null
+    if (osm) {
+      const links = state.osmLinks[ref]
+      const instagram = links?.instagram ?? osm.instagram
+      return {
+        ref,
+        origin: 'OSM',
+        status: state.archivedOsm.includes(ref) ? 'ARCHIVED' : 'ACTIVE',
+        familyId: null,
+        name: osm.name,
+        kind: osm.kind,
+        lat: osm.lat,
+        lon: osm.lon,
+        cnpj: null,
+        address: { street: osm.street, housenumber: osm.housenumber, suburb: null, city: null },
+        openingHours: null,
+        instagram: link(instagram, links?.instagram ? 'FAMILY' : 'OSM'),
+        instagramEmbeddable: instagram !== null,
+        website: link(links?.website, 'FAMILY'),
+        flyer: null,
+        datasetDate: DATASET_DATE,
+        updatedAt: null,
+      }
+    }
+    const row = state.family.find((each) => each.id === ref)
+    if (!row) return undefined
+    return {
+      ref: row.id,
+      origin: 'FAMILY',
+      status: row.archived ? 'ARCHIVED' : 'ACTIVE',
+      familyId: row.id,
+      name: row.name,
+      kind: row.kind,
+      lat: row.lat,
+      lon: row.lon,
+      cnpj: null,
+      address: null,
+      openingHours: null,
+      instagram: link(row.instagram, 'FAMILY'),
+      instagramEmbeddable: row.instagram !== null,
+      website: link(row.website, 'FAMILY'),
+      flyer: null,
+      datasetDate: null,
+      updatedAt: null,
+    }
+  }
+
+  return [
+    http.get<{ ws: string }>(url('/v1/workspaces/:ws/markets/settings'), ({ params }) => {
+      const workspace = marketsGuard(params.ws, false)
+      if (workspace instanceof Response) return workspace
+      return HttpResponse.json({ geocodingEnabled: true, instagramEnabled: true })
+    }),
+
+    http.post<{ ws: string }>(
+      url('/v1/workspaces/:ws/markets/search'),
+      async ({ request, params }) => {
+        const workspace = marketsGuard(params.ws, false)
+        if (workspace instanceof Response) return workspace
+        const body = (await readJson(request)) as
+          { lat?: unknown; lon?: unknown; radiusKm?: unknown } | undefined
+        if (!body) return malformed()
+        const point = readPoint(body.lat, body.lon, 2)
+        if (point instanceof Response) return point
+        const radiusKm = body.radiusKm ?? 3
+        if (typeof radiusKm !== 'number' || radiusKm < 1 || radiusKm > 10) {
+          return problem(422, 'markets.radius_invalid', 'O raio vai de 1 a 10 km.')
+        }
+        const lat = Number(point[0])
+        const lon = Number(point[1])
+        // A box a kilometer wider than the radius: the screen measures and trims the rest.
+        const within = (itemLat: string, itemLon: string) =>
+          Math.abs(Number(itemLat) - lat) <= (radiusKm + 1) / KM_PER_DEGREE &&
+          Math.abs(Number(itemLon) - lon) <=
+            (radiusKm + 1) / (KM_PER_DEGREE * Math.max(Math.cos((lat * Math.PI) / 180), 0.01))
+        const state = owned(workspace.id)
+        return HttpResponse.json({
+          datasetDate: DATASET_DATE,
+          osm: FAKE_OSM_MARKETS.filter(
+            (each) => !state.archivedOsm.includes(each.ref) && within(each.lat, each.lon),
+          ).map((each) => ({
+            ref: each.ref,
+            name: each.name,
+            kind: each.kind,
+            lat: each.lat,
+            lon: each.lon,
+            street: each.street,
+            housenumber: each.housenumber,
+            suburb: null,
+            city: null,
+            brand: null,
+            familyId: null,
+          })),
+          family: state.family
+            .filter((each) => !each.archived && each.lat !== null && each.lon !== null)
+            .filter((each) => within(each.lat ?? '0', each.lon ?? '0'))
+            .map((each) => ({
+              ref: each.id,
+              name: each.name,
+              kind: each.kind,
+              lat: each.lat ?? '0',
+              lon: each.lon ?? '0',
+            })),
+          left: [],
+          unlocated: state.family
+            .filter((each) => !each.archived && (each.lat === null || each.lon === null))
+            .map((each) => ({ ref: each.id, name: each.name, kind: each.kind })),
+        })
+      },
+    ),
+
+    http.post<{ ws: string }>(url('/v1/workspaces/:ws/markets'), async ({ request, params }) => {
+      const workspace = marketsGuard(params.ws, true)
+      if (workspace instanceof Response) return workspace
+      const body = (await readJson(request)) as
+        { name?: unknown; kind?: unknown; lat?: unknown; lon?: unknown } | undefined
+      if (!body) return malformed()
+      if (typeof body.name !== 'string' || body.name.trim() === '') {
+        return invalid([{ field: 'name', code: 'required' }])
+      }
+      if (!MARKET_KINDS.includes(body.kind)) return invalid([{ field: 'kind', code: 'invalid' }])
+      let lat: string | null = null
+      let lon: string | null = null
+      if (body.lat != null || body.lon != null) {
+        const point = readPoint(body.lat, body.lon, 5)
+        if (point instanceof Response) return point
+        ;[lat, lon] = point
+      }
+      const row: MockFamilyMarket = {
+        id: crypto.randomUUID(),
+        name: body.name.trim(),
+        kind: body.kind as MockFamilyMarket['kind'],
+        lat,
+        lon,
+        archived: false,
+        instagram: null,
+        website: null,
+      }
+      owned(workspace.id).family.push(row)
+      return HttpResponse.json(card(workspace.id, row.id), { status: 201 })
+    }),
+
+    http.get<{ ws: string }>(url('/v1/workspaces/:ws/markets/home'), ({ params }) => {
+      const workspace = marketsGuard(params.ws, false)
+      if (workspace instanceof Response) return workspace
+      if (!canManageRules(workspace)) return roleDenied()
+      const home = owned(workspace.id).home
+      return home ? HttpResponse.json(home) : new HttpResponse(null, { status: 204 })
+    }),
+
+    http.put<{ ws: string }>(
+      url('/v1/workspaces/:ws/markets/home'),
+      async ({ request, params }) => {
+        const workspace = marketsGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        const body = (await readJson(request)) as
+          { lat?: unknown; lon?: unknown; label?: unknown } | undefined
+        if (!body) return malformed()
+        const point = readPoint(body.lat, body.lon, 3)
+        if (point instanceof Response) return point
+        const home = {
+          lat: point[0],
+          lon: point[1],
+          label: typeof body.label === 'string' ? body.label : null,
+        }
+        owned(workspace.id).home = home
+        return HttpResponse.json(home)
+      },
+    ),
+
+    http.delete<{ ws: string }>(url('/v1/workspaces/:ws/markets/home'), ({ params }) => {
+      const workspace = marketsGuard(params.ws, true)
+      if (workspace instanceof Response) return workspace
+      owned(workspace.id).home = null
+      return new HttpResponse(null, { status: 204 })
+    }),
+
+    http.post<{ ws: string }>(
+      url('/v1/workspaces/:ws/markets/geocode'),
+      async ({ request, params }) => {
+        const workspace = marketsGuard(params.ws, false)
+        if (workspace instanceof Response) return workspace
+        const body = (await readJson(request)) as { query?: unknown } | undefined
+        if (!body || typeof body.query !== 'string') return malformed()
+        if (body.query.trim().toLowerCase() === 'falha') {
+          return problem(
+            503,
+            'markets.geocoding_unavailable',
+            'A busca de endereço não respondeu. Tente de novo.',
+          )
+        }
+        return HttpResponse.json({
+          places: [{ lat: '-10.000', lon: '-50.000', label: 'Bairro Exemplo, Cidade Exemplo' }],
+        })
+      },
+    ),
+
+    http.get<{ ws: string; ref: string }>(url('/v1/workspaces/:ws/markets/:ref'), ({ params }) => {
+      const workspace = marketsGuard(params.ws, false)
+      if (workspace instanceof Response) return workspace
+      const view = card(workspace.id, params.ref)
+      return view ? HttpResponse.json(view) : notFound()
+    }),
+
+    http.put<{ ws: string; ref: string }>(
+      url('/v1/workspaces/:ws/markets/:ref/links'),
+      async ({ request, params }) => {
+        const workspace = marketsGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        const body = (await readJson(request)) as
+          { instagram?: string | null; website?: string | null } | undefined
+        if (!body) return malformed()
+        const state = owned(workspace.id)
+        const row = state.family.find((each) => each.id === params.ref)
+        if (row) {
+          row.instagram = body.instagram ?? null
+          row.website = body.website ?? null
+        } else if (FAKE_OSM_MARKETS.some((each) => each.ref === params.ref)) {
+          state.osmLinks[params.ref] = {
+            instagram: body.instagram ?? null,
+            website: body.website ?? null,
+          }
+        } else {
+          return notFound()
+        }
+        return HttpResponse.json(card(workspace.id, params.ref))
+      },
+    ),
+
+    http.put<{ ws: string; ref: string }>(
+      url('/v1/workspaces/:ws/markets/:ref/position'),
+      async ({ request, params }) => {
+        const workspace = marketsGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        const row = owned(workspace.id).family.find((each) => each.id === params.ref)
+        if (!row) return notFound()
+        const body = (await readJson(request)) as { lat?: unknown; lon?: unknown } | undefined
+        if (!body) return malformed()
+        if (body.lat == null && body.lon == null) {
+          row.lat = null
+          row.lon = null
+        } else {
+          const point = readPoint(body.lat, body.lon, 5)
+          if (point instanceof Response) return point
+          ;[row.lat, row.lon] = point
+        }
+        return HttpResponse.json(card(workspace.id, row.id))
+      },
+    ),
+
+    http.post<{ ws: string; ref: string }>(
+      url('/v1/workspaces/:ws/markets/:ref/archive'),
+      ({ params }) => {
+        const workspace = marketsGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        const state = owned(workspace.id)
+        const row = state.family.find((each) => each.id === params.ref)
+        if (row) {
+          row.archived = true
+        } else if (FAKE_OSM_MARKETS.some((each) => each.ref === params.ref)) {
+          state.archivedOsm.push(params.ref)
+        } else {
+          return notFound()
+        }
+        return new HttpResponse(null, { status: 204 })
+      },
+    ),
+
+    http.post<{ ws: string; ref: string }>(
+      url('/v1/workspaces/:ws/markets/:ref/convert'),
+      async ({ request, params }) => {
+        const workspace = marketsGuard(params.ws, true)
+        if (workspace instanceof Response) return workspace
+        const state = owned(workspace.id)
+        const osm = FAKE_OSM_MARKETS.find((each) => each.ref === params.ref)
+        if (!osm) return notFound()
+        const body = (await readJson(request)) as { name?: unknown } | undefined
+        const row: MockFamilyMarket = {
+          id: crypto.randomUUID(),
+          name: typeof body?.name === 'string' && body.name ? body.name : (osm.name ?? osm.kind),
+          kind: osm.kind,
+          lat: osm.lat,
+          lon: osm.lon,
+          archived: false,
+          instagram: null,
+          website: null,
+        }
+        state.family.push(row)
+        state.archivedOsm.push(osm.ref)
+        return HttpResponse.json(card(workspace.id, row.id))
+      },
+    ),
+
+    http.post<{ ws: string; ref: string }>(
+      url('/v1/workspaces/:ws/markets/:ref/instagram-embed'),
+      ({ params }) => {
+        const workspace = marketsGuard(params.ws, false)
+        if (workspace instanceof Response) return workspace
+        const view = card(workspace.id, params.ref)
+        if (!view) return notFound()
+        if (!view.instagram?.value || view.instagram.value.includes('privado')) {
+          return embedUnavailable()
+        }
+        return HttpResponse.json({
+          html: '<blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/exemplo.loja/"></blockquote>',
+        })
+      },
+    ),
+  ]
 }
 
 /** The routes of the projects module (the simulation routes come with their screens). */
@@ -2990,6 +3353,7 @@ export const handlers = [
   }),
 
   ...ventureHandlers(),
+  ...marketsHandlers(),
 
   http.get<{ ws: string }>(url('/v1/workspaces/:ws/indicators'), ({ params }) => {
     const workspace = guard(params.ws)

@@ -9,6 +9,7 @@ import { WelcomePage } from '@/features/onboarding/WelcomePage'
 // Registers the planning module and its messages; the screens load on demand.
 import '@/features/gamification/register'
 import '@/features/indicators/register'
+import '@/features/markets/register'
 import '@/features/planning/register'
 import '@/features/recurrences/register'
 import '@/features/ventures/register'
@@ -229,6 +230,23 @@ export const routes: RouteObject[] = [
                           })),
                       },
                     ],
+                  },
+                ],
+              },
+              {
+                // With the Feira module off, its screens do not open either. Every role may read it.
+                element: (
+                  <ModuleRoute module="markets">
+                    <Outlet />
+                  </ModuleRoute>
+                ),
+                children: [
+                  {
+                    path: '/mais/feira/*',
+                    lazy: () =>
+                      import('@/features/markets/MarketsRoutes').then((m) => ({
+                        Component: m.MarketsRoutes,
+                      })),
                   },
                 ],
               },

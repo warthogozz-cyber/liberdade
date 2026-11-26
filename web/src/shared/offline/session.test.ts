@@ -79,4 +79,17 @@ describe('clearSession', () => {
     expect(sessionStorage.getItem('liberdade.other')).toBe('kept')
     sessionStorage.removeItem('liberdade.other')
   })
+
+  it("forgets the Feira's saved location choice of every person, and only that", async () => {
+    localStorage.setItem('liberdade.markets.user-a', '{"mode":"precise"}')
+    localStorage.setItem('liberdade.markets.user-b', '{"mode":"home"}')
+    localStorage.setItem('liberdade.tips', 'on')
+
+    await clearSession(createTestQueryClient())
+
+    expect(localStorage.getItem('liberdade.markets.user-a')).toBeNull()
+    expect(localStorage.getItem('liberdade.markets.user-b')).toBeNull()
+    expect(localStorage.getItem('liberdade.tips')).toBe('on')
+    localStorage.clear()
+  })
 })

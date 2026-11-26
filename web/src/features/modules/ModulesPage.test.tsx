@@ -20,8 +20,8 @@ describe('ModulesPage', () => {
     renderModules()
 
     expect(await screen.findByText('Núcleo')).toBeInTheDocument()
-    expect(screen.getAllByText('Em breve')).toHaveLength(4)
-    for (const name of ['Planejamento', 'Indicadores', 'Conquistas', 'Projetos']) {
+    expect(screen.getAllByText('Em breve')).toHaveLength(5)
+    for (const name of ['Planejamento', 'Indicadores', 'Conquistas', 'Projetos', 'Feira']) {
       expect(screen.getByRole('switch', { name })).toBeDisabled()
     }
   })
@@ -34,7 +34,7 @@ describe('ModulesPage', () => {
     const toggle = await screen.findByRole('switch', { name: 'Planejamento' })
     expect(toggle).toBeEnabled()
     expect(toggle).toHaveAttribute('aria-checked', 'false')
-    expect(screen.getAllByText('Em breve')).toHaveLength(3)
+    expect(screen.getAllByText('Em breve')).toHaveLength(4)
 
     fireEvent.click(toggle)
 
@@ -62,6 +62,6 @@ describe('ModulesPage', () => {
 
     expect(await screen.findByText('Planejamento')).toBeInTheDocument()
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
-    expect(screen.getAllByText('Em breve')).toHaveLength(4)
+    expect(screen.getAllByText('Em breve')).toHaveLength(5)
   })
 })
