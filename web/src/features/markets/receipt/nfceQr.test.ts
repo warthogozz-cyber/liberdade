@@ -97,6 +97,27 @@ describe('parseNfceInput', () => {
     expect(parseNfceInput('hello world', TODAY)).toEqual({ error: 'not-nfce' })
   })
 
+  it('typedKeyLowercaseIsNormalised', () => {
+    const lettered = makeChave({ cnpjBase: 'AB12CD34EF56' })
+    const typed = lettered
+      .toLowerCase()
+      .replace(/(.{4})/g, '$1 ')
+      .trim()
+    expect(ok(parseNfceInput(typed, TODAY))).toEqual({ chave: lettered, version: 0 })
+  })
+
+  it('letterOutsideCnpjIsFormat', () => {
+    const outside = `${chave.slice(0, 2)}A${chave.slice(3)}`
+    expect(parseNfceInput(outside, TODAY)).toEqual({ error: 'format' })
+    const inSerie = `${chave.slice(0, 24)}A${chave.slice(25)}`
+    expect(parseNfceInput(inSerie, TODAY)).toEqual({ error: 'format' })
+  })
+
+  it('v1WithoutTpAmbIsNotNfce', () => {
+    const noEnvironment = `https://sefaz.example.test/nfce/qrcode?chNFe=${chave}&nVersao=100`
+    expect(parseNfceInput(noEnvironment, TODAY)).toEqual({ error: 'not-nfce' })
+  })
+
   it('wrongShapeIsFormat', () => {
     expect(parseNfceInput(chave.slice(1), TODAY)).toEqual({ error: 'format' })
     expect(parseNfceInput(makeChave({ uf: '99' }), TODAY)).toEqual({ error: 'format' })

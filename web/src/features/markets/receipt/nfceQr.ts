@@ -60,7 +60,8 @@ function keyCheckDigit(body: string): number {
 
 /** The same checks as the API's `NfceKey.parse` (D2), in the same order, so a typo shows up here first. */
 function checkKey(chave: string, today: Date): NfceInputError['error'] | null {
-  if (!/^[0-9A-Z]{44}$/.test(chave)) return 'format'
+  // Letters only where the CNPJ is (positions 7 to 18), as the API's key shape allows.
+  if (!/^[0-9]{6}[0-9A-Z]{12}[0-9]{26}$/.test(chave)) return 'format'
   if (!UF_CODES.has(chave.slice(0, 2))) return 'format'
   const year = 2000 + Number(chave.slice(2, 4))
   const month = Number(chave.slice(4, 6))
@@ -104,12 +105,14 @@ const httpOnly = (link: URL, raw: string): string | undefined =>
 function parseLink(link: URL, raw: string, today: Date): ParsedNfce | NfceInputError {
   const finish = (
     parsed: ParsedNfce,
-    homologation: boolean,
+    tpAmb: string | null | undefined,
     withBuyerDocument: boolean,
   ): ParsedNfce | NfceInputError => {
     const error = checkKey(parsed.chave, today)
     if (error) return { error }
-    if (homologation) return { error: 'homologation' }
+    // Only 1 (production) and 2 (homologation) exist: a missing or odd value is not an NFC-e link.
+    if (tpAmb === '2') return { error: 'homologation' }
+    if (tpAmb !== '1') return { error: 'not-nfce' }
     const sefazUrl = withBuyerDocument ? undefined : httpOnly(link, raw)
     return sefazUrl === undefined ? parsed : { ...parsed, sefazUrl }
   }
@@ -121,7 +124,7 @@ function parseLink(link: URL, raw: string, today: Date): ParsedNfce | NfceInputE
     const chave = chNFe.trim().toUpperCase()
     const issuedOn = issuedOnFromHex(params.get('dhEmi'))
     const parsed: ParsedNfce = { chave, version: 1, ...(issuedOn && { issuedOn }) }
-    return finish(parsed, params.get('tpAmb') !== '1', (params.get('cDest') ?? '') !== '')
+    return finish(parsed, params.get('tpAmb'), (params.get('cDest') ?? '') !== '')
   }
 
   const p = params.get('p')
@@ -132,7 +135,7 @@ function parseLink(link: URL, raw: string, today: Date): ParsedNfce | NfceInputE
   if (fields[1] === '2' && (fields.length === 5 || offline)) {
     const issuedOn = offline ? issuedOnFromDay(chave, fields[3] ?? '') : undefined
     const parsed: ParsedNfce = { chave, version: 2, p, ...(issuedOn && { issuedOn }) }
-    return finish(parsed, fields[2] !== '1', false)
+    return finish(parsed, fields[2], false)
   }
   if (fields[1] === '3' && (fields.length === 3 || offline)) {
     const issuedOn = offline ? issuedOnFromDay(chave, fields[3] ?? '') : undefined
@@ -143,7 +146,7 @@ function parseLink(link: URL, raw: string, today: Date): ParsedNfce | NfceInputE
       p: `${chave}|3|1`,
       ...(issuedOn && { issuedOn }),
     }
-    return finish(parsed, fields[2] !== '1', offline)
+    return finish(parsed, fields[2], offline)
   }
   return { error: 'not-nfce' }
 }
@@ -152,10 +155,12 @@ function parseLink(link: URL, raw: string, today: Date): ParsedNfce | NfceInputE
 export function parseNfceInput(raw: string, today: Date): ParsedNfce | NfceInputError {
   const text = raw.trim()
   const typed = text.replace(/[\s.]/g, '')
-  if (/^[0-9A-Z]+$/.test(typed)) {
-    if (typed.length !== 44) return { error: 'format' }
-    const error = checkKey(typed, today)
-    return error ? { error } : { chave: typed, version: 0 }
+  // Lowercase is normalised like the link paths do; a word with no digit is not a key at all.
+  if (/^[0-9A-Za-z]+$/.test(typed) && /[0-9]/.test(typed)) {
+    const chave = typed.toUpperCase()
+    if (chave.length !== 44) return { error: 'format' }
+    const error = checkKey(chave, today)
+    return error ? { error } : { chave, version: 0 }
   }
   let link: URL
   try {
