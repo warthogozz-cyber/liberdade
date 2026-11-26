@@ -122,9 +122,38 @@ class FamilyPurgeJobIT {
                 .param("hash", UUID.randomUUID().toString().getBytes())
                 .param("ana", ana)
                 .update();
-        jdbc.sql(
-                        "insert into markets (workspace_id, origin, name, kind) values (:ws, 'FAMILY', 'Feira Exemplo', 'GREENGROCER')")
+        UUID market = jdbc.sql(
+                        "insert into markets (workspace_id, origin, name, kind) values (:ws, 'FAMILY', 'Feira Exemplo', 'GREENGROCER') returning id")
                 .param("ws", ws)
+                .query(UUID.class)
+                .single();
+        UUID product = jdbc.sql(
+                        "insert into products (workspace_id, name, unit) values (:ws, 'Arroz', 'UN') returning id")
+                .param("ws", ws)
+                .query(UUID.class)
+                .single();
+        jdbc.sql("""
+                        insert into product_aliases (workspace_id, market_id, description_norm, product_id)
+                        values (:ws, :market, 'arroz', :product)""")
+                .param("ws", ws)
+                .param("market", market)
+                .param("product", product)
+                .update();
+        UUID receipt = jdbc.sql("""
+                        insert into receipts (workspace_id, market_id, key_hash, issued_on, mode, item_count)
+                        values (:ws, :market, 'hash-exemplo', date '2026-11-10', 'MANUAL', 1) returning id""")
+                .param("ws", ws)
+                .param("market", market)
+                .query(UUID.class)
+                .single();
+        jdbc.sql("""
+                        insert into price_records (workspace_id, market_id, product_id, receipt_id, observed_on, unit,
+                                                   unit_price)
+                        values (:ws, :market, :product, :receipt, date '2026-11-10', 'UN', 4.99)""")
+                .param("ws", ws)
+                .param("market", market)
+                .param("product", product)
+                .param("receipt", receipt)
                 .update();
         jdbc.sql("insert into market_home (workspace_id, lat, lon, label) values (:ws, -23.123, -46.456, 'Casa')")
                 .param("ws", ws)
@@ -152,7 +181,11 @@ class FamilyPurgeJobIT {
             "tags",
             "transaction_tags",
             "markets",
-            "market_home"
+            "market_home",
+            "products",
+            "product_aliases",
+            "receipts",
+            "price_records"
         }) {
             assertThat(jdbc.sql("select count(*) from " + table + " where workspace_id = :ws")
                             .param("ws", ws)

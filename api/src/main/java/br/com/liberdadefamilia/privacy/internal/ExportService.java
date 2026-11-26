@@ -16,8 +16,12 @@ import br.com.liberdadefamilia.ledger.ExportedCategory;
 import br.com.liberdadefamilia.ledger.ExportedTag;
 import br.com.liberdadefamilia.ledger.ExportedTransaction;
 import br.com.liberdadefamilia.ledger.LedgerExport;
+import br.com.liberdadefamilia.markets.ExportedAlias;
 import br.com.liberdadefamilia.markets.ExportedMarket;
 import br.com.liberdadefamilia.markets.ExportedMarketHome;
+import br.com.liberdadefamilia.markets.ExportedPrice;
+import br.com.liberdadefamilia.markets.ExportedProduct;
+import br.com.liberdadefamilia.markets.ExportedReceipt;
 import br.com.liberdadefamilia.markets.MarketsExport;
 import br.com.liberdadefamilia.planning.ExportedBudget;
 import br.com.liberdadefamilia.planning.ExportedContribution;
@@ -46,6 +50,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -78,7 +83,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 class ExportService {
 
-    private static final int FORMAT_VERSION = 9;
+    private static final int FORMAT_VERSION = 10;
     private static final ZoneId FORTALEZA = ZoneId.of("America/Fortaleza");
     private static final List<String> TRANSACTION_HEADER = List.of(
             "data",
@@ -234,6 +239,10 @@ class ExportService {
             List<ExportedVenture> ventures,
             List<ExportedMarket> markets,
             @Nullable ExportedMarketHome marketHome,
+            List<ExportedProduct> products,
+            List<ExportedAlias> aliases,
+            List<ExportedPrice> prices,
+            List<ExportedReceipt> receipts,
             List<OrderLine> orders,
             @Nullable ExportedPlan plan,
             Map<String, Boolean> modules,
@@ -451,6 +460,10 @@ class ExportService {
                 ventures.ventures(workspaceId),
                 markets.familyMarkets(workspaceId),
                 markets.home(workspaceId).orElse(null),
+                markets.products(workspaceId),
+                markets.aliases(workspaceId),
+                markets.prices(workspaceId),
+                markets.receipts(workspaceId),
                 billing.orders(workspaceId).stream().map(OrderLine::of).toList(),
                 billing.plan(workspaceId).orElse(null),
                 enabled,
@@ -588,6 +601,10 @@ class ExportService {
         root.put("ventures", data.ventures());
         root.put("markets", data.markets());
         root.put("marketHome", data.marketHome());
+        root.put("products", data.products());
+        root.put("aliases", data.aliases());
+        root.put("prices", data.prices());
+        root.put("receipts", data.receipts());
         root.put("modules", data.modules());
         root.put("orders", data.orders());
         root.put("plan", data.plan());
@@ -724,6 +741,43 @@ class ExportService {
         ExportedMarketHome home = data.marketHome();
         if (home != null) {
             homeRows.add(List.of(coordinate(home.lat()), coordinate(home.lon()), orEmpty(home.label())));
+        }
+        List<List<String>> productRows = new ArrayList<>();
+        for (ExportedProduct p : data.products()) {
+            productRows.add(List.of(
+                    p.id().toString(),
+                    p.name(),
+                    p.unit(),
+                    orEmpty(p.gtin()),
+                    p.createdAt().toString()));
+        }
+        List<List<String>> aliasRows = new ArrayList<>();
+        for (ExportedAlias a : data.aliases()) {
+            aliasRows.add(List.of(
+                    a.marketId().toString(), a.descriptionNorm(), a.productId().toString()));
+        }
+        List<List<String>> priceRows = new ArrayList<>();
+        for (ExportedPrice p : data.prices()) {
+            UUID receiptId = p.receiptId();
+            BigDecimal quantity = p.quantity();
+            priceRows.add(List.of(
+                    p.productId().toString(),
+                    p.marketId().toString(),
+                    receiptId == null ? "" : receiptId.toString(),
+                    p.observedOn().toString(),
+                    p.unit(),
+                    quantity == null ? "" : fourDecimals(quantity),
+                    fourDecimals(p.unitPrice())));
+        }
+        List<List<String>> receiptRows = new ArrayList<>();
+        for (ExportedReceipt r : data.receipts()) {
+            receiptRows.add(List.of(
+                    r.id().toString(),
+                    r.marketId().toString(),
+                    r.issuedOn().toString(),
+                    r.mode(),
+                    Integer.toString(r.itemCount()),
+                    r.createdAt().toString()));
         }
         List<List<String>> ventureRows = new ArrayList<>();
         List<List<String>> ventureItemRows = new ArrayList<>();
@@ -865,12 +919,38 @@ class ExportService {
                         marketRows,
                         Set.of(5, 6)));
         files.put("feira-endereco.csv", csv.toBytes(List.of("lat", "lon", "rotulo"), homeRows, Set.of(0, 1)));
+        files.put(
+                "feira-produtos.csv", csv.toBytes(List.of("id", "nome", "unidade", "gtin", "criado_em"), productRows));
+        files.put(
+                "feira-apelidos.csv",
+                csv.toBytes(List.of("mercado_id", "descricao_normalizada", "produto_id"), aliasRows));
+        files.put(
+                "feira-precos.csv",
+                csv.toBytes(
+                        List.of(
+                                "produto_id",
+                                "mercado_id",
+                                "nota_id",
+                                "data",
+                                "unidade",
+                                "quantidade",
+                                "preco_unitario"),
+                        priceRows,
+                        Set.of(5, 6)));
+        files.put(
+                "feira-notas.csv",
+                csv.toBytes(List.of("id", "mercado_id", "data", "modo", "itens", "criado_em"), receiptRows));
         zip(out, files);
     }
 
     /** The point as it is stored, with a comma: {@code -23,00300}. It is a number, so no formula guard applies. */
     private static String coordinate(@Nullable BigDecimal value) {
         return value == null ? "" : value.toPlainString().replace('.', ',');
+    }
+
+    /** {@code 4,9900}: four decimals and a comma, as the price is stored. */
+    private static String fourDecimals(BigDecimal value) {
+        return value.setScale(4, RoundingMode.HALF_EVEN).toPlainString().replace('.', ',');
     }
 
     private static List<String> transactionCells(

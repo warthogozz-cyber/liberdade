@@ -54,3 +54,8 @@ CREATE TABLE price_records (
     FOREIGN KEY (workspace_id, receipt_id) REFERENCES receipts (workspace_id, id) ON DELETE CASCADE
 );
 CREATE INDEX price_records_latest ON price_records (workspace_id, product_id, market_id, observed_on DESC);
+
+ALTER TABLE audit_events DROP CONSTRAINT audit_events_target_type_check;
+ALTER TABLE audit_events ADD CONSTRAINT audit_events_target_type_check
+    CHECK (target_type IN ('USER', 'MEMBERSHIP', 'INVITATION', 'WORKSPACE', 'MODULE', 'CONSENT', 'ORDER', 'PLAN',
+                           'RECURRING_RULE', 'GOAL', 'ACCOUNT', 'VENTURE', 'MARKET', 'RECEIPT'));

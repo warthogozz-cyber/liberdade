@@ -10,6 +10,18 @@ public interface MarketsExport {
     /** Every market row of the family, archived ones included, by creation. */
     List<ExportedMarket> familyMarkets(UUID workspaceId);
 
+    /** The family's products, by creation. */
+    List<ExportedProduct> products(UUID workspaceId);
+
+    /** The family's product aliases, by market and description. */
+    List<ExportedAlias> aliases(UUID workspaceId);
+
+    /** Every price the family recorded, oldest first. */
+    List<ExportedPrice> prices(UUID workspaceId);
+
+    /** The family's receipts, by creation; the access key and its hash stay out. */
+    List<ExportedReceipt> receipts(UUID workspaceId);
+
     /** The address the family's markets are searched from, if it set one. */
     Optional<ExportedMarketHome> home(UUID workspaceId);
 }
