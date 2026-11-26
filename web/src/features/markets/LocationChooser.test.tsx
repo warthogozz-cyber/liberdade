@@ -118,4 +118,20 @@ describe('LocationChooser', () => {
     expect(screen.getByRole('button', { name: 'Continuar' })).toBeVisible()
     expect(readLocation(user)).toBeNull()
   })
+
+  it('timeoutAsksWithATimeoutAndBringsTheButtonBack', async () => {
+    getCurrentPosition.mockImplementation(
+      (_success: PositionCallback, failure: PositionErrorCallback) =>
+        failure({ code: 3 } as GeolocationPositionError),
+    )
+    const onChosen = renderChooser()
+
+    fireEvent.click(await screen.findByRole('radio', { name: /Minha localização precisa/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Não deu para obter/)
+    expect(getCurrentPosition.mock.calls[0]?.[2]).toMatchObject({ timeout: 15000 })
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeEnabled()
+    expect(onChosen).not.toHaveBeenCalled()
+  })
 })

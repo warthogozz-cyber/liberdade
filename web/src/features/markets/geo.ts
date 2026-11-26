@@ -9,7 +9,7 @@ export type GeoPoint = { lat: number; lon: number }
  * Rounds to a fixed number of decimals, half away from zero, on the number's decimal text (so
  * `-10.005` is `"-10.01"`, not what the binary value would give) and always with the decimals.
  */
-export function roundTo(value: number, decimals: 2 | 3): string {
+export function roundTo(value: number, decimals: 2 | 3 | 5): string {
   const text = String(Math.abs(value))
   if (text.includes('e')) {
     // Too small (or too large) for plain text: nothing a coordinate needs rounding for.

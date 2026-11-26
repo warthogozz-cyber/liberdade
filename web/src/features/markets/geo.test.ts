@@ -11,6 +11,12 @@ describe('geo', () => {
     expect(roundTo(-0.001, 2)).toBe('0.00')
   })
 
+  it('roundsToFiveDecimalsForAPosition', () => {
+    expect(roundTo(-10.123456, 5)).toBe('-10.12346')
+    expect(roundTo(-50.000004, 5)).toBe('-50.00000')
+    expect(roundTo(-9.5, 5)).toBe('-9.50000')
+  })
+
   it('haversineKnownDistance', () => {
     // 0.01 degrees of longitude on the equator is about 1,112 meters.
     const meters = distanceMeters({ lat: 0, lon: 0 }, { lat: 0, lon: 0.01 })

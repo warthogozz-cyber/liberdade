@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useCurrentWorkspace, useMe } from '@/shared/api'
 import type { MarketSearchResult } from '@/shared/api/markets'
 import { registerMessages } from '@/shared/i18n'
 import { useDocumentTitle } from '@/shared/ui'
+import { AddMarketSheet } from './AddMarketSheet'
 import { distanceMeters, type GeoPoint } from './geo'
 import { LocationChooser } from './LocationChooser'
 import { readLocation, type StoredLocation } from './locationStore'
@@ -33,6 +34,7 @@ function listMarkets(
 ): MarketListItem[] {
   const osm: MarketListItem[] = result.osm.map((each) => ({
     ref: each.ref,
+    familyId: each.familyId,
     name: each.name,
     kind: each.kind,
     address: osmAddress(each),
@@ -70,12 +72,14 @@ export function FeiraPage() {
   const settings = useMarketsSettings(ws)
   const home = useMarketHome(ws, canWrite)
   const kindLabel = useKindLabel()
+  const navigate = useNavigate()
 
   const [chosen, setChosen] = useState<StoredLocation | null>(null)
   // The precise position lives in this screen's memory only: it is never saved or sent.
   const [precise, setPrecise] = useState<GeoPoint | null>(null)
   const [opened, setOpened] = useState(false)
   const [dismissed, setDismissed] = useState(false)
+  const [adding, setAdding] = useState(false)
 
   const location = chosen ?? (userId !== undefined ? readLocation(userId) : null)
   const approximate = location?.mode === 'approximate'
@@ -202,12 +206,22 @@ export function FeiraPage() {
       ) : null}
 
       {canWrite && (
-        <button type="button" className={`${outline} self-start`}>
+        <button type="button" onClick={() => setAdding(true)} className={`${outline} self-start`}>
           <FormattedMessage id="markets.add" />
         </button>
       )}
 
       <OsmAttribution date={search.data?.datasetDate ?? null} />
+
+      {adding && ws !== undefined && (
+        <AddMarketSheet
+          open
+          onOpenChange={(open) => !open && setAdding(false)}
+          workspaceId={ws}
+          geocodingEnabled={settings.data?.geocodingEnabled === true}
+          onCreated={(card) => navigate(`/mais/feira/mercado/${card.familyId ?? card.ref}`)}
+        />
+      )}
 
       {chooserOpen && userId !== undefined && ws !== undefined && (
         <LocationChooser

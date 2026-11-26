@@ -12,6 +12,7 @@ import {
   type StoredPoint,
 } from './locationStore'
 import { marketsMessages } from './messages.pt-BR'
+import { readPosition, type PositionError } from './position'
 
 registerMessages(marketsMessages)
 
@@ -32,24 +33,6 @@ interface LocationChooserProps {
   homeAvailable: boolean
   /** The choice that was saved, and the precise position for this screen's memory (only for `precise`). */
   onChosen: (location: StoredLocation, precise: GeoPoint | null) => void
-}
-
-type PositionError = 'denied' | 'unavailable'
-
-/** One reading of the device's position; the browser asks the person only now. */
-function readPosition(options: PositionOptions): Promise<GeoPoint> {
-  return new Promise((resolve, reject) => {
-    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
-      reject(new Error('unavailable' satisfies PositionError))
-      return
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => resolve({ lat: position.coords.latitude, lon: position.coords.longitude }),
-      (error) =>
-        reject(new Error((error.code === 1 ? 'denied' : 'unavailable') satisfies PositionError)),
-      options,
-    )
-  })
 }
 
 /** The browser's own approximate-location button (Chrome 144+), which asks only when tapped. */
@@ -137,13 +120,17 @@ export function LocationChooser({
   const locate = async (options: PositionOptions, done: (point: GeoPoint) => void) => {
     setFailure(null)
     setBusy(true)
+    let point: GeoPoint
     try {
-      done(await readPosition(options))
+      point = await readPosition(options)
     } catch (error) {
       setFailure(error instanceof Error && error.message === 'denied' ? 'denied' : 'unavailable')
-    } finally {
       setBusy(false)
+      return
     }
+    setBusy(false)
+    // Outside the try: a failure of the follow-up is not "location unavailable".
+    done(point)
   }
 
   const refreshApproximate = () =>

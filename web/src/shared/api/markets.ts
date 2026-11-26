@@ -70,3 +70,54 @@ export async function geocodeAddress(ws: string, query: string): Promise<Geocode
   )
   return result.places
 }
+
+/** The fields of a family market's links: `null` clears the family's value (the OSM one shows again). */
+export type MarketLinksBody = Schemas['LinksRequest']
+export type NewMarketBody = Schemas['NewMarketRequest']
+export type MarketPoint = { lat: string; lon: string }
+
+/** Saves a market's links; the answer is the updated card. */
+export function putMarketLinks(
+  ws: string,
+  ref: string,
+  body: MarketLinksBody,
+): Promise<MarketCard> {
+  return unwrap(
+    client.PUT('/v1/workspaces/{ws}/markets/{ref}/links', {
+      params: { path: { ws, ref } },
+      body,
+    }),
+  )
+}
+
+/** Adds a market of the family's own. */
+export function createMarket(ws: string, body: NewMarketBody): Promise<MarketCard> {
+  return unwrap(client.POST('/v1/workspaces/{ws}/markets', { params: { path: { ws } }, body }))
+}
+
+/** Gives a family market its position. */
+export function putMarketPosition(ws: string, ref: string, body: MarketPoint): Promise<MarketCard> {
+  return unwrap(
+    client.PUT('/v1/workspaces/{ws}/markets/{ref}/position', {
+      params: { path: { ws, ref } },
+      body,
+    }),
+  )
+}
+
+/** Hides a market from the lists. */
+export async function archiveMarket(ws: string, ref: string): Promise<void> {
+  await unwrap(
+    client.POST('/v1/workspaces/{ws}/markets/{ref}/archive', { params: { path: { ws, ref } } }),
+  )
+}
+
+/** Turns a market that left OpenStreetMap into one of the family's own, from what the person typed. */
+export function convertMarket(ws: string, ref: string, body: NewMarketBody): Promise<MarketCard> {
+  return unwrap(
+    client.POST('/v1/workspaces/{ws}/markets/{ref}/convert', {
+      params: { path: { ws, ref } },
+      body,
+    }),
+  )
+}

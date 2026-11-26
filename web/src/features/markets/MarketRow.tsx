@@ -7,6 +7,8 @@ import { formatDistance } from './geo'
 /** A market ready for the list: from either list of the search, measured from where the person is. */
 export type MarketListItem = {
   ref: string
+  /** The family's row of this market, when it has one: the card opens by it (D4). */
+  familyId?: string | null
   name: string | null
   kind: MarketKind | null
   /** The street and number, from OpenStreetMap; absent for the family's own markets. */
@@ -30,7 +32,7 @@ export function MarketRow({
   return (
     <li className="rounded-card bg-surface">
       <Link
-        to={`/mais/feira/mercado/${market.ref}`}
+        to={`/mais/feira/mercado/${market.familyId ?? market.ref}`}
         className="flex flex-col gap-1 p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <span className="flex items-baseline justify-between gap-2">

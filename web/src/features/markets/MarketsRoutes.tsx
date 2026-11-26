@@ -2,9 +2,11 @@ import { lazy, Suspense } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { useRoutes } from 'react-router'
 
-// One lazy module for every Feira screen, so the app's own routes carry a single stub. The market
-// card joins this list with its own task.
+// One lazy module for every Feira screen, so the app's own routes carry a single stub.
 const FeiraPage = lazy(() => import('./FeiraPage').then((m) => ({ default: m.FeiraPage })))
+const MarketCardPage = lazy(() =>
+  import('./MarketCardPage').then((m) => ({ default: m.MarketCardPage })),
+)
 
 function Loading() {
   return (
@@ -19,6 +21,9 @@ function Loading() {
 /** The Feira screens under `/mais/feira`, behind the module guard of the app routes. */
 export function MarketsRoutes() {
   // `useRoutes`, not `<Routes>`: it keeps the router's route-element helpers out of the first load.
-  const screen = useRoutes([{ index: true, element: <FeiraPage /> }])
+  const screen = useRoutes([
+    { index: true, element: <FeiraPage /> },
+    { path: 'mercado/:ref', element: <MarketCardPage /> },
+  ])
   return <Suspense fallback={<Loading />}>{screen}</Suspense>
 }
