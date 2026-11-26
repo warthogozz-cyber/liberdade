@@ -86,10 +86,22 @@ jobs:
       - run: pnpm --filter web exec playwright install --with-deps chromium
       - name: Create the test certificate
         run: pnpm --filter web e2e:cert
+      # The API image is built with the GitHub Actions layer cache, so the dependency layer is not
+      # downloaded from Maven Central on every run (it answers 429 to busy runners). Compose then
+      # starts the image built here instead of building it again.
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the API image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: api
+          load: true
+          tags: liberdade-api:latest
+          cache-from: type=gha,scope=api-amd64
+          cache-to: type=gha,mode=max,scope=api-amd64,ignore-error=true
       - name: Start the API with the test provider
         run: |
           cp .env.example .env
-          docker compose -f compose.yaml -f compose.e2e.yaml up -d --build --wait
+          docker compose -f compose.yaml -f compose.e2e.yaml up -d --no-build --wait
       - run: pnpm --filter web e2e --project=chromium
       - name: Save Compose logs
         if: ${{ failure() }}
@@ -139,10 +151,22 @@ jobs:
           BROWSER: ${{ matrix.browser }}
       - name: Create the test certificate
         run: pnpm --filter web e2e:cert
+      # The API image is built with the GitHub Actions layer cache, so the dependency layer is not
+      # downloaded from Maven Central on every run (it answers 429 to busy runners). Compose then
+      # starts the image built here instead of building it again.
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the API image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: api
+          load: true
+          tags: liberdade-api:latest
+          cache-from: type=gha,scope=api-amd64
+          cache-to: type=gha,mode=max,scope=api-amd64,ignore-error=true
       - name: Start the API with the test provider
         run: |
           cp .env.example .env
-          docker compose -f compose.yaml -f compose.e2e.yaml up -d --build --wait
+          docker compose -f compose.yaml -f compose.e2e.yaml up -d --no-build --wait
       - run: pnpm --filter web e2e --project="$PROJECT"
         env:
           PROJECT: ${{ matrix.project }}
@@ -234,8 +258,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The API image is built with the GitHub Actions layer cache, so the dependency layer is not
+      # downloaded from Maven Central on every run (it answers 429 to busy runners). Compose then
+      # starts the image built here instead of building it again.
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build the API image
-        run: docker build -t liberdade-api-ci:local api
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: api
+          load: true
+          tags: liberdade-api-ci:local
+          cache-from: type=gha,scope=api-amd64
+          cache-to: type=gha,mode=max,scope=api-amd64,ignore-error=true
       - name: Deploy and roll back
         run: bash deploy/test/deploy-test.sh liberdade-api-ci:local
 
