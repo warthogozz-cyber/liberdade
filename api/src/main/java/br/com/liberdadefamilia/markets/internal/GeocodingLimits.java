@@ -45,4 +45,14 @@ final class GeocodingLimits {
         });
         return allowed.get();
     }
+
+    /** Gives one lookup back, for a call that never got an answer. Does nothing if the day has turned. */
+    void refund(UUID workspaceId) {
+        LocalDate today = clock.instant().atZone(ZONE).toLocalDate();
+        days.computeIfPresent(
+                workspaceId,
+                (ignored, current) -> current.date().equals(today) && current.count() > 0
+                        ? new Day(today, current.count() - 1)
+                        : current);
+    }
 }

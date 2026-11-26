@@ -55,11 +55,15 @@ class GeocodeService {
         if (!limits.tryConsume(member.workspaceId())) {
             throw MarketRuleException.geocodingLimit();
         }
-        throttle.acquire();
         List<GeocodedPlace> places;
         try {
+            throttle.acquire();
             places = geocoder.search(stripped);
+        } catch (GeocodingBusyException e) {
+            limits.refund(member.workspaceId()); // the family got no answer: the lookup is not spent
+            throw e;
         } catch (GeocodingException e) {
+            limits.refund(member.workspaceId());
             throw MarketRuleException.geocodingFailed();
         }
         cache.put(key, places);
