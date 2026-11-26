@@ -99,10 +99,17 @@ function issuedOnFromHex(dhEmi: string | null): string | undefined {
   return match ? isoDate(Number(match[1]), Number(match[2]), Number(match[3])) : undefined
 }
 
-const httpOnly = (link: URL, raw: string): string | undefined =>
-  link.protocol === 'http:' || link.protocol === 'https:' ? raw : undefined
+/**
+ * The link rebuilt from its parts behind a fixed `http(s)://`, so nothing in the text can choose
+ * the scheme: no `javascript:`, no user and password, no fragment.
+ */
+function httpOnly(link: URL): string | undefined {
+  if (link.protocol === 'https:') return `https://${link.host}${link.pathname}${link.search}`
+  if (link.protocol === 'http:') return `http://${link.host}${link.pathname}${link.search}`
+  return undefined
+}
 
-function parseLink(link: URL, raw: string, today: Date): ParsedNfce | NfceInputError {
+function parseLink(link: URL, today: Date): ParsedNfce | NfceInputError {
   const finish = (
     parsed: ParsedNfce,
     tpAmb: string | null | undefined,
@@ -113,7 +120,7 @@ function parseLink(link: URL, raw: string, today: Date): ParsedNfce | NfceInputE
     // Only 1 (production) and 2 (homologation) exist: a missing or odd value is not an NFC-e link.
     if (tpAmb === '2') return { error: 'homologation' }
     if (tpAmb !== '1') return { error: 'not-nfce' }
-    const sefazUrl = withBuyerDocument ? undefined : httpOnly(link, raw)
+    const sefazUrl = withBuyerDocument ? undefined : httpOnly(link)
     return sefazUrl === undefined ? parsed : { ...parsed, sefazUrl }
   }
 
@@ -168,7 +175,7 @@ export function parseNfceInput(raw: string, today: Date): ParsedNfce | NfceInput
   } catch {
     return { error: 'not-nfce' }
   }
-  return parseLink(link, text, today)
+  return parseLink(link, today)
 }
 
 /** The body of `lookup` and of the save: the only way to build it, so nothing else goes along. */

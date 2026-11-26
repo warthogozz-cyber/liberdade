@@ -137,6 +137,13 @@ describe('parseNfceInput', () => {
     expect(parsed.sefazUrl).toBeUndefined()
   })
 
+  it('sefazUrlRebuiltWithAFixedScheme', () => {
+    const link = `HTTPS://someone:secret@sefaz.example.test/nfce/qrcode?chNFe=${chave}&nVersao=100&tpAmb=1#top`
+    expect(ok(parseNfceInput(link, TODAY)).sefazUrl).toBe(
+      `https://sefaz.example.test/nfce/qrcode?chNFe=${chave}&nVersao=100&tpAmb=1`,
+    )
+  })
+
   it('defaultDate', () => {
     expect(defaultIssuedOn({ chave, version: 0 }, TODAY)).toBe('2026-11-25')
     const old = makeChave({ aamm: '2610' })
