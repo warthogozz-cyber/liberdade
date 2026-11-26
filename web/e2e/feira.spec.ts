@@ -46,8 +46,15 @@ async function openFeira(page: Page): Promise<void> {
   await createFamily(page)
   await setModules(page, true)
 
-  await page.goto('/mais/feira')
-  await expect(page.getByRole('heading', { level: 1, name: 'Feira' })).toBeVisible()
+  // Right after the modules change, a fresh load can still read the old modules from the cache
+  // and bounce: load again until the Feira holds.
+  await expect(async () => {
+    await page.goto('/mais/feira')
+    await expect(page.getByRole('heading', { level: 1, name: 'Feira' })).toBeVisible({
+      timeout: 3_000,
+    })
+    await expect(page).toHaveURL(/\/mais\/feira$/)
+  }).toPass({ timeout: 45_000 })
   const chooser = page.getByRole('dialog', { name: 'Onde procurar mercados?' })
   await chooser.getByRole('radio', { name: 'Digitar um endereço' }).check()
   await chooser.getByLabel('Endereço', { exact: true }).fill('Rua Exemplo')

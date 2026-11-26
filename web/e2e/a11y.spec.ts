@@ -644,8 +644,14 @@ test('the Feira list, the market card with the map notice and the location dialo
   await createFamily(page)
   await setModules(page, true)
 
-  await page.goto('/mais/feira')
+  // Right after the modules change, a fresh load can still read the old modules from the cache
+  // and bounce: load again until the Feira holds with its location dialog.
   const chooser = page.getByRole('dialog', { name: 'Onde procurar mercados?' })
+  await expect(async () => {
+    await page.goto('/mais/feira')
+    await expect(chooser).toBeVisible({ timeout: 3_000 })
+    await expect(page).toHaveURL(/\/mais\/feira$/)
+  }).toPass({ timeout: 45_000 })
   await expectNoViolationsOpen(page, chooser)
 
   await chooser.getByRole('radio', { name: 'Digitar um endereço' }).check()
