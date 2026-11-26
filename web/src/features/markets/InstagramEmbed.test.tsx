@@ -64,7 +64,9 @@ describe('InstagramEmbed', () => {
       expect(found).not.toBeNull()
       return found
     })) as HTMLIFrameElement
-    expect(frame.getAttribute('sandbox')).toBe('allow-scripts allow-popups')
+    expect(frame.getAttribute('sandbox')).toBe(
+      'allow-scripts allow-popups allow-popups-to-escape-sandbox',
+    )
     expect(frame.getAttribute('src')).toBe('/embed/instagram')
     expect(frame.getAttribute('title')).toBe('Publicação do Instagram')
     expect(frame.className).toContain('min-h-[560px]')

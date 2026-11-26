@@ -87,7 +87,7 @@ export function InstagramEmbed({ userId, workspaceId, marketRef, url }: Instagra
         <iframe
           ref={frame}
           src="/embed/instagram"
-          sandbox="allow-scripts allow-popups"
+          sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
           title={intl.formatMessage({ id: 'markets.instagram.title' })}
           // The frame has an opaque origin (no `allow-same-origin`), so `'*'` is the only target.
           onLoad={() =>
