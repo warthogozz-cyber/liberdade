@@ -119,3 +119,42 @@ describe('QrScanner', () => {
     expect(onUnavailable).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('QrScanner reader failures', () => {
+  it('repeatedReaderErrorsFallBackToAlternatives', async () => {
+    vi.useFakeTimers()
+    try {
+      scan.mockRejectedValue(new Error('broken reader'))
+      const { onUnavailable, onResult } = mount()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+
+      expect(scan).toHaveBeenCalledTimes(5)
+      expect(onUnavailable).toHaveBeenCalledTimes(1)
+      expect(onResult).not.toHaveBeenCalled()
+      stops.forEach((stop) => expect(stop).toHaveBeenCalled())
+      expect(screen.getByRole('alert')).toHaveTextContent(/Cole o link da nota ou digite a chave/)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('aScanWithoutAQrResetsTheFailureCount', async () => {
+    vi.useFakeTimers()
+    try {
+      const results = [1, 1, 1, 1, 0, 1, 1, 1, 1]
+      scan.mockImplementation(() =>
+        results.length > 0 && results.shift() === 1
+          ? Promise.reject(new Error('flaky'))
+          : Promise.resolve(null),
+      )
+      const { onUnavailable } = mount()
+      await vi.advanceTimersByTimeAsync(1800)
+
+      expect(onUnavailable).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

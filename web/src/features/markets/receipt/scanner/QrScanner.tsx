@@ -9,6 +9,8 @@ registerMessages(marketsMessages)
 
 /** How often a frame goes to the reader; the next one waits for the previous to finish. */
 const FRAME_INTERVAL_MS = 200
+/** Consecutive reader errors after which the camera is given up for the alternatives. */
+const MAX_FAILURES = 5
 
 interface QrScannerProps {
   onResult: (text: string) => void
@@ -36,6 +38,7 @@ export default function QrScanner({ onResult, onUnavailable }: QrScannerProps) {
     let stream: MediaStream | undefined
     let reader: QrReader | undefined
     let timer: ReturnType<typeof setTimeout> | undefined
+    let failures = 0
 
     function stop() {
       stopped = true
@@ -62,8 +65,11 @@ export default function QrScanner({ onResult, onUnavailable }: QrScannerProps) {
       if (video.readyState >= 2) {
         try {
           text = await activeReader.scan(video)
+          failures = 0
         } catch {
-          // A frame that fails to decode is skipped; the next one may work.
+          // A frame that fails is skipped, but a reader that keeps failing is not worth the camera.
+          failures += 1
+          if (!stopped && failures >= MAX_FAILURES) return fail()
         }
       }
       if (stopped) return

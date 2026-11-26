@@ -25,7 +25,10 @@ export interface QrWindow {
 }
 
 /** The native detector when the browser has one that reads QR codes, else jsQR if approved, else none. */
-export async function pickDetector(win: QrWindow): Promise<DetectorKind> {
+export async function pickDetector(
+  win: QrWindow,
+  jsqrEnabled: boolean = JSQR_ENABLED,
+): Promise<DetectorKind> {
   const native = win.BarcodeDetector
   if (native !== undefined) {
     try {
@@ -35,7 +38,7 @@ export async function pickDetector(win: QrWindow): Promise<DetectorKind> {
       // A detector that cannot list its formats is treated as absent.
     }
   }
-  return JSQR_ENABLED ? 'worker' : 'none'
+  return jsqrEnabled ? 'worker' : 'none'
 }
 
 /** Frames are shrunk to this width before decoding: a QR stays readable and the worker stays quick. */
@@ -52,11 +55,26 @@ function nativeReader(native: NativeDetectorClass): QrReader {
 function workerReader(): QrReader {
   const worker = new Worker(new URL('./qrWorker.ts', import.meta.url), { type: 'module' })
   const canvas = document.createElement('canvas')
-  let pending = false
+  let pending: { resolve: (text: string | null) => void; reject: (error: Error) => void } | null =
+    null
+  let failure: Error | null = null
+  // Attached once, at construction: a worker that fails to load fires `error` before any scan.
+  worker.onmessage = (event: MessageEvent<string | null>) => {
+    const waiting = pending
+    pending = null
+    waiting?.resolve(event.data)
+  }
+  worker.onerror = (event) => {
+    failure = new Error(event.message || 'The QR worker failed')
+    const waiting = pending
+    pending = null
+    waiting?.reject(failure)
+  }
   return {
     scan(video) {
+      if (failure !== null) return Promise.reject(failure)
       // One frame at a time: a frame asked for while another is still decoding is dropped.
-      if (pending || video.videoWidth === 0) return Promise.resolve(null)
+      if (pending !== null || video.videoWidth === 0) return Promise.resolve(null)
       const scale = Math.min(1, MAX_FRAME_WIDTH / video.videoWidth)
       canvas.width = Math.round(video.videoWidth * scale)
       canvas.height = Math.round(video.videoHeight * scale)
@@ -64,16 +82,8 @@ function workerReader(): QrReader {
       if (context === null) return Promise.resolve(null)
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
       const frame = context.getImageData(0, 0, canvas.width, canvas.height)
-      pending = true
       return new Promise<string | null>((resolve, reject) => {
-        worker.onmessage = (event: MessageEvent<string | null>) => {
-          pending = false
-          resolve(event.data)
-        }
-        worker.onerror = (event) => {
-          pending = false
-          reject(new Error(event.message))
-        }
+        pending = { resolve, reject }
         worker.postMessage(frame, [frame.data.buffer])
       })
     },
