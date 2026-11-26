@@ -12,7 +12,7 @@ import {
   type MeWorkspace,
   type TransactionView,
 } from '@/shared/api'
-import { usePlan } from '@/shared/api/billing'
+import { familyFeaturesOpen, usePlan } from '@/shared/api/billing'
 import { categoryHints } from '@/shared/api/imports'
 import { categoriesQuery, transactionsQuery } from '@/shared/api/hooks'
 import { addMonths, maxMonth, MIN_MONTH } from '@/shared/i18n'
@@ -20,6 +20,7 @@ import { useModuleEnabled } from '@/shared/modules'
 import { useOnline } from '@/shared/offline'
 import { PageTip } from '@/shared/tips'
 import { useDocumentTitle } from '@/shared/ui'
+import { PlanRequired } from '@/shared/ui/PlanRequired'
 import { ColumnMapping } from './ColumnMapping'
 import { detectCsv, linesFromCsv, type CsvDetection, type CsvMapping } from './csvDetect'
 import { applyStoredMapping, loadMapping, saveMapping } from './csvMappingStore'
@@ -81,9 +82,9 @@ export function ImportPage() {
   // A Viewer never imports, so the plan is not even asked for.
   const plan = usePlan(workspace && !viewer ? workspace.id : undefined)
 
-  if (workspace && (viewer || plan.isError || plan.data?.importAllowed === false)) {
-    return <Navigate to="/lancamentos" replace />
-  }
+  if (workspace && (viewer || plan.isError)) return <Navigate to="/lancamentos" replace />
+  if (workspace && plan.data && !familyFeaturesOpen(plan.data))
+    return <PlanRequired title={title} />
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>

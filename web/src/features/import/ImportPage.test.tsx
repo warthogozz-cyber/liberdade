@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedFamilyPlan, seedMockFamily } from '@/mocks/data'
@@ -451,12 +451,21 @@ describe('ImportPage', () => {
     const viewer = renderImport()
     expect(await screen.findByText('Lista de lançamentos')).toBeInTheDocument()
     expect(viewer.router.state.location.pathname).toBe('/lancamentos')
-    cleanup()
+  })
 
+  it('showsThePlanScreenOnTheFreePlan', async () => {
+    const workspace = seedMockFamily()
     workspace.role = 'ADULT'
     mockState.billing.plan = { key: 'FREE', endsAt: null }
     const free = renderImport()
-    expect(await screen.findByText('Lista de lançamentos')).toBeInTheDocument()
-    await waitFor(() => expect(free.router.state.location.pathname).toBe('/lancamentos'))
+
+    expect(await screen.findByText('Este recurso faz parte do plano Família.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Importar extrato' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver o plano Família' })).toHaveAttribute(
+      'href',
+      '/mais/plano',
+    )
+    expect(free.router.state.location.pathname).toBe(PATH)
+    expect(screen.queryByLabelText('Conta')).not.toBeInTheDocument()
   })
 })
