@@ -60,6 +60,11 @@ final class MarketRuleException extends DomainException {
                 422, "markets.query_invalid", "Escreva de 1 a 120 caracteres para buscar o endereço.");
     }
 
+    static MarketRuleException cnpjTaken() {
+        return new MarketRuleException(
+                409, "market.cnpj_taken", "Este CNPJ já está ligado a outro mercado da família.");
+    }
+
     static MarketRuleException notLeft() {
         return new MarketRuleException(409, "market.not_left", "Este mercado ainda está no OpenStreetMap.");
     }

@@ -2216,6 +2216,48 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets/receipts": {
+      "post": {
+        "operationId": "save",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveReceiptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveView"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "receipt-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/receipts/lookup": {
       "post": {
         "operationId": "lookup",
@@ -5814,6 +5856,42 @@
           }
         }
       },
+      "Item": {
+        "type": "object",
+        "properties": {
+          "newProductName": {
+            "type": "string",
+            "nullable": true
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "string",
+            "nullable": true,
+            "example": "1.5"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          },
+          "unitPrice": {
+            "type": "string",
+            "example": "4.99"
+          }
+        }
+      },
       "LeftItem": {
         "type": "object",
         "properties": {
@@ -6084,6 +6162,14 @@
           }
         }
       },
+      "MarketChoice": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string"
+          }
+        }
+      },
       "MeUser": {
         "type": "object",
         "properties": {
@@ -6332,6 +6418,23 @@
           },
           "result": {
             "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "NewMarketChoice": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SUPERMARKET",
+              "CONVENIENCE",
+              "GREENGROCER",
+              "MARKETPLACE"
+            ]
+          },
+          "name": {
+            "type": "string"
           }
         }
       },
@@ -6920,6 +7023,76 @@
           "targetMonths": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "SaveReceiptRequest": {
+        "required": [
+          "chave"
+        ],
+        "type": "object",
+        "properties": {
+          "chave": {
+            "type": "string",
+            "description": "The 44 positions; spaces and dots are ignored"
+          },
+          "issuedOn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "example": "2026-11-10"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            }
+          },
+          "market": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MarketChoice"
+              }
+            ],
+            "nullable": true
+          },
+          "newMarket": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NewMarketChoice"
+              }
+            ],
+            "nullable": true
+          },
+          "p": {
+            "type": "string",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "enum": [
+              0,
+              1,
+              2,
+              3
+            ]
+          }
+        }
+      },
+      "SaveView": {
+        "type": "object",
+        "properties": {
+          "marketRef": {
+            "type": "string"
+          },
+          "prices": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "receiptId": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },

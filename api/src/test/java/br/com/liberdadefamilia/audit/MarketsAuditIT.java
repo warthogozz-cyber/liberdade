@@ -113,6 +113,8 @@ class MarketsAuditIT {
         assertThat(edits)
                 .extracting(r -> JsonPath.<String>read(r.metadata(), "$.change"))
                 .containsExactlyInAnyOrderElementsOf(Arrays.stream(MarketEdited.Change.values())
+                        // CNPJ is only given by saving a receipt, which ReceiptSaveIT covers.
+                        .filter(change -> change != MarketEdited.Change.CNPJ)
                         .map(Enum::name)
                         .toList());
     }

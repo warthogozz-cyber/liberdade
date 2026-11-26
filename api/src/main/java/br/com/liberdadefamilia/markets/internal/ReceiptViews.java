@@ -28,6 +28,9 @@ final class ReceiptViews {
             @Nullable @Schema(nullable = true) MarketKind kind,
             Status status) {}
 
+    /** A saved receipt: its id, the market it went to ({@code osm-n-…} or the family's id) and the prices written. */
+    record SaveView(UUID receiptId, String marketRef, int prices) {}
+
     /** What the key says: the state, the month and the market it points to. Nothing is saved. */
     record LookupView(
             LookupMode mode,

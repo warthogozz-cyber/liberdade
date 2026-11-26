@@ -92,20 +92,43 @@ public class MarketRepository {
         return findByRef(workspaceId, ref).map(MarketRow::id).orElseThrow(MarketNotFoundException::new);
     }
 
-    /** A new {@code FAMILY} row; {@code position} may be null. {@code actor} is the membership that adds it. */
-    UUID insertFamily(UUID workspaceId, UUID actor, String name, MarketKind kind, @Nullable GeoPoint position) {
+    /** A new {@code FAMILY} row; {@code position} and {@code cnpj} may be null. {@code actor} is the membership. */
+    UUID insertFamily(
+            UUID workspaceId,
+            UUID actor,
+            String name,
+            MarketKind kind,
+            @Nullable GeoPoint position,
+            @Nullable String cnpj) {
         return jdbc.sql("""
-                        insert into markets (workspace_id, origin, name, kind, lat, lon, created_by, updated_by)
-                        values (:ws, 'FAMILY', :name, :kind, :lat, :lon, :actor, :actor)
+                        insert into markets (workspace_id, origin, name, kind, lat, lon, cnpj, created_by, updated_by)
+                        values (:ws, 'FAMILY', :name, :kind, :lat, :lon, :cnpj, :actor, :actor)
                         returning id""")
                 .param("ws", workspaceId)
                 .param("name", name)
                 .param("kind", kind.name())
                 .param("lat", position == null ? null : position.lat(), Types.NUMERIC)
                 .param("lon", position == null ? null : position.lon(), Types.NUMERIC)
+                .param("cnpj", cnpj, Types.VARCHAR)
                 .param("actor", actor)
                 .query(UUID.class)
                 .single();
+    }
+
+    /**
+     * Gives the market the CNPJ of a receipt, only while it has none. False when it already has one (another save won
+     * the race), and then nothing changes.
+     */
+    boolean setCnpjIfMissing(UUID workspaceId, UUID id, UUID actor, String cnpj) {
+        return jdbc.sql("""
+                                update markets set cnpj = :cnpj, updated_by = :actor, updated_at = now()
+                                where workspace_id = :ws and id = :id and cnpj is null""")
+                        .param("cnpj", cnpj)
+                        .param("actor", actor)
+                        .param("ws", workspaceId)
+                        .param("id", id)
+                        .update()
+                > 0;
     }
 
     /**

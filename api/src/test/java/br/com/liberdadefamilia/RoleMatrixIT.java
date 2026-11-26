@@ -433,7 +433,12 @@ class RoleMatrixIT {
                         ownerAndAdult(
                                 "POST " + W + "/markets/receipts/lookup",
                                 W + "/markets/receipts/lookup",
-                                "{\"chave\":\"" + NfceKeyFixtures.make("43", "2611") + "\",\"version\":0}"))
+                                "{\"chave\":\"" + NfceKeyFixtures.make("43", "2611") + "\",\"version\":0}"),
+                        ownerAndAdult("POST " + W + "/markets/receipts", W + "/markets/receipts", """
+                                {"chave":"%s","version":0,"issuedOn":"2026-11-01",
+                                 "newMarket":{"name":"Mercado Exemplo","kind":"GREENGROCER"},
+                                 "items":[{"newProductName":"Arroz","unit":"UN","quantity":"1","unitPrice":"4.99"}]}""".formatted(
+                                        NfceKeyFixtures.make("43", "2611"))))
                 .flatMap(group -> group);
     }
 

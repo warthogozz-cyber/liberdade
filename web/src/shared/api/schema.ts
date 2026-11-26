@@ -836,6 +836,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["save"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/receipts/lookup": {
         parameters: {
             query?: never;
@@ -1916,6 +1932,17 @@ export interface components {
             role: "OWNER" | "ADULT" | "YOUTH" | "VIEWER";
             token: string | null;
         };
+        Item: {
+            newProductName: string | null;
+            /** Format: uuid */
+            productId: string | null;
+            /** @example 1.5 */
+            quantity: string | null;
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+            /** @example 4.99 */
+            unitPrice: string;
+        };
         LeftItem: {
             cnpj: string | null;
             ref: string;
@@ -1994,6 +2021,9 @@ export interface components {
             updatedAt: string | null;
             website: components["schemas"]["LinkView"] | null;
         };
+        MarketChoice: {
+            ref: string;
+        };
         MeUser: {
             /** Format: date-time */
             deletionScheduledFor: string | null;
@@ -2067,6 +2097,11 @@ export interface components {
             plannedIncome: components["schemas"]["Money"] | null;
             plannedResult: components["schemas"]["Money"] | null;
             result: components["schemas"]["Money"];
+        };
+        NewMarketChoice: {
+            /** @enum {string} */
+            kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE";
+            name: string;
         };
         NewMarketRequest: {
             /** @enum {string} */
@@ -2249,6 +2284,31 @@ export interface components {
             months: number | null;
             /** Format: int32 */
             targetMonths: number;
+        };
+        SaveReceiptRequest: {
+            /** @description The 44 positions; spaces and dots are ignored */
+            chave: string;
+            /**
+             * Format: date
+             * @example 2026-11-10
+             */
+            issuedOn?: string | null;
+            items?: components["schemas"]["Item"][];
+            market?: components["schemas"]["MarketChoice"] | null;
+            newMarket?: components["schemas"]["NewMarketChoice"] | null;
+            p?: string | null;
+            /**
+             * Format: int32
+             * @enum {integer}
+             */
+            version?: 0 | 1 | 2 | 3;
+        };
+        SaveView: {
+            marketRef: string;
+            /** Format: int32 */
+            prices: number;
+            /** Format: uuid */
+            receiptId: string;
         };
         ScenarioInput: {
             /** @example 10.5 */
@@ -4098,6 +4158,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveReceiptRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaveView"];
+                };
             };
         };
     };
