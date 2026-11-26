@@ -231,7 +231,7 @@ export function LocationChooser({
         {mode === 'typed' && (
           <div className="flex flex-col gap-3">
             <form onSubmit={search} className="flex items-end gap-2">
-              <label className="flex flex-1 flex-col gap-1 text-sm">
+              <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
                 <FormattedMessage id="markets.chooser.address" />
                 <input
                   type="text"

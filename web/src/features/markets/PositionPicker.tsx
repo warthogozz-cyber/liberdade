@@ -86,7 +86,7 @@ export function PositionPicker({
         <div className="flex flex-col gap-3">
           {/* Not a <form>: the picker sits inside the details form, and forms must not nest. */}
           <div className="flex items-end gap-2">
-            <label className="flex flex-1 flex-col gap-1 text-sm">
+            <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
               <FormattedMessage id="markets.picker.query" />
               <input
                 type="text"

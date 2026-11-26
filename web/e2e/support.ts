@@ -204,6 +204,12 @@ export async function waitForOfflineReady(page: Page): Promise<void> {
 export async function addVirtualAuthenticator(
   page: Page,
 ): Promise<{ cdp: CDPSession; authenticatorId: string }> {
+  // The virtual device comes from Chromium's DevTools protocol, which WebKit does not have: a test
+  // that needs a passkey runs on the Chromium projects only.
+  test.skip(
+    page.context().browser()?.browserType().name() !== 'chromium',
+    'WebKit has no virtual passkey device',
+  )
   const cdp = await page.context().newCDPSession(page)
   await cdp.send('WebAuthn.enable')
   const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', {

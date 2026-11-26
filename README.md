@@ -83,6 +83,11 @@ corepack pnpm --filter web exec playwright install chromium
 corepack pnpm --filter web e2e
 ```
 
+A suíte roda em dois projetos: `chromium` (desktop) e `mobile-chrome` (Android, Pixel 7). Para rodar
+só um, use `--project`, por exemplo `corepack pnpm --filter web e2e --project=mobile-chrome`. O
+iPhone (WebKit) volta quando a suíte rodar em HTTPS: no Linux, o WebKit recusa o cookie de sessão
+(Secure) em `http://localhost`, e nenhum login completa.
+
 A suíte usa a porta 5173, então pare o `dev` da web antes de rodar.
 
 A API aceita 20 tentativas de login por minuto por IP, e a suíte toda gasta 7. Rodar a suíte várias
