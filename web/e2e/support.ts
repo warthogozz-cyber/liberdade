@@ -157,10 +157,21 @@ export function newUser(firstName = 'Ana'): E2EUser {
   }
 }
 
-/** Fills the test provider's form and submits it. It expects no page: the caller says where it ends. */
+/**
+ * Fills the test provider's form and submits it. It expects no page: the caller says where it ends.
+ * On the iPhone (WebKit) the claims sometimes landed in the focused username field, so the person
+ * signed in without a name; both fields are read back and filled again until they hold their values.
+ */
 export async function completeGoogleSignIn(page: Page, user: E2EUser): Promise<void> {
-  await page.locator('[name="username"]').fill(user.sub)
-  await page.locator('[name="claims"]').fill(JSON.stringify(user.claims))
+  const username = page.locator('[name="username"]')
+  const claims = page.locator('[name="claims"]')
+  const claimsText = JSON.stringify(user.claims)
+  await expect(async () => {
+    await username.fill(user.sub)
+    await claims.fill(claimsText)
+    await expect(username).toHaveValue(user.sub, { timeout: 1_000 })
+    await expect(claims).toHaveValue(claimsText, { timeout: 1_000 })
+  }).toPass()
   await page.getByRole('button', { name: 'Sign-in' }).click()
 }
 
