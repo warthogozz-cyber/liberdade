@@ -109,6 +109,17 @@ describe('legal texts', () => {
     }
   })
 
+  it('privacy 11.5 and 12.5 say where the Feira data goes abroad', () => {
+    for (const version of ['privacy-2026-11.5', 'privacy-2026-12.5']) {
+      const shown = idsOf(legalConfig.texts[version])
+        .map((id) => legalMessages[id as keyof typeof legalMessages])
+        .join(' ')
+      expect(shown).toContain('OpenStreetMap Foundation, no Reino Unido')
+      expect(shown).toContain('Google e a publicação do Instagram vem da Meta, nos Estados Unidos')
+      expect(shown).toContain('endereço de IP')
+    }
+  })
+
   it('everyIdHasItsText', () => {
     for (const text of Object.values(legalConfig.texts)) {
       for (const id of idsOf(text)) expect(legalMessages).toHaveProperty([id])

@@ -73,6 +73,8 @@ export const privacy2026125Messages = {
     'Asaas: o pagamento do plano Família Fundadora e a nota fiscal. Na página dele, quem paga informa CPF, nome, e-mail e, se for o caso, o cartão. Esses dados ficam no Asaas, pelas regras dele: o Liberdade não pede nem guarda esses dados.',
   'policy.2026-12.5.partners.transfer':
     'A Cloudflare e o Google podem tratar dados fora do Brasil. Essa transferência internacional acontece por eles, como operadores (LGPD, art. 33).',
+  'policy.2026-12.5.partners.feira':
+    'Na Feira, o texto que você digita na busca de endereço é enviado pelo nosso servidor ao serviço Nominatim, da OpenStreetMap Foundation, no Reino Unido. Só depois que você toca para ver, o mapa vem do Google e a publicação do Instagram vem da Meta, nos Estados Unidos. Eles passam a receber o endereço de IP do seu aparelho.',
 
   'policy.2026-12.5.retention.title': 'Por quanto tempo guardamos?',
   'policy.2026-12.5.retention.intro':
@@ -220,6 +222,7 @@ export const privacy2026125: LegalText = {
           ],
         },
         { p: 'policy.2026-12.5.partners.transfer' },
+        { p: 'policy.2026-12.5.partners.feira' },
       ],
     },
     {

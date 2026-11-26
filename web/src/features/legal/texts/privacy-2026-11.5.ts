@@ -60,6 +60,8 @@ export const privacy2026115Messages = {
   'policy.2026-11.5.partners.google': 'Google: o login com a sua conta Google.',
   'policy.2026-11.5.partners.transfer':
     'A Cloudflare e o Google podem tratar dados fora do Brasil. Essa transferência internacional acontece por eles, como operadores (LGPD, art. 33).',
+  'policy.2026-11.5.partners.feira':
+    'Na Feira, o texto que você digita na busca de endereço é enviado pelo nosso servidor ao serviço Nominatim, da OpenStreetMap Foundation, no Reino Unido. Só depois que você toca para ver, o mapa vem do Google e a publicação do Instagram vem da Meta, nos Estados Unidos. Eles passam a receber o endereço de IP do seu aparelho.',
 
   'policy.2026-11.5.retention.title': 'Por quanto tempo guardamos?',
   'policy.2026-11.5.retention.intro':
@@ -189,6 +191,7 @@ export const privacy2026115: LegalText = {
           ],
         },
         { p: 'policy.2026-11.5.partners.transfer' },
+        { p: 'policy.2026-11.5.partners.feira' },
       ],
     },
     {
