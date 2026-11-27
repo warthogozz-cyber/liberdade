@@ -78,6 +78,19 @@ describe('ColumnMapping', () => {
     expect(linesFromCsv(rows, confirmed).lines[0]?.cents).toBe(-4590n)
   })
 
+  it('keepsTheDecimalThePersonChoseWhenTheAmountColumnChanges', () => {
+    const onConfirm = renderScreen(initial)
+    fireEvent.change(screen.getByLabelText('Como os centavos aparecem'), {
+      target: { value: '.' },
+    })
+    fireEvent.change(screen.getByLabelText('Valor'), { target: { value: '3' } })
+    fireEvent.change(screen.getByLabelText('Valor'), { target: { value: '2' } })
+
+    expect(screen.getByLabelText('Como os centavos aparecem')).toHaveProperty('value', '.')
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+    expect((onConfirm.mock.calls[0]?.[0] as CsvMapping).decimal).toBe('.')
+  })
+
   it('letsThePersonChooseTheDecimal', () => {
     const thousands = [
       ['Quando', 'Quem', 'Quanto'],

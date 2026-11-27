@@ -1,10 +1,20 @@
 import { dehydrate, type Mutation } from '@tanstack/react-query'
-import type { PersistedClient } from '@tanstack/react-query-persist-client'
+import {
+  persistQueryClientRestore,
+  type PersistedClient,
+} from '@tanstack/react-query-persist-client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryKeys, type MeView, type MeWorkspace } from '@/shared/api'
-import { persistOptions, saveQueryCacheNow } from '@/shared/offline'
+import { clearSession, persistOptions, saveQueryCacheNow } from '@/shared/offline'
 import { db } from '@/shared/offline/db'
+import { openOfflineDb } from '@/shared/offline/openOfflineDb'
 import { createTestQueryClient } from '@/shared/testing'
+
+// Passes through to the real loader; a test can make one load fail, as a chunk can on a flaky network.
+vi.mock('@/shared/offline/openOfflineDb', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/shared/offline/openOfflineDb')>()
+  return { ...real, openOfflineDb: vi.fn(real.openOfflineDb) }
+})
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -103,5 +113,40 @@ describe('persistOptions', () => {
     expect(persistOptions.maxAge).toBe(30 * 24 * 60 * 60 * 1000)
     expect(persistOptions.buster).toBe('1')
     expect(persistOptions.dehydrateOptions?.shouldDehydrateMutation?.(paused)).toBe(false)
+  })
+
+  it('keepsTheSavedCacheWhenTheDatabaseFailsToLoadAtRestore', async () => {
+    const queryClient = createTestQueryClient()
+    queryClient.setQueryData(queryKeys.me, me)
+    await persistOptions.persister.persistClient({
+      timestamp: Date.now(),
+      buster: '1',
+      clientState: dehydrate(queryClient),
+    })
+    vi.mocked(openOfflineDb).mockRejectedValueOnce(new Error('chunk failed to load'))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    await expect(
+      persistQueryClientRestore({
+        queryClient: createTestQueryClient(),
+        persister: persistOptions.persister,
+        buster: '1',
+      }),
+    ).rejects.toThrow('chunk failed to load')
+
+    expect(await db.kv.get('liberdade-query-cache')).toBeDefined()
+    const restored = await persistOptions.persister.restoreClient()
+    expect(restored?.clientState.queries[0]?.state.data).toEqual(me)
+  })
+
+  it('signOutStillForgetsTheSavedCacheAfterAFailedRestore', async () => {
+    await db.kv.put({ key: 'liberdade-query-cache', value: '{}' })
+    vi.mocked(openOfflineDb).mockRejectedValueOnce(new Error('chunk failed to load'))
+    await expect(persistOptions.persister.restoreClient()).rejects.toThrow()
+
+    await clearSession(createTestQueryClient())
+
+    expect(await db.kv.get('liberdade-query-cache')).toBeUndefined()
   })
 })

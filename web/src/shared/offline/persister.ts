@@ -5,23 +5,47 @@ import type {
   PersistQueryClientOptions,
 } from '@tanstack/react-query-persist-client'
 import { CACHE_MAX_AGE } from '@/shared/api'
-import { openOfflineDb } from './openOfflineDb'
+import { openOfflineDb, type OfflineDb } from './openOfflineDb'
 
 const CACHE_KEY = 'liberdade-query-cache'
+
+/**
+ * Set while the last read could not even load the database. TanStack drops the saved cache when a
+ * restore throws; the database module can load on the very next call (a flaky network, a deploy),
+ * and that drop would then delete offline data no one ever read.
+ */
+let unreadAfterLoadFailure = false
 
 /** Saves the query cache in the `kv` table, under the key `liberdade-query-cache`. */
 export const persister = createAsyncStoragePersister({
   storage: {
-    getItem: async (key) => (await (await openOfflineDb()).db.kv.get(key))?.value ?? null,
+    getItem: async (key) => {
+      let offline: OfflineDb
+      try {
+        offline = await openOfflineDb()
+      } catch (error) {
+        unreadAfterLoadFailure = true
+        throw error
+      }
+      unreadAfterLoadFailure = false
+      return (await offline.db.kv.get(key))?.value ?? null
+    },
     setItem: async (key, value) => {
       await (await openOfflineDb()).db.kv.put({ key, value })
     },
+    // Only TanStack's restore calls this; sign-out uses forgetSavedQueryCache.
     removeItem: async (key) => {
+      if (unreadAfterLoadFailure) return
       await (await openOfflineDb()).db.kv.delete(key)
     },
   },
   key: CACHE_KEY,
 })
+
+/** Deletes the saved query cache, whatever the last read did: sign-out must never leave it behind. */
+export async function forgetSavedQueryCache(): Promise<void> {
+  await (await openOfflineDb()).db.kv.delete(CACHE_KEY)
+}
 
 export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
   persister,

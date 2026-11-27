@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { forgetSelectedWorkspace, resetCsrf } from '@/shared/api'
-import { persister } from './persister'
+import { forgetSavedQueryCache } from './persister'
 
 /** Where `returnPath.ts` keeps the page to come back to after a Google re-authentication. */
 export const RETURN_PATH_KEY = 'liberdade.returnPath'
@@ -37,5 +37,5 @@ export async function clearSession(queryClient: QueryClient): Promise<void> {
   } catch {
     // Nothing to forget without storage.
   }
-  await persister.removeClient()
+  await forgetSavedQueryCache()
 }
