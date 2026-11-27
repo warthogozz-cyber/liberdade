@@ -49,7 +49,9 @@ class ForwardedHeadersUntrustedIT {
     void forwardedProtoFromUntrustedPeerDoesNotEnableHsts() throws Exception {
         var client = new ForwardedHeadersClient(port);
 
-        assertThat(client.getCsrf("X-Forwarded-Proto", "https").headers().firstValue("Strict-Transport-Security"))
-                .isEmpty();
+        var response = client.getCsrf("X-Forwarded-Proto", "https");
+        // 200 rules out an error page, which would lack the header for the wrong reason.
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.headers().firstValue("Strict-Transport-Security")).isEmpty();
     }
 }
