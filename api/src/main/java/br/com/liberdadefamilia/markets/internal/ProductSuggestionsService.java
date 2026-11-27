@@ -72,7 +72,13 @@ class ProductSuggestionsService {
                 }
             }
         }
-        pairs.sort(Comparator.comparingDouble(SuggestedPair::score).reversed());
+        // Equal scores are common (word overlap is coarse), so the rest of the order is fixed: names, then ids.
+        pairs.sort(Comparator.comparingDouble(SuggestedPair::score)
+                .reversed()
+                .thenComparing(pair -> pair.a().name())
+                .thenComparing(pair -> pair.b().name())
+                .thenComparing(pair -> pair.a().id())
+                .thenComparing(pair -> pair.b().id()));
         return new SuggestionsView(pairs.stream().limit(MAX_PAIRS).toList());
     }
 
