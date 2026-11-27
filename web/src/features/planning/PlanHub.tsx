@@ -1,7 +1,7 @@
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
 import { useCurrentWorkspace } from '@/shared/api'
-import { PageTour } from '@/shared/tips'
+import { PageTour } from '@/shared/help'
 import { useDocumentTitle } from '@/shared/ui'
 import './register'
 

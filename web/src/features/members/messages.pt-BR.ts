@@ -7,6 +7,11 @@ export const membersMessages = {
   'members.role.ADULT': 'Adulto',
   'members.role.YOUTH': 'Jovem',
   'members.role.VIEWER': 'Leitor',
+  'members.invite.role.OWNER': 'Cuida de tudo, inclusive da família e dos papéis.',
+  'members.invite.role.ADULT': 'Lança, planeja e liga ou desliga módulos.',
+  'members.invite.role.YOUTH':
+    'Vê e lança só nas próprias contas, e edita só os próprios lançamentos.',
+  'members.invite.role.VIEWER': 'Vê tudo e não muda nada.',
   'members.formerMember': 'Ex-membro',
   'members.removedSection': 'Quem saiu',
   'members.lastOwner': 'A família precisa de pelo menos um Dono.',

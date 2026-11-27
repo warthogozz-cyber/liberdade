@@ -8,4 +8,7 @@ export const settingsMessages = {
   'settings.tips': 'Dicas',
   'settings.tips.label': 'Mostrar dicas',
   'settings.tips.help': 'Um aviso curto na primeira vez que você abre cada tela.',
+  'settings.tips.review': 'Rever dicas',
+  'settings.tips.reviewed': 'Pronto. As dicas vão aparecer de novo.',
+  'settings.motion': 'O app segue a opção Reduzir movimento do seu aparelho.',
 }

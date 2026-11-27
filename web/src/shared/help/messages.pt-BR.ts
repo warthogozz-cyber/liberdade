@@ -1,6 +1,8 @@
 /** The first visit tips and the tour steps (up to 140 characters each). */
-export const tipsMessages = {
+export const helpMessages = {
   'tips.dismiss': 'Entendi',
+  'tips.home': 'Aqui está o resumo do mês. Toque em Novo gasto para anotar o que gastou.',
+  'tips.launch': 'Digite o valor, escolha a categoria e salve. Dá para desfazer logo depois.',
   'tips.dashboard': 'Aqui está o mês da família: quanto entrou, quanto saiu e para onde foi.',
   'tips.transactions': 'Todos os lançamentos do mês. Toque em um para editar ou excluir.',
   'tips.accounts': 'Cada conta mostra o saldo. Marque as que são reserva de emergência.',
@@ -8,6 +10,8 @@ export const tipsMessages = {
     'Compare o rendimento com a inflação do período. É uma conta, não uma recomendação.',
   'tips.import':
     'O arquivo do banco é lido neste aparelho. Você confere cada linha antes de gravar.',
+  'tips.family':
+    'Dono cuida de tudo e Adulto lança e planeja. Jovem lança só nas próprias contas, e Leitor só olha.',
   'tips.tour.skip': 'Pular',
   'tips.tour.back': 'Voltar',
   'tips.tour.next': 'Próximo',

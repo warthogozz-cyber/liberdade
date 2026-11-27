@@ -1,7 +1,8 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { playAchievement, unlockSound, useSoundEnabled } from '@/shared/sound'
-import { useTipsEnabled } from '@/shared/tips'
+import { useMe } from '@/shared/api'
+import { resetAllSeen, setTipsEnabled, useTipsEnabled } from '@/shared/help'
 import { useDocumentTitle } from '@/shared/ui'
 import './register'
 
@@ -14,6 +15,8 @@ export function SettingsPage() {
   useDocumentTitle(title)
   const [enabled, setEnabled] = useSoundEnabled()
   const [tipsOn, setTipsOn] = useTipsEnabled()
+  const userId = useMe().data?.user.id
+  const [reviewed, setReviewed] = useState(false)
   const helpId = useId()
   const tipsHelpId = useId()
 
@@ -67,7 +70,10 @@ export function SettingsPage() {
           aria-checked={tipsOn}
           aria-label={intl.formatMessage({ id: 'settings.tips.label' })}
           aria-describedby={tipsHelpId}
-          onClick={() => setTipsOn(!tipsOn)}
+          onClick={() => {
+            setTipsOn(!tipsOn)
+            setReviewed(false)
+          }}
           className={`relative h-8 w-14 shrink-0 rounded-full border border-primary ${
             tipsOn ? 'bg-primary' : 'bg-surface'
           } ${focus}`}
@@ -83,6 +89,23 @@ export function SettingsPage() {
       <p id={tipsHelpId} className="text-text-muted">
         {intl.formatMessage({ id: 'settings.tips.help' })}
       </p>
+      <button
+        type="button"
+        disabled={!userId}
+        onClick={() => {
+          if (!userId) return
+          resetAllSeen(userId)
+          setTipsEnabled(true)
+          setReviewed(true)
+        }}
+        className={`flex min-h-12 items-center justify-center rounded-field border border-primary px-4 font-medium text-primary disabled:opacity-50 ${focus}`}
+      >
+        {intl.formatMessage({ id: 'settings.tips.review' })}
+      </button>
+      <p role="status" className="text-text-muted">
+        {reviewed ? intl.formatMessage({ id: 'settings.tips.reviewed' }) : null}
+      </p>
+      <p className="text-text-muted">{intl.formatMessage({ id: 'settings.motion' })}</p>
     </main>
   )
 }

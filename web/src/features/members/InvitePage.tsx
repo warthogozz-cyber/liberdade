@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, Navigate } from 'react-router'
 import {
@@ -55,6 +55,7 @@ function InviteForm({ workspace }: { workspace: MeWorkspace }) {
   const [consent, setConsent] = useState(false)
   const [error, setError] = useState<string>()
   const [created, setCreated] = useState<{ token: string; nickname: string }>()
+  const roleLineId = useId()
 
   const isYouth = role === 'YOUTH'
   const canCreate = online && !create.isPending && nickname.trim() !== '' && (!isYouth || consent)
@@ -124,20 +125,26 @@ function InviteForm({ workspace }: { workspace: MeWorkspace }) {
           className={field}
         />
       </label>
-      <label className="flex flex-col gap-1">
-        <span className="font-medium">{intl.formatMessage({ id: 'invite.role' })}</span>
-        <select
-          value={role}
-          onChange={(event) => setRole(event.target.value as MemberRole)}
-          className={field}
-        >
-          {roles.map((option) => (
-            <option key={option} value={option}>
-              {intl.formatMessage({ id: `members.role.${option}` })}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="flex flex-col gap-1">
+        <label className="flex flex-col gap-1">
+          <span className="font-medium">{intl.formatMessage({ id: 'invite.role' })}</span>
+          <select
+            value={role}
+            onChange={(event) => setRole(event.target.value as MemberRole)}
+            aria-describedby={roleLineId}
+            className={field}
+          >
+            {roles.map((option) => (
+              <option key={option} value={option}>
+                {intl.formatMessage({ id: `members.role.${option}` })}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p id={roleLineId} className="text-sm text-text-muted">
+          {intl.formatMessage({ id: `members.invite.role.${role}` })}
+        </p>
+      </div>
       {isYouth && (
         <label className="flex items-start gap-3">
           <input

@@ -10,6 +10,7 @@ import {
   type MeView,
   type MeWorkspace,
 } from '@/shared/api'
+import { PageTip } from '@/shared/help'
 import { currentMonth } from '@/shared/i18n'
 import { parseCents } from '@/shared/money'
 import { ModuleSlot } from '@/shared/modules'
@@ -50,6 +51,7 @@ export function HomePage() {
       <h1 className="text-2xl font-semibold">
         <FormattedMessage id="nav.home" />
       </h1>
+      <PageTip id="home" />
       {me && workspace ? (
         <HomeContent me={me} workspace={workspace} />
       ) : (

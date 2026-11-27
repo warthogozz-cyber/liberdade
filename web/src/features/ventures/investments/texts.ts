@@ -19,7 +19,7 @@ export interface InvestmentTopic {
 
 // The FGC limits in force on the review date: per person and institution (or conglomerate), and a
 // global cap over 4 years.
-const FGC_LIMIT =
+export const FGC_LIMIT =
   'até R$ 250 mil por pessoa e por instituição ou conglomerado, com teto global de R$ 1 milhão por pessoa a cada 4 anos (limite em vigor em 25/11/2026)'
 
 /** From the simplest to the most complex. Never reorder by return or by any score. */

@@ -27,6 +27,7 @@ export const messages = {
   'more.categories': 'Categorias',
   'more.dashboard': 'Painel do mês',
   'more.modules': 'Módulos',
+  'more.howItWorks': 'Como funciona',
   'more.privacy': 'Privacidade',
   'more.settings': 'Ajustes',
   'more.plan': 'Plano',

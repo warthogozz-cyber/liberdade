@@ -160,6 +160,11 @@ test('the family screens meet WCAG 2.2 AA in both themes', async ({ page }) => {
       heading: 'Ajustes',
       ready: page.getByRole('switch', { name: 'Sons de conquista' }),
     },
+    {
+      path: '/mais/como-funciona',
+      heading: 'Como funciona',
+      ready: page.getByRole('heading', { level: 2, name: 'Palavras' }),
+    },
   ]
 
   for (const { path, heading, ready } of screens) {

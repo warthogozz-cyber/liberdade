@@ -13,7 +13,7 @@ import {
 } from '@/shared/api'
 import { parseCents } from '@/shared/money'
 import { useOnline } from '@/shared/offline'
-import { PageTip } from '@/shared/tips'
+import { PageTip } from '@/shared/help'
 import { useDocumentTitle, useToast } from '@/shared/ui'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Sheet } from '@/shared/ui/Sheet'

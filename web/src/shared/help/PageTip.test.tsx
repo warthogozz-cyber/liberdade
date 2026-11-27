@@ -31,6 +31,16 @@ describe('PageTip', () => {
     expect(screen.queryByRole('note')).not.toBeInTheDocument()
   })
 
+  it('dismissHidesAcrossScreens', async () => {
+    const first = renderWithProviders(<PageTip id="transactions" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Entendi' }))
+    first.unmount()
+
+    renderWithProviders(<PageTip id="transactions" />)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+
   it('hiddenWhenTipsAreOff', async () => {
     localStorage.setItem('liberdade.tips', 'off')
     renderWithProviders(<PageTip id="transactions" />)
