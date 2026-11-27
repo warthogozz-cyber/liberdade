@@ -57,6 +57,16 @@ function setUp(spent: string, month = '2026-11') {
 const render = () => renderWithProviders(<BudgetPage />, { path: '/planejar/orcamento' })
 
 describe('BudgetPage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    setUp('100.00')
+    render()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Você recebe um aviso quando um gasto chega a 80% do limite. É só para ajudar.',
+    )
+  })
+
   it('line shows text with color', async () => {
     setUp('1260.00')
     render()

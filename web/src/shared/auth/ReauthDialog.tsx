@@ -116,6 +116,9 @@ export function ReauthDialog({ assign, onFinish }: ReauthDialogProps) {
         >
           <FormattedMessage id="reauth.passkey" />
         </button>
+        <p className="text-sm text-text-muted">
+          <FormattedMessage id="passkey.what" />
+        </p>
         <button
           type="button"
           className={`${button} border border-primary text-primary`}

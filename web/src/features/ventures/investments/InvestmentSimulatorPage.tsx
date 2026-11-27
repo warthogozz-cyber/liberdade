@@ -32,6 +32,13 @@ const PREFILLED = [
   { code: 'CDI', name: 'CDI' },
 ] as const
 
+/** The short explanation of the two rates the scenarios can be named after. */
+function rateHelp(name: string) {
+  if (name === 'Selic') return 'ventures.sim.rateHelp.selic'
+  if (name === 'CDI') return 'ventures.sim.rateHelp.cdi'
+  return undefined
+}
+
 interface Indicator {
   value: string | null
   source: { name: string; url?: string | null }
@@ -247,14 +254,21 @@ export function InvestmentSimulatorPage() {
           })}
           {scenarios.map((row, index) => {
             const n = index + 1
+            const help = rateHelp(row.name)
             return (
               <fieldset
                 key={row.key}
+                aria-describedby={help ? idOf(row.key, 'help') : undefined}
                 className="flex flex-col gap-3 rounded-card border border-text-muted/30 p-4"
               >
                 <legend className="px-1 font-medium">
                   {intl.formatMessage({ id: 'ventures.sim.scenario' }, { n })}
                 </legend>
+                {help && (
+                  <p id={idOf(row.key, 'help')} className="text-sm text-text-muted">
+                    {intl.formatMessage({ id: help })}
+                  </p>
+                )}
                 {Text({
                   id: idOf(row.key, 'name'),
                   label: intl.formatMessage({ id: 'ventures.sim.scenarioName' }, { n }),

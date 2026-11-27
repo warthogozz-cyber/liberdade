@@ -45,6 +45,9 @@ function watchContext(context: BrowserContext, findings: string[]): void {
 /** Whether the test running now asked for the first visit tips (`tips: true`); false in a hook. */
 let activeTips = false
 
+/** Whether the test running now has the first visit tips on, so a screen may open with its tour. */
+export const tipsOn = (): boolean => activeTips
+
 /** Turns the first visit tips off in a context (they are on by default for people) unless `tips` is set. */
 async function silenceTips(context: BrowserContext, tips: boolean): Promise<void> {
   if (tips) return

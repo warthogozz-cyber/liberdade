@@ -48,29 +48,32 @@ export function AchievementsPage() {
             <FormattedMessage id="gamification.streak.error" />
           </p>
         ) : (
-          streak.data &&
-          (streak.data.weeks > 0 ? (
-            <>
-              <p className="font-medium">
-                <FormattedMessage
-                  id="gamification.streak.weeks"
-                  values={{ weeks: streak.data.weeks }}
-                />
-              </p>
-              {streak.data.frozenWeeks > 0 && (
+          streak.data && (
+            <div data-tour="achievements-rest" className="flex flex-col gap-1">
+              {streak.data.weeks > 0 ? (
+                <>
+                  <p className="font-medium">
+                    <FormattedMessage
+                      id="gamification.streak.weeks"
+                      values={{ weeks: streak.data.weeks }}
+                    />
+                  </p>
+                  {streak.data.frozenWeeks > 0 && (
+                    <p className="text-text-muted">
+                      <FormattedMessage
+                        id="gamification.streak.frozen"
+                        values={{ frozen: streak.data.frozenWeeks }}
+                      />
+                    </p>
+                  )}
+                </>
+              ) : (
                 <p className="text-text-muted">
-                  <FormattedMessage
-                    id="gamification.streak.frozen"
-                    values={{ frozen: streak.data.frozenWeeks }}
-                  />
+                  <FormattedMessage id="gamification.streak.none" />
                 </p>
               )}
-            </>
-          ) : (
-            <p className="text-text-muted">
-              <FormattedMessage id="gamification.streak.none" />
-            </p>
-          ))
+            </div>
+          )
         )}
       </section>
       {achievements.data !== undefined ? (

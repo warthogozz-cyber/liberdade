@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest'
 import { resetMockData } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { resetCsrf } from '@/shared/api'
+import { resetHelpOpenForTests } from '@/shared/help/helpStore'
 import { db } from '@/shared/offline/db'
 
 // MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`: a call no handler answers fails the test.
@@ -19,6 +20,7 @@ afterEach(async () => {
   server.resetHandlers()
   resetMockData()
   resetCsrf()
+  resetHelpOpenForTests()
   // The ESLint tests run in Node, without a window.
   if (typeof window !== 'undefined') {
     localStorage.clear()

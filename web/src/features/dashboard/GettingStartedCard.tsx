@@ -114,6 +114,11 @@ export function GettingStartedCard({ workspace, me }: GettingStartedCardProps) {
           </li>
         ))}
       </ul>
+      {!hasPasskey && (
+        <p className="text-sm text-text-muted">
+          <FormattedMessage id="passkey.what" />
+        </p>
+      )}
       {!online && <p className="text-sm text-text-muted">{offline}</p>}
     </section>
   )

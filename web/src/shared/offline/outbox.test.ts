@@ -9,6 +9,8 @@ import {
   replaceOutboxItem,
 } from '@/shared/offline'
 import { db } from '@/shared/offline/db'
+import type { OutboxItem } from '@/shared/offline'
+import { onQueued } from '@/shared/offline/queuedSignal'
 import { isLocalChange, resetLocalChanges } from '@/shared/live/localChanges'
 import { outboxItem as item, outboxPayload as payload } from '@/shared/testing'
 
@@ -29,6 +31,22 @@ afterEach(() => {
 })
 
 describe('enqueueTransaction', () => {
+  it('enqueueNotifiesQueued', async () => {
+    let stored = false
+    const add = db.outbox.add.bind(db.outbox)
+    vi.spyOn(db.outbox, 'add').mockImplementation(((value: OutboxItem) =>
+      add(value).then((key) => {
+        stored = true
+        return key
+      })) as typeof db.outbox.add)
+    const storedWhenHeard: boolean[] = []
+    removals.push(onQueued(() => storedWhenHeard.push(stored)))
+
+    await enqueueTransaction({ userId: 'a', workspaceId: 'ws1', payload: payload('t1') }, 1000)
+
+    expect(storedWhenHeard).toEqual([true])
+  })
+
   it('stores a pending item due after the send delay and announces it once', async () => {
     const listener = listenForChanges()
 

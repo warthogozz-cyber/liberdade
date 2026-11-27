@@ -10,6 +10,27 @@ import SpendingSplitHomeCard from './SpendingSplitHomeCard'
 afterEach(cleanup)
 
 describe('SpendingSplitHomeCard', () => {
+  it('helpText', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: true }
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/${workspace.id}/spending-split`, () =>
+        HttpResponse.json({
+          month: '2026-11',
+          fixed: { amount: '100.00', currency: 'BRL' },
+          variable: { amount: '50.00', currency: 'BRL' },
+        }),
+      ),
+    )
+    renderWithProviders(<SpendingSplitHomeCard />, { path: '/' })
+
+    expect(
+      await screen.findByText(
+        'Fixos se repetem todo mês, como o aluguel. Variáveis mudam, como o mercado.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('shows both totals', async () => {
     const workspace = seedMockFamily()
     mockState.modules[workspace.id] = { planning: true }

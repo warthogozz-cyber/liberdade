@@ -135,6 +135,7 @@ export function StepsList({ workspace, venture, canWrite }: StepsListProps) {
       <h2 id="venture-steps-title" className="font-semibold">
         {intl.formatMessage({ id: 'ventures.steps.title' })}
       </h2>
+      <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'ventures.steps.help' })}</p>
       {steps.length === 0 && (
         <p className="text-text-muted">{intl.formatMessage({ id: 'ventures.steps.empty' })}</p>
       )}

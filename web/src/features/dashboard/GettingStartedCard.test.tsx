@@ -91,6 +91,18 @@ describe('GettingStartedCard', () => {
     )
   })
 
+  it('passkeyExplained', async () => {
+    family()
+    renderCard()
+
+    await screen.findByRole('link', { name: 'Criar passkey neste aparelho' })
+    expect(
+      screen.getAllByText(
+        'Passkey é entrar com a digital, o rosto ou o PIN do aparelho, sem senha.',
+      ),
+    ).toHaveLength(1)
+  })
+
   it('linksToAccounts', async () => {
     family()
     renderCard()

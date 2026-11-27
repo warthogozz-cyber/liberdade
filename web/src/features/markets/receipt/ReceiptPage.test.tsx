@@ -85,6 +85,16 @@ const pasteLink = async (text: string) => {
 }
 
 describe('ReceiptPage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    seed()
+    render()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Aponte a câmera para o QR da nota. Os preços ficam guardados; a nota não vira gasto.',
+    )
+  })
+
   it('lookupBodyHasNoBuyerDocument', async () => {
     seed()
     const bodies: unknown[] = []

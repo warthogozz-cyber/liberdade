@@ -3,6 +3,7 @@ import { markLocalChange } from '@/shared/live/localChanges'
 import { parseCents } from '@/shared/money'
 import { withOutboxLock } from './lock'
 import { openOfflineDb } from './openOfflineDb'
+import { notifyQueued } from './queuedSignal'
 import type { OutboxItem } from './types'
 
 /** How long a new item waits before it is sent, so "Desfazer" can still take it back (D15). */
@@ -41,6 +42,7 @@ export async function enqueueTransaction(
   markLocalChange(item.id)
   const { db } = await openOfflineDb()
   await db.outbox.add(item)
+  notifyQueued()
   notifyOutboxChanged()
   return item
 }

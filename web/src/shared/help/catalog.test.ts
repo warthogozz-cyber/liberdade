@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { seenId, tours } from './catalog'
+import { screenTips, seenId, tours } from './catalog'
 import { helpMessages } from './messages.pt-BR'
 
 const entries = Object.entries(tours)
@@ -23,6 +23,13 @@ describe('help catalog', () => {
     for (const [id, steps] of entries) {
       for (const step of steps) expect(helpMessages, id).toHaveProperty(step.messageId)
     }
+  })
+
+  it('everyTipHasText', () => {
+    for (const [id, messageId] of Object.entries(screenTips)) {
+      expect(helpMessages, id).toHaveProperty(messageId)
+    }
+    expect(Object.keys(screenTips)).toHaveLength(20)
   })
 
   it('seenIds', () => {

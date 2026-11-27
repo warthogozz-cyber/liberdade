@@ -62,6 +62,9 @@ export function TransactionFilters({
       title={intl.formatMessage({ id: 'transactions.filters' })}
     >
       <div className="flex flex-col gap-6">
+        <p className="text-sm text-text-muted">
+          {intl.formatMessage({ id: 'transactions.filters.help' })}
+        </p>
         <fieldset>
           <legend className="mb-2 font-medium">
             {intl.formatMessage({ id: 'transactions.filter.category' })}

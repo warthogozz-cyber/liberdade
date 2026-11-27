@@ -10,6 +10,7 @@ import { marketsMessages } from '../messages.pt-BR'
 import { unitPriceToCents } from '../price'
 import { useShoppingList } from '../list/useShoppingList'
 import { useCompare } from './useCompare'
+import { PageTip } from '@/shared/help'
 
 registerMessages(marketsMessages)
 
@@ -62,6 +63,7 @@ export function ComparePage() {
       <h1 className="text-2xl font-semibold">
         <FormattedMessage id="markets.compare.title" />
       </h1>
+      <PageTip id="compare" />
 
       {failed ? (
         <p role="alert">

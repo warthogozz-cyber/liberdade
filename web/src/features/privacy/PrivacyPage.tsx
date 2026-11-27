@@ -25,6 +25,7 @@ export function PrivacyPage() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
+      <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'privacy.intro' })}</p>
       {!online && (
         <p className="text-text-muted">{intl.formatMessage({ id: 'privacy.offline' })}</p>
       )}
@@ -39,6 +40,7 @@ export function PrivacyPage() {
       <h2 className="mt-2 text-lg font-semibold">
         {intl.formatMessage({ id: 'privacy.passkeys' })}
       </h2>
+      <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'passkey.what' })}</p>
       <PasskeyList />
       <div className="mt-4 flex flex-col gap-3">
         {workspace?.role === 'OWNER' && (

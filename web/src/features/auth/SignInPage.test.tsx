@@ -51,6 +51,16 @@ describe('SignInPage', () => {
     expect(document.title).toBe('Entrar · Liberdade')
   })
 
+  it('passkeyExplained', () => {
+    renderSignIn()
+
+    expect(
+      screen.getAllByText(
+        'Passkey é entrar com a digital, o rosto ou o PIN do aparelho, sem senha.',
+      ),
+    ).toHaveLength(1)
+  })
+
   it('shows the failed sign-in from ?erro=login', () => {
     renderSignIn('/entrar?erro=login')
 

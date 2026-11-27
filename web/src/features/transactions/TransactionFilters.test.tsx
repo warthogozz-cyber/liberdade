@@ -19,6 +19,17 @@ afterEach(() => {
 })
 
 describe('TransactionFilters tag and payment method', () => {
+  it('helpText', async () => {
+    seedMockFamily()
+    renderWithProviders(<TransactionsPage />, { path: '/lancamentos' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Filtros' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Filtros' })
+    expect(
+      within(dialog).getByText('Use os filtros para achar um gasto por categoria, conta ou tag.'),
+    ).toBeInTheDocument()
+  })
+
   it('lists the family tags and methods, and the query carries the choices', async () => {
     const workspace = seedMockFamily()
     const escola = { id: crypto.randomUUID(), name: 'Escola', archivedAt: null }

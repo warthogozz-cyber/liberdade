@@ -9,6 +9,7 @@ import { MonthSwitcher } from '@/shared/ui/MonthSwitcher'
 import { BudgetLimitSheet } from './BudgetLimitSheet'
 import { BudgetLine } from './BudgetLine'
 import './register'
+import { PageTip } from '@/shared/help'
 
 const action =
   'min-h-12 rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50'
@@ -22,6 +23,7 @@ export function BudgetPage() {
       <h1 className="text-2xl font-semibold">
         <FormattedMessage id="planning.budget.title" />
       </h1>
+      <PageTip id="budget" />
       {workspace ? (
         <BudgetContent workspace={workspace} />
       ) : (

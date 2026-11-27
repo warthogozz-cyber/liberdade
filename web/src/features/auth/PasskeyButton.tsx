@@ -46,6 +46,9 @@ export function PasskeyButton() {
       >
         <FormattedMessage id="passkey.create" />
       </button>
+      <p className="text-sm text-text-muted">
+        <FormattedMessage id="passkey.what" />
+      </p>
       {!online && (
         <p className="text-sm text-text-muted">
           <FormattedMessage id="passkey.offline" />

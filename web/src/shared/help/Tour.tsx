@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 import type { TourStep } from './catalog'
+import { OPEN_DIALOG_SELECTOR } from './dialogs'
 import { setHelpOpen } from './helpStore'
 
 const button =
@@ -98,7 +99,7 @@ export default function Tour({ steps, onClose }: { steps: TourStep[]; onClose: (
       if (event.key !== 'Escape') return
       // An Esc meant for another dialog (not the tour card) must not end the tour.
       const target = event.target
-      const otherDialog = target instanceof Element ? target.closest('[role="dialog"]') : null
+      const otherDialog = target instanceof Element ? target.closest(OPEN_DIALOG_SELECTOR) : null
       if (otherDialog !== null && otherDialog !== cardRef.current) return
       closeRef.current()
     }

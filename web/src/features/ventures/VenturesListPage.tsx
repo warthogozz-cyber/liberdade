@@ -3,6 +3,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
 import { useCurrentWorkspace, useFormatMoney } from '@/shared/api'
 import { useVentures, type VentureSummary } from '@/shared/api/ventures'
+import { PageTour } from '@/shared/help'
 import { registerMessages } from '@/shared/i18n'
 import { parseCents } from '@/shared/money'
 import { useDocumentTitle } from '@/shared/ui'
@@ -25,28 +26,35 @@ export function VenturesListPage() {
   const open = ventures.data?.ventures.filter((each) => each.status !== 'CLOSED') ?? []
   const closed = ventures.data?.ventures.filter((each) => each.status === 'CLOSED') ?? []
   const limitReached = ventures.data?.limitReached === true
+  // The tour joins once the list is in, so it counts every step from the start; a quick "Concluir"
+  // on a one-step tour shown while loading would mark the whole tour seen.
+  const [settled, setSettled] = useState(false)
+  if (ventures.data !== undefined && !settled) setSettled(true)
 
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
-      <h1 className="text-2xl font-semibold">
+      <h1 data-tour="ventures-intro" className="text-2xl font-semibold">
         <FormattedMessage id="ventures.title" />
       </h1>
       {ventures.data !== undefined ? (
         <>
           {ventures.data.ventures.length === 0 && (
-            <p className="text-text-muted">
+            <p data-tour="ventures-actual" className="text-text-muted">
               <FormattedMessage id="ventures.empty" />
             </p>
           )}
           {open.length > 0 && (
-            <ul className="flex flex-col gap-3">
+            <ul data-tour="ventures-actual" className="flex flex-col gap-3">
               {open.map((venture) => (
                 <VentureCard key={venture.id} venture={venture} />
               ))}
             </ul>
           )}
           {closed.length > 0 && (
-            <details className="flex flex-col gap-3">
+            <details
+              data-tour={open.length === 0 ? 'ventures-actual' : undefined}
+              className="flex flex-col gap-3"
+            >
               <summary className={`min-h-12 cursor-pointer py-3 font-medium ${focus}`}>
                 <FormattedMessage id="ventures.closed" values={{ count: closed.length }} />
               </summary>
@@ -62,6 +70,7 @@ export function VenturesListPage() {
               <>
                 <button
                   type="button"
+                  data-tour="ventures-start"
                   aria-expanded={limitOpen}
                   onClick={() => setLimitOpen((current) => !current)}
                   className={`${outline} self-start bg-primary text-on-primary`}
@@ -89,6 +98,7 @@ export function VenturesListPage() {
             ) : (
               <Link
                 to="/mais/projetos/comecar"
+                data-tour="ventures-start"
                 className={`${outline} self-start bg-primary text-on-primary`}
               >
                 <FormattedMessage id="ventures.start" />
@@ -115,6 +125,7 @@ export function VenturesListPage() {
           ))}
         </ul>
       )}
+      {settled && <PageTour id="ventures" />}
     </main>
   )
 }

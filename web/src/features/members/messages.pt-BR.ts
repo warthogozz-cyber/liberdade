@@ -44,6 +44,7 @@ export const membersMessages = {
   'members.offline': 'Sem conexão. Mudar a família volta com o sinal.',
   'members.switcher.title': 'Trocar de família',
   'members.switcher.current': 'Atual',
+  'members.switcher.help': 'Você faz parte de mais de uma família? Troque aqui.',
   'invite.title': 'Convidar alguém',
   'invite.nickname': 'Apelido',
   'invite.role': 'Papel',

@@ -2,7 +2,7 @@ import { useId, type ReactNode } from 'react'
 import { useIntl } from 'react-intl'
 import { Link } from 'react-router'
 import { useCurrentWorkspace, useModules } from '@/shared/api'
-import { glossary, moduleHelp, tours, type ModuleHelp } from '@/shared/help'
+import { glossary, moduleHelp, type ModuleHelp } from '@/shared/help'
 import { registerMessages } from '@/shared/i18n'
 import { useDocumentTitle } from '@/shared/ui'
 import { howItWorksMessages, type HowItWorksMessageId } from './messages.pt-BR'
@@ -16,14 +16,21 @@ const id = (messageId: string) => messageId as HowItWorksMessageId
 
 const BASICS = ['help.start', 'help.roles', 'help.offline', 'help.live'] as const
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/** `children` may be a function that receives the heading id, to point other elements at the title. */
+function Section({
+  title,
+  children,
+}: {
+  title: string
+  children: ReactNode | ((headingId: string) => ReactNode)
+}) {
   const headingId = useId()
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <h2 id={headingId} className="text-lg font-semibold">
         {title}
       </h2>
-      {children}
+      {typeof children === 'function' ? children(headingId) : children}
     </section>
   )
 }
@@ -32,16 +39,19 @@ function ModuleSection({ entry }: { entry: ModuleHelp }) {
   const intl = useIntl()
   return (
     <Section title={intl.formatMessage({ id: id(entry.titleId) })}>
-      <p>{intl.formatMessage({ id: id(`help.module.${entry.module}`) })}</p>
-      {tours[entry.tour]?.length ? (
-        <Link
-          to={entry.path}
-          state={{ forceTour: entry.tour }}
-          className={`flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary ${focus}`}
-        >
-          {intl.formatMessage({ id: 'help.tour.open' })}
-        </Link>
-      ) : null}
+      {(headingId) => (
+        <>
+          <p>{intl.formatMessage({ id: id(`help.module.${entry.module}`) })}</p>
+          <Link
+            to={entry.path}
+            state={{ forceTour: entry.tour }}
+            aria-describedby={headingId}
+            className={`flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary ${focus}`}
+          >
+            {intl.formatMessage({ id: 'help.tour.open' })}
+          </Link>
+        </>
+      )}
     </Section>
   )
 }

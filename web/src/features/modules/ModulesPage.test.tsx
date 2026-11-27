@@ -1,9 +1,10 @@
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
+import { hasSeen, markSeen } from '@/shared/help'
 import { registerModule, resetModules } from '@/shared/modules/registry'
 import { renderWithProviders } from '@/shared/testing'
-import { ModulesPage } from './ModulesPage'
+import { ModuleNotice, ModulesPage } from './ModulesPage'
 
 afterEach(() => {
   cleanup()
@@ -15,6 +16,16 @@ function renderModules() {
 }
 
 describe('ModulesPage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    seedMockFamily()
+    renderModules()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Ligue só o que quiser usar. Desligar esconde a parte, mas não apaga nada.',
+    )
+  })
+
   it('comingSoonDisabled', async () => {
     seedMockFamily()
     renderModules()
@@ -63,5 +74,53 @@ describe('ModulesPage', () => {
     expect(await screen.findByText('Planejamento')).toBeInTheDocument()
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
     expect(screen.getAllByText('Em breve')).toHaveLength(5)
+  })
+
+  it('enableShowsNoticeAndLink', async () => {
+    seedMockFamily()
+    registerModule({ key: 'markets', available: true })
+    markSeen(mockState.user.id, 'tour-markets')
+    renderModules()
+
+    fireEvent.click(await screen.findByRole('switch', { name: 'Feira' }))
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Feira: ligado.'))
+    const status = screen.getByRole('status')
+    expect(within(status).getByRole('link', { name: 'Abrir Feira' })).toHaveAttribute(
+      'href',
+      '/mais/feira',
+    )
+    expect(hasSeen(mockState.user.id, 'tour-markets')).toBe(false)
+  })
+
+  it('youthGetsNoVenturesLink', async () => {
+    seedMockFamily()
+    registerModule({ key: 'ventures', available: true })
+    renderModules()
+
+    fireEvent.click(await screen.findByRole('switch', { name: 'Projetos' }))
+    expect(await screen.findByRole('link', { name: 'Abrir Projetos' })).toHaveAttribute(
+      'href',
+      '/mais/projetos',
+    )
+    cleanup()
+
+    renderWithProviders(<ModuleNotice module="ventures" role="YOUTH" />, { path: '/mais/modulos' })
+    expect(screen.getByText('Projetos: ligado.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Abrir Projetos' })).not.toBeInTheDocument()
+  })
+
+  it('disableShowsNoNotice', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { planning: true }
+    registerModule({ key: 'planning', available: true })
+    renderModules()
+
+    const toggle = await screen.findByRole('switch', { name: 'Planejamento' })
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'))
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'))
+    expect(screen.queryByText(/ligado\./)).not.toBeInTheDocument()
   })
 })

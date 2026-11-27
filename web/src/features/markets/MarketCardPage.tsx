@@ -3,6 +3,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useCurrentWorkspace, useMe } from '@/shared/api'
 import { useMarketHome, useMarketsSettings, type MarketCard } from '@/shared/api/markets'
+import { PageTip } from '@/shared/help'
 import { registerMessages } from '@/shared/i18n'
 import { useDocumentTitle } from '@/shared/ui'
 import { SourceStamp } from '@/shared/ui/SourceStamp'
@@ -152,6 +153,7 @@ export function MarketCardPage() {
         <FormattedMessage id="markets.card.back" />
       </Link>
 
+      <PageTip id="market" />
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold">{name}</h1>
         <p className="text-text-muted">

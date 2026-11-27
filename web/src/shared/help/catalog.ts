@@ -48,8 +48,8 @@ export interface ModuleHelp {
   hiddenForYouth: boolean
 }
 
-/** The first visit tip of each screen that has one (the rest arrive with their screens). */
-export const screenTips: Partial<Record<TipId, HelpMessageId>> = {
+/** The first visit tip of each screen that has one. */
+export const screenTips: Record<TipId, HelpMessageId> = {
   home: 'tips.home',
   launch: 'tips.launch',
   dashboard: 'tips.dashboard',
@@ -57,13 +57,28 @@ export const screenTips: Partial<Record<TipId, HelpMessageId>> = {
   accounts: 'tips.accounts',
   calculator: 'tips.calculator',
   import: 'tips.import',
+  portrait: 'tips.portrait',
+  categories: 'tips.categories',
   family: 'tips.family',
+  modules: 'tips.modules',
+  budget: 'tips.budget',
+  goals: 'tips.goals',
+  recurrences: 'tips.recurrences',
+  receipt: 'tips.receipt',
+  'shopping-list': 'tips.shoppingList',
+  products: 'tips.products',
+  market: 'tips.market',
+  compare: 'tips.compare',
+  'venture-real': 'tips.ventureReal',
 }
 
-export const eventTips: Partial<Record<EventTipId, HelpMessageId>> = {}
+export const eventTips: Record<EventTipId, HelpMessageId> = {
+  offline: 'tips.event.offline',
+  live: 'tips.event.live',
+}
 
 /** The steps of each tour, in order; a step whose anchor is not on the screen is skipped. */
-export const tours: Partial<Record<TourId, TourStep[]>> = {
+export const tours: Record<TourId, TourStep[]> = {
   planning: [
     { anchor: 'planning-budget', messageId: 'tips.tour.planning.budget' },
     { anchor: 'planning-goals', messageId: 'tips.tour.planning.goals' },
@@ -76,7 +91,18 @@ export const tours: Partial<Record<TourId, TourStep[]>> = {
   ],
   achievements: [
     { anchor: 'achievements-streak', messageId: 'tips.tour.achievements.streak' },
+    { anchor: 'achievements-rest', messageId: 'tips.tour.achievements.streakBreak' },
     { anchor: 'achievements-list', messageId: 'tips.tour.achievements.list' },
+  ],
+  markets: [
+    { anchor: 'markets-nearby', messageId: 'tips.tour.markets.nearby' },
+    { anchor: 'markets-receipt', messageId: 'tips.tour.markets.receipt' },
+    { anchor: 'markets-list', messageId: 'tips.tour.markets.list' },
+  ],
+  ventures: [
+    { anchor: 'ventures-intro', messageId: 'tips.tour.ventures.intro' },
+    { anchor: 'ventures-start', messageId: 'tips.tour.ventures.start' },
+    { anchor: 'ventures-actual', messageId: 'tips.tour.ventures.actual' },
   ],
 }
 
@@ -137,10 +163,50 @@ export const glossary: { termId: string; bodyId: string }[] = [
 export const routeHelp: Record<string, RouteHelp> = {
   '/inicio': { tip: 'home' },
   '/lancar': { tip: 'launch' },
+  '/painel': { tip: 'dashboard' },
+  '/painel/retrato': { tip: 'portrait' },
+  '/lancamentos': { tip: 'transactions' },
+  '/lancamentos/importar': { tip: 'import' },
+  '/mais/contas': { tip: 'accounts' },
+  '/mais/categorias': { tip: 'categories' },
+  '/mais/modulos': { tip: 'modules' },
+  '/mais/indicadores/calculadora': { tip: 'calculator' },
+  '/mais/privacidade': { inline: 'privacy.intro' },
+  '/planejar/orcamento': { tip: 'budget' },
+  '/planejar/metas': { tip: 'goals' },
+  '/planejar/recorrencias': { tip: 'recurrences' },
+  '/mais/feira/nota': { tip: 'receipt' },
+  '/mais/feira/lista': { tip: 'shopping-list' },
+  '/mais/feira/produtos': { tip: 'products' },
+  '/mais/feira/mercado/:ref': { tip: 'market' },
+  '/mais/feira/comparar': { tip: 'compare' },
+  '/mais/projetos/:id/real': { tip: 'venture-real' },
   '/mais/familia': { tip: 'family' },
   '/mais/familia/convidar': { inherits: '/mais/familia' },
   '/mais/como-funciona': { exception: 'help screen' },
   '/mais/ajustes': { inline: 'settings.motion' },
+  '/mais/feira': { tour: 'markets' },
+  '/mais/projetos': { tour: 'ventures' },
+  '/mais/projetos/comecar': { inherits: '/mais/projetos' },
+  '/mais/projetos/:id/editar': { inherits: '/mais/projetos' },
+  '/mais/projetos/:id': { inline: 'ventures.caption.margin' },
+  '/mais/projetos/investimentos': { inline: 'ventures.invest.intro' },
+  '/mais/projetos/investimentos/simulador': { inline: 'ventures.invest.disclaimer' },
+  '/planejar': { tour: 'planning' },
+  '/mais/indicadores': { tour: 'indicators' },
+  '/mais/conquistas': { tour: 'achievements' },
+  '/planejar/reserva': { inline: 'planning.reserve.education' },
+  '/mais/privacidade/atividade': { inline: 'activity.hint' },
+  '/mais/plano': { inline: 'billing.freeForever' },
+  '/entrar': { exception: 'public page before sign-in' },
+  '/convite': { exception: 'public page before sign-in' },
+  '/privacidade': { exception: 'public page before sign-in' },
+  '/termos': { exception: 'public page before sign-in' },
+  '/robo': { exception: 'robot page' },
+  '/boas-vindas': { exception: 'welcome is itself the intro' },
+  '/mais': { exception: 'menu' },
+  '/mais/recorrencias': { exception: 'redirect only' },
+  '*': { exception: 'not-found page' },
 }
 
 /** The ids under which "seen" is stored; they match what existing devices already hold. */

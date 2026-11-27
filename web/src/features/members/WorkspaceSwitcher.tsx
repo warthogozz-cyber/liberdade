@@ -14,6 +14,9 @@ export function WorkspaceSwitcher() {
       <h2 id="workspace-switcher" className="font-semibold">
         {intl.formatMessage({ id: 'members.switcher.title' })}
       </h2>
+      <p className="text-sm text-text-muted">
+        {intl.formatMessage({ id: 'members.switcher.help' })}
+      </p>
       <ul className="flex flex-col gap-2">
         {workspaces.map((workspace) => {
           const isCurrent = workspace.id === current?.id

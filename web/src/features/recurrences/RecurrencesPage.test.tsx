@@ -53,6 +53,16 @@ const renderRecurrences = () =>
   renderWithProviders(<RecurrencesPage />, { path: '/mais/recorrencias' })
 
 describe('RecurrencesPage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    seedPlanning()
+    renderRecurrences()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Previstos são contas que você espera pagar. Toque em Confirmar quando acontecerem.',
+    )
+  })
+
   it('lists the rules with their text and the next date', async () => {
     seedPlanning()
     addRent()
