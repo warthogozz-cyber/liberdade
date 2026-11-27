@@ -836,6 +836,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listItems"];
+        put?: never;
+        post: operations["addListItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/list/clear-checked": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["clearCheckedItems"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/list/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["reorderList"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/list/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeListItem"];
+        options?: never;
+        head?: never;
+        patch: operations["updateListItem"];
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/products": {
         parameters: {
             query?: never;
@@ -1623,6 +1687,13 @@ export interface components {
             real: components["schemas"]["RealView"];
             totals: components["schemas"]["TotalsView"];
         };
+        AddListItemRequest: {
+            newProductName: string | null;
+            /** Format: uuid */
+            productId: string | null;
+            /** @example 1 */
+            quantity: string | null;
+        };
         AddressView: {
             city: string | null;
             housenumber: string | null;
@@ -1697,6 +1768,10 @@ export interface components {
             checkoutUrl: string;
             /** Format: uuid */
             orderId: string;
+        };
+        ClearedView: {
+            /** Format: int32 */
+            removed: number;
         };
         ConfirmTransactionRequest: {
             /** Format: uuid */
@@ -2087,6 +2162,24 @@ export interface components {
             flyerValidUntil: string | null;
             instagram: string | null;
             website: string | null;
+        };
+        ListItemView: {
+            checked: boolean;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: int32 */
+            position: number;
+            prices: components["schemas"]["ProductPriceView"][];
+            /** Format: uuid */
+            productId: string;
+            /** @example 2.5 */
+            quantity: string;
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+        };
+        ListOrderRequest: {
+            ids: string[];
         };
         LookupItem: Record<string, never>;
         LookupMarket: {
@@ -2519,6 +2612,9 @@ export interface components {
             geocodingEnabled: boolean;
             instagramEnabled: boolean;
         };
+        ShoppingListView: {
+            items: components["schemas"]["ListItemView"][];
+        };
         SimulationCost: {
             /** @example 12.5 */
             amount: string;
@@ -2709,6 +2805,11 @@ export interface components {
             targetAmount?: components["schemas"]["Money"] | null;
             /** Format: int64 */
             version: number;
+        };
+        UpdateListItemRequest: {
+            checked: boolean | null;
+            /** @example 2.5 */
+            quantity: string | null;
         };
         UpdateMemberRequest: {
             nickname?: string | null;
@@ -4347,6 +4448,156 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListView"];
+                };
+            };
+        };
+    };
+    addListItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddListItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListItemView"];
+                };
+            };
+        };
+    };
+    clearCheckedItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearedView"];
+                };
+            };
+        };
+    };
+    reorderList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ListOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListView"];
+                };
+            };
+        };
+    };
+    removeListItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateListItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateListItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListItemView"];
+                };
             };
         };
     };

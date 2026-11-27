@@ -78,7 +78,8 @@ class ProductsService {
         return one(workspaceId, productId);
     }
 
-    private Map<UUID, List<ProductPriceView>> pricesByProduct(UUID workspaceId) {
+    /** The last price of each product at each market, by product; a product with no price has no entry. */
+    Map<UUID, List<ProductPriceView>> pricesByProduct(UUID workspaceId) {
         Map<UUID, List<ProductPriceView>> byProduct = new HashMap<>();
         for (LatestPrice price : prices.latestPerProductAndMarket(workspaceId)) {
             byProduct

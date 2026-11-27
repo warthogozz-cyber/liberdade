@@ -222,4 +222,47 @@ final class MarketViews {
 
     /** Two products the family says are not the same. */
     record DismissPairRequest(@NotNull UUID a, @NotNull UUID b) {}
+
+    /**
+     * An item of the shopping list, with the product's name and unit as they are now; {@code quantity} is decimal
+     * text and {@code prices} is the last price at each market, as in the products overview.
+     */
+    record ListItemView(
+            UUID id,
+            UUID productId,
+            String name,
+            ProductUnit unit,
+            @Schema(example = "2.5") String quantity,
+            boolean checked,
+            int position,
+            List<ProductPriceView> prices) {}
+
+    /** The family's shopping list, in the order the family set. */
+    record ShoppingListView(List<ListItemView> items) {}
+
+    /**
+     * What to add: a product of the family, or the name of a new one (1 to 80). {@code quantity} is decimal text, up to
+     * 15 digits and 4 places, above zero; it defaults to 1.
+     */
+    record AddListItemRequest(
+            @Nullable @Schema(nullable = true) UUID productId,
+
+            @Nullable @Schema(nullable = true, minLength = 1, maxLength = 80)
+            String newProductName,
+
+            @Nullable @Schema(nullable = true, example = "1")
+            String quantity) {}
+
+    /** What to change in an item; a field left out stays as it is. */
+    record UpdateListItemRequest(
+            @Nullable @Schema(nullable = true, example = "2.5")
+            String quantity,
+
+            @Nullable @Schema(nullable = true) Boolean checked) {}
+
+    /** The new order: exactly the ids of the items on the list. */
+    record ListOrderRequest(@NotNull List<UUID> ids) {}
+
+    /** How many ticked items were taken off the list. */
+    record ClearedView(int removed) {}
 }

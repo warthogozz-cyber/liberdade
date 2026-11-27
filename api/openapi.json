@@ -2216,6 +2216,235 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets/list": {
+      "get": {
+        "operationId": "listItems",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "shopping-list-controller"
+        ]
+      },
+      "post": {
+        "operationId": "addListItem",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddListItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListItemView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "shopping-list-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/list/clear-checked": {
+      "post": {
+        "operationId": "clearCheckedItems",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearedView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "shopping-list-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/list/order": {
+      "put": {
+        "operationId": "reorderList",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "shopping-list-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/list/{id}": {
+      "delete": {
+        "operationId": "removeListItem",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "shopping-list-controller"
+        ]
+      },
+      "patch": {
+        "operationId": "updateListItem",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateListItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListItemView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "shopping-list-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/products": {
       "get": {
         "operationId": "products",
@@ -4766,6 +4995,27 @@
           }
         }
       },
+      "AddListItemRequest": {
+        "type": "object",
+        "properties": {
+          "newProductName": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string",
+            "nullable": true
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "string",
+            "nullable": true,
+            "example": "1"
+          }
+        }
+      },
       "AddressView": {
         "type": "object",
         "properties": {
@@ -5018,6 +5268,15 @@
           "orderId": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "ClearedView": {
+        "type": "object",
+        "properties": {
+          "removed": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -6281,6 +6540,67 @@
           "website": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "ListItemView": {
+        "type": "object",
+        "properties": {
+          "checked": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "prices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductPriceView"
+            }
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "string",
+            "example": "2.5"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          }
+        }
+      },
+      "ListOrderRequest": {
+        "required": [
+          "ids"
+        ],
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },
@@ -7695,6 +8015,17 @@
           }
         }
       },
+      "ShoppingListView": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListItemView"
+            }
+          }
+        }
+      },
       "SimulationCost": {
         "type": "object",
         "properties": {
@@ -8325,6 +8656,20 @@
           "version": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "UpdateListItemRequest": {
+        "type": "object",
+        "properties": {
+          "checked": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "string",
+            "nullable": true,
+            "example": "2.5"
           }
         }
       },

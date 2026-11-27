@@ -40,6 +40,10 @@ export const marketsKeys = {
   settings: (ws: string) => [...marketsKeys.all(ws), 'settings'] as const,
   prices: (ws: string, ref: string) => [...marketsKeys.all(ws), 'prices', ref] as const,
   products: (ws: string, q: string) => [...marketsKeys.all(ws), 'products', q] as const,
+  // Under `products`, so a product change reaches it, yet never equal to `products(ws, q)`: an object is not a text.
+  productsOverview: (ws: string) => [...marketsKeys.all(ws), 'products', { view: 'overview' }] as const,
+  list: (ws: string) => [...marketsKeys.all(ws), 'list'] as const,
+  compare: (ws: string, refs: readonly string[]) => [...marketsKeys.all(ws), 'compare', refs] as const,
 }
 
 /** The markets around a center, as two separate lists: OpenStreetMap's and the family's own. */

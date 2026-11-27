@@ -3,7 +3,16 @@
  * name and at most an id, never a value. Nothing depends on this module.
  */
 @ApplicationModule(
-        allowedDependencies = {"identity", "workspace", "ledger", "planning", "gamification", "ventures", "shared"})
+        allowedDependencies = {
+            "identity",
+            "workspace",
+            "ledger",
+            "planning",
+            "gamification",
+            "ventures",
+            "markets",
+            "shared"
+        })
 package br.com.liberdadefamilia.live;
 
 import org.springframework.modulith.ApplicationModule;

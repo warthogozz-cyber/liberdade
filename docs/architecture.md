@@ -77,8 +77,8 @@ flowchart LR
   planning --> ledger
   gamification --> workspace & ledger & planning
   ventures --> workspace & ledger & billing
-  live --> identity & workspace & ledger & planning & gamification & ventures
-  live -. ouve eventos .-> ledger & planning & workspace & ventures
+  live --> identity & workspace & ledger & planning & gamification & ventures & markets
+  live -. ouve eventos .-> ledger & planning & workspace & ventures & markets
   audit -. ouve eventos .-> identity & workspace
   audit --> identity & workspace & ventures
   privacy --> ledger & audit & workspace & identity & billing & planning & gamification & ventures
@@ -312,6 +312,11 @@ outros aparelhos se atualizarem sem recarregar. Ele lê de `identity`, `workspac
 - **Avisos de projetos (Plano 9.1).** `VentureChanged`, `VentureClosed` e `VentureDeleted` (`ventures`)
   viram o aviso `venture` com o id do projeto, para todos menos o Jovem, e só saem com o módulo
   Projetos ligado. A assinatura de `LiveRelay.send` não mudou.
+- **Aviso da lista de compras (Plano 10.3).** `ShoppingListChanged`, `ProductsChanged` e `ProductsMerged`
+  (`markets`) viram o aviso `shopping-list`, sem id e para os quatro papéis, e só saem com o módulo Feira
+  ligado. Os dois últimos entram porque renomear ou juntar produtos muda o que a lista mostra. Na web, o
+  aviso busca de novo as consultas da lista, da comparação e dos produtos. O `live` passa a depender de
+  `markets`, só dos tipos públicos da raiz.
 - **Batida a cada 25 s** (`LiveHeartbeat`). Manda um comentário e fecha o stream de quem perdeu a
   sessão (`SessionLiveness`) ou a participação (`Memberships.activeAmong`). Mudar o papel ou remover
   o membro fecha os streams dele na hora; pedir a exclusão da família fecha os da família.
