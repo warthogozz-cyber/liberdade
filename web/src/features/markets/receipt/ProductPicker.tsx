@@ -32,6 +32,8 @@ interface ProductPickerProps {
   inputId?: string
   invalid?: boolean
   describedBy?: string
+  /** Whether a name with no match may become a new product (on by default). */
+  allowNew?: boolean
 }
 
 /** Searches the family's products as the person types; a name with no match becomes "Novo: …". */
@@ -44,6 +46,7 @@ export function ProductPicker({
   inputId,
   invalid,
   describedBy,
+  allowNew = true,
 }: ProductPickerProps) {
   const intl = useIntl()
   const [ownText, setOwnText] = useState('')
@@ -117,7 +120,7 @@ export function ProductPicker({
               </button>
             </li>
           ))}
-          {settled && !exact && (
+          {settled && !exact && allowNew && (
             <li>
               <button
                 type="button"

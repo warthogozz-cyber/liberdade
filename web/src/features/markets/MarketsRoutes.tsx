@@ -18,6 +18,10 @@ const MarketCardPage = lazy(() =>
   import('./MarketCardPage').then((m) => ({ default: m.MarketCardPage })),
 )
 
+const ProductsPage = lazy(() =>
+  import('./products/ProductsPage').then((m) => ({ default: m.ProductsPage })),
+)
+
 function Loading() {
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
@@ -42,6 +46,7 @@ export function MarketsRoutes() {
     { index: true, element: <FeiraPage /> },
     { path: 'mercado/:ref', element: <MarketCardPage /> },
     { path: 'nota', element: <ReceiptPage /> },
+    { path: 'produtos', element: <ProductsPage /> },
   ])
   // Offline with no saved plan the query waits for a connection: the saved Feira opens meanwhile.
   if (plan.isPending && plan.fetchStatus !== 'paused') return <Loading />

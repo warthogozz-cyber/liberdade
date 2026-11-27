@@ -216,6 +216,10 @@ export function FeiraPage() {
         </div>
       )}
 
+      <Link to="/mais/feira/produtos" className={`${outline} self-start`}>
+        <FormattedMessage id="markets.products.link" />
+      </Link>
+
       <OsmAttribution date={search.data?.datasetDate ?? null} />
 
       {adding && ws !== undefined && (

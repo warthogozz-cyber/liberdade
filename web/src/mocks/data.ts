@@ -43,6 +43,10 @@ export interface MockMarkets {
   products?: MockProduct[]
   /** Prices the family's receipts recorded. */
   prices?: MockPrice[]
+  /** Pairs of products the family said are not the same one, as the screen sent them. */
+  dismissed?: [string, string][]
+  /** Ids of products joined into another one (an invented product cannot be deleted in place). */
+  gone?: string[]
 }
 
 /** A product of the family's price book. */
@@ -68,11 +72,12 @@ export const FAKE_PRODUCTS: MockProduct[] = [
   { id: '00000000-0000-4000-8000-00000000a003', name: 'Leite integral', unit: 'L', gtin: null },
 ]
 
-/** Invented prices at the first of the six markets. */
+/** Invented prices at the first two of the six markets. */
 export const FAKE_PRICES: MockPrice[] = [
   { marketRef: 'osm-n-9001', productId: FAKE_PRODUCTS[0]!.id, unitPrice: '4.9900', observedOn: '2026-11-12' },
   { marketRef: 'osm-n-9001', productId: FAKE_PRODUCTS[1]!.id, unitPrice: '7.4900', observedOn: '2026-11-12' },
   { marketRef: 'osm-n-9001', productId: FAKE_PRODUCTS[2]!.id, unitPrice: '5.2900', observedOn: '2026-11-05' },
+  { marketRef: 'osm-n-9002', productId: FAKE_PRODUCTS[0]!.id, unitPrice: '5.4900', observedOn: '2026-11-10' },
 ] // prettier-ignore
 
 /** The six invented markets of the API's `FakeOsmDataset`, around (-10.000, -50.000). */

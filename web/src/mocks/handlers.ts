@@ -1159,13 +1159,192 @@ function marketsHandlers() {
   const cleanKey = (value: unknown) =>
     typeof value === 'string' ? value.replace(/[\s.]/g, '') : undefined
 
+  /** The invented products and the family's own; an edited invented one is kept in the family's list. */
   function allProducts(ws: string): MockProduct[] {
-    return [...FAKE_PRODUCTS, ...(owned(ws).products ?? [])]
+    const state = owned(ws)
+    const mine = state.products ?? []
+    return [
+      ...FAKE_PRODUCTS.filter((each) => !mine.some((own) => own.id === each.id)),
+      ...mine,
+    ].filter((each) => !(state.gone ?? []).includes(each.id))
   }
+
+  const words = (text: string) =>
+    new Set(
+      text
+        .normalize('NFD')
+        .replace(/\p{M}/gu, '')
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter((word) => word.length > 1),
+    )
+  /** The share of words two names have in common (the API's own rule, kept short). */
+  function similarity(a: string, b: string): number {
+    const first = words(a)
+    const second = words(b)
+    const shared = [...first].filter((word) => second.has(word)).length
+    const all = new Set([...first, ...second]).size
+    return all === 0 ? 0 : shared / all
+  }
+
+  /** A product as the overview shows it: the last price at each market. */
+  function overviewOf(ws: string, product: MockProduct): Schemas['ProductOverview'] {
+    const latest = new Map<string, MockPrice>()
+    for (const price of [...FAKE_PRICES, ...(owned(ws).prices ?? [])]) {
+      if (price.productId !== product.id) continue
+      const current = latest.get(price.marketRef)
+      if (!current || price.observedOn >= current.observedOn) latest.set(price.marketRef, price)
+    }
+    return {
+      ...product,
+      prices: [...latest.values()].map((price) => ({
+        marketRef: price.marketRef,
+        marketName: card(ws, price.marketRef)?.name ?? null,
+        unitPrice: price.unitPrice,
+        unit: product.unit,
+        observedOn: price.observedOn,
+      })),
+    }
+  }
+
+  const productNotFound = () => problem(404, 'product.not_found', 'Produto não encontrado.')
+  const pairId = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`)
 
   /** The routes of the receipts and the price book. They come first: `products` is not a market ref. */
   function receiptRoutes() {
     return [
+      http.get<{ ws: string }>(
+        url('/v1/workspaces/:ws/markets/products/overview'),
+        ({ params }) => {
+          const workspace = marketsGuard(params.ws, false)
+          if (workspace instanceof Response) return workspace
+          const products = allProducts(workspace.id)
+            .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+            .map((each) => overviewOf(workspace.id, each))
+          return HttpResponse.json({ products, truncated: false })
+        },
+      ),
+
+      http.get<{ ws: string }>(
+        url('/v1/workspaces/:ws/markets/products/suggestions'),
+        ({ params }) => {
+          const workspace = marketsGuard(params.ws, false)
+          if (workspace instanceof Response) return workspace
+          const products = allProducts(workspace.id).sort((a, b) => (a.id < b.id ? -1 : 1))
+          const dismissed = (owned(workspace.id).dismissed ?? []).map(([x, y]) => pairId(x, y))
+          const pairs = []
+          for (const [index, a] of products.entries()) {
+            for (const b of products.slice(index + 1)) {
+              const score = similarity(a.name, b.name)
+              if (score < 0.5 || dismissed.includes(pairId(a.id, b.id))) continue
+              if (a.gtin && b.gtin && a.gtin !== b.gtin) continue
+              pairs.push({
+                a: { id: a.id, name: a.name, unit: a.unit },
+                b: { id: b.id, name: b.name, unit: b.unit },
+                score,
+              })
+            }
+          }
+          pairs.sort((x, y) => y.score - x.score)
+          return HttpResponse.json({ pairs: pairs.slice(0, 20) })
+        },
+      ),
+
+      http.post<{ ws: string }>(
+        url('/v1/workspaces/:ws/markets/products/dismissals'),
+        async ({ request, params }) => {
+          const workspace = marketsGuard(params.ws, true)
+          if (workspace instanceof Response) return workspace
+          const body = (await readJson(request)) as { a?: unknown; b?: unknown } | undefined
+          if (!body || typeof body.a !== 'string' || typeof body.b !== 'string') return malformed()
+          const { a, b } = body
+          const products = allProducts(workspace.id)
+          if (!products.some((p) => p.id === a) || !products.some((p) => p.id === b)) {
+            return productNotFound()
+          }
+          const state = owned(workspace.id)
+          state.dismissed ??= []
+          if (!state.dismissed.some(([x, y]) => pairId(x, y) === pairId(a, b))) {
+            state.dismissed.push([a, b])
+          }
+          return new HttpResponse(null, { status: 204 })
+        },
+      ),
+
+      http.patch<{ ws: string; id: string }>(
+        url('/v1/workspaces/:ws/markets/products/:id'),
+        async ({ request, params }) => {
+          const workspace = marketsGuard(params.ws, true)
+          if (workspace instanceof Response) return workspace
+          const body = (await readJson(request)) as { name?: unknown; unit?: unknown } | undefined
+          if (!body) return malformed()
+          const product = allProducts(workspace.id).find((each) => each.id === params.id)
+          if (!product) return productNotFound()
+          const name = typeof body.name === 'string' ? body.name.trim() : undefined
+          if (name !== undefined && (name === '' || name.length > 80)) {
+            return invalid([{ field: 'name', code: 'invalid' }])
+          }
+          if (body.unit != null && !UNITS.includes(body.unit)) {
+            return invalid([{ field: 'unit', code: 'invalid' }])
+          }
+          const state = owned(workspace.id)
+          const changed: MockProduct = {
+            ...product,
+            name: name ?? product.name,
+            unit: (body.unit as MockProduct['unit'] | null | undefined) ?? product.unit,
+          }
+          state.products = [
+            ...(state.products ?? []).filter((each) => each.id !== product.id),
+            changed,
+          ]
+          return HttpResponse.json(overviewOf(workspace.id, changed))
+        },
+      ),
+
+      http.post<{ ws: string; keepId: string }>(
+        url('/v1/workspaces/:ws/markets/products/:keepId/merge'),
+        async ({ request, params }) => {
+          const workspace = marketsGuard(params.ws, true)
+          if (workspace instanceof Response) return workspace
+          const body = (await readJson(request)) as { removeId?: unknown } | undefined
+          if (!body || typeof body.removeId !== 'string') return malformed()
+          if (body.removeId === params.keepId) {
+            return problem(422, 'product.merge_same', 'Escolha outro produto: este é o mesmo.')
+          }
+          const products = allProducts(workspace.id)
+          const keep = products.find((each) => each.id === params.keepId)
+          const remove = products.find((each) => each.id === body.removeId)
+          if (!keep || !remove) return productNotFound()
+          if (keep.gtin && remove.gtin && keep.gtin !== remove.gtin) {
+            return problem(
+              422,
+              'product.merge_gtin_conflict',
+              'Estes produtos têm códigos de barras diferentes e não podem ser juntados.',
+            )
+          }
+          const state = owned(workspace.id)
+          const moved = [...FAKE_PRICES, ...(state.prices ?? [])].filter(
+            (price) => price.productId === remove.id,
+          )
+          state.prices = [
+            ...(state.prices ?? []).filter((price) => price.productId !== remove.id),
+            ...moved.map((price) => ({ ...price, productId: keep.id })),
+          ]
+          const kept: MockProduct = { ...keep, gtin: keep.gtin ?? remove.gtin }
+          state.products = [
+            ...(state.products ?? []).filter(
+              (each) => each.id !== keep.id && each.id !== remove.id,
+            ),
+            kept,
+          ]
+          state.gone = [...(state.gone ?? []), remove.id]
+          state.dismissed = (state.dismissed ?? []).filter(
+            ([x, y]) => x !== remove.id && y !== remove.id,
+          )
+          return HttpResponse.json(overviewOf(workspace.id, kept))
+        },
+      ),
+
       http.post<{ ws: string }>(
         url('/v1/workspaces/:ws/markets/receipts/lookup'),
         async ({ request, params }) => {

@@ -26,6 +26,10 @@ export type SaveReceiptItem = Schemas['ReceiptItem']
 export type SavedReceipt = Schemas['SaveView']
 export type MarketPrice = Schemas['PriceView']
 export type FamilyProduct = Schemas['FamilyProductView']
+export type ProductOverview = Schemas['ProductOverview']
+export type ProductsOverview = Schemas['ProductsOverview']
+export type SuggestedPair = Schemas['SuggestedPair']
+export type EditProductBody = Schemas['EditProductRequest']
 
 /** The area a search sends: the center is always rounded to 2 decimals, so it never reveals a precise spot. */
 export type SearchArea = { lat: string; lon: string; radiusKm: number }
@@ -41,9 +45,14 @@ export const marketsKeys = {
   prices: (ws: string, ref: string) => [...marketsKeys.all(ws), 'prices', ref] as const,
   products: (ws: string, q: string) => [...marketsKeys.all(ws), 'products', q] as const,
   // Under `products`, so a product change reaches it, yet never equal to `products(ws, q)`: an object is not a text.
-  productsOverview: (ws: string) => [...marketsKeys.all(ws), 'products', { view: 'overview' }] as const,
+  productsOverview: (ws: string) =>
+    [...marketsKeys.all(ws), 'products', { view: 'overview' }] as const,
+  // Also under `products`, for the same reason as the overview.
+  productSuggestions: (ws: string) =>
+    [...marketsKeys.all(ws), 'products', { view: 'suggestions' }] as const,
   list: (ws: string) => [...marketsKeys.all(ws), 'list'] as const,
-  compare: (ws: string, refs: readonly string[]) => [...marketsKeys.all(ws), 'compare', refs] as const,
+  compare: (ws: string, refs: readonly string[]) =>
+    [...marketsKeys.all(ws), 'compare', refs] as const,
 }
 
 /** The markets around a center, as two separate lists: OpenStreetMap's and the family's own. */
@@ -115,6 +124,59 @@ export async function getFamilyProducts(ws: string, q: string): Promise<FamilyPr
     }),
   )
   return view.products
+}
+
+/** Every product of the family with its last price at each market (up to 500 products). */
+export function getProductsOverview(ws: string): Promise<ProductsOverview> {
+  return unwrap(
+    client.GET('/v1/workspaces/{ws}/markets/products/overview', { params: { path: { ws } } }),
+  )
+}
+
+/** The pairs of products that may be the same one (up to 20, the most alike first). */
+export async function getProductSuggestions(ws: string): Promise<SuggestedPair[]> {
+  const view = await unwrap(
+    client.GET('/v1/workspaces/{ws}/markets/products/suggestions', { params: { path: { ws } } }),
+  )
+  return view.pairs
+}
+
+/** Renames a product or changes its unit; a `null` field stays as it is. */
+export function editProduct(
+  ws: string,
+  id: string,
+  body: EditProductBody,
+): Promise<ProductOverview> {
+  return unwrap(
+    client.PATCH('/v1/workspaces/{ws}/markets/products/{id}', {
+      params: { path: { ws, id } },
+      body,
+    }),
+  )
+}
+
+/** Joins `removeId` into `keepId`: its prices, aliases and list item pass over, and it is gone. */
+export function mergeProducts(
+  ws: string,
+  keepId: string,
+  removeId: string,
+): Promise<ProductOverview> {
+  return unwrap(
+    client.POST('/v1/workspaces/{ws}/markets/products/{keepId}/merge', {
+      params: { path: { ws, keepId } },
+      body: { removeId },
+    }),
+  )
+}
+
+/** Says that two products are not the same one, so they are not suggested again. */
+export async function dismissPair(ws: string, a: string, b: string): Promise<void> {
+  await unwrap(
+    client.POST('/v1/workspaces/{ws}/markets/products/dismissals', {
+      params: { path: { ws } },
+      body: { a, b },
+    }),
+  )
 }
 
 /** The fields of a family market's links: `null` clears the family's value (the OSM one shows again). */
