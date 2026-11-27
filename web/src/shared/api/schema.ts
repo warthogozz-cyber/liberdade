@@ -4490,8 +4490,17 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
+            /** @description The product was already on the list; the quantity was added to it */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListItemView"];
+                };
+            };
+            /** @description The product was not on the list; the item was added */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4564,8 +4573,8 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Item removed */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

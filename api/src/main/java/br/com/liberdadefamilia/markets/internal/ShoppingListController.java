@@ -18,6 +18,9 @@ import br.com.liberdadefamilia.workspace.ModuleKey;
 import br.com.liberdadefamilia.workspace.RequiresModule;
 import br.com.liberdadefamilia.workspace.WorkspaceMember;
 import br.com.liberdadefamilia.workspace.WorkspaceScoped;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -57,6 +60,14 @@ class ShoppingListController {
     @RequiresModule(ModuleKey.MARKETS)
     @WorkspaceScoped(allow = {OWNER, ADULT, YOUTH})
     @RequiresPlan(value = PlanKey.FAMILY, openWhileBillingOff = true)
+    @ApiResponse(
+            responseCode = "201",
+            description = "The product was not on the list; the item was added",
+            content = @Content(schema = @Schema(implementation = ListItemView.class)))
+    @ApiResponse(
+            responseCode = "200",
+            description = "The product was already on the list; the quantity was added to it",
+            content = @Content(schema = @Schema(implementation = ListItemView.class)))
     ResponseEntity<ListItemView> addListItem(@Valid @RequestBody AddListItemRequest request, WorkspaceMember member) {
         AddResult result = shoppingList.add(member.workspaceId(), member.userId(), request);
         return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
@@ -84,6 +95,7 @@ class ShoppingListController {
     @RequiresModule(ModuleKey.MARKETS)
     @WorkspaceScoped(allow = {OWNER, ADULT})
     @RequiresPlan(value = PlanKey.FAMILY, openWhileBillingOff = true)
+    @ApiResponse(responseCode = "204", description = "Item removed")
     ResponseEntity<Void> removeListItem(@PathVariable UUID id, WorkspaceMember member) {
         shoppingList.remove(member.workspaceId(), id);
         return ResponseEntity.noContent().build();

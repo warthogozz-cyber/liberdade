@@ -2280,7 +2280,17 @@
                 }
               }
             },
-            "description": "OK"
+            "description": "The product was already on the list; the quantity was added to it"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListItemView"
+                }
+              }
+            },
+            "description": "The product was not on the list; the item was added"
           }
         },
         "tags": [
@@ -2387,8 +2397,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "204": {
+            "description": "Item removed"
           }
         },
         "tags": [
