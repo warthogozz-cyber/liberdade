@@ -47,8 +47,9 @@ export const helpMessages = {
   'tips.tour.achievements.list': 'As conquistas aparecem aqui, com a data. Sem pressa.',
   'tips.tour.markets.nearby': 'Veja mercados perto de você e escolha onde procurar.',
   'tips.tour.markets.receipt': 'Registre a nota da compra para guardar os preços.',
-  'tips.tour.markets.list': 'Monte a lista de compras e compare os mercados.',
+  'tips.tour.markets.list': 'Abra a lista de compras e compare os mercados.',
   'tips.tour.ventures.intro': 'Projetos mostram quanto sobra de uma renda extra.',
   'tips.tour.ventures.start': 'Comece por um modelo e ajuste os números.',
-  'tips.tour.ventures.actual': 'Marque lançamentos no projeto para ver o real contra o previsto.',
+  'tips.tour.ventures.actual':
+    'Cada projeto compara o real com o previsto, pelos lançamentos marcados nele.',
 }

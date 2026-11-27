@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { foodSweetsVenture, seedMockFamily, seedVentureFixture } from '@/mocks/data'
@@ -152,5 +152,24 @@ describe('VenturesListPage tour', () => {
     for (const name of anchors) {
       expect(document.querySelector(`[data-tour="${name}"]`), name).not.toBeNull()
     }
+  })
+
+  it('viewerTourAsksForNothingTheyCannotDo', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'VIEWER'
+    seedVentureFixture(workspace)
+    render()
+    await screen.findByText('Doces caseiros')
+
+    const steps: string[] = []
+    const tour = await screen.findByRole('dialog')
+    await waitFor(() => expect(tour).toHaveTextContent('Passo 1 de 2'))
+    steps.push(tour.textContent ?? '')
+    fireEvent.click(within(tour).getByRole('button', { name: 'Próximo' }))
+    expect(tour).toHaveTextContent('Passo 2 de 2')
+    steps.push(tour.textContent ?? '')
+
+    // Viewers read projects; tagging entries and starting a project are for the people who write.
+    for (const step of steps) expect(step).not.toMatch(/Marque|Comece/)
   })
 })

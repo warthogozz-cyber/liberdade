@@ -312,6 +312,21 @@ describe('FeiraPage tour', () => {
     expect(screen.queryByText('Onde procurar mercados?')).not.toBeInTheDocument()
   })
 
+  it('viewerTourAsksForNothingTheyCannotDo', async () => {
+    seed('VIEWER')
+    render()
+
+    const tour = await screen.findByRole('dialog')
+    expect(await within(tour).findByText('Passo 1 de 2')).toBeVisible()
+    const steps = [tour.textContent ?? '']
+    fireEvent.click(within(tour).getByRole('button', { name: 'Próximo' }))
+    expect(tour).toHaveTextContent('Passo 2 de 2')
+    steps.push(tour.textContent ?? '')
+
+    // Viewers see the list but do not edit it, and do not register receipts.
+    for (const step of steps) expect(step).not.toMatch(/Monte|Registre/)
+  })
+
   it('youthTourSkipsReceipt', async () => {
     seed('YOUTH')
     render()
