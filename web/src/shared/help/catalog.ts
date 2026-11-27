@@ -192,6 +192,21 @@ export const routeHelp: Record<string, RouteHelp> = {
   '/mais/projetos/:id': { inline: 'ventures.caption.margin' },
   '/mais/projetos/investimentos': { inline: 'ventures.invest.intro' },
   '/mais/projetos/investimentos/simulador': { inline: 'ventures.invest.disclaimer' },
+  '/planejar': { tour: 'planning' },
+  '/mais/indicadores': { tour: 'indicators' },
+  '/mais/conquistas': { tour: 'achievements' },
+  '/planejar/reserva': { inline: 'planning.reserve.education' },
+  '/mais/privacidade/atividade': { inline: 'activity.hint' },
+  '/mais/plano': { inline: 'billing.freeForever' },
+  '/entrar': { exception: 'public page before sign-in' },
+  '/convite': { exception: 'public page before sign-in' },
+  '/privacidade': { exception: 'public page before sign-in' },
+  '/termos': { exception: 'public page before sign-in' },
+  '/robo': { exception: 'robot page' },
+  '/boas-vindas': { exception: 'welcome is itself the intro' },
+  '/mais': { exception: 'menu' },
+  '/mais/recorrencias': { exception: 'redirect only' },
+  '*': { exception: 'not-found page' },
 }
 
 /** The ids under which "seen" is stored; they match what existing devices already hold. */
