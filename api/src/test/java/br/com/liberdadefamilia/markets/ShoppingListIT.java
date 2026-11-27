@@ -93,6 +93,19 @@ class ShoppingListIT {
     }
 
     @Test
+    void addRecordsTheMembershipAsAuthor() {
+        UUID milk = product(ws, "Leite Exemplo 1 L");
+
+        UUID item = item(send(HttpMethod.POST, "", "{\"productId\":\"" + milk + "\"}"));
+
+        assertThat(jdbc.sql("select created_by from shopping_list_items where id = :id")
+                        .param("id", item)
+                        .query(UUID.class)
+                        .single())
+                .isEqualTo(workspaces.membershipOf(ws, ana));
+    }
+
+    @Test
     void newNameReusesSameNormalized() {
         UUID coffee = product(ws, "Café Exemplo");
 

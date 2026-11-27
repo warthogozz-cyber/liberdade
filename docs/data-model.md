@@ -290,7 +290,7 @@ cada participação da pessoa, as silenciosas também. A exportação da famíli
 | `auth_identities` | `UNIQUE (provider, subject)` |
 | `memberships` | `UNIQUE (workspace_id, user_id)`; pelo menos um `OWNER` ativo por família (checado na aplicação, com teste) |
 | `memberships` | Uma pessoa pode estar em mais de uma família. Índice parcial (não único) em `user_id` com `status = 'ACTIVE'`, para listar as famílias dela |
-| Autoria | `memberships.user_id`, `memberships.parental_consent_by`, `invitations.created_by`, `invitations.parental_consent_by`, `workspace_modules.updated_by` e `audit_events.actor_user_id` usam `ON DELETE SET NULL`: apagar a conta de alguém não apaga o que a família registrou |
+| Autoria | `created_by` de `receipts`, `price_records` e `shopping_list_items` (V43) é chave composta para `memberships` e vira nulo quando o vínculo sai. `memberships.user_id`, `memberships.parental_consent_by`, `invitations.created_by`, `invitations.parental_consent_by`, `workspace_modules.updated_by` e `audit_events.actor_user_id` usam `ON DELETE SET NULL`: apagar a conta de alguém não apaga o que a família registrou |
 | `user_entities`, `user_credentials` | `UNIQUE (name)` em `user_entities`; as credenciais são apagadas junto com o `user_entities` (`ON DELETE CASCADE`) |
 | `invitations` | Guarda só o **hash** do token; uso único; convite expira em 7 dias e recuperação em 24 h |
 | `invitations` | `used_by` aponta para `users` com `ON DELETE SET NULL`: o mesmo convite aceito de novo pela mesma pessoa, já membro ativo, devolve o mesmo resultado em vez de `410` |
@@ -415,10 +415,10 @@ aceitos e `MARKET` entre os alvos da auditoria.
 |---|---|
 | `products` | `workspace_id`, `name` (1 a 80), `gtin` (8, 12, 13 ou 14 dígitos; único por família quando existe), `unit` (`UN` `KG` `G` `L` `ML` `CX` `PCT` `DZ`) |
 | `product_aliases` | Chave `(workspace_id, market_id, description_norm)`; aponta para o produto. "Esta descrição, neste mercado, é este produto" |
-| `receipts` | `workspace_id`, `market_id`, `key_hash` (único por família), `issued_on`, `mode` (`FETCHED` ou `MANUAL`; a 10.2 grava só `MANUAL`), `item_count` (1 a 200), `created_by` (opcional) |
-| `price_records` | `workspace_id`, `market_id`, `product_id`, `receipt_id` (opcional), `observed_on`, `unit`, `quantity` (opcional), `unit_price` (até 4 casas), `created_by` (opcional). Índice por produto, mercado e data para o último preço |
+| `receipts` | `workspace_id`, `market_id`, `key_hash` (único por família), `issued_on`, `mode` (`FETCHED` ou `MANUAL`; a 10.2 grava só `MANUAL`), `item_count` (1 a 200), `created_by` (opcional; o vínculo de quem salvou, e vira nulo se essa pessoa sair da família) |
+| `price_records` | `workspace_id`, `market_id`, `product_id`, `receipt_id` (opcional), `observed_on`, `unit`, `quantity` (opcional), `unit_price` (até 4 casas), `created_by` (opcional; vira nulo se o vínculo sair). Índice por produto, mercado e data para o último preço |
 
-A V41 também deixou `RECEIPT` entre os alvos da auditoria. Tudo some em cascata com a família.
+A V41 também deixou `RECEIPT` entre os alvos da auditoria. Tudo some em cascata com a família. Nas três tabelas com autor (`receipts`, `price_records` e, desde a V43, `shopping_list_items`), `created_by` é chave composta `(workspace_id, created_by)` para `memberships` com `ON DELETE SET NULL (created_by)`: quando a pessoa sai, o registro fica e o autor vira nulo.
 
 **Mapa de dados da nota.**
 
@@ -454,7 +454,7 @@ exportação da família traz `feira-mercados.csv` e `feira-endereco.csv`; a pes
 
 | Tabela | Colunas principais |
 |---|---|
-| `shopping_list_items` | `workspace_id`, `product_id`, `quantity` (maior que zero, até 4 casas; padrão 1), `checked_at` (vazio enquanto não foi pego), `position`, `created_by` (opcional). Único por `(workspace_id, product_id)`: um item por produto |
+| `shopping_list_items` | `workspace_id`, `product_id`, `quantity` (maior que zero, até 4 casas; padrão 1), `checked_at` (vazio enquanto não foi pego), `position`, `created_by` (opcional; o vínculo de quem adicionou, e vira nulo se ele sair). Único por `(workspace_id, product_id)`: um item por produto |
 | `product_join_dismissals` | Chave `(workspace_id, product_a, product_b)`, com `product_a` menor que `product_b`. "Estes dois não são o mesmo produto": a sugestão de junção não volta |
 
 As duas tabelas apontam para `products` pela família (`ON DELETE CASCADE`): apagar o produto tira o item da
@@ -485,7 +485,7 @@ família (versão 11) traz `feira-lista.csv` (produto, quantidade, quando foi pe
 | Lançamento excluído | Apagado de vez após 30 dias; o de uma recorrência (excluído ou pulado) espera também até o segundo mês depois da data prevista |
 | Convites usados ou vencidos | Apagados após 90 dias |
 | `markets`, `market_home` | Ficam com a família; ao sair, o autor vira vazio. Somem com a família. `osm_markets` é dado público, sem dono |
-| `products`, `product_aliases`, `receipts`, `price_records` | Ficam com a família; ao sair, o autor vira vazio. Somem com a família. A nota guarda só o hash da chave |
+| `products`, `product_aliases`, `receipts`, `price_records`, `shopping_list_items` | Ficam com a família; ao sair, o autor vira vazio (`created_by` nulo). Somem com a família. A nota guarda só o hash da chave |
 | `ventures` | Ficam com a família; ao sair, o autor vira vazio (`created_by` nulo). Somem com a família |
 | `achievements` | Somem com a participação: ao sair da família, ao excluir a conta ou com a família |
 | `import_tombstones` | 13 meses depois do apagamento definitivo do lançamento (só o hash); apagados junto com a conta bancária ou a família |
