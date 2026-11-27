@@ -66,9 +66,11 @@ Cloudflare mostra a zona como "Active" quando termina. Siga para o passo 3 enqua
    gratuito fecha quando os créditos acabam ou em 6 meses, e a produção cairia junto (ADR-0014).
 2. Ligue o 2FA no usuário raiz. Depois crie um usuário administrador (com 2FA) para o dia a dia e
    pare de usar o raiz.
-3. Em Billing, conclua as 5 atividades de boas-vindas (EC2, RDS, Lambda, Bedrock e AWS Budgets),
-   US$ 20 de crédito cada. Apague o que elas criarem logo depois de cada uma, para não gastar
-   crédito à toa.
+3. No quadro "Explore AWS" da página inicial do console, conclua 5 atividades de boas-vindas (por
+   exemplo EC2, RDS, Lambda, Bedrock e AWS Budgets), US$ 20 de crédito cada. Apague o que elas
+   criarem logo depois de cada uma, para não gastar crédito à toa. Validade dos créditos, onde
+   acompanhar e o que acontece quando acabam: [stores-and-aws-credits.md](stores-and-aws-credits.md),
+   parte 1.
 4. Configure o `aws` CLI com o usuário administrador (`aws configure`, região `sa-east-1`). Anote
    o número da conta com:
 
