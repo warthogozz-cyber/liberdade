@@ -16,6 +16,11 @@ final class ShoppingListException extends DomainException {
                 "A quantidade precisa ser maior que zero, com até 4 casas depois do ponto.");
     }
 
+    static ShoppingListException quantityTooLarge() {
+        return new ShoppingListException(
+                422, "list.quantity_too_large", "A quantidade somada ficaria grande demais. Use um número menor.");
+    }
+
     static ShoppingListException productRequired() {
         return new ShoppingListException(
                 422, "list.product_required", "Escolha um produto ou digite o nome de um novo.");

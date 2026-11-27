@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * The family's shopping list. Everyone reads it; Owner, Adult and Youth add, change, tick and reorder; only Owner and
- * Adult take an item off or clear the ticked ones, so the youth never deletes what another person put there.
+ * Adult take an item off or clear the ticked ones, so the youth deletes nothing, not even their own items.
  */
 @RestController
 class ShoppingListController {
@@ -69,7 +69,7 @@ class ShoppingListController {
             description = "The product was already on the list; the quantity was added to it",
             content = @Content(schema = @Schema(implementation = ListItemView.class)))
     ResponseEntity<ListItemView> addListItem(@Valid @RequestBody AddListItemRequest request, WorkspaceMember member) {
-        AddResult result = shoppingList.add(member.workspaceId(), member.userId(), request);
+        AddResult result = shoppingList.add(member.workspaceId(), member.membershipId(), request);
         return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
                 .body(result.item());
     }

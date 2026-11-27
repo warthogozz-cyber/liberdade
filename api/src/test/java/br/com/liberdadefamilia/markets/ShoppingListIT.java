@@ -93,6 +93,19 @@ class ShoppingListIT {
     }
 
     @Test
+    void addRecordsTheMembershipAsAuthor() {
+        UUID milk = product(ws, "Leite Exemplo 1 L");
+
+        UUID item = item(send(HttpMethod.POST, "", "{\"productId\":\"" + milk + "\"}"));
+
+        assertThat(jdbc.sql("select created_by from shopping_list_items where id = :id")
+                        .param("id", item)
+                        .query(UUID.class)
+                        .single())
+                .isEqualTo(workspaces.membershipOf(ws, ana));
+    }
+
+    @Test
     void newNameReusesSameNormalized() {
         UUID coffee = product(ws, "Café Exemplo");
 
@@ -147,6 +160,23 @@ class ShoppingListIT {
                         .query(java.math.BigDecimal.class)
                         .single())
                 .isEqualByComparingTo("4");
+    }
+
+    @Test
+    void summedQuantityPastTheColumnIs422() {
+        UUID milk = product(ws, "Leite Exemplo 1 L");
+        assertThat(send(HttpMethod.POST, "", "{\"productId\":\"" + milk + "\",\"quantity\":\"999999999999999\"}"))
+                .hasStatus(201);
+
+        MvcTestResult again = send(HttpMethod.POST, "", "{\"productId\":\"" + milk + "\",\"quantity\":\"1\"}");
+
+        assertThat(again).hasStatus(422);
+        assertThat(again).bodyJson().extractingPath("$.code").isEqualTo("list.quantity_too_large");
+        assertThat(jdbc.sql("select quantity from shopping_list_items where workspace_id = :ws")
+                        .param("ws", ws)
+                        .query(java.math.BigDecimal.class)
+                        .single())
+                .isEqualByComparingTo("999999999999999");
     }
 
     @Test

@@ -11,6 +11,8 @@ import br.com.liberdadefamilia.support.TestWorkspaces;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,8 @@ import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /** Joining two products into one, without losing or duplicating what points at them. */
 @SpringBootTest
@@ -47,6 +51,9 @@ class ProductMergeIT {
 
     @Autowired
     ApplicationEvents events;
+
+    @Autowired
+    PlatformTransactionManager transactions;
 
     @MockitoSpyBean
     Plans plans;
@@ -265,6 +272,80 @@ class ProductMergeIT {
         assertThat(merge(kept, removed)).hasStatus(200);
 
         assertThat(events.stream(ProductsMerged.class)).containsExactly(new ProductsMerged(ws, kept, removed, ana));
+    }
+
+    @Test
+    void mergeWaitsForTheListAddLock() throws Exception {
+        // Adds take this advisory lock; a merge that does not wait for it can delete a product under an add.
+        TransactionTemplate tx = new TransactionTemplate(transactions);
+        CompletableFuture<MvcTestResult> merging = new CompletableFuture<>();
+        tx.executeWithoutResult(status -> {
+            jdbc.sql("select pg_advisory_xact_lock(hashtextextended(:key, 0))")
+                    .param("key", "shopping-list:" + ws)
+                    .query(String.class)
+                    .list();
+            CompletableFuture.supplyAsync(() -> merge(kept, removed)).whenComplete((r, e) -> {
+                if (e != null) {
+                    merging.completeExceptionally(e);
+                } else {
+                    merging.complete(r);
+                }
+            });
+            try {
+                Thread.sleep(1500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            assertThat(merging).isNotDone();
+        });
+        assertThat(merging.get(20, TimeUnit.SECONDS)).hasStatus(200);
+    }
+
+    @Test
+    void mergeRacingAnAddNeverAnswers500() throws Exception {
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            for (int round = 0; round < 5; round++) {
+                UUID keep = product(ws, "Arroz Exemplo " + round, null);
+                UUID remove = product(ws, "Arroz Ex. " + round, null);
+                var merging =
+                        pool.submit(() -> merge(keep, remove).getResponse().getStatus());
+                var adding = pool.submit(() -> addToList(remove).getResponse().getStatus());
+                int mergeStatus = merging.get(30, TimeUnit.SECONDS);
+                int addStatus = adding.get(30, TimeUnit.SECONDS);
+                assertThat(mergeStatus).isEqualTo(200);
+                assertThat(addStatus).isIn(200, 201, 404, 409, 422);
+                assertThat(count("select count(*) from shopping_list_items where product_id = ?", remove))
+                        .isZero();
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void summedListQuantityPastTheColumnIs422() {
+        listItem(kept, "999999999999999", 0, false);
+        listItem(removed, "1", 1, false);
+
+        MvcTestResult result = merge(kept, removed);
+
+        assertThat(result).hasStatus(422);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("list.quantity_too_large");
+        assertThat(count("select count(*) from products where id = ?", removed)).isEqualTo(1);
+        assertThat(count("select count(*) from shopping_list_items where product_id = ?", removed))
+                .isEqualTo(1);
+    }
+
+    private MvcTestResult addToList(UUID product) {
+        var session = TestUsers.signedIn(ana, null);
+        return mvc.method(HttpMethod.POST)
+                .uri("/v1/workspaces/" + ws + "/markets/list")
+                .with(session)
+                .with(CsrfSession.start(mvc, session))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"productId\":\"" + product + "\"}")
+                .exchange();
     }
 
     private MvcTestResult merge(UUID keep, UUID remove) {

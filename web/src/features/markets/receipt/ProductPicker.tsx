@@ -19,6 +19,9 @@ const option = `flex min-h-12 w-full items-center rounded-field border border-bo
 const asUnit = (unit: string): ProductUnit | null =>
   PRODUCT_UNITS.find((each) => each === unit) ?? null
 
+/** How many list items a blank row offers: a long list would bury the field. Typing still finds the rest. */
+const BLANK_SUGGESTIONS = 10
+
 const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
 /** An item of the shopping list, as the picker offers it before the other products. */
@@ -88,7 +91,9 @@ export function ProductPicker({
   // early "Novo" could create a second product for a name the family already has.
   const settled = query === typed && !products.isFetching && !products.isPending
   const fromList =
-    typed === '' ? listItems : listItems.filter((each) => fold(each.name).includes(fold(typed)))
+    typed === ''
+      ? listItems.slice(0, BLANK_SUGGESTIONS)
+      : listItems.filter((each) => fold(each.name).includes(fold(typed)))
   const found = settled
     ? (products.data ?? []).filter((each) => !fromList.some((listed) => listed.id === each.id))
     : []

@@ -23,7 +23,13 @@ registerMessages(marketsMessages)
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 const outline = `flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary ${focus}`
 
-type Notice = 'stale' | 'changeFailed' | 'addFailed'
+type Notice = 'stale' | 'changeFailed' | 'addFailed' | 'quantityTooLarge' | 'full'
+
+/** Refusals that trying again will not fix, so the notice says why instead of "try again". */
+const ADD_REFUSALS: Record<string, Notice> = {
+  'list.quantity_too_large': 'quantityTooLarge',
+  'list.full': 'full',
+}
 
 /** The family's shopping list: what is missing at home, with the last price at each market. */
 export function ShoppingListPage() {
@@ -126,7 +132,13 @@ export function ShoppingListPage() {
                 choice.kind === 'existing'
                   ? { productId: choice.id, newProductName: null, quantity: null }
                   : { productId: null, newProductName: choice.name, quantity: null },
-                { onError: () => setNotice('addFailed') },
+                {
+                  onError: (error) =>
+                    setNotice(
+                      (error instanceof ApiError ? ADD_REFUSALS[error.code] : undefined) ??
+                        'addFailed',
+                    ),
+                },
               )
               setSearch('')
             }}

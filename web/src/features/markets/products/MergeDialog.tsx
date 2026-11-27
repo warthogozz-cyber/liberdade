@@ -27,6 +27,7 @@ const ERROR_BY_CODE = {
   'product.merge_gtin_conflict': 'markets.products.merge.gtin_conflict',
   'product.merge_same': 'markets.products.merge.same',
   'product.not_found': 'markets.products.merge.not_found',
+  'list.quantity_too_large': 'markets.products.merge.quantity_too_large',
 } as const
 type MergeErrorId =
   (typeof ERROR_BY_CODE)[keyof typeof ERROR_BY_CODE] | 'markets.products.merge.failed'

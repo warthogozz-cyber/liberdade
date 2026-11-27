@@ -19,11 +19,14 @@ class ProductMergeService {
 
     private final JdbcClient jdbc;
     private final ProductsService products;
+    private final ShoppingListRepository list;
     private final ApplicationEventPublisher events;
 
-    ProductMergeService(JdbcClient jdbc, ProductsService products, ApplicationEventPublisher events) {
+    ProductMergeService(
+            JdbcClient jdbc, ProductsService products, ShoppingListRepository list, ApplicationEventPublisher events) {
         this.jdbc = jdbc;
         this.products = products;
+        this.list = list;
         this.events = events;
     }
 
@@ -32,12 +35,16 @@ class ProductMergeService {
      *
      * @throws ProductRuleException when both ids are the same, or both products have a GTIN and they differ
      * @throws ProductNotFoundException when the family has no such product
+     * @throws ShoppingListException (422) when both are listed and the summed quantity would not fit
      */
     @Transactional
     ProductOverview merge(UUID workspaceId, UUID actorUserId, UUID keepId, UUID removeId) {
         if (keepId.equals(removeId)) {
             throw ProductRuleException.mergeSame();
         }
+        // Wait for the adds to the list first (they take this lock before anything else), so an add never meets a
+        // product that goes away under it.
+        list.lockAdds(workspaceId);
         // Lock both rows, in id order, so two joins that touch the same product wait for each other.
         List<Locked> locked = jdbc.sql("""
                         select id, gtin from products
@@ -106,6 +113,21 @@ class ProductMergeService {
 
     /** Both listed: one item with the sum, checked only if both were. Only the second listed: the item moves over. */
     private void moveListItem(UUID ws, UUID keepId, UUID removeId) {
+        boolean tooLarge = jdbc.sql("""
+                        select exists (
+                            select 1 from shopping_list_items k
+                            join shopping_list_items r on r.workspace_id = k.workspace_id
+                            where k.workspace_id = :ws and k.product_id = :keep and r.product_id = :remove
+                              and k.quantity + r.quantity >= :limit)""")
+                .param("ws", ws)
+                .param("keep", keepId)
+                .param("remove", removeId)
+                .param("limit", ShoppingListRepository.QUANTITY_LIMIT)
+                .query(Boolean.class)
+                .single();
+        if (tooLarge) {
+            throw ShoppingListException.quantityTooLarge();
+        }
         int summed = jdbc.sql("""
                         update shopping_list_items k
                         set quantity = k.quantity + r.quantity,

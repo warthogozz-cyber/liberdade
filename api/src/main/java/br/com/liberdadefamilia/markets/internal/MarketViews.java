@@ -16,6 +16,9 @@ import org.jspecify.annotations.Nullable;
  */
 final class MarketViews {
 
+    /** A quantity as text: up to 15 digits, and up to 4 places after the point. What the list and receipts accept. */
+    static final String QUANTITY_PATTERN = "^\\d{1,15}(\\.\\d{1,4})?$";
+
     private MarketViews() {}
 
     /** Where the family's market comes from. */
@@ -232,7 +235,10 @@ final class MarketViews {
             UUID productId,
             String name,
             ProductUnit unit,
-            @Schema(example = "2.5") String quantity,
+
+            @Schema(example = "2.5", pattern = QUANTITY_PATTERN)
+            String quantity,
+
             boolean checked,
             int position,
             List<ProductPriceView> prices) {}
@@ -250,12 +256,12 @@ final class MarketViews {
             @Nullable @Schema(nullable = true, minLength = 1, maxLength = 80)
             String newProductName,
 
-            @Nullable @Schema(nullable = true, example = "1")
+            @Nullable @Schema(nullable = true, example = "1", pattern = QUANTITY_PATTERN)
             String quantity) {}
 
     /** What to change in an item; a field left out stays as it is. */
     record UpdateListItemRequest(
-            @Nullable @Schema(nullable = true, example = "2.5")
+            @Nullable @Schema(nullable = true, example = "2.5", pattern = QUANTITY_PATTERN)
             String quantity,
 
             @Nullable @Schema(nullable = true) Boolean checked) {}
@@ -293,7 +299,9 @@ final class MarketViews {
     record CompareItemView(
             UUID productId,
             String name,
-            @Schema(example = "2.5") String quantity,
+
+            @Schema(example = "2.5", pattern = QUANTITY_PATTERN)
+            String quantity,
 
             List<@Nullable ComparePriceView> prices,
 

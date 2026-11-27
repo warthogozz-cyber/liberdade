@@ -8,6 +8,8 @@ import br.com.liberdadefamilia.billing.Plans;
 import br.com.liberdadefamilia.support.CsrfSession;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -155,6 +157,36 @@ class ProductSuggestionsIT {
 
         assertThat(result).bodyJson().extractingPath("$.pairs.length()").isEqualTo(2);
         assertThat(result).bodyJson().extractingPath("$.pairs[0].score").isEqualTo(0.75);
+    }
+
+    @Test
+    void equalScoresComeInNameOrder() {
+        // Every pair shares two of four words, so every score is 0.5; the order must not depend on insertion.
+        for (String suffix : new String[] {"Eta", "Alfa", "Delta", "Beta", "Gama"}) {
+            product(ws, "Leite Exemplo " + suffix, null);
+        }
+
+        MvcTestResult result = suggestions();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.pairs.length()").isEqualTo(10);
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            keys.add(pairName(result, i, "a") + "|" + pairName(result, i, "b"));
+        }
+        assertThat(keys).isSorted();
+    }
+
+    private static String pairName(MvcTestResult result, int index, String side) {
+        return com.jayway.jsonpath.JsonPath.read(bodyOf(result), "$.pairs[" + index + "]." + side + ".name");
+    }
+
+    private static String bodyOf(MvcTestResult result) {
+        try {
+            return result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Test
