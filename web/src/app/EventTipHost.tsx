@@ -20,7 +20,7 @@ import { useToastShowing } from '@/shared/ui'
 /**
  * Shows the tip of an event the first time it happens for this person on this device. An event
  * that comes while another tip, a tour or a dialog is on the screen is dropped, with no queue.
- * A notice (such as "Desfazer") uses the same place at the bottom, so the tip waits, still holding
+ * A dialog opened later hides it the same way. A notice (such as "Desfazer") uses the same place at the bottom, so the tip waits, still holding
  * the slot, while one is on the screen, and comes back when it goes.
  */
 export function EventTipHost() {
@@ -52,17 +52,37 @@ export function EventTipHost() {
         currentRef.current = null
         setHelpOpen(false)
       }
+      // A sign-out drops the tip too, so it cannot come back, without the slot, on the next sign-in.
+      setCurrent(null)
     }
   }, [userId])
+
+  // A dialog opened after the tip covers it: the tip steps aside, still holding the slot, until it closes.
+  const [dialogOpen, setDialogOpen] = useState(false)
+  useEffect(() => {
+    if (current === null) return
+    const check = () => setDialogOpen(document.querySelector(OPEN_DIALOG_SELECTOR) !== null)
+    check()
+    const observer = new MutationObserver(check)
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['role'],
+    })
+    return () => observer.disconnect()
+  }, [current])
 
   // The live region stays in the page, empty, so a screen reader announces the tip put into it.
   return (
     <div aria-live="polite" aria-atomic="true">
-      {userId && current !== null && !toastShowing && (
+      {userId && current !== null && !toastShowing && !dialogOpen && (
         <Suspense fallback={null}>
           <EventTip
             message={intl.formatMessage({ id: eventTips[current] })}
             onDismiss={() => {
+              // Only the tip that still holds the slot lets it go, so the count never drops twice.
+              if (currentRef.current === null) return
               markSeen(userId, seenId.event(current))
               currentRef.current = null
               setHelpOpen(false)

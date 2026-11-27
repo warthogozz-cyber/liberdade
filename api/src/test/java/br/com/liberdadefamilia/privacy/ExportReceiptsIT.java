@@ -96,11 +96,11 @@ class ExportReceiptsIT {
                 .param("ws", ws)
                 .query(String.class)
                 .single();
-        assertThat(text(files.get("feira-produtos.csv"))).contains(product + ";Arroz 5kg;UN;;");
+        assertThat(text(files.get("feira-produtos.csv"))).contains(product + ";Arroz 5kg;Unidade;;");
         assertThat(text(files.get("feira-apelidos.csv"))).contains(market + ";" + alias + ";" + product);
         assertThat(text(files.get("feira-precos.csv")))
-                .contains(product + ";" + market + ";" + receipt + ";2026-11-10;UN;2,0000;4,9900");
-        assertThat(text(files.get("feira-notas.csv"))).contains(receipt + ";" + market + ";2026-11-10;MANUAL;1;");
+                .contains(product + ";" + market + ";" + receipt + ";2026-11-10;Unidade;2,0000;4,9900");
+        assertThat(text(files.get("feira-notas.csv"))).contains(receipt + ";" + market + ";2026-11-10;Digitada;1;");
 
         String json = text(files.get("dados.json"));
         assertThat(JsonPath.<List<String>>read(json, "$.products[*].id")).containsExactly(product.toString());

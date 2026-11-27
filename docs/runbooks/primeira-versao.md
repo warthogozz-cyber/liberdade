@@ -106,13 +106,13 @@ Cada linha vira um teste que falha antes da correção. Os itens estão juntados
 | 10   | A confirmação de juntar produtos usa "apelidos" e "catálogo"                                                             | Texto simples, sem jargão                                     |
 | 8    | O leitor de QR pode deixar a câmera ligada se a aba abriu escondida, ou travar depois de um erro raro                    | Confere a aba ao abrir e trata os dois erros                  |
 
-**PR A4. Dicas, exportação e liberação para teste**
+**PR A4. Dicas e exportação**
 
-| Item | O que a pessoa encontra hoje                                                                               | Correção                                                                 |
-| ---- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| 11   | Depois de sair e entrar sem recarregar, uma dica pode ficar na tela, e duas dicas podem aparecer juntas    | A dica fecha ao sair, e some quando outra janela abre por cima           |
-| 9    | A exportação dos dados mostra unidade e modo da nota como códigos ("UN", "KG")                             | Rótulos em português, como nos outros arquivos da exportação             |
-| T    | Com a cobrança desligada, nenhuma família de teste consegue abrir Importar extrato e Feira (Plano Família) | Depende da sua decisão na [Parte 5.3](#53-plano-família-durante-o-teste) |
+| Item | O que a pessoa encontra hoje                                                                              | Correção                                                                                                              |
+| ---- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 11   | Depois de sair e entrar sem recarregar, uma dica pode ficar na tela, e duas dicas podem aparecer juntas   | A dica fecha ao sair, e some quando outra janela abre por cima                                                        |
+| 9    | A exportação dos dados mostra unidade e modo da nota como códigos ("UN", "KG")                            | Rótulos em português, como nos outros arquivos da exportação                                                          |
+| T    | Este guia dizia que, com a cobrança desligada, as famílias de teste não abririam Importar extrato e Feira | Revisto: não precisa de código. As duas telas já ficam abertas; veja a [Parte 5.3](#53-plano-família-durante-o-teste) |
 
 ### Grupo B: textos legais, decisão do mantenedor
 
@@ -298,17 +298,15 @@ Como instalar (mande este texto às famílias):
 
 ### 5.3 Plano Família durante o teste
 
-Com a cobrança desligada, toda família fica no plano grátis. Importar extrato e Feira pedem o Plano
-Família, então as famílias de teste não conseguem abrir essas telas. Há três caminhos:
+Com a cobrança desligada, Importar extrato e Feira ficam abertos para todas as famílias, sem
+precisar do Plano Família. A API libera essas telas enquanto o plano não está à venda, e o app
+mostra as duas normalmente. Então as famílias de teste usam tudo desde o primeiro dia, sem nenhum
+passo seu.
 
-1. **Recomendado: uma liberação para teste no código** (item T do PR A4). Um comando de operação,
-   rodado por você pelo SSM, dá o Plano Família a uma família por um prazo (por exemplo, 60 dias),
-   grava a liberação na trilha de auditoria e acaba sozinho no fim do prazo. Sem cobrança, sem SQL
-   à mão na produção.
-2. Deixar as duas telas fechadas na rodada 1 e testar só o plano grátis. Mais simples, mas o
-   retorno sobre importação e Feira só viria na rodada 2.
-3. Inserir a linha do plano direto no banco pelo `psql`. Não recomendado: não deixa trilha de
-   auditoria e um erro de digitação na produção é difícil de notar.
+- Só a troca de tema da Família Fundadora continua pedindo o plano pago. Ela não entra no roteiro.
+- Quando você ligar a cobrança, as duas telas passam a pedir o Plano Família. Se ainda houver
+  famílias de teste nessa hora, avise antes. Não insira linha de plano direto no banco pelo `psql`:
+  não fica trilha de auditoria e um erro de digitação na produção é difícil de notar.
 
 ### 5.4 Roteiro das duas semanas
 
@@ -324,7 +322,7 @@ Mande um roteiro curto, uma parte por semana, e pergunte só no fim de cada uma.
 
 **Semana 2, o resto**
 
-1. Importar um extrato do mês (se a família tiver o Plano Família liberado).
+1. Importar um extrato do mês.
 2. Fazer uma lista da Feira, ler uma nota pelo QR e comparar dois mercados.
 3. Criar uma meta ou um projeto de renda extra.
 4. Usar o app sem internet um dia e ver se os lançamentos sobem depois.
@@ -459,7 +457,7 @@ Comece por elas.
 - [ ] Smoke da produção verde e teste S1 anotado.
 - [ ] Teste de restauração anotado.
 - [ ] Endereço `retorno@` funcionando.
-- [ ] Decisão sobre o Plano Família para teste (Parte 5.3) aplicada.
+- [ ] Conferido numa família de teste que Importar extrato e Feira abrem com a cobrança desligada (Parte 5.3).
 - [ ] Texto de convite com o aviso de versão de teste e a regra de nunca mandar dados.
 
 ### Ao fim de cada rodada

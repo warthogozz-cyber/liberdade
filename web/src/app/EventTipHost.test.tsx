@@ -6,6 +6,7 @@ import { Outlet } from 'react-router'
 import { hasSeen, isHelpOpen, PageTip, PageTour, setHelpOpen } from '@/shared/help'
 import { markRemoteArrival, resetLocalChanges } from '@/shared/live/localChanges'
 import { notifyQueued } from '@/shared/offline/queuedSignal'
+import { queryKeys } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
 import { useToast } from '@/shared/ui'
 
@@ -18,7 +19,9 @@ const setOnline = (online: boolean) => vi.spyOn(navigator, 'onLine', 'get').mock
 async function renderHost() {
   const result = renderWithProviders(<EventTipHost />)
   // The listeners start once the person is known; a first event that lands before is lost.
-  await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+  // Waits for the person itself, not a fixed time, so a slow first run does not lose the event.
+  await waitFor(() => expect(result.queryClient.getQueryData(queryKeys.me)).toBeDefined())
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
   return result
 }
 
@@ -166,6 +169,37 @@ describe('EventTipHost', () => {
 
     view.unmount()
     expect(isHelpOpen()).toBe(false)
+  })
+})
+
+describe('EventTipHost edge cases', () => {
+  it('anotherPersonDropsTheTip', async () => {
+    const view = await renderHost()
+    act(() => markRemoteArrival('t1'))
+    await screen.findByText(new RegExp(LIVE))
+
+    // Another person signs in on this tab without a reload (as accepting an invite can do).
+    const me = view.queryClient.getQueryData<{ user: { id: string } }>(queryKeys.me)!
+    act(() =>
+      view.queryClient.setQueryData(queryKeys.me, { ...me, user: { ...me.user, id: 'other' } }),
+    )
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+
+    expect(region()).toBeEmptyDOMElement()
+    expect(isHelpOpen()).toBe(false)
+  })
+
+  it('tipHidesWhileALaterDialogIsOpen', async () => {
+    await renderHost()
+    act(() => markRemoteArrival('t1'))
+    await screen.findByText(new RegExp(LIVE))
+
+    act(() => addForeign('dialog'))
+    await waitFor(() => expect(region()).toBeEmptyDOMElement())
+    expect(hasSeen(mockState.user.id, 'event-live')).toBe(false)
+
+    act(() => foreign.splice(0).forEach((el) => el.remove()))
+    expect(await screen.findByText(new RegExp(LIVE))).toBeInTheDocument()
   })
 })
 

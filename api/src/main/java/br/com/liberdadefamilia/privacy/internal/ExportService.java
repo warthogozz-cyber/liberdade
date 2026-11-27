@@ -755,7 +755,7 @@ class ExportService {
             productRows.add(List.of(
                     p.id().toString(),
                     p.name(),
-                    p.unit(),
+                    Labels.unit(p.unit()),
                     orEmpty(p.gtin()),
                     p.createdAt().toString()));
         }
@@ -773,7 +773,7 @@ class ExportService {
                     p.marketId().toString(),
                     receiptId == null ? "" : receiptId.toString(),
                     p.observedOn().toString(),
-                    p.unit(),
+                    Labels.unit(p.unit()),
                     quantity == null ? "" : fourDecimals(quantity),
                     fourDecimals(p.unitPrice())));
         }
@@ -783,7 +783,7 @@ class ExportService {
                     r.id().toString(),
                     r.marketId().toString(),
                     r.issuedOn().toString(),
-                    r.mode(),
+                    Labels.receiptMode(r.mode()),
                     Integer.toString(r.itemCount()),
                     r.createdAt().toString()));
         }
@@ -1113,6 +1113,28 @@ class ExportService {
                 case "GREENGROCER" -> "Hortifruti";
                 case "MARKETPLACE" -> "Feira";
                 default -> kind;
+            };
+        }
+
+        static String unit(String unit) {
+            return switch (unit) {
+                case "UN" -> "Unidade";
+                case "KG" -> "Quilo";
+                case "G" -> "Grama";
+                case "L" -> "Litro";
+                case "ML" -> "Mililitro";
+                case "CX" -> "Caixa";
+                case "PCT" -> "Pacote";
+                case "DZ" -> "Dúzia";
+                default -> unit;
+            };
+        }
+
+        static String receiptMode(String mode) {
+            return switch (mode) {
+                case "MANUAL" -> "Digitada";
+                case "FETCHED" -> "Lida da Sefaz";
+                default -> mode;
             };
         }
 
