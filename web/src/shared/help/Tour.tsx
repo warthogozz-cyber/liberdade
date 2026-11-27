@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
-import type { TourStep } from './tours'
+import type { TourStep } from './catalog'
+import { setHelpOpen } from './helpStore'
 
 const button =
   'min-h-12 rounded-field border border-primary px-4 font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
@@ -40,6 +41,12 @@ export default function Tour({ steps, onClose }: { steps: TourStep[]; onClose: (
   }, [steps])
 
   const open = present.length > 0
+
+  useEffect(() => {
+    if (!open) return
+    setHelpOpen(true)
+    return () => setHelpOpen(false)
+  }, [open])
   // Pin the first step by its anchor, so an anchor that renders before it later does not move the person.
   if (open && currentAnchor === null) setCurrentAnchor(present[0] ?? null)
   const found = currentAnchor === null ? -1 : present.indexOf(currentAnchor)

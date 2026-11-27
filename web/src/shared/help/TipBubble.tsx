@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { useIntl } from 'react-intl'
+import { setHelpOpen } from './helpStore'
 
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
@@ -11,6 +13,10 @@ export default function TipBubble({
   onDismiss: () => void
 }) {
   const intl = useIntl()
+  useEffect(() => {
+    setHelpOpen(true)
+    return () => setHelpOpen(false)
+  }, [])
   return (
     <div
       role="note"

@@ -1,5 +1,5 @@
 /** The first visit tips and the tour steps (up to 140 characters each). */
-export const tipsMessages = {
+export const helpMessages = {
   'tips.dismiss': 'Entendi',
   'tips.dashboard': 'Aqui está o mês da família: quanto entrou, quanto saiu e para onde foi.',
   'tips.transactions': 'Todos os lançamentos do mês. Toque em um para editar ou excluir.',

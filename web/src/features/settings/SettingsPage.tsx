@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import { useIntl } from 'react-intl'
 import { playAchievement, unlockSound, useSoundEnabled } from '@/shared/sound'
-import { useTipsEnabled } from '@/shared/tips'
+import { useTipsEnabled } from '@/shared/help'
 import { useDocumentTitle } from '@/shared/ui'
 import './register'
 
