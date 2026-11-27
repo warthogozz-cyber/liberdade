@@ -232,7 +232,7 @@ export const marketsMessages = {
   'markets.products.suggestion.failed': 'Não deu para recusar a sugestão. Tente de novo.',
   'markets.products.merge.title': 'Juntar produtos',
   'markets.products.merge.body':
-    'Os preços de {removed} passam para {kept}, e {removed} some. Não dá para desfazer.',
+    'Preços, itens da lista e apelidos de {removed} passam para {kept}, e {removed} sai do catálogo. Não dá para desfazer.',
   'markets.products.merge.which': 'Qual nome fica?',
   'markets.products.merge.confirm': 'Juntar',
   'markets.products.merge.cancel': 'Cancelar',

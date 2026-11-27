@@ -5,6 +5,7 @@ import { mockState, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
+import { marketsMessages } from '../messages.pt-BR'
 import { MergeDialog } from './MergeDialog'
 
 afterEach(cleanup)
@@ -26,6 +27,15 @@ function open() {
 }
 
 describe('MergeDialog', () => {
+  it('copyNamesEverythingThatMovesInPlainWords', () => {
+    const body = marketsMessages['markets.products.merge.body']
+    expect(body.length).toBeLessThanOrEqual(140)
+    expect(body).toMatch(/pre[çc]os/i)
+    expect(body).toMatch(/itens da lista/)
+    expect(body).toMatch(/apelidos/)
+    expect(body).not.toMatch(/perd|perca|resta|expir|quebr|corra|última chance|não deixe|falta/i)
+  })
+
   it('warnsAndChoosesName', async () => {
     let call: { keepId: string; body: unknown } | undefined
     server.use(
@@ -38,13 +48,13 @@ describe('MergeDialog', () => {
 
     expect(
       await screen.findByText(
-        'Os preços de Café Exemplo Torrado 500 g passam para Café Exemplo 500 g, e Café Exemplo Torrado 500 g some. Não dá para desfazer.',
+        'Preços, itens da lista e apelidos de Café Exemplo Torrado 500 g passam para Café Exemplo 500 g, e Café Exemplo Torrado 500 g sai do catálogo. Não dá para desfazer.',
       ),
     ).toBeVisible()
     fireEvent.click(screen.getByRole('radio', { name: B.name }))
     expect(
       screen.getByText(
-        'Os preços de Café Exemplo 500 g passam para Café Exemplo Torrado 500 g, e Café Exemplo 500 g some. Não dá para desfazer.',
+        'Preços, itens da lista e apelidos de Café Exemplo 500 g passam para Café Exemplo Torrado 500 g, e Café Exemplo 500 g sai do catálogo. Não dá para desfazer.',
       ),
     ).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Juntar' }))
