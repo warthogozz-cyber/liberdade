@@ -19,7 +19,9 @@ const setOnline = (online: boolean) => vi.spyOn(navigator, 'onLine', 'get').mock
 async function renderHost() {
   const result = renderWithProviders(<EventTipHost />)
   // The listeners start once the person is known; a first event that lands before is lost.
-  await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+  // Waits for the person itself, not a fixed time, so a slow first run does not lose the event.
+  await waitFor(() => expect(result.queryClient.getQueryData(queryKeys.me)).toBeDefined())
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
   return result
 }
 
