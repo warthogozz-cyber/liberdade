@@ -2076,6 +2076,48 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets/compare": {
+      "get": {
+        "operationId": "compareList",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "markets",
+            "required": false,
+            "schema": {
+              "maxLength": 300,
+              "minLength": 0,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "compare-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/geocode": {
       "post": {
         "operationId": "geocode",
@@ -5285,6 +5327,122 @@
         "type": "object",
         "properties": {
           "removed": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "CompareItemView": {
+        "type": "object",
+        "properties": {
+          "common": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prices": {
+            "type": "array",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ComparePriceView"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "string",
+            "example": "2.5"
+          },
+          "unitMismatch": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CompareMarketView": {
+        "type": "object",
+        "properties": {
+          "missingCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "ref": {
+            "type": "string"
+          },
+          "total": {
+            "type": "string",
+            "example": "24.98"
+          }
+        }
+      },
+      "ComparePriceView": {
+        "type": "object",
+        "properties": {
+          "observedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "old": {
+            "type": "boolean"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          },
+          "unitPrice": {
+            "type": "string",
+            "example": "4.99"
+          }
+        }
+      },
+      "CompareView": {
+        "type": "object",
+        "properties": {
+          "commonCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompareItemView"
+            }
+          },
+          "markets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompareMarketView"
+            }
+          },
+          "suggested": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unitMismatchCount": {
             "type": "integer",
             "format": "int32"
           }

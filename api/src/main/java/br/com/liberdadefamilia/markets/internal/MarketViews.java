@@ -265,4 +265,46 @@ final class MarketViews {
 
     /** How many ticked items were taken off the list. */
     record ClearedView(int removed) {}
+
+    /**
+     * The list at two or three markets, in the order asked. {@code suggested} is the refs of the two markets with the
+     * most priced items, empty when fewer than two have a price. Without markets, {@code markets} is empty and no item
+     * has prices. {@code total} is decimal text with two places, over the common items only.
+     */
+    record CompareView(
+            List<String> suggested,
+            List<CompareMarketView> markets,
+            int commonCount,
+            int unitMismatchCount,
+            List<CompareItemView> items) {}
+
+    /** A chosen market with its total over the common items and how many list items it has no price for. */
+    record CompareMarketView(
+            String ref,
+            @Nullable @Schema(nullable = true) String name,
+            @Schema(example = "24.98") String total,
+            int missingCount) {}
+
+    /**
+     * A list item; {@code prices} has one entry for each chosen market, in the order of {@code markets}, and null where
+     * the market has no price. {@code common}: priced at every market in one unit. {@code unitMismatch}: priced at
+     * every market, in different units, so left out of the totals.
+     */
+    record CompareItemView(
+            UUID productId,
+            String name,
+            @Schema(example = "2.5") String quantity,
+
+            List<@Nullable ComparePriceView> prices,
+
+            boolean common,
+            boolean unitMismatch) {}
+
+    /** The last price at a market; {@code old} when it is from more than two months before today. */
+    record ComparePriceView(
+            String ref,
+            @Schema(example = "4.9900") String unitPrice,
+            ProductUnit unit,
+            LocalDate observedOn,
+            boolean old) {}
 }

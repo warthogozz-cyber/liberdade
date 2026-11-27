@@ -435,6 +435,14 @@ class RoleMatrixIT {
                                 W + "/markets/products/{productA}/merge",
                                 "{\"removeId\":\"{productB}\"}"),
                         each(
+                                "GET " + W + "/markets/compare",
+                                W + "/markets/compare",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        each(
                                 "GET " + W + "/markets/list",
                                 W + "/markets/list",
                                 null,

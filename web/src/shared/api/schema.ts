@@ -804,6 +804,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["compareList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/geocode": {
         parameters: {
             query?: never;
@@ -1772,6 +1788,43 @@ export interface components {
         ClearedView: {
             /** Format: int32 */
             removed: number;
+        };
+        CompareItemView: {
+            common: boolean;
+            name: string;
+            prices: (components["schemas"]["ComparePriceView"] | null)[];
+            /** Format: uuid */
+            productId: string;
+            /** @example 2.5 */
+            quantity: string;
+            unitMismatch: boolean;
+        };
+        CompareMarketView: {
+            /** Format: int32 */
+            missingCount: number;
+            name: string | null;
+            ref: string;
+            /** @example 24.98 */
+            total: string;
+        };
+        ComparePriceView: {
+            /** Format: date */
+            observedOn: string;
+            old: boolean;
+            ref: string;
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+            /** @example 4.99 */
+            unitPrice: string;
+        };
+        CompareView: {
+            /** Format: int32 */
+            commonCount: number;
+            items: components["schemas"]["CompareItemView"][];
+            markets: components["schemas"]["CompareMarketView"][];
+            suggested: string[];
+            /** Format: int32 */
+            unitMismatchCount: number;
         };
         ConfirmTransactionRequest: {
             /** Format: uuid */
@@ -4342,6 +4395,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MarketCardView"];
+                };
+            };
+        };
+    };
+    compareList: {
+        parameters: {
+            query?: {
+                markets?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompareView"];
                 };
             };
         };
