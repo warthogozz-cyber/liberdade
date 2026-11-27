@@ -37,6 +37,8 @@ export function ColumnMapping({ rows, initial, onConfirm, onCancel }: ColumnMapp
     credit: initial.amount.kind === 'split' ? pick(initial.amount.credit) : NONE,
   })
   const [decimal, setDecimal] = useState<CsvMapping['decimal']>(initial.decimal)
+  // Once the person picks how the cents are written, a new amount column no longer overrides it.
+  const [decimalChosen, setDecimalChosen] = useState(false)
   const { split, value, debit, credit } = amount
 
   const header = initial.headerRow >= 0 ? rows[initial.headerRow] : undefined
@@ -53,12 +55,12 @@ export function ColumnMapping({ rows, initial, onConfirm, onCancel }: ColumnMapp
     description !== NONE &&
     (split ? debit !== NONE && credit !== NONE : value !== NONE)
 
-  /** A new amount column brings the decimal its cells show; the person can still change it afterwards. */
+  /** A new amount column brings the decimal its cells show, until the person has picked one themselves. */
   function changeAmount(change: Partial<AmountColumns>) {
     const next = { ...amount, ...change }
     setAmount(next)
     const chosen = next.split ? [next.debit, next.credit] : [next.value]
-    if (chosen.every((column) => column !== NONE)) {
+    if (!decimalChosen && chosen.every((column) => column !== NONE)) {
       setDecimal(detectDecimal(rows.slice(initial.headerRow + 1), chosen.map(Number)))
     }
   }
@@ -133,7 +135,10 @@ export function ColumnMapping({ rows, initial, onConfirm, onCancel }: ColumnMapp
         <span className="font-medium">{intl.formatMessage({ id: 'import.columns.decimal' })}</span>
         <select
           value={decimal}
-          onChange={(event) => setDecimal(event.target.value === '.' ? '.' : ',')}
+          onChange={(event) => {
+            setDecimal(event.target.value === '.' ? '.' : ',')
+            setDecimalChosen(true)
+          }}
           className={field}
         >
           <option value=",">{intl.formatMessage({ id: 'import.columns.decimalComma' })}</option>
