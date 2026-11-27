@@ -3,7 +3,7 @@
 # Use: docker compose -f compose.yaml -f compose.e2e.yaml up -d --build
 services:
   mock-oauth2:
-    image: ghcr.io/navikt/mock-oauth2-server:6.1.3@sha256:2a813381bf282da46ff36ff386059e7903e25865056af8149f4fb3f1441916b8
+    image: ghcr.io/navikt/mock-oauth2-server:7.0.2@sha256:95966a61e512c003daa3c884623665c2bbf04f46f85ce97d7ee659384d804202
     environment:
       SERVER_PORT: "8090"
       JSON_CONFIG: '{"interactiveLogin":true}'
