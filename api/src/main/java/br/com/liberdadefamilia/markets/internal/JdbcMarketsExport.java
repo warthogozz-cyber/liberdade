@@ -1,6 +1,8 @@
 package br.com.liberdadefamilia.markets.internal;
 
 import br.com.liberdadefamilia.markets.ExportedAlias;
+import br.com.liberdadefamilia.markets.ExportedDismissal;
+import br.com.liberdadefamilia.markets.ExportedListItem;
 import br.com.liberdadefamilia.markets.ExportedMarket;
 import br.com.liberdadefamilia.markets.ExportedMarketHome;
 import br.com.liberdadefamilia.markets.ExportedPrice;
@@ -125,6 +127,39 @@ class JdbcMarketsExport implements MarketsExport {
                         rs.getString("mode"),
                         rs.getInt("item_count"),
                         rs.getTimestamp("created_at").toInstant()))
+                .list();
+    }
+
+    @Override
+    public List<ExportedListItem> shoppingList(UUID workspaceId) {
+        return jdbc.sql("""
+                        select product_id, quantity, checked_at, position, created_at
+                        from shopping_list_items
+                        where workspace_id = :workspaceId
+                        order by position, id""")
+                .param("workspaceId", workspaceId)
+                .query((rs, row) -> {
+                    Timestamp checkedAt = rs.getTimestamp("checked_at");
+                    return new ExportedListItem(
+                            rs.getObject("product_id", UUID.class),
+                            rs.getBigDecimal("quantity"),
+                            checkedAt == null ? null : checkedAt.toInstant(),
+                            rs.getInt("position"),
+                            rs.getTimestamp("created_at").toInstant());
+                })
+                .list();
+    }
+
+    @Override
+    public List<ExportedDismissal> joinDismissals(UUID workspaceId) {
+        return jdbc.sql("""
+                        select product_a, product_b
+                        from product_join_dismissals
+                        where workspace_id = :workspaceId
+                        order by product_a, product_b""")
+                .param("workspaceId", workspaceId)
+                .query((rs, row) -> new ExportedDismissal(
+                        rs.getObject("product_a", UUID.class), rs.getObject("product_b", UUID.class)))
                 .list();
     }
 

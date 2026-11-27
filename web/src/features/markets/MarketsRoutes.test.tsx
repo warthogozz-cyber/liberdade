@@ -27,10 +27,10 @@ function seed() {
   return workspace
 }
 
-const render = (queryClient?: ReturnType<typeof createQueryClient>) =>
+const render = (queryClient?: ReturnType<typeof createQueryClient>, route = '/mais/feira') =>
   renderWithProviders(<MarketsRoutes />, {
     path: '/mais/feira/*',
-    route: '/mais/feira',
+    route,
     queryClient,
   })
 
@@ -83,5 +83,14 @@ describe('MarketsRoutes', () => {
       await screen.findByRole('heading', { level: 1, name: 'Feira' }, { timeout: 3000 }),
     ).toBeInTheDocument()
     expect(screen.queryByText('Este recurso faz parte do plano Família.')).not.toBeInTheDocument()
+  })
+
+  it('opensTheProductsScreen', async () => {
+    seed()
+    seedFamilyPlan()
+    render(undefined, '/mais/feira/produtos')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Produtos' })).toBeInTheDocument()
+    expect(await screen.findByText('Arroz tipo 1')).toBeInTheDocument()
   })
 })

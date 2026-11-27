@@ -98,6 +98,8 @@ val coverageExcludes = listOf("br/com/liberdadefamilia/LiberdadeApplication*")
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // The cached Spring test contexts plus the Mockito agent outgrow Gradle's 512 MB default heap.
+    maxHeapSize = "1g"
     systemProperty("spring.profiles.active", "test")
     jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-javaagent:${mockitoAgent.asPath}") })
 }

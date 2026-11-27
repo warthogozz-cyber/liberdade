@@ -27,6 +27,12 @@ const gamification = after(gamificationKeys.all(WS))
 // The prefix of `venturesKeys.all` (shared/api/ventures.ts), written out so the initial chunk does not
 // take that file for one key; the live-invalidation test checks they agree.
 const ventures = ['ventures'] as const
+// The prefixes of `marketsKeys.list`, `.compare` and `.products` (shared/api/markets.ts), written out for the same
+// reason; the live-invalidation test checks they agree. A list change also changes the comparison, and a product
+// rename or join changes both, so the one notice reaches all three.
+const marketsList = ['markets', 'list'] as const
+const marketsCompare = ['markets', 'compare'] as const
+const marketsProducts = ['markets', 'products'] as const
 
 const PREFIXES: Record<string, (readonly string[])[]> = {
   transaction: [transactions, dashboard, accounts, tags, planning, gamification, ventures],
@@ -41,6 +47,7 @@ const PREFIXES: Record<string, (readonly string[])[]> = {
   modules: [modules, planning, ventures],
   achievement: [gamification],
   venture: [ventures],
+  'shopping-list': [marketsList, marketsCompare, marketsProducts],
 }
 
 /**

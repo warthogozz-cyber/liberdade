@@ -450,6 +450,32 @@ modo e a contagem de itens, e a exportação não traz a chave nem o hash.
 A consulta de endereço vai ao OpenStreetMap (Nominatim) sem dado da família e não fica registrada. A
 exportação da família traz `feira-mercados.csv` e `feira-endereco.csv`; a pessoal não muda.
 
+### Lista de compras e comparação (Plano 10.3, migração `V42__shopping_list.sql`)
+
+| Tabela | Colunas principais |
+|---|---|
+| `shopping_list_items` | `workspace_id`, `product_id`, `quantity` (maior que zero, até 4 casas; padrão 1), `checked_at` (vazio enquanto não foi pego), `position`, `created_by` (opcional). Único por `(workspace_id, product_id)`: um item por produto |
+| `product_join_dismissals` | Chave `(workspace_id, product_a, product_b)`, com `product_a` menor que `product_b`. "Estes dois não são o mesmo produto": a sugestão de junção não volta |
+
+As duas tabelas apontam para `products` pela família (`ON DELETE CASCADE`): apagar o produto tira o item da
+lista e as recusas dele, e tudo some com a família.
+A V42 também deixou `PRODUCT` entre os alvos da auditoria, usado só pela
+junção de produtos (o produto que ficou, com o id do que saiu).
+
+**Mapa de dados da lista.**
+
+| Dado | Onde fica | Observação |
+|---|---|---|
+| Itens da lista, quantidade e ordem | No servidor (`shopping_list_items`) | Digitados pela pessoa; sem auditoria |
+| Hora em que o item foi pego | No servidor (`checked_at`) | Some quando o item é desmarcado |
+| Recusas de "São o mesmo produto?" | No servidor (`product_join_dismissals`) | Só os ids do par |
+| Preços da comparação | Não são guardados | Calculados na hora, dos preços das notas (`price_records`) |
+| Junção de produtos | Auditoria (`products.merged`) | Só os dois ids, nunca nomes |
+
+A comparação não grava nada: cada pedido recalcula a partir da lista e dos últimos preços. A exportação da
+família (versão 11) traz `feira-lista.csv` (produto, quantidade, quando foi pego, posição e criação) e
+`feira-nao-juntar.csv` (os pares recusados); a pessoal não muda.
+
 ## 6. Retenção (LGPD)
 
 | Dado | Retenção |

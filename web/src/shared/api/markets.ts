@@ -26,6 +26,12 @@ export type SaveReceiptItem = Schemas['ReceiptItem']
 export type SavedReceipt = Schemas['SaveView']
 export type MarketPrice = Schemas['PriceView']
 export type FamilyProduct = Schemas['FamilyProductView']
+export type ProductOverview = Schemas['ProductOverview']
+export type ProductsOverview = Schemas['ProductsOverview']
+export type SuggestedPair = Schemas['SuggestedPair']
+export type EditProductBody = Schemas['EditProductRequest']
+export type MarketComparison = Schemas['CompareView']
+export type ComparedItem = Schemas['CompareItemView']
 
 /** The area a search sends: the center is always rounded to 2 decimals, so it never reveals a precise spot. */
 export type SearchArea = { lat: string; lon: string; radiusKm: number }
@@ -40,6 +46,15 @@ export const marketsKeys = {
   settings: (ws: string) => [...marketsKeys.all(ws), 'settings'] as const,
   prices: (ws: string, ref: string) => [...marketsKeys.all(ws), 'prices', ref] as const,
   products: (ws: string, q: string) => [...marketsKeys.all(ws), 'products', q] as const,
+  // Under `products`, so a product change reaches it, yet never equal to `products(ws, q)`: an object is not a text.
+  productsOverview: (ws: string) =>
+    [...marketsKeys.all(ws), 'products', { view: 'overview' }] as const,
+  // Also under `products`, for the same reason as the overview.
+  productSuggestions: (ws: string) =>
+    [...marketsKeys.all(ws), 'products', { view: 'suggestions' }] as const,
+  list: (ws: string) => [...marketsKeys.all(ws), 'list'] as const,
+  compare: (ws: string, refs: readonly string[]) =>
+    [...marketsKeys.all(ws), 'compare', refs] as const,
 }
 
 /** The markets around a center, as two separate lists: OpenStreetMap's and the family's own. */
@@ -111,6 +126,71 @@ export async function getFamilyProducts(ws: string, q: string): Promise<FamilyPr
     }),
   )
   return view.products
+}
+
+/** Every product of the family with its last price at each market (up to 500 products). */
+export function getProductsOverview(ws: string): Promise<ProductsOverview> {
+  return unwrap(
+    client.GET('/v1/workspaces/{ws}/markets/products/overview', { params: { path: { ws } } }),
+  )
+}
+
+/** The pairs of products that may be the same one (up to 20, the most alike first). */
+export async function getProductSuggestions(ws: string): Promise<SuggestedPair[]> {
+  const view = await unwrap(
+    client.GET('/v1/workspaces/{ws}/markets/products/suggestions', { params: { path: { ws } } }),
+  )
+  return view.pairs
+}
+
+/** Renames a product or changes its unit; a `null` field stays as it is. */
+export function editProduct(
+  ws: string,
+  id: string,
+  body: EditProductBody,
+): Promise<ProductOverview> {
+  return unwrap(
+    client.PATCH('/v1/workspaces/{ws}/markets/products/{id}', {
+      params: { path: { ws, id } },
+      body,
+    }),
+  )
+}
+
+/** Joins `removeId` into `keepId`: its prices, aliases and list item pass over, and it is gone. */
+export function mergeProducts(
+  ws: string,
+  keepId: string,
+  removeId: string,
+): Promise<ProductOverview> {
+  return unwrap(
+    client.POST('/v1/workspaces/{ws}/markets/products/{keepId}/merge', {
+      params: { path: { ws, keepId } },
+      body: { removeId },
+    }),
+  )
+}
+
+/** Says that two products are not the same one, so they are not suggested again. */
+export async function dismissPair(ws: string, a: string, b: string): Promise<void> {
+  await unwrap(
+    client.POST('/v1/workspaces/{ws}/markets/products/dismissals', {
+      params: { path: { ws } },
+      body: { a, b },
+    }),
+  )
+}
+
+/**
+ * The shopping list priced at 2 or 3 markets (their refs, in the order the person chose). With no
+ * refs the answer only carries the two suggested markets and the items without prices.
+ */
+export function getComparison(ws: string, refs: readonly string[]): Promise<MarketComparison> {
+  return unwrap(
+    client.GET('/v1/workspaces/{ws}/markets/compare', {
+      params: { path: { ws }, query: refs.length === 0 ? {} : { markets: refs.join(',') } },
+    }),
+  )
 }
 
 /** The fields of a family market's links: `null` clears the family's value (the OSM one shows again). */
@@ -205,4 +285,58 @@ export function useMarketsSettings(ws: string | undefined) {
     queryFn: () => getMarketsSettings(ws as string),
     enabled: ws !== undefined,
   })
+}
+
+export type ShoppingListItem = Schemas['ListItemView']
+export type AddListItemBody = Schemas['AddListItemRequest']
+export type UpdateListItemBody = Schemas['UpdateListItemRequest']
+
+/** The shopping list, in the family's order. */
+export async function getShoppingList(ws: string): Promise<ShoppingListItem[]> {
+  const view = await unwrap(
+    client.GET('/v1/workspaces/{ws}/markets/list', { params: { path: { ws } } }),
+  )
+  return view.items
+}
+
+/** Adds a product (or a new name) at the end; a product already on the list gets the quantity added. */
+export function addListItem(ws: string, body: AddListItemBody): Promise<ShoppingListItem> {
+  return unwrap(client.POST('/v1/workspaces/{ws}/markets/list', { params: { path: { ws } }, body }))
+}
+
+/** Changes an item's quantity or marks it. */
+export function updateListItem(
+  ws: string,
+  id: string,
+  body: UpdateListItemBody,
+): Promise<ShoppingListItem> {
+  return unwrap(
+    client.PATCH('/v1/workspaces/{ws}/markets/list/{id}', { params: { path: { ws, id } }, body }),
+  )
+}
+
+/** The new order: every item of the list, or the API answers 409 `list.order_stale`. */
+export async function reorderList(ws: string, ids: string[]): Promise<ShoppingListItem[]> {
+  const view = await unwrap(
+    client.PUT('/v1/workspaces/{ws}/markets/list/order', {
+      params: { path: { ws } },
+      body: { ids },
+    }),
+  )
+  return view.items
+}
+
+/** Takes an item off the list. */
+export async function removeListItem(ws: string, id: string): Promise<void> {
+  await unwrap(
+    client.DELETE('/v1/workspaces/{ws}/markets/list/{id}', { params: { path: { ws, id } } }),
+  )
+}
+
+/** Takes the marked items off the list; answers how many went. */
+export async function clearCheckedItems(ws: string): Promise<number> {
+  const view = await unwrap(
+    client.POST('/v1/workspaces/{ws}/markets/list/clear-checked', { params: { path: { ws } } }),
+  )
+  return view.removed
 }

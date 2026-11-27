@@ -216,6 +216,15 @@ export function FeiraPage() {
         </div>
       )}
 
+      <div className="flex flex-wrap gap-3">
+        <Link to="/mais/feira/lista" className={outline}>
+          <FormattedMessage id="markets.list.link" />
+        </Link>
+        <Link to="/mais/feira/produtos" className={outline}>
+          <FormattedMessage id="markets.products.link" />
+        </Link>
+      </div>
+
       <OsmAttribution date={search.data?.datasetDate ?? null} />
 
       {adding && ws !== undefined && (

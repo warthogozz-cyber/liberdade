@@ -13,6 +13,9 @@ import br.com.liberdadefamilia.live.internal.Audience.NoYouth;
 import br.com.liberdadefamilia.live.internal.LiveChange;
 import br.com.liberdadefamilia.live.internal.LiveStream;
 import br.com.liberdadefamilia.live.internal.LiveStreams;
+import br.com.liberdadefamilia.markets.ProductsChanged;
+import br.com.liberdadefamilia.markets.ProductsMerged;
+import br.com.liberdadefamilia.markets.ShoppingListChanged;
 import br.com.liberdadefamilia.planning.BudgetChanged;
 import br.com.liberdadefamilia.planning.GoalChanged;
 import br.com.liberdadefamilia.planning.ReserveCostChanged;
@@ -196,5 +199,45 @@ class LiveRelayIT {
         assertThat(spy.published)
                 .containsExactly(new Published(
                         ws, new LiveChange("account", account), new AccountViewers(account, null, Set.of(former))));
+    }
+
+    private void setMarkets(boolean enabled) {
+        jdbc.sql("""
+                        insert into workspace_modules (workspace_id, module_key, enabled, updated_by)
+                        values (:ws, 'markets', :enabled, :ana)
+                        on conflict (workspace_id, module_key) do update set enabled = :enabled, updated_by = :ana""")
+                .param("ws", ws)
+                .param("enabled", enabled)
+                .param("ana", ana)
+                .update();
+    }
+
+    @Test
+    void shoppingListToEveryoneWhenMarketsOn() {
+        setMarkets(true);
+
+        publishInTransaction(
+                new ShoppingListChanged(ws),
+                new ProductsChanged(ws),
+                new ProductsMerged(ws, TestIds.v7(), TestIds.v7(), ana));
+
+        // One audience for all four roles, and no id: the notice names the list, never an item or a product.
+        assertThat(spy.published)
+                .containsExactly(
+                        new Published(ws, new LiveChange("shopping-list", null), new Everyone()),
+                        new Published(ws, new LiveChange("shopping-list", null), new Everyone()),
+                        new Published(ws, new LiveChange("shopping-list", null), new Everyone()));
+    }
+
+    @Test
+    void shoppingListSilentWhenMarketsOff() {
+        setMarkets(false);
+
+        publishInTransaction(
+                new ShoppingListChanged(ws),
+                new ProductsChanged(ws),
+                new ProductsMerged(ws, TestIds.v7(), TestIds.v7(), ana));
+
+        assertThat(spy.published).isEmpty();
     }
 }

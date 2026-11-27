@@ -155,6 +155,20 @@ class FamilyPurgeJobIT {
                 .param("product", product)
                 .param("receipt", receipt)
                 .update();
+        UUID other = jdbc.sql(
+                        "insert into products (workspace_id, name, unit) values (:ws, 'Feijao', 'UN') returning id")
+                .param("ws", ws)
+                .query(UUID.class)
+                .single();
+        jdbc.sql("insert into shopping_list_items (workspace_id, product_id, position) values (:ws, :product, 1)")
+                .param("ws", ws)
+                .param("product", product)
+                .update();
+        jdbc.sql("insert into product_join_dismissals (workspace_id, product_a, product_b) values (:ws, :a, :b)")
+                .param("ws", ws)
+                .param("a", product.compareTo(other) < 0 ? product : other)
+                .param("b", product.compareTo(other) < 0 ? other : product)
+                .update();
         jdbc.sql("insert into market_home (workspace_id, lat, lon, label) values (:ws, -23.123, -46.456, 'Casa')")
                 .param("ws", ws)
                 .update();
@@ -185,7 +199,9 @@ class FamilyPurgeJobIT {
             "products",
             "product_aliases",
             "receipts",
-            "price_records"
+            "price_records",
+            "shopping_list_items",
+            "product_join_dismissals"
         }) {
             assertThat(jdbc.sql("select count(*) from " + table + " where workspace_id = :ws")
                             .param("ws", ws)

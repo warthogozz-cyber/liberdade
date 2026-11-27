@@ -152,7 +152,7 @@ class ExportReceiptsIT {
     void formatVersionBumped() {
         String json = text(unzip(exportFamily()).get("dados.json"));
 
-        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(10);
+        assertThat(JsonPath.<Integer>read(json, "$.formatVersion")).isEqualTo(11);
     }
 
     @Test

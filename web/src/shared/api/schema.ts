@@ -804,6 +804,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["compareList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/geocode": {
         parameters: {
             query?: never;
@@ -836,6 +852,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listItems"];
+        put?: never;
+        post: operations["addListItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/list/clear-checked": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["clearCheckedItems"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/list/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["reorderList"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/list/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeListItem"];
+        options?: never;
+        head?: never;
+        patch: operations["updateListItem"];
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/products": {
         parameters: {
             query?: never;
@@ -846,6 +926,86 @@ export interface paths {
         get: operations["products"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/products/dismissals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["dismissPair"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/products/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/products/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["suggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["edit"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/products/{keepId}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["merge"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1543,6 +1703,13 @@ export interface components {
             real: components["schemas"]["RealView"];
             totals: components["schemas"]["TotalsView"];
         };
+        AddListItemRequest: {
+            newProductName: string | null;
+            /** Format: uuid */
+            productId: string | null;
+            /** @example 1 */
+            quantity: string | null;
+        };
         AddressView: {
             city: string | null;
             housenumber: string | null;
@@ -1617,6 +1784,47 @@ export interface components {
             checkoutUrl: string;
             /** Format: uuid */
             orderId: string;
+        };
+        ClearedView: {
+            /** Format: int32 */
+            removed: number;
+        };
+        CompareItemView: {
+            common: boolean;
+            name: string;
+            prices: (components["schemas"]["ComparePriceView"] | null)[];
+            /** Format: uuid */
+            productId: string;
+            /** @example 2.5 */
+            quantity: string;
+            unitMismatch: boolean;
+        };
+        CompareMarketView: {
+            /** Format: int32 */
+            missingCount: number;
+            name: string | null;
+            ref: string;
+            /** @example 24.98 */
+            total: string;
+        };
+        ComparePriceView: {
+            /** Format: date */
+            observedOn: string;
+            old: boolean;
+            ref: string;
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+            /** @example 4.99 */
+            unitPrice: string;
+        };
+        CompareView: {
+            /** Format: int32 */
+            commonCount: number;
+            items: components["schemas"]["CompareItemView"][];
+            markets: components["schemas"]["CompareMarketView"][];
+            suggested: string[];
+            /** Format: int32 */
+            unitMismatchCount: number;
         };
         ConfirmTransactionRequest: {
             /** Format: uuid */
@@ -1797,6 +2005,12 @@ export interface components {
             /** Format: date-time */
             deletionScheduledFor: string;
         };
+        DismissPairRequest: {
+            /** Format: uuid */
+            a: string;
+            /** Format: uuid */
+            b: string;
+        };
         DocumentStatus: {
             acceptanceRequired: boolean;
             /** Format: date-time */
@@ -1805,6 +2019,11 @@ export interface components {
             currentVersion: string;
             /** @enum {string} */
             purpose: "TERMS" | "PRIVACY" | "PARENTAL";
+        };
+        EditProductRequest: {
+            name: string | null;
+            /** @enum {string|null} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ" | null;
         };
         FamilyItem: {
             /** @enum {string|null} */
@@ -1997,6 +2216,24 @@ export interface components {
             instagram: string | null;
             website: string | null;
         };
+        ListItemView: {
+            checked: boolean;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: int32 */
+            position: number;
+            prices: components["schemas"]["ProductPriceView"][];
+            /** Format: uuid */
+            productId: string;
+            /** @example 2.5 */
+            quantity: string;
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+        };
+        ListOrderRequest: {
+            ids: string[];
+        };
         LookupItem: Record<string, never>;
         LookupMarket: {
             /** Format: uuid */
@@ -2104,6 +2341,10 @@ export interface components {
             /** @enum {string} */
             status: "ACTIVE" | "REMOVED";
             you: boolean;
+        };
+        MergeProductsRequest: {
+            /** Format: uuid */
+            removeId: string;
         };
         ModuleView: {
             enabled: boolean;
@@ -2248,6 +2489,25 @@ export interface components {
             /** @example 1.8 */
             unitVariableCost: string;
         };
+        ProductOverview: {
+            gtin: string | null;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            prices: components["schemas"]["ProductPriceView"][];
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+        };
+        ProductPriceView: {
+            marketName: string | null;
+            marketRef: string;
+            /** Format: date */
+            observedOn: string;
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+            /** @example 4.99 */
+            unitPrice: string;
+        };
         ProductView: {
             /** Format: uuid */
             id: string;
@@ -2257,6 +2517,10 @@ export interface components {
             plannedUnitsMonth: number;
             unitPrice: components["schemas"]["Money"];
             unitVariableCost: components["schemas"]["Money"];
+        };
+        ProductsOverview: {
+            products: components["schemas"]["ProductOverview"][];
+            truncated: boolean;
         };
         ProjectionPointView: {
             balance: components["schemas"]["Money"];
@@ -2401,6 +2665,9 @@ export interface components {
             geocodingEnabled: boolean;
             instagramEnabled: boolean;
         };
+        ShoppingListView: {
+            items: components["schemas"]["ListItemView"][];
+        };
         SimulationCost: {
             /** @example 12.5 */
             amount: string;
@@ -2452,6 +2719,22 @@ export interface components {
             longest: number;
             /** Format: int32 */
             weeks: number;
+        };
+        SuggestedPair: {
+            a: components["schemas"]["SuggestedProduct"];
+            b: components["schemas"]["SuggestedProduct"];
+            /** Format: double */
+            score: number;
+        };
+        SuggestedProduct: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+        };
+        SuggestionsView: {
+            pairs: components["schemas"]["SuggestedPair"][];
         };
         TagView: {
             /** Format: date-time */
@@ -2575,6 +2858,11 @@ export interface components {
             targetAmount?: components["schemas"]["Money"] | null;
             /** Format: int64 */
             version: number;
+        };
+        UpdateListItemRequest: {
+            checked: boolean | null;
+            /** @example 2.5 */
+            quantity: string | null;
         };
         UpdateMemberRequest: {
             nickname?: string | null;
@@ -4111,6 +4399,31 @@ export interface operations {
             };
         };
     };
+    compareList: {
+        parameters: {
+            query?: {
+                markets?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompareView"];
+                };
+            };
+        };
+    };
     geocode: {
         parameters: {
             query?: never;
@@ -4216,6 +4529,165 @@ export interface operations {
             };
         };
     };
+    listItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListView"];
+                };
+            };
+        };
+    };
+    addListItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddListItemRequest"];
+            };
+        };
+        responses: {
+            /** @description The product was already on the list; the quantity was added to it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListItemView"];
+                };
+            };
+            /** @description The product was not on the list; the item was added */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListItemView"];
+                };
+            };
+        };
+    };
+    clearCheckedItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearedView"];
+                };
+            };
+        };
+    };
+    reorderList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ListOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListView"];
+                };
+            };
+        };
+    };
+    removeListItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Item removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateListItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateListItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListItemView"];
+                };
+            };
+        };
+    };
     products: {
         parameters: {
             query?: {
@@ -4237,6 +4709,133 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FamilyProductsView"];
+                };
+            };
+        };
+    };
+    dismissPair: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DismissPairRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductsOverview"];
+                };
+            };
+        };
+    };
+    suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionsView"];
+                };
+            };
+        };
+    };
+    edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditProductRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOverview"];
+                };
+            };
+        };
+    };
+    merge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                keepId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeProductsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOverview"];
                 };
             };
         };

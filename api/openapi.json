@@ -2076,6 +2076,48 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets/compare": {
+      "get": {
+        "operationId": "compareList",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "markets",
+            "required": false,
+            "schema": {
+              "maxLength": 300,
+              "minLength": 0,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "compare-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/geocode": {
       "post": {
         "operationId": "geocode",
@@ -2216,6 +2258,245 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets/list": {
+      "get": {
+        "operationId": "listItems",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "shopping-list-controller"
+        ]
+      },
+      "post": {
+        "operationId": "addListItem",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddListItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListItemView"
+                }
+              }
+            },
+            "description": "The product was already on the list; the quantity was added to it"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListItemView"
+                }
+              }
+            },
+            "description": "The product was not on the list; the item was added"
+          }
+        },
+        "tags": [
+          "shopping-list-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/list/clear-checked": {
+      "post": {
+        "operationId": "clearCheckedItems",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearedView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "shopping-list-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/list/order": {
+      "put": {
+        "operationId": "reorderList",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "shopping-list-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/list/{id}": {
+      "delete": {
+        "operationId": "removeListItem",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Item removed"
+          }
+        },
+        "tags": [
+          "shopping-list-controller"
+        ]
+      },
+      "patch": {
+        "operationId": "updateListItem",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateListItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListItemView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "shopping-list-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/products": {
       "get": {
         "operationId": "products",
@@ -2256,6 +2537,207 @@
         },
         "tags": [
           "market-prices-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/products/dismissals": {
+      "post": {
+        "operationId": "dismissPair",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissPairRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "products-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/products/overview": {
+      "get": {
+        "operationId": "overview",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductsOverview"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "products-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/products/suggestions": {
+      "get": {
+        "operationId": "suggestions",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionsView"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "products-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/products/{id}": {
+      "patch": {
+        "operationId": "edit",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditProductRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOverview"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "products-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/products/{keepId}/merge": {
+      "post": {
+        "operationId": "merge",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "keepId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeProductsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOverview"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "products-controller"
         ]
       }
     },
@@ -4565,6 +5047,27 @@
           }
         }
       },
+      "AddListItemRequest": {
+        "type": "object",
+        "properties": {
+          "newProductName": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string",
+            "nullable": true
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "string",
+            "nullable": true,
+            "example": "1"
+          }
+        }
+      },
       "AddressView": {
         "type": "object",
         "properties": {
@@ -4817,6 +5320,131 @@
           "orderId": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "ClearedView": {
+        "type": "object",
+        "properties": {
+          "removed": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "CompareItemView": {
+        "type": "object",
+        "properties": {
+          "common": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prices": {
+            "type": "array",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ComparePriceView"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "string",
+            "example": "2.5"
+          },
+          "unitMismatch": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CompareMarketView": {
+        "type": "object",
+        "properties": {
+          "missingCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "ref": {
+            "type": "string"
+          },
+          "total": {
+            "type": "string",
+            "example": "24.98"
+          }
+        }
+      },
+      "ComparePriceView": {
+        "type": "object",
+        "properties": {
+          "observedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "old": {
+            "type": "boolean"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          },
+          "unitPrice": {
+            "type": "string",
+            "example": "4.99"
+          }
+        }
+      },
+      "CompareView": {
+        "type": "object",
+        "properties": {
+          "commonCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompareItemView"
+            }
+          },
+          "markets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompareMarketView"
+            }
+          },
+          "suggested": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unitMismatchCount": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -5419,6 +6047,23 @@
           }
         }
       },
+      "DismissPairRequest": {
+        "required": [
+          "a",
+          "b"
+        ],
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "b": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "DocumentStatus": {
         "type": "object",
         "properties": {
@@ -5443,6 +6088,31 @@
               "TERMS",
               "PRIVACY",
               "PARENTAL"
+            ]
+          }
+        }
+      },
+      "EditProductRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string",
+            "nullable": true
+          },
+          "unit": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
             ]
           }
         }
@@ -6041,6 +6711,67 @@
           }
         }
       },
+      "ListItemView": {
+        "type": "object",
+        "properties": {
+          "checked": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "prices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductPriceView"
+            }
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "string",
+            "example": "2.5"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          }
+        }
+      },
+      "ListOrderRequest": {
+        "required": [
+          "ids"
+        ],
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
       "LookupItem": {
         "type": "object"
       },
@@ -6398,6 +7129,18 @@
           },
           "you": {
             "type": "boolean"
+          }
+        }
+      },
+      "MergeProductsRequest": {
+        "required": [
+          "removeId"
+        ],
+        "type": "object",
+        "properties": {
+          "removeId": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -6866,6 +7609,74 @@
           }
         }
       },
+      "ProductOverview": {
+        "type": "object",
+        "properties": {
+          "gtin": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductPriceView"
+            }
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          }
+        }
+      },
+      "ProductPriceView": {
+        "type": "object",
+        "properties": {
+          "marketName": {
+            "type": "string",
+            "nullable": true
+          },
+          "marketRef": {
+            "type": "string"
+          },
+          "observedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          },
+          "unitPrice": {
+            "type": "string",
+            "example": "4.99"
+          }
+        }
+      },
       "ProductView": {
         "type": "object",
         "properties": {
@@ -6888,6 +7699,20 @@
           },
           "unitVariableCost": {
             "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "ProductsOverview": {
+        "type": "object",
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductOverview"
+            }
+          },
+          "truncated": {
+            "type": "boolean"
           }
         }
       },
@@ -7358,6 +8183,17 @@
           }
         }
       },
+      "ShoppingListView": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListItemView"
+            }
+          }
+        }
+      },
       "SimulationCost": {
         "type": "object",
         "properties": {
@@ -7494,6 +8330,57 @@
           "weeks": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "SuggestedPair": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "$ref": "#/components/schemas/SuggestedProduct"
+          },
+          "b": {
+            "$ref": "#/components/schemas/SuggestedProduct"
+          },
+          "score": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "SuggestedProduct": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          }
+        }
+      },
+      "SuggestionsView": {
+        "type": "object",
+        "properties": {
+          "pairs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SuggestedPair"
+            }
           }
         }
       },
@@ -7937,6 +8824,20 @@
           "version": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "UpdateListItemRequest": {
+        "type": "object",
+        "properties": {
+          "checked": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "string",
+            "nullable": true,
+            "example": "2.5"
           }
         }
       },

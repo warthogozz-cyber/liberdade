@@ -10,6 +10,9 @@ import br.com.liberdadefamilia.live.internal.Audience.AccountViewers;
 import br.com.liberdadefamilia.live.internal.Audience.Everyone;
 import br.com.liberdadefamilia.live.internal.Audience.Member;
 import br.com.liberdadefamilia.live.internal.Audience.NoYouth;
+import br.com.liberdadefamilia.markets.ProductsChanged;
+import br.com.liberdadefamilia.markets.ProductsMerged;
+import br.com.liberdadefamilia.markets.ShoppingListChanged;
 import br.com.liberdadefamilia.planning.BudgetChanged;
 import br.com.liberdadefamilia.planning.GoalArchived;
 import br.com.liberdadefamilia.planning.GoalChanged;
@@ -44,7 +47,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * that published the event. It is logged by its class only.
  *
  * <p>The planning events go out only while the family has Planning on, the achievement notice only while it has
- * Conquistas on; the check runs once per event, not per stream.
+ * Conquistas on, the shopping-list notice only while it has Feira on; the check runs once per event, not per stream.
  */
 @Component
 class LiveRelay {
@@ -153,6 +156,24 @@ class LiveRelay {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(VentureDeleted event) {
         send(event.workspaceId(), "venture", event.ventureId(), new NoYouth(), ModuleKey.VENTURES);
+    }
+
+    /** The list, the comparison and the products screens all refetch on this one notice; it names no item (D10). */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void on(ShoppingListChanged event) {
+        send(event.workspaceId(), "shopping-list", null, new Everyone(), ModuleKey.MARKETS);
+    }
+
+    /** A rename or a new unit changes what the list shows, so it tells the list. */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void on(ProductsChanged event) {
+        send(event.workspaceId(), "shopping-list", null, new Everyone(), ModuleKey.MARKETS);
+    }
+
+    /** A join moves the prices and may fold two list items into one. */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void on(ProductsMerged event) {
+        send(event.workspaceId(), "shopping-list", null, new Everyone(), ModuleKey.MARKETS);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

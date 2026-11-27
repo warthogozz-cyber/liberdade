@@ -36,8 +36,7 @@ function digit(text: string, weights: number[]): number {
  * A valid invented NFC-e key (copied from `src/features/markets/receipt/testing/nfceFixtures.ts`: the
  * e2e does not import from the src helpers). The CNPJ base is invented, never a real company.
  */
-function makeChave(aamm: string, serie: number, number: number): string {
-  const base = '123456780001'
+function makeChave(aamm: string, serie: number, number: number, base = '123456780001'): string {
   const partial = base + digit(base, FIRST)
   const cnpj = partial + digit(partial, SECOND)
   const serieText = String(serie).padStart(3, '0')
@@ -63,15 +62,16 @@ export interface FreshReceipt {
 /**
  * A key no run has used (the series and number are random), so a retry in CI never meets "already
  * registered" on the first save. It is from last month: that is never after the current month, and
- * the date is typed because a typed key carries none.
+ * the date is typed because a typed key carries none. A CNPJ base other than the default makes the
+ * key belong to another (invented) company.
  */
-export function freshReceipt(): FreshReceipt {
+export function freshReceipt(base?: string): FreshReceipt {
   const now = new Date()
   const last = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 15))
   const year = String(last.getUTCFullYear())
   const month = String(last.getUTCMonth() + 1).padStart(2, '0')
   return {
-    chave: makeChave(`${year.slice(2)}${month}`, randomUpTo(999), randomUpTo(999_999_999)),
+    chave: makeChave(`${year.slice(2)}${month}`, randomUpTo(999), randomUpTo(999_999_999), base),
     issuedOn: `${year}-${month}-15`,
     shownOn: `15/${month}/${year}`,
   }
@@ -142,4 +142,69 @@ export async function fillItem(page: Page, issuedOn: string): Promise<void> {
   // A new product starts as UN: the select only has to say so.
   await expect(page.getByRole('combobox', { name: /^Unidade/ })).toHaveValue('UN')
   await page.getByLabel('Preço da unidade').fill('4,99')
+}
+
+/** The second invented market, for the specs that compare two. */
+export const SECOND_MARKET = 'Mercado Exemplo 2'
+
+/** An invented item that only the first market's receipt carries. */
+export const RICE_NAME = 'Arroz Exemplo 5 kg'
+
+/** One line of a receipt: a product name and its unit price as typed ("4,99"). */
+export interface ReceiptLine {
+  name: string
+  price: string
+}
+
+/** The button that picks a product by name, whether the family has it already or it is typed as new. */
+function productChoice(page: Page, name: string) {
+  return page.getByRole('button', { name: new RegExp(`^(Novo: )?${name}$`) })
+}
+
+/**
+ * A whole receipt by hand, from the Feira back to the Feira: a fresh key, the market, one row per
+ * line, and the way back through the market card. A product the family has is picked, a new one is
+ * created, so the same name on two receipts is one product.
+ */
+export async function registerReceipt(
+  page: Page,
+  market: string,
+  lines: readonly ReceiptLine[],
+): Promise<void> {
+  // A CNPJ of its own: a saved receipt ties its CNPJ to the market, so a second receipt with the same
+  // one would skip the market choice ("Esta nota é deste mercado").
+  const { chave, issuedOn } = freshReceipt(`${String(randomUpTo(99_999_999)).padStart(8, '0')}0001`)
+  await openKeyField(page)
+  await submitKey(page, chave)
+  await chooseMarket(page, market)
+
+  await page.getByLabel('Data da compra').fill(issuedOn)
+  for (const [index, line] of lines.entries()) {
+    if (index > 0) await page.getByRole('button', { name: 'Adicionar item' }).click()
+    const row = page
+      .getByRole('listitem')
+      .filter({ has: page.getByText(`Item ${index + 1}`, { exact: true }) })
+    await row.getByLabel('Produto', { exact: true }).fill(line.name)
+    await productChoice(page, line.name).click()
+    await row.getByLabel('Preço da unidade').fill(line.price)
+  }
+  await page.getByRole('button', { name: 'Gravar' }).click()
+  await expect(
+    page.getByText('Preços registrados. A nota não vira um gasto; para lançar, use Lançar.'),
+  ).toBeVisible()
+
+  await page.getByRole('link', { name: 'Ver o cartão do mercado' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: market })).toBeVisible()
+  await page.getByRole('link', { name: 'Voltar para a Feira' }).click()
+  await expect(page.getByRole('link', { name: NEAREST_MARKET })).toBeVisible()
+}
+
+/**
+ * On the shopping list, adds a product by its name: the one the family has, or a new one. Waits
+ * for the item on the list, so a navigation right after it never cuts the add short.
+ */
+export async function addToList(page: Page, name: string): Promise<void> {
+  await page.getByLabel('Produto', { exact: true }).fill(name)
+  await productChoice(page, name).click()
+  await expect(page.getByRole('checkbox', { name: `Marcar ${name}`, exact: true })).toBeVisible()
 }

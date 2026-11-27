@@ -40,6 +40,23 @@ class MarketsOpenApiConfig {
                     owner.getProperties().put(each.property(), wrapped);
                 }
             }
+            nullableItems(openApi, "CompareItemView", "prices");
         };
+    }
+
+    /** The same wrapping for the elements of an array: a price that is null where the market has none. */
+    private static void nullableItems(io.swagger.v3.oas.models.OpenAPI openApi, String schema, String property) {
+        Schema<?> owner = openApi.getComponents().getSchemas().get(schema);
+        if (owner == null || owner.getProperties() == null) {
+            return;
+        }
+        Schema<?> array = owner.getProperties().get(property);
+        if (array == null || array.getItems() == null || array.getItems().get$ref() == null) {
+            return;
+        }
+        Schema<?> wrapped = new ComposedSchema()
+                .allOf(List.of(new Schema<>().$ref(array.getItems().get$ref())));
+        wrapped.setNullable(true);
+        array.setItems(wrapped);
     }
 }

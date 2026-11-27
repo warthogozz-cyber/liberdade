@@ -77,8 +77,8 @@ flowchart LR
   planning --> ledger
   gamification --> workspace & ledger & planning
   ventures --> workspace & ledger & billing
-  live --> identity & workspace & ledger & planning & gamification & ventures
-  live -. ouve eventos .-> ledger & planning & workspace & ventures
+  live --> identity & workspace & ledger & planning & gamification & ventures & markets
+  live -. ouve eventos .-> ledger & planning & workspace & ventures & markets
   audit -. ouve eventos .-> identity & workspace
   audit --> identity & workspace & ventures
   privacy --> ledger & audit & workspace & identity & billing & planning & gamification & ventures
@@ -290,6 +290,45 @@ mercado. Só Dono e Adulto registram; os demais leem os preços.
 - **O estado da tela fica só na memória.** Sair da tela descarta tudo. Depois de gravar, a tela invalida a
   lista de mercados da família (cartão, preços, produtos).
 
+#### Lista de compras e comparação (Plano 10.3, migração `V42__shopping_list.sql`)
+
+A lista, os produtos e a comparação ficam no mesmo módulo `markets`, com as telas `/mais/feira/lista`,
+`/mais/feira/produtos` e `/mais/feira/comparar`. As contas e as regras de junção ficam em
+`markets/domain`, sem Spring (`NameSimilarity` e `ComparisonCalculator`); o resto fica em `internal`.
+
+- **Uma lista por família.** `shopping_list_items` guarda um item por produto (`UNIQUE (workspace_id,
+  product_id)`), com quantidade, a hora em que foi pego e a posição. Adicionar um produto que já está na
+  lista soma a quantidade e desmarca, em vez de duplicar, então dois aparelhos que adicionam o mesmo
+  produto ao mesmo tempo acabam com um item só. A lista tem até 300 itens.
+- **Papéis.** Dono e Adulto fazem tudo. O Jovem adiciona (inclusive criando um produto só com o nome),
+  muda a quantidade e a ordem, marca e desmarca; não tira item, não limpa os pegos, não renomeia e não
+  junta. O Leitor só vê. O Jovem não apaga o que outra pessoa pôs na lista.
+- **Ordem.** `PUT …/list/order` manda a lista inteira. Se outro aparelho mudou a lista no meio, a API
+  responde 409 `list.order_stale`, e a web recarrega a lista e avisa.
+- **Produtos.** `GET …/markets/products/overview` traz os produtos com o último preço em cada mercado
+  (até 500). Renomear e trocar a unidade (`PATCH`) não mexem nos preços já registrados, que guardam a
+  unidade da época. Todos os papéis veem; só Dono e Adulto mudam.
+- **Sugestões de junção.** `NameSimilarity` compara as palavras do nome já normalizado (sem as de uma
+  letra) e sugere o par a partir de 0,5 de semelhança, desde que os dois não tenham códigos de barras
+  diferentes e a família não tenha dito "Não são". O cálculo é em memória, sobre os produtos da família.
+- **Juntar.** `POST …/products/{keepId}/merge` roda numa transação só: passa os preços e os apelidos
+  para o produto que fica (no apelido repetido vale o dele), soma a quantidade na lista, apaga as recusas
+  do outro e o próprio produto. Dois códigos de barras diferentes recusam a junção (422). O evento
+  `ProductsMerged` vai para a auditoria (alvo `PRODUCT`, só os ids) e para o aviso ao vivo.
+- **Comparação.** `GET …/markets/compare?markets=a,b[,c]` pede dois ou três mercados e devolve, para cada
+  item da lista, o último preço de cada um, com a data e a marca `old` depois de 60 dias. O total de cada
+  mercado soma só os itens que todos os mercados têm, na mesma unidade; o item sem preço num mercado ou
+  com unidade diferente fica fora do total e é contado à parte. Os mercados vêm na ordem pedida, nunca
+  ordenados por total, e a tela não usa cor, selo nem texto que aponte um vencedor.
+- **Sem auditoria para a lista.** Marcar e mudar a quantidade são o dia a dia. Os logs e a auditoria nunca
+  levam nome de produto, quantidade nem preço, só ids e contagens.
+- **Exportação.** A exportação da família passa à versão 11 e ganha `feira-lista.csv` e
+  `feira-nao-juntar.csv`.
+- **Front.** As três telas carregam sob demanda e ficam fora do pacote inicial (`check:chunks`). Marcar e
+  mudar a quantidade atualizam a tela antes da resposta e voltam atrás se a API recusar. O seletor de
+  produto da nota mostra primeiro os itens da lista. O e2e `feira-lista.spec.ts` roda a lista em dois
+  aparelhos (Dono e Jovem), a comparação e a junção.
+
 ### Avisos ao vivo (módulo `live`, Plano 7.3)
 
 O módulo `live` leva ao navegador o aviso de que algo mudou na família, para as telas abertas em
@@ -312,6 +351,11 @@ outros aparelhos se atualizarem sem recarregar. Ele lê de `identity`, `workspac
 - **Avisos de projetos (Plano 9.1).** `VentureChanged`, `VentureClosed` e `VentureDeleted` (`ventures`)
   viram o aviso `venture` com o id do projeto, para todos menos o Jovem, e só saem com o módulo
   Projetos ligado. A assinatura de `LiveRelay.send` não mudou.
+- **Aviso da lista de compras (Plano 10.3).** `ShoppingListChanged`, `ProductsChanged` e `ProductsMerged`
+  (`markets`) viram o aviso `shopping-list`, sem id e para os quatro papéis, e só saem com o módulo Feira
+  ligado. Os dois últimos entram porque renomear ou juntar produtos muda o que a lista mostra. Na web, o
+  aviso busca de novo as consultas da lista, da comparação e dos produtos. O `live` passa a depender de
+  `markets`, só dos tipos públicos da raiz.
 - **Batida a cada 25 s** (`LiveHeartbeat`). Manda um comentário e fecha o stream de quem perdeu a
   sessão (`SessionLiveness`) ou a participação (`Memberships.activeAmong`). Mudar o papel ou remover
   o membro fecha os streams dele na hora; pedir a exclusão da família fecha os da família.

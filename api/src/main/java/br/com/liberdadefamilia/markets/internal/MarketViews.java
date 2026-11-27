@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.markets.internal;
 
 import br.com.liberdadefamilia.markets.domain.MarketKind;
+import br.com.liberdadefamilia.markets.domain.ProductUnit;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -178,6 +179,132 @@ final class MarketViews {
             String unit,
             @Nullable @Schema(nullable = true) String gtin) {}
 
+    /** The last price of a product at one market; {@code unitPrice} is decimal text with four places. */
+    record ProductPriceView(
+            String marketRef,
+            @Nullable @Schema(nullable = true) String marketName,
+            @Schema(example = "4.9900") String unitPrice,
+            ProductUnit unit,
+            LocalDate observedOn) {}
+
+    /** A product with its last price at each market. */
+    record ProductOverview(
+            UUID id,
+            String name,
+            ProductUnit unit,
+            @Nullable @Schema(nullable = true) String gtin,
+            List<ProductPriceView> prices) {}
+
+    /** The family's products by name, up to 500; {@code truncated} when there are more. */
+    record ProductsOverview(List<ProductOverview> products, boolean truncated) {}
+
+    /** What to change in a product; a field left out stays as it is. */
+    record EditProductRequest(
+            @Nullable @Schema(nullable = true, minLength = 1, maxLength = 80)
+            String name,
+
+            @Nullable @Schema(nullable = true) ProductUnit unit) {}
+
+    /** The product to fold into the one in the path. */
+    record MergeProductsRequest(@NotNull UUID removeId) {}
+
     /** The family's products, by name, up to 50. */
     record FamilyProductsView(List<FamilyProductView> products) {}
+
+    /** A product in a suggested join. */
+    record SuggestedProduct(UUID id, String name, ProductUnit unit) {}
+
+    /** Two products that may be the same; {@code a} has the smaller id and {@code score} runs from 0.5 to 1. */
+    record SuggestedPair(SuggestedProduct a, SuggestedProduct b, double score) {}
+
+    /** The pairs worth a look, best first, up to 20. */
+    record SuggestionsView(List<SuggestedPair> pairs) {}
+
+    /** Two products the family says are not the same. */
+    record DismissPairRequest(@NotNull UUID a, @NotNull UUID b) {}
+
+    /**
+     * An item of the shopping list, with the product's name and unit as they are now; {@code quantity} is decimal
+     * text and {@code prices} is the last price at each market, as in the products overview.
+     */
+    record ListItemView(
+            UUID id,
+            UUID productId,
+            String name,
+            ProductUnit unit,
+            @Schema(example = "2.5") String quantity,
+            boolean checked,
+            int position,
+            List<ProductPriceView> prices) {}
+
+    /** The family's shopping list, in the order the family set. */
+    record ShoppingListView(List<ListItemView> items) {}
+
+    /**
+     * What to add: a product of the family, or the name of a new one (1 to 80). {@code quantity} is decimal text, up to
+     * 15 digits and 4 places, above zero; it defaults to 1.
+     */
+    record AddListItemRequest(
+            @Nullable @Schema(nullable = true) UUID productId,
+
+            @Nullable @Schema(nullable = true, minLength = 1, maxLength = 80)
+            String newProductName,
+
+            @Nullable @Schema(nullable = true, example = "1")
+            String quantity) {}
+
+    /** What to change in an item; a field left out stays as it is. */
+    record UpdateListItemRequest(
+            @Nullable @Schema(nullable = true, example = "2.5")
+            String quantity,
+
+            @Nullable @Schema(nullable = true) Boolean checked) {}
+
+    /** The new order: exactly the ids of the items on the list. */
+    record ListOrderRequest(@NotNull List<UUID> ids) {}
+
+    /** How many ticked items were taken off the list. */
+    record ClearedView(int removed) {}
+
+    /**
+     * The list at two or three markets, in the order asked. {@code suggested} is the refs of the two markets with the
+     * most priced items, empty when fewer than two have a price. Without markets, {@code markets} is empty and no item
+     * has prices. {@code total} is decimal text with two places, over the common items only.
+     */
+    record CompareView(
+            List<String> suggested,
+            List<CompareMarketView> markets,
+            int commonCount,
+            int unitMismatchCount,
+            List<CompareItemView> items) {}
+
+    /** A chosen market with its total over the common items and how many list items it has no price for. */
+    record CompareMarketView(
+            String ref,
+            @Nullable @Schema(nullable = true) String name,
+            @Schema(example = "24.98") String total,
+            int missingCount) {}
+
+    /**
+     * A list item; {@code prices} has one entry for each chosen market, in the order of {@code markets}, and null where
+     * the market has no price. {@code common}: priced at every market in one unit. {@code unitMismatch}: priced at
+     * every market, in different units, so left out of the totals.
+     */
+    record CompareItemView(
+            UUID productId,
+            String name,
+            @Schema(example = "2.5") String quantity,
+
+            List<@Nullable ComparePriceView> prices,
+
+            boolean common,
+            boolean unitMismatch) {}
+
+    /** The last price at a market; {@code old} when it is from more than two months before today. */
+    record ComparePriceView(
+            String ref,
+            @Schema(example = "4.9900") String unitPrice,
+            ProductUnit unit,
+            LocalDate observedOn,
+            boolean old) {}
 }

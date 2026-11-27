@@ -407,6 +407,78 @@ class RoleMatrixIT {
                                 Outcome.OK,
                                 Outcome.OK),
                         each(
+                                "GET " + W + "/markets/products/overview",
+                                W + "/markets/products/overview",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        each(
+                                "GET " + W + "/markets/products/suggestions",
+                                W + "/markets/products/suggestions",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        ownerAndAdult(
+                                "POST " + W + "/markets/products/dismissals",
+                                W + "/markets/products/dismissals",
+                                "{\"a\":\"{productA}\",\"b\":\"{productB}\"}"),
+                        ownerAndAdult(
+                                "PATCH " + W + "/markets/products/{id}",
+                                W + "/markets/products/{productA}",
+                                "{\"name\":\"Leite Exemplo Integral 1 L\",\"unit\":\"L\"}"),
+                        ownerAndAdult(
+                                "POST " + W + "/markets/products/{keepId}/merge",
+                                W + "/markets/products/{productA}/merge",
+                                "{\"removeId\":\"{productB}\"}"),
+                        each(
+                                "GET " + W + "/markets/compare",
+                                W + "/markets/compare",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        each(
+                                "GET " + W + "/markets/list",
+                                W + "/markets/list",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        // The youth adds, changes and ticks; only the adults take an item off or clear the ticked.
+                        each(
+                                "POST " + W + "/markets/list",
+                                W + "/markets/list",
+                                "{\"newProductName\":\"Café Exemplo\"}",
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN),
+                        each(
+                                "PATCH " + W + "/markets/list/{id}",
+                                W + "/markets/list/{listItem}",
+                                "{\"checked\":true}",
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN),
+                        each(
+                                "PUT " + W + "/markets/list/order",
+                                W + "/markets/list/order",
+                                "{\"ids\":[\"{listItem}\"]}",
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.FORBIDDEN),
+                        ownerAndAdult("DELETE " + W + "/markets/list/{id}", W + "/markets/list/{listItem}", null),
+                        ownerAndAdult(
+                                "POST " + W + "/markets/list/clear-checked", W + "/markets/list/clear-checked", null),
+                        each(
                                 "POST " + W + "/markets/{ref}/instagram-embed",
                                 W + "/markets/{instagramMarket}/instagram-embed",
                                 null,
@@ -1077,6 +1149,25 @@ class RoleMatrixIT {
                         insert into markets (workspace_id, origin, osm_type, osm_id)
                         values (:ws, 'OSM', 'n', 777)
                         returning id""").param("ws", ws).query(UUID.class).single());
+        for (String key : new String[] {"productA", "productB"}) {
+            ids.put(
+                    key,
+                    jdbc.sql("""
+                            insert into products (workspace_id, name) values (:ws, :name) returning id""")
+                            .param("ws", ws)
+                            .param("name", key.equals("productA") ? "Leite Exemplo 1 L" : "Leite Ex. 1L")
+                            .query(UUID.class)
+                            .single());
+        }
+        ids.put(
+                "listItem",
+                jdbc.sql("""
+                        insert into shopping_list_items (workspace_id, product_id, position)
+                        values (:ws, :product, 0) returning id""")
+                        .param("ws", ws)
+                        .param("product", ids.get("productA"))
+                        .query(UUID.class)
+                        .single());
         ids.put("plannedFamily", planned(ws, ids.get("corrente"), ids.get("mercado"), anaMembership));
         ids.put("plannedYouth", planned(ws, ids.get("wallet"), ids.get("mercado"), anaMembership));
         byte[] tokenHash = new byte[32];
