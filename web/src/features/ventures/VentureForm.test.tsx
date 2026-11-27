@@ -48,7 +48,7 @@ describe('VentureForm', () => {
     render(exampleVenture())
 
     expect(await screen.findAllByText(BADGE)).toHaveLength(3)
-    expect(screen.getByText(/Os itens com o selo “exemplo” vêm do modelo/)).toBeVisible()
+    expect(screen.getByText(/Itens com o selo exemplo vêm do modelo/)).toBeVisible()
 
     fireEvent.change(within(group('Item inicial 1')).getByLabelText('Nome'), {
       target: { value: 'Forma nova' },
@@ -58,15 +58,13 @@ describe('VentureForm', () => {
       target: { value: '70,00' },
     })
     expect(screen.getAllByText(BADGE)).toHaveLength(1)
-    expect(screen.getByText(/Os itens com o selo “exemplo” vêm do modelo/)).toBeVisible()
+    expect(screen.getByText(/Itens com o selo exemplo vêm do modelo/)).toBeVisible()
 
     fireEvent.change(within(group('Produto 1')).getByLabelText('Vendas previstas por mês'), {
       target: { value: '250' },
     })
     expect(screen.queryByText(BADGE)).not.toBeInTheDocument()
-    expect(
-      screen.queryByText(/Os itens com o selo “exemplo” vêm do modelo/),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/Itens com o selo exemplo vêm do modelo/)).not.toBeInTheDocument()
   })
 
   it('amountAboveMaxShowsFieldError', async () => {

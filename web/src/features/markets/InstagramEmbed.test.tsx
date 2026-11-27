@@ -46,7 +46,7 @@ describe('InstagramEmbed', () => {
   it('noRequestBeforeNotice', async () => {
     const calls = setup()
     fireEvent.click(screen.getByRole('button', { name: 'Ver aqui' }))
-    expect(await screen.findByText(/A publicação é do Instagram, da Meta/)).toBeVisible()
+    expect(await screen.findByText(/A Meta vai saber que você abriu a publicação/)).toBeVisible()
     expect(calls).toEqual([])
 
     fireEvent.click(screen.getByRole('button', { name: 'Agora não' }))

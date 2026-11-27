@@ -39,8 +39,8 @@ test('owner buys, becomes Founder and refunds', async ({ page, request }) => {
   await page.getByText('Oceano', { exact: true }).click()
   await expect(page.getByRole('radio', { name: 'Oceano' })).toBeChecked()
 
-  await page.getByRole('button', { name: 'Receber meu dinheiro de volta' }).click()
-  await page.getByRole('button', { name: 'Receber os R$ 89,00 de volta' }).click()
+  await page.getByRole('button', { name: 'Pedir o dinheiro de volta' }).click()
+  await page.getByRole('button', { name: 'Pedir os R$ 89,00 de volta' }).click()
   await expect(page.getByText('Reembolso em processamento')).toBeVisible()
 
   await postAsaasWebhook(request, {

@@ -35,6 +35,24 @@ beforeEach(() => {
 })
 afterEach(() => cleanup())
 
+describe('ReceiptKeyStep link error', () => {
+  it('saysWhenTheLinkIsNotAReceipt', async () => {
+    pick.mockResolvedValue('none')
+    renderStep()
+    fireEvent.click(await screen.findByRole('button', { name: 'Colar o link' }))
+    fireEvent.change(screen.getByLabelText('Link da nota'), {
+      target: { value: 'https://example.test/' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    expect(
+      await screen.findByText(
+        'Isto não parece o QR ou o link de uma nota. Confira e tente de novo.',
+      ),
+    ).toBeInTheDocument()
+  })
+})
+
 describe('ReceiptKeyStep reader', () => {
   it('hidesReadQrWhenNoDetector', async () => {
     let settle: (kind: DetectorKind) => void = () => undefined

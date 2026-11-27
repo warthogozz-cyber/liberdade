@@ -388,7 +388,7 @@ describe('NewTransactionPage', () => {
 
     expect(
       await within(toastRegion()).findByText(
-        'Sem internet agora. Para desfazer, exclua em Lançamentos quando a conexão voltar.',
+        'Sem internet. Para desfazer, exclua em Lançamentos quando o sinal voltar.',
       ),
     ).toBeInTheDocument()
     expect(mockState.deletedTransactionIds.size).toBe(0)

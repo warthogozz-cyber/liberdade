@@ -51,7 +51,7 @@ test('createFromTemplateAndSeeThePrd: the model fills the form with example stam
 
   // The three initial items, the four fixed costs and the product all come from the model.
   await expect(page.getByText('exemplo: ajuste para a sua realidade')).toHaveCount(8)
-  await expect(page.getByText(/Os itens com o selo “exemplo” vêm do modelo/)).toBeVisible()
+  await expect(page.getByText(/Itens com o selo exemplo vêm do modelo/)).toBeVisible()
   await expect(page.getByLabel('Nome do projeto')).toHaveValue(TEMPLATE_NAME)
 
   const preview = page.getByRole('region', { name: 'Prévia das contas' })
