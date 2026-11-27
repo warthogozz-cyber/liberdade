@@ -1,5 +1,7 @@
-import { cleanup, fireEvent, screen } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mockState } from '@/mocks/data'
+import { hasSeen, markSeen } from '@/shared/help'
 import { playAchievement } from '@/shared/sound/playAchievement'
 import { unlockSound } from '@/shared/sound/unlockSound'
 import { renderWithProviders } from '@/shared/testing'
@@ -87,5 +89,46 @@ describe('SettingsPage', () => {
       'false',
     )
     expect(localStorage.getItem('liberdade.tips')).toBe('off')
+  })
+
+  it('reviewTipsResetsAndTurnsOn', async () => {
+    const me = mockState.user.id
+    markSeen(me, 'home')
+    renderWithProviders(<SettingsPage />, { path: '/mais/ajustes' })
+    expect(screen.getByRole('switch', { name: 'Mostrar dicas' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    )
+
+    const review = screen.getByRole('button', { name: 'Rever dicas' })
+    await waitFor(() => expect(review).toBeEnabled())
+    fireEvent.click(review)
+
+    await waitFor(() => expect(hasSeen(me, 'home')).toBe(false))
+    expect(screen.getByRole('switch', { name: 'Mostrar dicas' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Pronto. As dicas vão aparecer de novo.')
+  })
+
+  it('reviewTipsKeepsOtherPeople', async () => {
+    markSeen('someone-else', 'home')
+    renderWithProviders(<SettingsPage />, { path: '/mais/ajustes' })
+
+    const review = screen.getByRole('button', { name: 'Rever dicas' })
+    await waitFor(() => expect(review).toBeEnabled())
+    fireEvent.click(review)
+
+    await screen.findByRole('status')
+    expect(hasSeen('someone-else', 'home')).toBe(true)
+  })
+
+  it('motionLine', () => {
+    renderWithProviders(<SettingsPage />, { path: '/mais/ajustes' })
+
+    expect(
+      screen.getByText('O app segue a opção Reduzir movimento do seu aparelho.'),
+    ).toBeInTheDocument()
   })
 })

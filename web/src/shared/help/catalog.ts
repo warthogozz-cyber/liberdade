@@ -133,6 +133,7 @@ export const glossary: { termId: string; bodyId: string }[] = [
 /** Key = full path, e.g. '/mais/feira/lista'. */
 export const routeHelp: Record<string, RouteHelp> = {
   '/mais/como-funciona': { exception: 'help screen' },
+  '/mais/ajustes': { inline: 'settings.motion' },
 }
 
 /** The ids under which "seen" is stored; they match what existing devices already hold. */
