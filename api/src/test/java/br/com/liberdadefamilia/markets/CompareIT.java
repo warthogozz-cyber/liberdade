@@ -233,6 +233,50 @@ class CompareIT {
         assertThat(result).bodyJson().extractingPath("$.items[0].prices[1]").isNull();
     }
 
+    @Test
+    void osmMarketAskedByItsFamilyIdGetsItsPrices() {
+        UUID milk = listed("Leite Exemplo 1 L", "2");
+        UUID osmRow = MarketsTestData.familyRowForOsm(jdbc, ws, 9000123);
+        price(marketA, milk, "2026-11-20", "4.0000", "UN");
+        price(osmRow, milk, "2026-11-20", "3.0000", "UN");
+
+        MvcTestResult byId = compare(marketA + "," + osmRow);
+        MvcTestResult byOsmRef = compare(marketA + ",osm-n-9000123");
+
+        for (MvcTestResult result : new MvcTestResult[] {byId, byOsmRef}) {
+            assertThat(result).hasStatus(200);
+            assertThat(result).bodyJson().extractingPath("$.markets[1].total").isEqualTo("6.00");
+            assertThat(result)
+                    .bodyJson()
+                    .extractingPath("$.markets[1].missingCount")
+                    .isEqualTo(0);
+            assertThat(result)
+                    .bodyJson()
+                    .extractingPath("$.items[0].prices[1].unitPrice")
+                    .isEqualTo("3.0000");
+            assertThat(result).bodyJson().extractingPath("$.commonCount").isEqualTo(1);
+        }
+        assertThat(byId).bodyJson().extractingPath("$.markets[1].ref").isEqualTo(osmRow.toString());
+    }
+
+    @Test
+    void badCountAndDuplicatesAre422BeforeAnyLookup() {
+        UUID missing = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+
+        for (String markets : new String[] {
+            missing + "," + missing,
+            "not-a-ref,not-a-ref",
+            marketA + "," + marketA + "," + missing,
+            missing + "," + other + "," + UUID.randomUUID() + "," + UUID.randomUUID()
+        }) {
+            MvcTestResult result = compare(markets);
+            assertThat(result).hasStatus(422);
+            assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("compare.markets_invalid");
+        }
+        assertThat(compare(marketA + "," + missing)).hasStatus(404);
+    }
+
     private MvcTestResult compare(String markets) {
         var request = mvc.get().uri("/v1/workspaces/" + ws + "/markets/compare").with(TestUsers.signedIn(ana, null));
         if (markets != null) {
