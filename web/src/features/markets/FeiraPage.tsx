@@ -3,6 +3,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, useNavigate } from 'react-router'
 import { useCurrentWorkspace, useMe } from '@/shared/api'
 import { useMarketHome, useMarketsSettings, type MarketSearchResult } from '@/shared/api/markets'
+import { PageTour } from '@/shared/help'
 import { registerMessages } from '@/shared/i18n'
 import { useDocumentTitle } from '@/shared/ui'
 import { AddMarketSheet } from './AddMarketSheet'
@@ -101,6 +102,10 @@ export function FeiraPage() {
   // Asks where to look the first time, and again when the saved choice has no point to measure from.
   const ready = userId !== undefined && !settings.isPending && (!canWrite || !home.isPending)
   const chooserOpen = opened || (ready && from === null && !dismissed)
+  // The tour joins once the first question about where to look is settled, so it never races the
+  // chooser; a chooser opened later leaves a tour that is already on screen alone.
+  const [settled, setSettled] = useState(false)
+  if (ready && !chooserOpen && !settled) setSettled(true)
 
   const modeName =
     location === null || from === null
@@ -111,7 +116,7 @@ export function FeiraPage() {
 
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
-      <div className="flex items-center justify-between gap-2">
+      <div data-tour="markets-nearby" className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">
           <FormattedMessage id="markets.title" />
         </h1>
@@ -206,7 +211,7 @@ export function FeiraPage() {
       ) : null}
 
       {canWrite && (
-        <div className="flex flex-wrap gap-3">
+        <div data-tour="markets-receipt" className="flex flex-wrap gap-3">
           <button type="button" onClick={() => setAdding(true)} className={outline}>
             <FormattedMessage id="markets.add" />
           </button>
@@ -216,7 +221,7 @@ export function FeiraPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3">
+      <div data-tour="markets-list" className="flex flex-wrap gap-3">
         <Link to="/mais/feira/lista" className={outline}>
           <FormattedMessage id="markets.list.link" />
         </Link>
@@ -224,6 +229,8 @@ export function FeiraPage() {
           <FormattedMessage id="markets.products.link" />
         </Link>
       </div>
+
+      {settled && <PageTour id="markets" />}
 
       <OsmAttribution date={search.data?.datasetDate ?? null} />
 

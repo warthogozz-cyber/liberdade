@@ -2,7 +2,7 @@ import { useId, type ReactNode } from 'react'
 import { useIntl } from 'react-intl'
 import { Link } from 'react-router'
 import { useCurrentWorkspace, useModules } from '@/shared/api'
-import { glossary, moduleHelp, tours, type ModuleHelp } from '@/shared/help'
+import { glossary, moduleHelp, type ModuleHelp } from '@/shared/help'
 import { registerMessages } from '@/shared/i18n'
 import { useDocumentTitle } from '@/shared/ui'
 import { howItWorksMessages, type HowItWorksMessageId } from './messages.pt-BR'
@@ -33,15 +33,13 @@ function ModuleSection({ entry }: { entry: ModuleHelp }) {
   return (
     <Section title={intl.formatMessage({ id: id(entry.titleId) })}>
       <p>{intl.formatMessage({ id: id(`help.module.${entry.module}`) })}</p>
-      {tours[entry.tour]?.length ? (
-        <Link
-          to={entry.path}
-          state={{ forceTour: entry.tour }}
-          className={`flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary ${focus}`}
-        >
-          {intl.formatMessage({ id: 'help.tour.open' })}
-        </Link>
-      ) : null}
+      <Link
+        to={entry.path}
+        state={{ forceTour: entry.tour }}
+        className={`flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary ${focus}`}
+      >
+        {intl.formatMessage({ id: 'help.tour.open' })}
+      </Link>
     </Section>
   )
 }

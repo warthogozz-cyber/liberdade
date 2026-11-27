@@ -22,10 +22,10 @@ function canShow(steps: TourStep[]): boolean {
  * Whether the tour may show, watching the page until it can. It waits for any open dialog (such as
  * the Feira's location picker) to close; once true it stays true, so a later dialog keeps it open.
  */
-function useReadyToShow(steps: TourStep[] | undefined, wanted: boolean): boolean {
+function useReadyToShow(steps: TourStep[], wanted: boolean): boolean {
   const [ready, setReady] = useState(false)
   useEffect(() => {
-    if (!wanted || ready || !steps) return
+    if (!wanted || ready) return
     const check = () => {
       if (!canShow(steps)) return
       observer.disconnect()
@@ -57,9 +57,9 @@ export function PageTour({ id }: { id: TourId }) {
   const [tipsOn] = useTipsEnabled()
   const [closed, setClosed] = useState(false)
   const steps = tours[id]
-  const wanted = !!userId && !!steps && !closed && (forced || (tipsOn && !seen))
+  const wanted = !!userId && !closed && (forced || (tipsOn && !seen))
   const ready = useReadyToShow(steps, wanted)
-  if (!userId || !steps || !wanted || !ready) return null
+  if (!userId || !wanted || !ready) return null
 
   return (
     <Suspense fallback={null}>

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
@@ -236,5 +236,68 @@ describe('FeiraPage', () => {
 
     await screen.findByText('Mercado Exemplo 3')
     expect(screen.queryByRole('link', { name: 'Registrar nota' })).not.toBeInTheDocument()
+  })
+})
+
+describe('FeiraPage tour', () => {
+  const getCurrentPosition = vi.fn()
+
+  beforeEach(() => {
+    localStorage.setItem('liberdade.tips', 'on')
+    Element.prototype.scrollIntoView = () => {}
+    getCurrentPosition.mockReset()
+    getCurrentPosition.mockImplementation((success: PositionCallback) =>
+      success({ coords: { latitude: -10.12, longitude: -50.54 } } as GeolocationPosition),
+    )
+    Object.defineProperty(navigator, 'geolocation', {
+      value: { getCurrentPosition },
+      configurable: true,
+    })
+  })
+
+  const anchor = (name: string) => document.querySelector(`[data-tour="${name}"]`)
+
+  it('tourAnchors', async () => {
+    seed()
+    render()
+    await screen.findByText('Mercado Exemplo 3')
+
+    for (const name of ['markets-nearby', 'markets-receipt', 'markets-list']) {
+      expect(anchor(name), name).not.toBeNull()
+    }
+  })
+
+  it('youthHasNoReceiptAnchor', async () => {
+    seed('YOUTH')
+    render()
+    await screen.findByText('Mercado Exemplo 3')
+
+    expect(anchor('markets-nearby')).not.toBeNull()
+    expect(anchor('markets-list')).not.toBeNull()
+    expect(anchor('markets-receipt')).toBeNull()
+  })
+
+  it('tourWaitsForChooser', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { markets: true }
+    render()
+
+    const chooser = await screen.findByRole('dialog')
+    expect(within(chooser).getByText('Onde procurar mercados?')).toBeVisible()
+    expect(screen.queryByText(/Passo 1 de/)).not.toBeInTheDocument()
+
+    fireEvent.click(within(chooser).getByRole('radio', { name: /Minha localização aproximada/ }))
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Continuar' }))
+
+    const tour = await screen.findByText('Passo 1 de 3')
+    expect(tour).toBeVisible()
+    expect(screen.queryByText('Onde procurar mercados?')).not.toBeInTheDocument()
+  })
+
+  it('youthTourSkipsReceipt', async () => {
+    seed('YOUTH')
+    render()
+
+    expect(await screen.findByText('Passo 1 de 2')).toBeVisible()
   })
 })

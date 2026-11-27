@@ -66,7 +66,7 @@ export const eventTips: Record<EventTipId, HelpMessageId> = {
 }
 
 /** The steps of each tour, in order; a step whose anchor is not on the screen is skipped. */
-export const tours: Partial<Record<TourId, TourStep[]>> = {
+export const tours: Record<TourId, TourStep[]> = {
   planning: [
     { anchor: 'planning-budget', messageId: 'tips.tour.planning.budget' },
     { anchor: 'planning-goals', messageId: 'tips.tour.planning.goals' },
@@ -79,7 +79,18 @@ export const tours: Partial<Record<TourId, TourStep[]>> = {
   ],
   achievements: [
     { anchor: 'achievements-streak', messageId: 'tips.tour.achievements.streak' },
+    { anchor: 'achievements-rest', messageId: 'tips.tour.achievements.streakBreak' },
     { anchor: 'achievements-list', messageId: 'tips.tour.achievements.list' },
+  ],
+  markets: [
+    { anchor: 'markets-nearby', messageId: 'tips.tour.markets.nearby' },
+    { anchor: 'markets-receipt', messageId: 'tips.tour.markets.receipt' },
+    { anchor: 'markets-list', messageId: 'tips.tour.markets.list' },
+  ],
+  ventures: [
+    { anchor: 'ventures-intro', messageId: 'tips.tour.ventures.intro' },
+    { anchor: 'ventures-start', messageId: 'tips.tour.ventures.start' },
+    { anchor: 'ventures-actual', messageId: 'tips.tour.ventures.actual' },
   ],
 }
 
@@ -144,6 +155,10 @@ export const routeHelp: Record<string, RouteHelp> = {
   '/mais/familia/convidar': { inherits: '/mais/familia' },
   '/mais/como-funciona': { exception: 'help screen' },
   '/mais/ajustes': { inline: 'settings.motion' },
+  '/mais/feira': { tour: 'markets' },
+  '/mais/projetos': { tour: 'ventures' },
+  '/mais/projetos/comecar': { inherits: '/mais/projetos' },
+  '/mais/projetos/:id/editar': { inherits: '/mais/projetos' },
 }
 
 /** The ids under which "seen" is stored; they match what existing devices already hold. */

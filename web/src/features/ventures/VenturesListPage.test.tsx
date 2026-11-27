@@ -9,6 +9,7 @@ import { VenturesListPage } from './VenturesListPage'
 
 beforeEach(() => {
   localStorage.setItem('liberdade.tips', 'on')
+  Element.prototype.scrollIntoView = () => {}
 })
 
 afterEach(() => {
@@ -125,5 +126,31 @@ describe('VenturesListPage', () => {
     expect(await screen.findByText('Doces caseiros')).toBeVisible()
     expect(screen.queryByRole('link', { name: 'Começar um projeto' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Começar um projeto' })).not.toBeInTheDocument()
+  })
+})
+
+describe('VenturesListPage tour', () => {
+  const anchors = ['ventures-intro', 'ventures-start', 'ventures-actual']
+
+  it('tourAnchors', async () => {
+    const workspace = seedMockFamily()
+    seedVentureFixture(workspace)
+    render()
+    await screen.findByText('Doces caseiros')
+    for (const name of anchors) {
+      expect(document.querySelector(`[data-tour="${name}"]`), name).not.toBeNull()
+    }
+    cleanup()
+
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/ventures`, () =>
+        HttpResponse.json({ ventures: [], limitReached: false }),
+      ),
+    )
+    render()
+    await screen.findByText('Nenhum projeto ainda.')
+    for (const name of anchors) {
+      expect(document.querySelector(`[data-tour="${name}"]`), name).not.toBeNull()
+    }
   })
 })

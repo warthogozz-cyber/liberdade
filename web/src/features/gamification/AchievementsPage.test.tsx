@@ -1,4 +1,4 @@
-import { cleanup, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
@@ -68,7 +68,7 @@ describe('AchievementsPage tour', () => {
     localStorage.clear()
   })
 
-  it('tourHasBothStepsWhileLoading', async () => {
+  it('tourHasAllStepsWhileLoading', async () => {
     const workspace = seedMockFamily()
     mockState.modules[workspace.id] = { gamification: true }
     server.use(
@@ -80,7 +80,7 @@ describe('AchievementsPage tour', () => {
     renderWithProviders(<AchievementsPage />, { path: '/mais/conquistas' })
 
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveTextContent('Passo 1 de 2')
+    expect(dialog).toHaveTextContent('Passo 1 de 3')
     expect(document.querySelectorAll('[data-tour="achievements-list"]')).toHaveLength(1)
     expect(document.querySelector('[data-tour="achievements-list"]')).toHaveAttribute(
       'aria-busy',
@@ -88,7 +88,7 @@ describe('AchievementsPage tour', () => {
     )
   })
 
-  it('tourHasBothStepsOnError', async () => {
+  it('tourHasAllStepsOnError', async () => {
     const workspace = seedMockFamily()
     mockState.modules[workspace.id] = { gamification: true }
     server.use(
@@ -100,7 +100,21 @@ describe('AchievementsPage tour', () => {
 
     await screen.findByRole('button', { name: 'Tentar de novo' })
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveTextContent('Passo 1 de 2')
+    expect(dialog).toHaveTextContent('Passo 1 de 3')
     expect(document.querySelectorAll('[data-tour="achievements-list"]')).toHaveLength(1)
+  })
+
+  it('streakTourHasThreeSteps', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { gamification: true }
+    mockState.streak = { weeks: 3, frozenWeeks: 0, longest: 3 }
+    renderWithProviders(<AchievementsPage />, { path: '/mais/conquistas' })
+
+    await screen.findByText('3 semanas seguidas')
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Passo 1 de 3')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Próximo' }))
+    expect(dialog).toHaveTextContent('Passo 2 de 3')
+    expect(dialog).toHaveTextContent('Uma semana de folga por mês não interrompe a sequência.')
   })
 })
