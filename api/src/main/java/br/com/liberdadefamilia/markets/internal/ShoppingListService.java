@@ -63,13 +63,13 @@ class ShoppingListService {
      * With a new name, the family's product with the same normalized name is used, or a product in {@code UN} with no
      * price is made.
      *
-     * @throws ShoppingListException when the quantity is invalid, the request names no product or two, or the list
-     *     has {@value #MAX_ITEMS} items
+     * @throws ShoppingListException when the quantity is invalid, or too large once added to the item's, the request
+     *     names no product or two, or the list has {@value #MAX_ITEMS} items
      * @throws ProductNotFoundException when the family has no such product
      * @throws ProductRuleException when the new name is empty or longer than 80 after stripping
      */
     @Transactional
-    AddResult add(UUID workspaceId, UUID userId, AddListItemRequest request) {
+    AddResult add(UUID workspaceId, UUID membershipId, AddListItemRequest request) {
         if ((request.productId() == null) == (request.newProductName() == null)) {
             throw ShoppingListException.productRequired();
         }
@@ -96,7 +96,8 @@ class ShoppingListService {
         }
         String newName = name;
         UUID productId = known.orElseGet(() -> products.create(workspaceId, newName, ProductUnit.UN));
-        Added added = list.add(workspaceId, productId, quantity, userId);
+        Added added = list.add(workspaceId, productId, quantity, membershipId)
+                .orElseThrow(ShoppingListException::quantityTooLarge);
         events.publishEvent(new ShoppingListChanged(workspaceId));
         return new AddResult(one(workspaceId, added.id()), added.created());
     }

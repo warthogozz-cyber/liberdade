@@ -150,6 +150,23 @@ class ShoppingListIT {
     }
 
     @Test
+    void summedQuantityPastTheColumnIs422() {
+        UUID milk = product(ws, "Leite Exemplo 1 L");
+        assertThat(send(HttpMethod.POST, "", "{\"productId\":\"" + milk + "\",\"quantity\":\"999999999999999\"}"))
+                .hasStatus(201);
+
+        MvcTestResult again = send(HttpMethod.POST, "", "{\"productId\":\"" + milk + "\",\"quantity\":\"1\"}");
+
+        assertThat(again).hasStatus(422);
+        assertThat(again).bodyJson().extractingPath("$.code").isEqualTo("list.quantity_too_large");
+        assertThat(jdbc.sql("select quantity from shopping_list_items where workspace_id = :ws")
+                        .param("ws", ws)
+                        .query(java.math.BigDecimal.class)
+                        .single())
+                .isEqualByComparingTo("999999999999999");
+    }
+
+    @Test
     void checkAndUncheck() {
         UUID item = item(send(HttpMethod.POST, "", "{\"newProductName\":\"Café Exemplo\"}"));
 
