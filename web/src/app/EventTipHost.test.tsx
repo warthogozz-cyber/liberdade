@@ -7,6 +7,7 @@ import { hasSeen, isHelpOpen, PageTip, PageTour, setHelpOpen } from '@/shared/he
 import { markRemoteArrival, resetLocalChanges } from '@/shared/live/localChanges'
 import { notifyQueued } from '@/shared/offline/queuedSignal'
 import { renderWithProviders } from '@/shared/testing'
+import { useToast } from '@/shared/ui'
 
 const OFFLINE = 'Sem internet, seus gastos ficam guardados neste aparelho.'
 const LIVE = 'Um lançamento chegou de outro aparelho.'
@@ -237,5 +238,66 @@ describe('EventTipHost with a page tour or tip', () => {
     // The bubble holds the slot itself, which must not hide it.
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
     expect(screen.getByText(TIP)).toBeInTheDocument()
+  })
+})
+
+describe('EventTipHost with the undo toast', () => {
+  type Show = ReturnType<typeof useToast>['show']
+  let show: Show | undefined
+
+  function Probe() {
+    show = useToast().show
+    return null
+  }
+
+  const undoToast = () =>
+    act(() =>
+      show!({
+        message: 'Gasto salvo',
+        action: { label: 'Desfazer', altText: 'Desfazer o último gasto', onClick: () => {} },
+      }),
+    )
+
+  async function renderWithToast() {
+    const result = renderWithProviders(
+      <>
+        <Probe />
+        <EventTipHost />
+      </>,
+    )
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+    return result
+  }
+
+  it('tipWaitsForTheToast', async () => {
+    setOnline(false)
+    await renderWithToast()
+    // An offline save shows the undo toast and queues the change at the same moment.
+    undoToast()
+    act(() => notifyQueued())
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+
+    expect(screen.getByRole('button', { name: 'Desfazer' })).toBeVisible()
+    expect(region()).toBeEmptyDOMElement()
+    // The slot is taken, so no tour opens while the tip waits.
+    expect(isHelpOpen()).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }))
+    expect(await screen.findByText(new RegExp(OFFLINE))).toBeInTheDocument()
+  })
+
+  it('tipStepsAsideForALaterToast', async () => {
+    setOnline(false)
+    await renderWithToast()
+    act(() => notifyQueued())
+    await screen.findByText(new RegExp(OFFLINE))
+
+    undoToast()
+    expect(screen.getByRole('button', { name: 'Desfazer' })).toBeVisible()
+    expect(region()).toBeEmptyDOMElement()
+    expect(hasSeen(mockState.user.id, 'event-offline')).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }))
+    expect(await screen.findByText(new RegExp(OFFLINE))).toBeInTheDocument()
   })
 })
