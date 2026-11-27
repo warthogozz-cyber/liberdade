@@ -21,6 +21,13 @@ const asUnit = (unit: string): ProductUnit | null =>
 
 const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
+/** An item of the shopping list, as the picker offers it before the other products. */
+export interface ListItem {
+  id: string
+  name: string
+  unit: string
+}
+
 interface ProductPickerProps {
   ws: string
   value: ProductChoice | null
@@ -34,6 +41,8 @@ interface ProductPickerProps {
   describedBy?: string
   /** Whether a name with no match may become a new product (on by default). */
   allowNew?: boolean
+  /** The shopping list's items: offered first, and before anything is typed (none by default). */
+  listItems?: readonly ListItem[]
 }
 
 /** Searches the family's products as the person types; a name with no match becomes "Novo: …". */
@@ -47,6 +56,7 @@ export function ProductPicker({
   invalid,
   describedBy,
   allowNew = true,
+  listItems = [],
 }: ProductPickerProps) {
   const intl = useIntl()
   const [ownText, setOwnText] = useState('')
@@ -77,8 +87,14 @@ export function ProductPicker({
   // "Novo" only once the search for exactly what is typed has answered: aliases are per market, so an
   // early "Novo" could create a second product for a name the family already has.
   const settled = query === typed && !products.isFetching && !products.isPending
-  const found = settled ? (products.data ?? []) : []
-  const exact = found.some((each) => fold(each.name) === fold(typed))
+  const fromList =
+    typed === '' ? listItems : listItems.filter((each) => fold(each.name).includes(fold(typed)))
+  const found = settled
+    ? (products.data ?? []).filter((each) => !fromList.some((listed) => listed.id === each.id))
+    : []
+  const candidates = [...fromList, ...found]
+  const exact = candidates.some((each) => fold(each.name) === fold(typed))
+  const showing = typed === '' ? fromList.length > 0 : settled
   return (
     <div className="flex flex-col gap-2">
       <label className="flex flex-col gap-1 text-sm font-medium">
@@ -100,9 +116,9 @@ export function ProductPicker({
           <FormattedMessage id="markets.receipt.product.searching" />
         </p>
       )}
-      {typed !== '' && settled && (
+      {showing && (
         <ul className="flex flex-col gap-2">
-          {found.map((each) => (
+          {candidates.map((each) => (
             <li key={each.id}>
               <button
                 type="button"
@@ -120,7 +136,7 @@ export function ProductPicker({
               </button>
             </li>
           ))}
-          {settled && !exact && allowNew && (
+          {typed !== '' && settled && !exact && allowNew && (
             <li>
               <button
                 type="button"

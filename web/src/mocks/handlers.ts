@@ -22,6 +22,7 @@ import {
   type MockFamilyMarket,
   type MockInvitation,
   type MockMarkets,
+  type MockListItem,
   type MockPrice,
   type MockProduct,
   type MockRule,
@@ -1522,7 +1523,192 @@ function marketsHandlers() {
     ]
   }
 
+  /**
+   * The shopping list. Dono, Adulto and Jovem add, mark, change the quantity and the order; only Dono
+   * and Adulto take items off (the Jovem may write here, unlike `marketsGuard`). They come first:
+   * `list` is not a market ref.
+   */
+  function listRoutes() {
+    const LIST_LIMIT = 300
+    const QUANTITY = /^\d{1,15}(\.\d{1,4})?$/
+    const itemNotFound = () => problem(404, 'list.item_not_found', 'Item não encontrado.')
+    const quantityInvalid = () =>
+      problem(422, 'list.quantity_invalid', 'A quantidade precisa ser maior que zero.')
+
+    /** The family, the module on, and the role the route needs: `edit` (not the viewer) or `manage`. */
+    function listGuard(ws: string, level: 'read' | 'edit' | 'manage'): MeWorkspace | Response {
+      const workspace = marketsGuard(ws, false)
+      if (workspace instanceof Response) return workspace
+      if (level === 'manage' && !canManageRules(workspace)) return roleDenied()
+      if (level === 'edit' && workspace.role === 'VIEWER') return roleDenied()
+      return workspace
+    }
+    const itemsOf = (ws: string) => (owned(ws).list ??= [])
+    const viewOf = (ws: string, item: MockListItem, position: number) => {
+      const product = allProducts(ws).find((each) => each.id === item.productId)
+      return {
+        id: item.id,
+        productId: item.productId,
+        name: product?.name ?? '',
+        unit: product?.unit ?? 'UN',
+        quantity: item.quantity,
+        checked: item.checked,
+        position,
+        prices: product ? overviewOf(ws, product).prices : [],
+      }
+    }
+    const sum = (a: string, b: string) => {
+      const scaled = (text: string) => {
+        const [whole = '0', decimals = ''] = text.split('.')
+        return BigInt(whole) * 10000n + BigInt(decimals.padEnd(4, '0'))
+      }
+      const total = scaled(a) + scaled(b)
+      const decimals = (total % 10000n).toString().padStart(4, '0').replace(/0+$/, '')
+      return decimals === '' ? `${total / 10000n}` : `${total / 10000n}.${decimals}`
+    }
+    const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+
+    return [
+      http.get<{ ws: string }>(url('/v1/workspaces/:ws/markets/list'), ({ params }) => {
+        const workspace = listGuard(params.ws, 'read')
+        if (workspace instanceof Response) return workspace
+        const items = itemsOf(workspace.id).map((each, index) => viewOf(workspace.id, each, index))
+        return HttpResponse.json({ items })
+      }),
+
+      http.post<{ ws: string }>(
+        url('/v1/workspaces/:ws/markets/list'),
+        async ({ request, params }) => {
+          const workspace = listGuard(params.ws, 'edit')
+          if (workspace instanceof Response) return workspace
+          const body = (await readJson(request)) as
+            { productId?: unknown; newProductName?: unknown; quantity?: unknown } | undefined
+          if (!body) return malformed()
+          const quantity = body.quantity ?? '1'
+          if (typeof quantity !== 'string' || !QUANTITY.test(quantity) || Number(quantity) <= 0) {
+            return quantityInvalid()
+          }
+          const state = owned(workspace.id)
+          let product: MockProduct | undefined
+          if (typeof body.productId === 'string') {
+            product = allProducts(workspace.id).find((each) => each.id === body.productId)
+            if (!product) return productNotFound()
+          } else if (typeof body.newProductName === 'string') {
+            const name = body.newProductName.trim()
+            if (name === '' || name.length > 80)
+              return invalid([{ field: 'newProductName', code: 'invalid' }])
+            product = allProducts(workspace.id).find((each) => fold(each.name) === fold(name))
+            if (!product) {
+              product = { id: crypto.randomUUID(), name, unit: 'UN', gtin: null }
+              state.products = [...(state.products ?? []), product]
+            }
+          } else {
+            return malformed()
+          }
+          const list = itemsOf(workspace.id)
+          const existing = list.find((each) => each.productId === product.id)
+          if (existing) {
+            existing.quantity = sum(existing.quantity, quantity)
+            existing.checked = false
+            return HttpResponse.json(viewOf(workspace.id, existing, list.indexOf(existing)))
+          }
+          if (list.length >= LIST_LIMIT) {
+            return problem(422, 'list.full', 'A lista chegou ao limite de 300 itens.')
+          }
+          const item: MockListItem = {
+            id: crypto.randomUUID(),
+            productId: product.id,
+            quantity,
+            checked: false,
+          }
+          list.push(item)
+          return HttpResponse.json(viewOf(workspace.id, item, list.length - 1), { status: 201 })
+        },
+      ),
+
+      http.put<{ ws: string }>(
+        url('/v1/workspaces/:ws/markets/list/order'),
+        async ({ request, params }) => {
+          const workspace = listGuard(params.ws, 'edit')
+          if (workspace instanceof Response) return workspace
+          const body = (await readJson(request)) as { ids?: unknown } | undefined
+          if (!body || !Array.isArray(body.ids)) return malformed()
+          const list = itemsOf(workspace.id)
+          const ids = body.ids as string[]
+          const same =
+            ids.length === list.length &&
+            new Set(ids).size === ids.length &&
+            ids.every((id) => list.some((each) => each.id === id))
+          if (!same) {
+            return problem(
+              409,
+              'list.order_stale',
+              'A lista mudou em outro aparelho. Recarregue e tente de novo.',
+            )
+          }
+          const sorted = ids.map((id) => list.find((each) => each.id === id)!)
+          owned(workspace.id).list = sorted
+          return HttpResponse.json({
+            items: sorted.map((each, index) => viewOf(workspace.id, each, index)),
+          })
+        },
+      ),
+
+      http.post<{ ws: string }>(
+        url('/v1/workspaces/:ws/markets/list/clear-checked'),
+        ({ params }) => {
+          const workspace = listGuard(params.ws, 'manage')
+          if (workspace instanceof Response) return workspace
+          const state = owned(workspace.id)
+          const before = itemsOf(workspace.id).length
+          state.list = itemsOf(workspace.id).filter((each) => !each.checked)
+          return HttpResponse.json({ removed: before - state.list.length })
+        },
+      ),
+
+      http.patch<{ ws: string; id: string }>(
+        url('/v1/workspaces/:ws/markets/list/:id'),
+        async ({ request, params }) => {
+          const workspace = listGuard(params.ws, 'edit')
+          if (workspace instanceof Response) return workspace
+          const body = (await readJson(request)) as
+            { quantity?: unknown; checked?: unknown } | undefined
+          if (!body) return malformed()
+          const list = itemsOf(workspace.id)
+          const item = list.find((each) => each.id === params.id)
+          if (!item) return itemNotFound()
+          if (body.quantity != null) {
+            if (
+              typeof body.quantity !== 'string' ||
+              !QUANTITY.test(body.quantity) ||
+              Number(body.quantity) <= 0
+            ) {
+              return quantityInvalid()
+            }
+            item.quantity = body.quantity
+          }
+          if (typeof body.checked === 'boolean') item.checked = body.checked
+          return HttpResponse.json(viewOf(workspace.id, item, list.indexOf(item)))
+        },
+      ),
+
+      http.delete<{ ws: string; id: string }>(
+        url('/v1/workspaces/:ws/markets/list/:id'),
+        ({ params }) => {
+          const workspace = listGuard(params.ws, 'manage')
+          if (workspace instanceof Response) return workspace
+          const state = owned(workspace.id)
+          const list = itemsOf(workspace.id)
+          if (!list.some((each) => each.id === params.id)) return itemNotFound()
+          state.list = list.filter((each) => each.id !== params.id)
+          return new HttpResponse(null, { status: 204 })
+        },
+      ),
+    ]
+  }
+
   return [
+    ...listRoutes(),
     ...receiptRoutes(),
     http.get<{ ws: string }>(url('/v1/workspaces/:ws/markets/settings'), ({ params }) => {
       const workspace = marketsGuard(params.ws, false)

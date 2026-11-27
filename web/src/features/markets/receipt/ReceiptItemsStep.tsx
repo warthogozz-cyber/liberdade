@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import type { SaveReceiptItem } from '@/shared/api/markets'
 import { registerMessages } from '@/shared/i18n'
+import { useShoppingList } from '../list/useShoppingList'
 import { marketsMessages } from '../messages.pt-BR'
 import { ProductPicker, type ProductChoice } from './ProductPicker'
 import { PRODUCT_UNITS, type ProductUnit } from './productUnits'
@@ -122,6 +123,8 @@ export function ReceiptItemsStep({
   onSubmit,
 }: ReceiptItemsStepProps) {
   const intl = useIntl()
+  // The items on the shopping list are offered first: each one is a candidate (spec 6.7).
+  const listItems = useShoppingList(ws).data
   const [issuedOn, setIssuedOn] = useState(draft?.issuedOn ?? defaultDate ?? '')
   const [rows, setRows] = useState<Row[]>(draft?.rows ?? [blankRow(0)])
   const [nextKey, setNextKey] = useState(draft?.nextKey ?? 1)
@@ -224,6 +227,7 @@ export function ReceiptItemsStep({
               onChange={(product) => choose(row.key, product)}
               text={row.search}
               onTextChange={(search) => change(row.key, { search })}
+              listItems={listItems}
               inputId={fieldId(row.key, 'product')}
               invalid={showing(row.key, 'product')}
               describedBy={

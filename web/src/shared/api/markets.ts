@@ -272,3 +272,57 @@ export function useMarketsSettings(ws: string | undefined) {
     enabled: ws !== undefined,
   })
 }
+
+export type ShoppingListItem = Schemas['ListItemView']
+export type AddListItemBody = Schemas['AddListItemRequest']
+export type UpdateListItemBody = Schemas['UpdateListItemRequest']
+
+/** The shopping list, in the family's order. */
+export async function getShoppingList(ws: string): Promise<ShoppingListItem[]> {
+  const view = await unwrap(
+    client.GET('/v1/workspaces/{ws}/markets/list', { params: { path: { ws } } }),
+  )
+  return view.items
+}
+
+/** Adds a product (or a new name) at the end; a product already on the list gets the quantity added. */
+export function addListItem(ws: string, body: AddListItemBody): Promise<ShoppingListItem> {
+  return unwrap(client.POST('/v1/workspaces/{ws}/markets/list', { params: { path: { ws } }, body }))
+}
+
+/** Changes an item's quantity or marks it. */
+export function updateListItem(
+  ws: string,
+  id: string,
+  body: UpdateListItemBody,
+): Promise<ShoppingListItem> {
+  return unwrap(
+    client.PATCH('/v1/workspaces/{ws}/markets/list/{id}', { params: { path: { ws, id } }, body }),
+  )
+}
+
+/** The new order: every item of the list, or the API answers 409 `list.order_stale`. */
+export async function reorderList(ws: string, ids: string[]): Promise<ShoppingListItem[]> {
+  const view = await unwrap(
+    client.PUT('/v1/workspaces/{ws}/markets/list/order', {
+      params: { path: { ws } },
+      body: { ids },
+    }),
+  )
+  return view.items
+}
+
+/** Takes an item off the list. */
+export async function removeListItem(ws: string, id: string): Promise<void> {
+  await unwrap(
+    client.DELETE('/v1/workspaces/{ws}/markets/list/{id}', { params: { path: { ws, id } } }),
+  )
+}
+
+/** Takes the marked items off the list; answers how many went. */
+export async function clearCheckedItems(ws: string): Promise<number> {
+  const view = await unwrap(
+    client.POST('/v1/workspaces/{ws}/markets/list/clear-checked', { params: { path: { ws } } }),
+  )
+  return view.removed
+}

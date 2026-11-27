@@ -5,14 +5,16 @@ import { mockState, seedMockFamily } from '@/mocks/data'
 import { server } from '@/mocks/server'
 import { API_URL } from '@/shared/api'
 import { renderWithProviders } from '@/shared/testing'
-import { ProductPicker } from './ProductPicker'
+import { ProductPicker, type ListItem } from './ProductPicker'
 
 afterEach(cleanup)
 
-function render(onChange = vi.fn()) {
+function render(onChange = vi.fn(), listItems?: ListItem[]) {
   const workspace = seedMockFamily()
   mockState.modules[workspace.id] = { markets: true }
-  renderWithProviders(<ProductPicker ws={workspace.id} value={null} onChange={onChange} />)
+  renderWithProviders(
+    <ProductPicker ws={workspace.id} value={null} onChange={onChange} listItems={listItems} />,
+  )
   return onChange
 }
 
@@ -82,5 +84,26 @@ describe('ProductPicker', () => {
 
     await screen.findByRole('button', { name: 'Leite integral' })
     expect(screen.queryByRole('button', { name: /^Novo:/ })).not.toBeInTheDocument()
+  })
+
+  it('listItemsFirst', async () => {
+    const onChange = render(vi.fn(), [
+      { id: '00000000-0000-4000-8000-00000000c0ff', name: 'Zeta leite em pó', unit: 'UN' },
+    ])
+
+    // Before anything is typed, the list's items are the candidates.
+    fireEvent.click(screen.getByRole('button', { name: 'Zeta leite em pó' }))
+    expect(onChange).toHaveBeenCalledWith({
+      kind: 'existing',
+      id: '00000000-0000-4000-8000-00000000c0ff',
+      name: 'Zeta leite em pó',
+      unit: 'UN',
+    })
+
+    // Once typed, they still come before the other products, though "Leite" sorts first.
+    fireEvent.change(screen.getByLabelText('Produto'), { target: { value: 'leite' } })
+    await screen.findByRole('button', { name: 'Leite integral' })
+    const names = screen.getAllByRole('button').map((each) => each.textContent)
+    expect(names.indexOf('Zeta leite em pó')).toBeLessThan(names.indexOf('Leite integral'))
   })
 })

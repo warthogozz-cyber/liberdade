@@ -47,6 +47,16 @@ export interface MockMarkets {
   dismissed?: [string, string][]
   /** Ids of products joined into another one (an invented product cannot be deleted in place). */
   gone?: string[]
+  /** The shopping list, in order (the array's order is the list's `position`). */
+  list?: MockListItem[]
+}
+
+/** An item of the shopping list; its name, unit and prices come from the product. */
+export interface MockListItem {
+  id: string
+  productId: string
+  quantity: string
+  checked: boolean
 }
 
 /** A product of the family's price book. */
