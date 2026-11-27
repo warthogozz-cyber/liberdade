@@ -53,7 +53,7 @@ export function EventTipHost() {
 
   // The live region stays in the page, empty, so a screen reader announces the tip put into it.
   return (
-    <div role="status">
+    <div aria-live="polite" aria-atomic="true">
       {userId && current !== null && (
         <Suspense fallback={null}>
           <EventTip

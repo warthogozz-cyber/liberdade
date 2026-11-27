@@ -20,6 +20,13 @@ async function renderHost() {
   return result
 }
 
+/** The host's live region: the one polite, atomic region on the page. */
+const region = () => {
+  const el = document.querySelector<HTMLElement>('[aria-live="polite"][aria-atomic="true"]')
+  if (!el) throw new Error('The live region is missing')
+  return el
+}
+
 const foreign: HTMLElement[] = []
 function addForeign(role: string) {
   const el = document.createElement('div')
@@ -47,14 +54,14 @@ describe('EventTipHost', () => {
     act(() => notifyQueued())
 
     await screen.findByText(new RegExp(OFFLINE))
-    expect(screen.getByRole('status')).toHaveTextContent(OFFLINE)
+    expect(region()).toHaveTextContent(OFFLINE)
     fireEvent.click(screen.getByRole('button', { name: 'Entendi' }))
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(region()).toBeEmptyDOMElement()
     expect(hasSeen(mockState.user.id, 'event-offline')).toBe(true)
 
     act(() => notifyQueued())
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(region()).toBeEmptyDOMElement()
   })
 
   it('noOfflineTipWhenOnline', async () => {
@@ -62,7 +69,7 @@ describe('EventTipHost', () => {
     act(() => notifyQueued())
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(region()).toBeEmptyDOMElement()
   })
 
   it('liveTipOnArrival', async () => {
@@ -70,7 +77,7 @@ describe('EventTipHost', () => {
     act(() => markRemoteArrival('t1'))
 
     await screen.findByText(new RegExp(LIVE))
-    expect(screen.getByRole('status')).toHaveTextContent(LIVE)
+    expect(region()).toHaveTextContent(LIVE)
   })
 
   it('skipsWhileDialogOpen', async () => {
@@ -79,7 +86,7 @@ describe('EventTipHost', () => {
     act(() => markRemoteArrival('t1'))
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(region()).toBeEmptyDOMElement()
     expect(hasSeen(mockState.user.id, 'event-live')).toBe(false)
   })
 
@@ -89,7 +96,7 @@ describe('EventTipHost', () => {
     act(() => markRemoteArrival('t1'))
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(region()).toBeEmptyDOMElement()
     expect(hasSeen(mockState.user.id, 'event-live')).toBe(false)
   })
 
@@ -99,7 +106,7 @@ describe('EventTipHost', () => {
     act(() => markRemoteArrival('t1'))
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(region()).toBeEmptyDOMElement()
   })
 
   it('oneAtATime', async () => {
@@ -107,12 +114,12 @@ describe('EventTipHost', () => {
     await renderHost()
     act(() => notifyQueued())
     await screen.findByText(new RegExp(OFFLINE))
-    expect(screen.getByRole('status')).toHaveTextContent(OFFLINE)
+    expect(region()).toHaveTextContent(OFFLINE)
     act(() => markRemoteArrival('t1'))
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
-    expect(screen.getAllByRole('status')).toHaveLength(1)
-    expect(screen.getByRole('status')).toHaveTextContent(OFFLINE)
+    expect(region().querySelectorAll('button')).toHaveLength(1)
+    expect(region()).toHaveTextContent(OFFLINE)
     expect(hasSeen(mockState.user.id, 'event-live')).toBe(false)
   })
 
@@ -122,20 +129,21 @@ describe('EventTipHost', () => {
     act(() => markRemoteArrival('t1'))
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(region()).toBeEmptyDOMElement()
     await waitFor(() => expect(hasSeen(mockState.user.id, 'event-live')).toBe(false))
   })
 
   it('liveRegionExistsBeforeText', async () => {
     await renderHost()
-    const region = screen.getByRole('status')
-    expect(region).toBeEmptyDOMElement()
+    const before = region()
+    expect(before).toBeEmptyDOMElement()
+    expect(before).toHaveAttribute('aria-live', 'polite')
 
     act(() => markRemoteArrival('t1'))
     await screen.findByText(new RegExp(LIVE))
 
-    expect(screen.getByRole('status')).toBe(region)
-    expect(region).toHaveTextContent(LIVE)
+    expect(region()).toBe(before)
+    expect(before).toHaveTextContent(LIVE)
   })
 
   it('marksHelpOpenAsSoonAsAccepted', async () => {
