@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Navigate, Outlet } from 'react-router'
+import { EventTipHost } from '@/app/EventTipHost'
 import { PendingGate } from '@/app/PendingGate'
 import { prefetchWorkspace, useCurrentWorkspace } from '@/shared/api'
 import { currentMonth } from '@/shared/i18n'
@@ -34,6 +35,7 @@ export function WorkspaceLayout() {
       <LiveSync workspaceId={workspace.id} />
       <SoundUnlock />
       <Outlet />
+      <EventTipHost />
       <ModuleSlot name="workspace" />
     </>
   )

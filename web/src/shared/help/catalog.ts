@@ -60,7 +60,10 @@ export const screenTips: Partial<Record<TipId, HelpMessageId>> = {
   family: 'tips.family',
 }
 
-export const eventTips: Partial<Record<EventTipId, HelpMessageId>> = {}
+export const eventTips: Record<EventTipId, HelpMessageId> = {
+  offline: 'tips.event.offline',
+  live: 'tips.event.live',
+}
 
 /** The steps of each tour, in order; a step whose anchor is not on the screen is skipped. */
 export const tours: Partial<Record<TourId, TourStep[]>> = {

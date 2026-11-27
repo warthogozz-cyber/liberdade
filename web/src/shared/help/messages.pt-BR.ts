@@ -12,6 +12,9 @@ export const helpMessages = {
     'O arquivo do banco é lido neste aparelho. Você confere cada linha antes de gravar.',
   'tips.family':
     'Dono cuida de tudo e Adulto lança e planeja. Jovem lança só nas próprias contas, e Leitor só olha.',
+  'tips.event.offline':
+    'Sem internet, seus gastos ficam guardados neste aparelho. Eles sobem sozinhos quando o sinal voltar.',
+  'tips.event.live': 'Um lançamento chegou de outro aparelho. A tela já se atualizou sozinha.',
   'tips.tour.skip': 'Pular',
   'tips.tour.back': 'Voltar',
   'tips.tour.next': 'Próximo',
