@@ -33,7 +33,7 @@ describe('RefundSheet', () => {
 
     // No reason is asked.
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('button', { name: 'Receber os R$ 89,00 de volta' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Pedir os R$ 89,00 de volta' }))
 
     await waitFor(() => expect(onClose).toHaveBeenCalled())
     expect(body).toBe('')

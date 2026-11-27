@@ -53,7 +53,7 @@ describe('ReservePage', () => {
     expect(await screen.findByText('A reserva cobre 4,0 meses de gastos')).toBeInTheDocument()
     expect(screen.getByText('Faltam R$ 9.000,00 para 6 meses')).toBeInTheDocument()
     expect(screen.getByRole('meter', { name: 'Reserva' })).toHaveAttribute('aria-valuenow', '67')
-    expect(screen.getByText(/Uma reserva de emergência é um dinheiro guardado/)).toBeInTheDocument()
+    expect(screen.getByText(/É o dinheiro guardado para imprevistos/)).toBeInTheDocument()
   })
 
   it('says so when the target is met', async () => {

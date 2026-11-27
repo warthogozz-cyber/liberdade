@@ -35,7 +35,7 @@ describe('MapEmbed', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver no mapa' }))
     expect(
-      screen.getByText(/O mapa é do Google\. Ao abrir, o Google recebe o seu IP/),
+      screen.getByText(/O mapa é do Google\. O Google vai saber que você abriu o mapa/),
     ).toBeVisible()
     expect(document.querySelector('iframe')).toBeNull()
 

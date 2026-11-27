@@ -102,7 +102,7 @@ export const messages = {
   'transaction.undoAlt': 'Desfazer o último lançamento',
   'transaction.undone': 'Lançamento desfeito.',
   'transaction.undoOffline':
-    'Sem internet agora. Para desfazer, exclua em Lançamentos quando a conexão voltar.',
+    'Sem internet. Para desfazer, exclua em Lançamentos quando o sinal voltar.',
   'transaction.undoFailed': 'Não deu para desfazer. Tente excluir em Lançamentos.',
   'home.expensesIn': 'Gastos em {month}',
   'home.totalBalance': 'Saldo total',

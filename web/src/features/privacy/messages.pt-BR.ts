@@ -21,7 +21,7 @@ export const privacyMessages = {
   'privacy.consent.revoke': 'Revogar',
   'privacy.consent.revokeTitle': 'Revogar o consentimento?',
   'privacy.consent.revokeBody':
-    'O Jovem sai da família e perde o acesso, porque sem o consentimento do responsável o app não pode tratar os dados dele.',
+    'O Jovem sai da família: sem o consentimento do responsável, o app não pode guardar os dados dele.',
   'privacy.consent.revokeConfirm': 'Revogar e tirar o Jovem',
   'privacy.consent.revokedToast': 'Consentimento revogado.',
   'privacy.cancel': 'Cancelar',
@@ -43,13 +43,13 @@ export const privacyMessages = {
   'privacy.deleteFamily': 'Excluir a família',
   'privacy.deleteFamily.title': 'Excluir a família',
   'privacy.deleteFamily.body':
-    'A família e tudo o que ela guarda (contas, lançamentos, categorias e módulos) somem em 30 dias. Até lá, só você, como Dono, vê a família e pode cancelar a exclusão.',
+    'A família e tudo nela somem em 30 dias. Até lá, só você, o Dono, pode cancelar.',
   'privacy.deleteFamily.field': 'Digite o nome da família para confirmar: {name}',
   'privacy.deleteFamily.confirm': 'Excluir a família',
   'privacy.deleteAccount': 'Excluir minha conta',
   'privacy.deleteAccount.title': 'Excluir minha conta',
   'privacy.deleteAccount.body':
-    'Em 30 dias, sua conta, suas passkeys e o seu vínculo com as famílias somem. Os lançamentos que você fez continuam na família, sem o seu nome. Até lá, dá para cancelar.',
+    'Em 30 dias sua conta some. Seus lançamentos ficam na família, sem o seu nome. Até lá dá para cancelar.',
   'privacy.deleteAccount.refundReminder':
     'Sua família é Fundadora há menos de 7 dias. Se quiser o dinheiro de volta, peça o reembolso em Mais > Plano antes de excluir.',
   'privacy.deleteAccount.confirm': 'Excluir minha conta',

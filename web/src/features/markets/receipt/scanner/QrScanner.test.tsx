@@ -83,7 +83,7 @@ describe('QrScanner', () => {
       document.dispatchEvent(new Event('visibilitychange'))
     })
     stops.forEach((stop) => expect(stop).toHaveBeenCalled())
-    expect(screen.getByRole('alert')).toHaveTextContent(/câmera foi desligada/)
+    expect(screen.getByRole('alert')).toHaveTextContent(/A câmera desligou/)
   })
 
   it('sendsOneFrameAtATime', async () => {

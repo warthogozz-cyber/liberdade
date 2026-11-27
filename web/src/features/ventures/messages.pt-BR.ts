@@ -60,7 +60,7 @@ export const venturesMessages = {
   'ventures.form.productUnits': 'Vendas previstas por mês',
   'ventures.form.example': 'exemplo: ajuste para a sua realidade',
   'ventures.form.exampleBanner':
-    'Os itens com o selo “exemplo” vêm do modelo. Ajuste para a sua realidade antes de contar com eles.',
+    'Itens com o selo exemplo vêm do modelo. Ajuste para a sua realidade.',
   'ventures.form.errorName': 'Informe um nome de 1 a 40 caracteres.',
   'ventures.form.errorAmount':
     'Informe um valor de até 999.999.999,99, com no máximo 2 casas decimais.',
@@ -72,7 +72,7 @@ export const venturesMessages = {
   'ventures.form.failed': 'Não foi possível salvar. Tente de novo.',
   'ventures.form.conflictTitle': 'O projeto mudou',
   'ventures.form.conflictBody':
-    'Outra pessoa alterou este projeto. O que você digitou continua aqui; recarregue para ver a versão salva.',
+    'Outra pessoa mudou este projeto. O que você digitou fica; recarregue para ver a versão salva.',
   'ventures.form.conflictReload': 'Recarregar',
   'ventures.form.conflictKeep': 'Manter o que digitei',
   'ventures.figures.title': 'Prévia das contas',

@@ -226,7 +226,7 @@ describe('AccountsPage', () => {
     fireEvent.click(await row('Banco Teste'))
     fireEvent.click(await screen.findByRole('button', { name: 'Arquivar' }))
     const confirm = await screen.findByRole('alertdialog', { name: 'Arquivar Banco Teste?' })
-    expect(confirm).toHaveTextContent('Ela some das escolhas.')
+    expect(confirm).toHaveTextContent('Some das escolhas.')
     fireEvent.click(within(confirm).getByRole('button', { name: 'Arquivar' }))
 
     expect(await toasts().findByText('Conta arquivada.')).toBeInTheDocument()

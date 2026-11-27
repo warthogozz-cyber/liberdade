@@ -72,12 +72,12 @@ export const marketsMessages = {
   'markets.form.saving': 'Salvando…',
   'markets.add.title': 'Adicionar mercado',
   'markets.add.osmHelp':
-    'O mercado existe de verdade e não está no mapa? Cadastre-o no OpenStreetMap, e ele aparece aqui na próxima atualização.',
+    'Mercado que não está no mapa? Cadastre no OpenStreetMap e ele aparece aqui depois.',
   'markets.add.osmLink': 'Cadastrar no OpenStreetMap',
   'markets.convert.title': 'Passar para a família',
   'markets.convert.open': 'Passar para a família',
   'markets.convert.help':
-    'Este mercado saiu do OpenStreetMap. Digite o nome e marque a posição: nada do mapa é copiado. O CNPJ, os links e o encarte ficam.',
+    'Este mercado saiu do mapa. Digite o nome e marque a posição para a família continuar usando.',
   'markets.archive': 'Arquivar',
   'markets.archive.failed': 'Não deu para arquivar. Tente de novo.',
   'markets.card.loadFailed': 'Não deu para carregar o mercado. Tente de novo.',
@@ -121,19 +121,20 @@ export const marketsMessages = {
   'markets.map.title': 'Mapa de {name}',
   'markets.map.noticeTitle': 'Mapa do Google',
   'markets.map.notice':
-    'O mapa é do Google. Ao abrir, o Google recebe o seu IP e pode gravar cookies.',
+    'O mapa é do Google. O Google vai saber que você abriu o mapa e pode guardar dados sobre você.',
   'markets.map.open': 'Abrir mapa',
   'markets.instagram.show': 'Ver aqui',
   'markets.instagram.hide': 'Esconder a publicação',
   'markets.instagram.title': 'Publicação do Instagram',
   'markets.instagram.noticeTitle': 'Publicação do Instagram',
   'markets.instagram.notice':
-    'A publicação é do Instagram, da Meta. Ao abrir, a Meta recebe o seu IP e pode gravar cookies.',
+    'A publicação é do Instagram, da Meta. A Meta vai saber que você abriu a publicação e pode guardar dados sobre você.',
   'markets.instagram.open': 'Ver publicação',
   'markets.instagram.loading': 'Carregando a publicação…',
   'markets.instagram.unavailable': 'Este perfil não pode ser mostrado aqui',
   'markets.instagram.link': 'Abrir no Instagram',
-  'markets.receipt.error.not-nfce': 'Este código não é de uma nota fiscal de consumidor.',
+  'markets.receipt.error.not-nfce':
+    'Isto não parece o QR ou o link de uma nota. Confira e tente de novo.',
   'markets.receipt.error.check-digit':
     'A chave não confere. Veja se algum número foi digitado errado.',
   'markets.receipt.error.model':
@@ -148,7 +149,7 @@ export const marketsMessages = {
   'markets.receipt.scanner.unavailable':
     'Não deu para usar a câmera. Cole o link da nota ou digite a chave de 44 números.',
   'markets.receipt.scanner.paused':
-    'A câmera foi desligada porque a tela saiu de vista. Toque em Ler o QR para tentar de novo, ou cole o link da nota ou digite a chave.',
+    'A câmera desligou. Toque em Ler o QR, ou cole o link ou digite a chave.',
   'markets.receipt.register': 'Registrar nota',
   'markets.receipt.title': 'Registrar nota',
   'markets.receipt.step.key': 'A nota',
@@ -177,8 +178,8 @@ export const marketsMessages = {
     'Escolha onde procurar para ver os mercados perto de você.',
   'markets.receipt.market.chooseLocation': 'Escolher onde procurar',
   'markets.receipt.market.next': 'Continuar',
-  'markets.receipt.items.noReader': 'A leitura automática ainda não existe para notas de {uf}.',
-  'markets.receipt.items.sefaz': 'Abrir a nota no site da SEFAZ',
+  'markets.receipt.items.noReader': 'Ainda não lemos notas de {uf}. Digite os itens à mão.',
+  'markets.receipt.items.sefaz': 'Abrir a nota no site da Fazenda (SEFAZ)',
   'markets.receipt.items.date': 'Data da compra',
   'markets.receipt.items.item': 'Item {n}',
   'markets.receipt.items.unit': 'Unidade',

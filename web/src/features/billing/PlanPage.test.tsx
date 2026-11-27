@@ -122,14 +122,14 @@ describe('PlanPage', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     renderPlan('/mais/plano?pedido=o1')
 
-    expect(await screen.findByText(/esperando a confirmação do Asaas/)).toBeInTheDocument()
+    expect(await screen.findByText(/Esperando a confirmação do pagamento/)).toBeInTheDocument()
     await waitFor(() => expect(refreshCalls).toBe(1))
     await act(() => vi.advanceTimersByTimeAsync(5000))
     await waitFor(() => expect(refreshCalls).toBe(2))
     await act(() => vi.advanceTimersByTimeAsync(5000))
 
     expect(await screen.findByText('★ Família Fundadora')).toBeInTheDocument()
-    expect(screen.queryByText(/esperando a confirmação/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Esperando a confirmação/)).not.toBeInTheDocument()
     expect(planCalls).toBeGreaterThanOrEqual(2)
     const settled = refreshCalls
     await act(() => vi.advanceTimersByTimeAsync(20_000))
@@ -153,17 +153,17 @@ describe('PlanPage', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     renderPlan('/mais/plano?pedido=o1')
 
-    expect(await screen.findByRole('status')).toHaveTextContent(/esperando a confirmação do Asaas/)
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      /Esperando a confirmação do pagamento/,
+    )
     expect(screen.queryByRole('button', { name: 'Ser Família Fundadora' })).not.toBeInTheDocument()
     const before = planCalls
     for (let i = 0; i < 30; i += 1) await act(() => vi.advanceTimersByTimeAsync(5000))
 
     expect(refreshCalls).toBe(24)
     // Giving up reads the plan once more and says so.
-    expect(
-      await screen.findByText(/Ainda não recebemos a confirmação do Asaas/),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/esperando a confirmação/)).not.toBeInTheDocument()
+    expect(await screen.findByText(/O pagamento ainda não foi confirmado/)).toBeInTheDocument()
+    expect(screen.queryByText(/Esperando a confirmação/)).not.toBeInTheDocument()
     // The wait is over: the owner can start a new checkout.
     expect(screen.getByRole('button', { name: 'Ser Família Fundadora' })).toBeInTheDocument()
     await waitFor(() => expect(planCalls).toBeGreaterThan(before))
@@ -333,8 +333,8 @@ describe('PlanPage', () => {
     )
     renderPlan()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Receber meu dinheiro de volta' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Receber os R$ 89,00 de volta' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Pedir o dinheiro de volta' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Pedir os R$ 89,00 de volta' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('O prazo de 7 dias já passou.')
   })
@@ -357,9 +357,7 @@ describe('PlanPage', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     renderPlan()
 
-    expect(
-      await screen.findByRole('button', { name: 'Receber meu dinheiro de volta' }),
-    ).toBeDisabled()
+    expect(await screen.findByRole('button', { name: 'Pedir o dinheiro de volta' })).toBeDisabled()
     for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled()
   })
 
@@ -376,9 +374,9 @@ describe('PlanPage', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('radiogroup')).toBeInTheDocument()
     expect(screen.getAllByRole('radio')).toHaveLength(4)
-    fireEvent.click(screen.getByRole('button', { name: 'Receber meu dinheiro de volta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pedir o dinheiro de volta' }))
     expect(
-      await screen.findByRole('button', { name: 'Receber os R$ 89,00 de volta' }),
+      await screen.findByRole('button', { name: 'Pedir os R$ 89,00 de volta' }),
     ).toBeInTheDocument()
   })
 
@@ -391,7 +389,7 @@ describe('PlanPage', () => {
     expect(screen.getByText('Seu plano vale até 17/11/2027.')).toBeInTheDocument()
     expect(screen.getByText(new RegExp(legalConfig.contactEmail))).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Receber meu dinheiro de volta' }),
+      screen.queryByRole('button', { name: 'Pedir o dinheiro de volta' }),
     ).not.toBeInTheDocument()
   })
 

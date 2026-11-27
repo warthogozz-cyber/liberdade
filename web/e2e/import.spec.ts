@@ -61,7 +61,7 @@ test('an adult imports a statement once', async ({ page, request, browser }) => 
       .getByText('🎁 Presentes', { exact: true })
       .click()
     await bia.getByRole('button', { name: 'Importar 4 lançamentos' }).click()
-    await expect(bia.getByText(/4 entraram/)).toBeVisible()
+    await expect(bia.getByText(/Entraram 4\./)).toBeVisible()
 
     // The same file again: every line is already in, so nothing is checked.
     await bia.getByRole('button', { name: 'Importar outro arquivo' }).click()
