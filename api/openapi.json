@@ -2259,6 +2259,41 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets/products/dismissals": {
+      "post": {
+        "operationId": "dismissPair",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissPairRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "products-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/products/overview": {
       "get": {
         "operationId": "overview",
@@ -2280,6 +2315,38 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProductsOverview"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "products-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/products/suggestions": {
+      "get": {
+        "operationId": "suggestions",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionsView"
                 }
               }
             },
@@ -5553,6 +5620,23 @@
           }
         }
       },
+      "DismissPairRequest": {
+        "required": [
+          "a",
+          "b"
+        ],
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "b": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "DocumentStatus": {
         "type": "object",
         "properties": {
@@ -7747,6 +7831,57 @@
           "weeks": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "SuggestedPair": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "$ref": "#/components/schemas/SuggestedProduct"
+          },
+          "b": {
+            "$ref": "#/components/schemas/SuggestedProduct"
+          },
+          "score": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "SuggestedProduct": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          }
+        }
+      },
+      "SuggestionsView": {
+        "type": "object",
+        "properties": {
+          "pairs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SuggestedPair"
+            }
           }
         }
       },

@@ -852,6 +852,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/products/dismissals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["dismissPair"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/products/overview": {
         parameters: {
             query?: never;
@@ -860,6 +876,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/products/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["suggestions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1845,6 +1877,12 @@ export interface components {
             /** Format: date-time */
             deletionScheduledFor: string;
         };
+        DismissPairRequest: {
+            /** Format: uuid */
+            a: string;
+            /** Format: uuid */
+            b: string;
+        };
         DocumentStatus: {
             acceptanceRequired: boolean;
             /** Format: date-time */
@@ -2532,6 +2570,22 @@ export interface components {
             longest: number;
             /** Format: int32 */
             weeks: number;
+        };
+        SuggestedPair: {
+            a: components["schemas"]["SuggestedProduct"];
+            b: components["schemas"]["SuggestedProduct"];
+            /** Format: double */
+            score: number;
+        };
+        SuggestedProduct: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+        };
+        SuggestionsView: {
+            pairs: components["schemas"]["SuggestedPair"][];
         };
         TagView: {
             /** Format: date-time */
@@ -4321,6 +4375,31 @@ export interface operations {
             };
         };
     };
+    dismissPair: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DismissPairRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     overview: {
         parameters: {
             query?: never;
@@ -4340,6 +4419,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductsOverview"];
+                };
+            };
+        };
+    };
+    suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionsView"];
                 };
             };
         };

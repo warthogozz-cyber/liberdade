@@ -414,6 +414,18 @@ class RoleMatrixIT {
                                 Outcome.OK,
                                 Outcome.OK,
                                 Outcome.OK),
+                        each(
+                                "GET " + W + "/markets/products/suggestions",
+                                W + "/markets/products/suggestions",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        ownerAndAdult(
+                                "POST " + W + "/markets/products/dismissals",
+                                W + "/markets/products/dismissals",
+                                "{\"a\":\"{productA}\",\"b\":\"{productB}\"}"),
                         ownerAndAdult(
                                 "PATCH " + W + "/markets/products/{id}",
                                 W + "/markets/products/{productA}",

@@ -210,4 +210,16 @@ final class MarketViews {
 
     /** The family's products, by name, up to 50. */
     record FamilyProductsView(List<FamilyProductView> products) {}
+
+    /** A product in a suggested join. */
+    record SuggestedProduct(UUID id, String name, ProductUnit unit) {}
+
+    /** Two products that may be the same; {@code a} has the smaller id and {@code score} runs from 0.5 to 1. */
+    record SuggestedPair(SuggestedProduct a, SuggestedProduct b, double score) {}
+
+    /** The pairs worth a look, best first, up to 20. */
+    record SuggestionsView(List<SuggestedPair> pairs) {}
+
+    /** Two products the family says are not the same. */
+    record DismissPairRequest(@NotNull UUID a, @NotNull UUID b) {}
 }
