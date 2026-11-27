@@ -6,9 +6,10 @@ import QrScanner from './QrScanner'
 
 const scan = vi.fn<() => Promise<string | null>>()
 const dispose = vi.fn()
+const pick = vi.fn<() => Promise<string>>()
 
 vi.mock('./detectQr', () => ({
-  pickDetector: () => Promise.resolve('native'),
+  pickDetector: () => pick(),
   createReader: () => ({ scan, dispose }),
 }))
 
@@ -26,6 +27,7 @@ const getUserMedia = vi.fn()
 beforeEach(() => {
   stops.forEach((stop) => stop.mockClear())
   scan.mockReset().mockResolvedValue(null)
+  pick.mockReset().mockResolvedValue('native')
   dispose.mockClear()
   getUserMedia.mockReset().mockResolvedValue({
     getTracks: () => stops.map((stop) => ({ stop })),
@@ -156,5 +158,25 @@ describe('QrScanner reader failures', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('QrScanner edge cases', () => {
+  it('hiddenAtMountDoesNotOpenTheCamera', async () => {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+    mount()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/A câmera desligou/)
+    expect(getUserMedia).not.toHaveBeenCalled()
+  })
+
+  it('aStartThatThrowsShowsAlternatives', async () => {
+    pick.mockRejectedValue(new Error('detector check broke'))
+    const { onUnavailable } = mount()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /Cole o link da nota ou digite a chave/,
+    )
+    expect(onUnavailable).toHaveBeenCalledTimes(1)
   })
 })

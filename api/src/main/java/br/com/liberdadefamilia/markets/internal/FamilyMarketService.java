@@ -104,9 +104,11 @@ class FamilyMarketService {
     MarketCardView convert(WorkspaceMember member, String refText, NewMarketRequest request) {
         Optional<GeoPoint> position = position(request.lat(), request.lon());
         MarketRow row = existing(member, ref(refText)).orElseThrow(MarketRuleException::notLeft);
-        boolean left = row.isOsm()
-                && row.archivedAt() == null
-                && osm.find(new OsmRef(row.osmType(), row.osmId())).isEmpty();
+        if (row.isOsm() && row.archivedAt() != null) {
+            throw MarketRuleException.archived();
+        }
+        boolean left =
+                row.isOsm() && osm.find(new OsmRef(row.osmType(), row.osmId())).isEmpty();
         if (!left) {
             throw MarketRuleException.notLeft();
         }

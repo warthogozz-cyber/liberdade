@@ -233,6 +233,27 @@ class FamilyMarketIT {
     }
 
     @Test
+    void convertArchivedRowSaysArchived() {
+        UUID row = MarketsTestData.familyRowForOsm(jdbc, ws, 777);
+        jdbc.sql("update markets set archived_at = now() where id = :id")
+                .param("id", row)
+                .update();
+
+        MvcTestResult result = send(
+                HttpMethod.POST,
+                "/markets/" + row + "/convert",
+                "{\"name\":\"Mercado Exemplo\",\"kind\":\"SUPERMARKET\"}");
+
+        assertThat(result).hasStatus(409);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("market.archived");
+        assertThat(jdbc.sql("select origin from markets where id = :id")
+                        .param("id", row)
+                        .query(String.class)
+                        .single())
+                .isEqualTo("OSM");
+    }
+
+    @Test
     void convertFamilyMarketIs409() {
         UUID own = MarketsTestData.family(jdbc, ws, "Feira Exemplo", null, null);
 

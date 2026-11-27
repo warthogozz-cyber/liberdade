@@ -107,7 +107,13 @@ export default function QrScanner({ onResult, onUnavailable }: QrScannerProps) {
       if (stopped) return
       void tick(video, reader)
     }
-    void start()
+    // A tab opened in the background must not turn the camera on.
+    onVisibility()
+    if (!stopped) {
+      start().catch(() => {
+        if (!stopped) fail()
+      })
+    }
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibility)

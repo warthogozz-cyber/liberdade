@@ -23,7 +23,14 @@ registerMessages(marketsMessages)
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 const outline = `flex min-h-12 items-center rounded-field border border-primary px-4 font-medium text-primary ${focus}`
 
-type Notice = 'stale' | 'changeFailed' | 'addFailed' | 'quantityTooLarge' | 'full'
+type Notice =
+  | 'stale'
+  | 'changeFailed'
+  | 'removeFailed'
+  | 'clearFailed'
+  | 'addFailed'
+  | 'quantityTooLarge'
+  | 'full'
 
 /** Refusals that trying again will not fix, so the notice says why instead of "try again". */
 const ADD_REFUSALS: Record<string, Notice> = {
@@ -96,7 +103,7 @@ export function ShoppingListPage() {
       onMove={(direction) => move(item, direction)}
       onRemove={() => {
         setNotice(null)
-        remove.mutate(item.id, { onError: failed })
+        remove.mutate(item.id, { onError: () => setNotice('removeFailed') })
       }}
     />
   )
@@ -202,7 +209,7 @@ export function ShoppingListPage() {
                       disabled={clear.isPending}
                       onClick={() => {
                         setNotice(null)
-                        clear.mutate(undefined, { onError: failed })
+                        clear.mutate(undefined, { onError: () => setNotice('clearFailed') })
                         setConfirmingClear(false)
                       }}
                       className={`${outline} bg-primary text-on-primary`}

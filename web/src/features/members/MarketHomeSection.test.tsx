@@ -106,4 +106,24 @@ describe('MarketHomeSection', () => {
     expect(await screen.findByText('Nenhum endereço salvo.')).toBeVisible()
     expect(removed).toBe(true)
   })
+
+  it('removalFailureClosesTheDialogAndShowsTheError', async () => {
+    seed()
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/markets/home`, () =>
+        HttpResponse.json({ lat: '-10.000', lon: '-50.000', label: 'Casa' }),
+      ),
+      http.delete(`${API_URL}/v1/workspaces/:ws/markets/home`, () =>
+        HttpResponse.json({ status: 500 }, { status: 500 }),
+      ),
+    )
+    renderSection()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover' }))
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remover' }))
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(await screen.findByRole('alert')).toBeVisible()
+  })
 })

@@ -52,7 +52,7 @@ const prices: MockPrice[] = [
   price(M5, 1, '6.5000'),
 ]
 
-function render() {
+function render(marketPrices: MockPrice[] = prices) {
   const workspace = seedMockFamily()
   mockState.modules[workspace.id] = { markets: true }
   mockState.markets[workspace.id] = {
@@ -61,7 +61,7 @@ function render() {
     osmLinks: {},
     archivedOsm: [],
     products,
-    prices,
+    prices: marketPrices,
     list: products.map((product, index) => ({
       id: `00000000-0000-4000-8000-0000000e${String(index + 1).padStart(4, '0')}`,
       productId: product.id,
@@ -167,5 +167,39 @@ describe('ComparePage', () => {
     await waitFor(() => expect(screen.getByText('Nos 7 itens que os mercados têm:')).toBeVisible())
 
     expect(container.textContent ?? '').not.toMatch(/barato|economi|melhor|vencedor/i)
+  })
+
+  it('noCommonItemsShowsNoTotals', async () => {
+    render([
+      price(M1, 1, '4.9900'),
+      price(M1, 2, '7.4900'),
+      price(M3, 1, '6.0000'),
+      price(M5, 2, '6.5000'),
+    ])
+    await box('Mercado Exemplo 1')
+    for (const each of screen.getAllByRole('checkbox')) {
+      if ((each as HTMLInputElement).checked) fireEvent.click(each)
+    }
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mercado Exemplo 3' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mercado Exemplo 5' }))
+
+    expect(
+      await screen.findByText(
+        'Os mercados escolhidos não têm nenhum item em comum, então não dá para comparar o total.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Totais' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/R\$\s0,00/)).not.toBeInTheDocument()
+  })
+
+  it('keepsTheLastResultWhileTheNextLoads', async () => {
+    render()
+    await screen.findByText('Nos 7 itens que os mercados têm:')
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mercado Exemplo 3' }))
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByText('Nos 7 itens que os mercados têm:')).toBeInTheDocument()
+    expect(await screen.findByText('No 1 item que os mercados têm:')).toBeInTheDocument()
   })
 })

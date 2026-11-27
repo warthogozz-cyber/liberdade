@@ -68,4 +68,9 @@ final class MarketRuleException extends DomainException {
     static MarketRuleException notLeft() {
         return new MarketRuleException(409, "market.not_left", "Este mercado ainda está no OpenStreetMap.");
     }
+
+    static MarketRuleException archived() {
+        return new MarketRuleException(
+                409, "market.archived", "Este mercado está arquivado e não pode virar um mercado da família.");
+    }
 }

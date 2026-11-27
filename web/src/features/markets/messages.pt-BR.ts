@@ -233,7 +233,7 @@ export const marketsMessages = {
   'markets.products.suggestion.failed': 'Não deu para recusar a sugestão. Tente de novo.',
   'markets.products.merge.title': 'Juntar produtos',
   'markets.products.merge.body':
-    'Preços, itens da lista e apelidos de {removed} passam para {kept}, e {removed} sai do catálogo. Não dá para desfazer.',
+    'Preços, itens da lista e nomes de {removed} passam para {kept}, e {removed} deixa de existir. Não dá para desfazer.',
   'markets.products.merge.which': 'Qual nome fica?',
   'markets.products.merge.confirm': 'Juntar',
   'markets.products.merge.cancel': 'Cancelar',
@@ -255,6 +255,8 @@ export const marketsMessages = {
   'markets.list.quantityTooLarge': 'A quantidade ficaria grande demais. Use um número menor.',
   'markets.list.full': 'A lista já tem o máximo de 300 itens.',
   'markets.list.changeFailed': 'Não deu para salvar a mudança. A lista voltou ao que era.',
+  'markets.list.removeFailed': 'Não deu para tirar o item. Tente de novo.',
+  'markets.list.clearFailed': 'Não deu para limpar os pegos. Tente de novo.',
   'markets.list.stale': 'A lista mudou em outro aparelho.',
   'markets.list.check': 'Marcar {name}',
   'markets.list.quantity': 'Quantidade de {name}',
@@ -284,6 +286,8 @@ export const marketsMessages = {
   'markets.compare.totals': 'Totais',
   'markets.compare.common':
     '{n, plural, one {No # item que os mercados têm:} other {Nos # itens que os mercados têm:}}',
+  'markets.compare.noCommon':
+    'Os mercados escolhidos não têm nenhum item em comum, então não dá para comparar o total.',
   'markets.compare.missing':
     '{k, plural, one {# item sem preço em {market}} other {# itens sem preço em {market}}}',
   'markets.compare.mismatch':

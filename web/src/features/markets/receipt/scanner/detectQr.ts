@@ -83,8 +83,9 @@ function workerReader(): QrReader {
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
       const frame = context.getImageData(0, 0, canvas.width, canvas.height)
       return new Promise<string | null>((resolve, reject) => {
-        pending = { resolve, reject }
+        // Post first: a post that throws must not leave a frame waiting forever.
         worker.postMessage(frame, [frame.data.buffer])
+        pending = { resolve, reject }
       })
     },
     dispose: () => worker.terminate(),
