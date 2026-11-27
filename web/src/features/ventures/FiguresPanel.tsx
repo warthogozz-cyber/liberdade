@@ -14,7 +14,7 @@ interface FiguresPanelProps {
   offline?: boolean
   /** A newer draft is on its way: the figures shown are the last ones. */
   pending?: boolean
-  /** The last calculation failed: say so, calmly, instead of waiting forever. */
+  /** The last calculation failed: say so, calmly, and that figures still shown are the old ones. */
   error?: boolean
   /** The products' names, in the order of `figures.products`; "Produto n" when they do not match. */
   productNames?: readonly string[]
@@ -58,6 +58,11 @@ export function FiguresPanel({
         </p>
       ) : (
         <>
+          {error && (
+            <p className="text-text-muted">
+              {intl.formatMessage({ id: 'ventures.figures.stale' })}
+            </p>
+          )}
           <ul className="flex flex-col gap-2">
             {figures.products.map((product, index) => (
               <li key={index} className="flex flex-col gap-1">

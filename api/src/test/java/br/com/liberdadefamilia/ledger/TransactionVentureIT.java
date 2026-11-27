@@ -281,6 +281,27 @@ class TransactionVentureIT {
     }
 
     @Test
+    void youthEditToTransferClearsVenture() {
+        UUID id = TestIds.v7();
+        assertThat(post(leo, base(id, "EXPENSE", leoWallet, mercado))).hasStatus(201);
+        jdbc.sql("update transactions set venture_id = :v where id = :id")
+                .param("v", venture)
+                .param("id", id)
+                .update();
+        Map<String, Object> body = edit(0, "12.34", null, null, leoWallet, mercado);
+        body.put("kind", "TRANSFER");
+        UUID piggyBank = account("Cofrinho de Leo", workspaces.membershipOf(ws, leo));
+        body.put("toAccountId", piggyBank.toString());
+        body.remove("categoryId");
+
+        var edited = patch(leo, id, body);
+
+        assertThat(edited).hasStatusOk();
+        assertThat(edited).bodyJson().extractingPath("$.ventureId").isNull();
+        assertThat(storedVenture(id)).isNull();
+    }
+
+    @Test
     void filterByVenture() {
         UUID other = venture(ws, "ACTIVE");
         UUID marked = TestIds.v7();

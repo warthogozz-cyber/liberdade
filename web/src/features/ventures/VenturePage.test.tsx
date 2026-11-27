@@ -11,10 +11,14 @@ import { VenturePage } from './VenturePage'
 
 afterEach(cleanup)
 
-function render(role?: 'VIEWER', status: 'PLANNING' | 'ACTIVE' = 'PLANNING') {
+function render(
+  role?: 'VIEWER',
+  status: 'PLANNING' | 'ACTIVE' | 'CLOSED' = 'PLANNING',
+  dates: { startedOn?: string | null; closedOn?: string | null } = {},
+) {
   const workspace = seedMockFamily()
   if (role) workspace.role = role
-  const venture = prdExampleVenture({ status })
+  const venture = prdExampleVenture({ status, ...dates })
   seedVentureFixture(workspace, venture)
   renderWithProviders(<VenturePage />, {
     path: '/mais/projetos/:id',
@@ -63,6 +67,23 @@ describe('VenturePage', () => {
 
     expect(await screen.findByText('Planejando')).toBeVisible()
     expect(screen.queryByRole('link', { name: /Real vs\. planejado/ })).not.toBeInTheDocument()
+  })
+
+  it('noLinkWhenClosedStraightFromPlanning', async () => {
+    // Closing from planning writes the same day as the start and the close.
+    render(undefined, 'CLOSED', { startedOn: '2026-10-01', closedOn: '2026-10-01' })
+
+    expect(await screen.findByText('Encerrado')).toBeVisible()
+    expect(screen.queryByRole('link', { name: /Real vs\. planejado/ })).not.toBeInTheDocument()
+  })
+
+  it('linkWhenClosedAfterRunning', async () => {
+    const venture = render(undefined, 'CLOSED', { startedOn: '2026-09-01', closedOn: '2026-10-01' })
+
+    expect(await screen.findByRole('link', { name: 'Real vs. planejado ›' })).toHaveAttribute(
+      'href',
+      `/mais/projetos/${venture.id}/real`,
+    )
   })
 
   it('viewerSeesNoControls', async () => {

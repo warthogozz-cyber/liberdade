@@ -1,27 +1,30 @@
 package br.com.liberdadefamilia.gamification.domain;
 
+import br.com.liberdadefamilia.workspace.ModuleKey;
 import br.com.liberdadefamilia.workspace.Role;
+import java.util.Optional;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /** The achievements, in the order the screen lists them, with who can earn each and what it needs turned on. */
 public enum AchievementKey {
-    FIRST_TRANSACTION(Set.of(Role.OWNER, Role.ADULT, Role.YOUTH), false, 0),
-    STREAK_4_WEEKS(Set.of(Role.OWNER, Role.ADULT, Role.YOUTH), false, 0),
-    FIRST_GOAL(Set.of(Role.OWNER, Role.ADULT), true, 0),
-    GOAL_ACHIEVED(Set.of(Role.OWNER, Role.ADULT, Role.YOUTH, Role.VIEWER), true, 0),
-    RESERVE_1_MONTH(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), true, 1),
-    RESERVE_3_MONTHS(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), true, 3),
-    RESERVE_6_MONTHS(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), true, 6),
-    MONTH_IN_BUDGET(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), true, 0),
-    FIRST_VENTURE(Set.of(Role.OWNER, Role.ADULT), false, 0);
+    FIRST_TRANSACTION(Set.of(Role.OWNER, Role.ADULT, Role.YOUTH), null, 0),
+    STREAK_4_WEEKS(Set.of(Role.OWNER, Role.ADULT, Role.YOUTH), null, 0),
+    FIRST_GOAL(Set.of(Role.OWNER, Role.ADULT), ModuleKey.PLANNING, 0),
+    GOAL_ACHIEVED(Set.of(Role.OWNER, Role.ADULT, Role.YOUTH, Role.VIEWER), ModuleKey.PLANNING, 0),
+    RESERVE_1_MONTH(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), ModuleKey.PLANNING, 1),
+    RESERVE_3_MONTHS(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), ModuleKey.PLANNING, 3),
+    RESERVE_6_MONTHS(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), ModuleKey.PLANNING, 6),
+    MONTH_IN_BUDGET(Set.of(Role.OWNER, Role.ADULT, Role.VIEWER), ModuleKey.PLANNING, 0),
+    FIRST_VENTURE(Set.of(Role.OWNER, Role.ADULT), ModuleKey.VENTURES, 0);
 
     private final Set<Role> roles;
-    private final boolean needsPlanning;
+    private final @Nullable ModuleKey module;
     private final int reserveMonths;
 
-    AchievementKey(Set<Role> roles, boolean needsPlanning, int reserveMonths) {
+    AchievementKey(Set<Role> roles, @Nullable ModuleKey module, int reserveMonths) {
         this.roles = roles;
-        this.needsPlanning = needsPlanning;
+        this.module = module;
         this.reserveMonths = reserveMonths;
     }
 
@@ -29,9 +32,9 @@ public enum AchievementKey {
         return roles;
     }
 
-    /** True when the achievement is read from Planejar, so it only counts with that module on. */
-    public boolean needsPlanning() {
-        return needsPlanning;
+    /** The module the achievement is read from, so it only counts with that module on; empty for the ledger ones. */
+    public Optional<ModuleKey> module() {
+        return Optional.ofNullable(module);
     }
 
     public boolean earnableBy(Role role) {

@@ -3,7 +3,7 @@ import { onlineManager } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TransactionsPage } from '@/features/transactions/TransactionsPage'
-import { mockState, seedFamilyPlan, seedMockFamily } from '@/mocks/data'
+import { mockState, seedFamilyPlan, seedMockFamily, seedVentureFixture } from '@/mocks/data'
 import { problem } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 import { API_URL, queryKeys, type CreateTransactionRequest, type MeWorkspace } from '@/shared/api'
@@ -691,5 +691,23 @@ describe('TransactionsPage, statement import', () => {
       }),
     )
     expect(screen.queryByRole('link', { name: IMPORT })).not.toBeInTheDocument()
+  })
+})
+
+describe('TransactionsPage, a link to what no longer exists', () => {
+  const GONE = '0192f3a4-0000-7000-8000-0000000000ff'
+
+  it('dropsUnknownFilterIds', async () => {
+    const workspace = seedMockFamily()
+    seedVentureFixture(workspace)
+    storeOnServer(workspace, request(MERCADO_ID, 'Mercado', { occurredOn: '2026-11-15' }))
+    const { router } = renderWithProviders(<TransactionsPage />, {
+      path: '/lancamentos',
+      route: `/lancamentos?mes=2026-11&categoria=${GONE}&conta=${GONE}&tag=${GONE}&projeto=${GONE}`,
+    })
+
+    await waitFor(() => expect(router.state.location.search).toBe('?mes=2026-11'))
+    expect(await screen.findByText('🛒 Mercado')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Limpar/ })).not.toBeInTheDocument()
   })
 })

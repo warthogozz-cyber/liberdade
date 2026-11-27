@@ -495,7 +495,8 @@ class TransactionService {
     /**
      * The venture an edited transaction ends with: the one it has when the request says nothing, none with {@code
      * clearVenture}, or the one sent. The youth sends neither field, and both together make no sense. A transfer cannot
-     * keep one, so turning a marked transaction into a transfer needs {@code clearVenture}.
+     * keep one, so turning a marked transaction into a transfer needs {@code clearVenture}. The youth never sees the
+     * venture and cannot send that, so their transfer drops it here.
      */
     private static @Nullable UUID editedVenture(
             WorkspaceMember member, UpdateTransactionRequest request, TransactionView current) {
@@ -503,6 +504,9 @@ class TransactionService {
         UUID sent = request.ventureId();
         if ((isYouth(member) && (sent != null || clear)) || (sent != null && clear)) {
             throw ventureInvalid();
+        }
+        if (isYouth(member) && request.kind() == TransactionKind.TRANSFER) {
+            return null;
         }
         UUID resulting = clear ? null : sent != null ? sent : current.ventureId();
         if (resulting != null && request.kind() == TransactionKind.TRANSFER) {

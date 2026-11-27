@@ -102,7 +102,7 @@ export function VenturePage() {
           live={false}
         />
         <HowWeCalculate venture={data} />
-        {data.status !== 'PLANNING' && (
+        {hasRun(data) && (
           <Link to={`/mais/projetos/${data.id}/real`} className={`${outline} self-start`}>
             {intl.formatMessage({ id: 'ventures.real.link' })}
           </Link>
@@ -138,4 +138,15 @@ export function VenturePage() {
       )}
     </main>
   )
+}
+
+/**
+ * Whether the project ever ran, so a real side can exist. Closing straight from planning writes the
+ * close day as the start, the same rule the API's export uses; one run and closed that same day
+ * looks the same and is left out too.
+ */
+function hasRun(venture: { status: string; startedOn?: string | null; closedOn?: string | null }) {
+  if (venture.status === 'ACTIVE') return true
+  if (venture.status !== 'CLOSED' || !venture.startedOn || !venture.closedOn) return false
+  return venture.closedOn > venture.startedOn
 }

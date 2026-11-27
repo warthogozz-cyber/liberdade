@@ -133,6 +133,7 @@ class GamificationControllerIT {
     void listInOrder() {
         enable("gamification");
         enable("planning");
+        enable("ventures");
 
         MvcTestResult result = get(ownerUser, "achievements");
 
@@ -227,6 +228,7 @@ class GamificationControllerIT {
     void planningOffHidesTheUnearned() {
         enable("gamification");
         enable("planning");
+        enable("ventures");
         jdbc.sql("""
                         insert into goals (workspace_id, name, target_amount, currency, icon, created_by, achieved_at)
                         values (:ws, 'Viagem', 1000, 'BRL', 'plane', :by, now())""").param("ws", ws).param("by", adult).update();
@@ -242,6 +244,45 @@ class GamificationControllerIT {
                 .asArray()
                 .containsExactly("FIRST_TRANSACTION", "STREAK_4_WEEKS", "GOAL_ACHIEVED", "FIRST_VENTURE");
         assertThat(result).bodyJson().extractingPath("$.items[2].earnedAt").isNotNull();
+    }
+
+    @Test
+    @DisplayName("projetos desligado esconde a conquista de projeto não ganha")
+    void venturesOffHidesTheUnearnedVenture() {
+        enable("gamification");
+        enable("planning");
+
+        MvcTestResult result = get(ownerUser, "achievements");
+
+        assertThat(result).hasStatusOk();
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.items[*].key")
+                .asArray()
+                .doesNotContain("FIRST_VENTURE")
+                .contains("FIRST_TRANSACTION");
+    }
+
+    @Test
+    @DisplayName("projetos desligado mantém a conquista de projeto já ganha")
+    void venturesOffKeepsTheEarnedVenture() {
+        enable("gamification");
+        enable("ventures");
+        jdbc.sql("""
+                        insert into ventures (workspace_id, name, type, currency, created_by, status, started_on)
+                        values (:ws, 'Doces', 'FOOD', 'BRL', :by, 'ACTIVE', date '2026-11-05')""").param("ws", ws).param("by", adult).update();
+        service.evaluate(ws, adult, false);
+        disable("ventures");
+
+        MvcTestResult result = get(adultUser, "achievements");
+
+        assertThat(result).hasStatusOk();
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.items[?(@.key == 'FIRST_VENTURE')].earnedAt")
+                .asArray()
+                .singleElement()
+                .isNotNull();
     }
 
     @Test
