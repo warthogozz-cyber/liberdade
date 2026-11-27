@@ -10,6 +10,7 @@ import {
 } from '@/shared/api'
 import { familyFeaturesOpen, usePlan } from '@/shared/api/billing'
 import { useInvitations, useMembers, useRevokeInvitation } from '@/shared/api/family'
+import { PageTip } from '@/shared/help'
 import { useModuleEnabled } from '@/shared/modules'
 import { useOnline } from '@/shared/offline'
 import { useDocumentTitle, useToast } from '@/shared/ui'
@@ -39,6 +40,7 @@ export function FamilyPage() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
+      <PageTip id="family" />
       {workspace ? (
         <FamilyScreen workspace={workspace} />
       ) : (

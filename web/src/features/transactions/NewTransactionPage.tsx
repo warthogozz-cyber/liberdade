@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { useSearchParams } from 'react-router'
 import { useCurrentWorkspace, useMe, type TransactionKind } from '@/shared/api'
+import { PageTip } from '@/shared/help'
 import { useOutbox } from '@/shared/offline'
 import { PageHeader, TransactionForm } from './TransactionForm'
 
@@ -35,6 +36,7 @@ export function NewTransactionPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-4 p-4">
+      {editId === null && <PageTip id="launch" />}
       {editId !== null ? (
         workspace && userId ? (
           <Suspense fallback={<EditingFallback />}>

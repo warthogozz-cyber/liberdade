@@ -315,3 +315,16 @@ describe('HomePage slot', () => {
     for (const title of titles) expect(screen.queryByText(title)).not.toBeInTheDocument()
   })
 })
+
+describe('HomePage tip', () => {
+  it('homeTip', async () => {
+    // The setup turns the tips off; this test turns them on, and the setup clears it afterwards.
+    localStorage.removeItem('liberdade.tips')
+    seedMockFamily()
+    renderHome()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Aqui está o resumo do mês. Toque em Novo gasto para anotar o que gastou.',
+    )
+  })
+})

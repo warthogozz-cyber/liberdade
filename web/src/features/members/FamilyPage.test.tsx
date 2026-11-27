@@ -120,3 +120,16 @@ describe('FamilyPage', () => {
     )
   })
 })
+
+describe('FamilyPage tip', () => {
+  it('rolesTip', async () => {
+    // The setup turns the tips off; this test turns them on, and the setup clears it afterwards.
+    localStorage.removeItem('liberdade.tips')
+    seedMockFamily()
+    renderFamily()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Dono cuida de tudo e Adulto lança e planeja. Jovem lança só nas próprias contas, e Leitor só olha.',
+    )
+  })
+})

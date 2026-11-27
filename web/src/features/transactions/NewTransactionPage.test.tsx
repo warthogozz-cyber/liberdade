@@ -1160,3 +1160,16 @@ describe('NewTransactionPage, editing: keep mine', () => {
     expect(await within(toastRegion()).findByText('Lançamento atualizado.')).toBeInTheDocument()
   })
 })
+
+describe('NewTransactionPage tip', () => {
+  it('launchTip', async () => {
+    // The setup turns the tips off; this test turns them on, and the setup clears it afterwards.
+    localStorage.removeItem('liberdade.tips')
+    seedMockFamily()
+    renderPage()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Digite o valor, escolha a categoria e salve. Dá para desfazer logo depois.',
+    )
+  })
+})

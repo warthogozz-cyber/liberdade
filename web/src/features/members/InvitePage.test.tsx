@@ -37,6 +37,35 @@ describe('InvitePage', () => {
     expect(roleOptions()).toContain('OWNER')
   })
 
+  it('roleLineFollowsSelect', async () => {
+    seedMockFamily().role = 'ADULT'
+    renderInvite()
+
+    const select = await screen.findByLabelText('Papel')
+    const line = screen.getByText('Lança, planeja e liga ou desliga módulos.')
+    expect(line.id).not.toBe('')
+    expect(select).toHaveAttribute('aria-describedby', line.id)
+    expect(select).toHaveAccessibleDescription('Lança, planeja e liga ou desliga módulos.')
+
+    fireEvent.change(select, { target: { value: 'YOUTH' } })
+    expect(select).toHaveAccessibleDescription(
+      'Vê e lança só nas próprias contas, e edita só os próprios lançamentos.',
+    )
+    expect(screen.queryByText('Lança, planeja e liga ou desliga módulos.')).not.toBeInTheDocument()
+  })
+
+  it('ownerSeesOwnerLine', async () => {
+    seedMockFamily()
+    renderInvite()
+
+    const select = await screen.findByLabelText('Papel')
+    fireEvent.change(select, { target: { value: 'OWNER' } })
+    expect(
+      screen.getByText('Cuida de tudo, inclusive da família e dos papéis.'),
+    ).toBeInTheDocument()
+    expect(select).toHaveAccessibleDescription('Cuida de tudo, inclusive da família e dos papéis.')
+  })
+
   it('youthNeedsConsent', async () => {
     seedMockFamily()
     renderInvite()

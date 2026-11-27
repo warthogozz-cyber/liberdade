@@ -50,11 +50,14 @@ export interface ModuleHelp {
 
 /** The first visit tip of each screen that has one (the rest arrive with their screens). */
 export const screenTips: Partial<Record<TipId, HelpMessageId>> = {
+  home: 'tips.home',
+  launch: 'tips.launch',
   dashboard: 'tips.dashboard',
   transactions: 'tips.transactions',
   accounts: 'tips.accounts',
   calculator: 'tips.calculator',
   import: 'tips.import',
+  family: 'tips.family',
 }
 
 export const eventTips: Partial<Record<EventTipId, HelpMessageId>> = {}
@@ -132,6 +135,10 @@ export const glossary: { termId: string; bodyId: string }[] = [
 
 /** Key = full path, e.g. '/mais/feira/lista'. */
 export const routeHelp: Record<string, RouteHelp> = {
+  '/inicio': { tip: 'home' },
+  '/lancar': { tip: 'launch' },
+  '/mais/familia': { tip: 'family' },
+  '/mais/familia/convidar': { inherits: '/mais/familia' },
   '/mais/como-funciona': { exception: 'help screen' },
   '/mais/ajustes': { inline: 'settings.motion' },
 }
