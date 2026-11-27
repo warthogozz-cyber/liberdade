@@ -1568,7 +1568,122 @@ function marketsHandlers() {
     }
     const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
+    const DAY = 86_400_000
+    /** Rounds a count of 1e-8 to cents, HALF_EVEN, as the API does only at the end. */
+    const toCents = (scaled: bigint) => {
+      const quotient = scaled / 1_000_000n
+      const rest = scaled % 1_000_000n
+      const up = rest > 500_000n || (rest === 500_000n && quotient % 2n === 1n)
+      return up ? quotient + 1n : quotient
+    }
+    const scale4 = (text: string) => {
+      const [whole = '0', decimals = ''] = text.split('.')
+      return BigInt(whole) * 10000n + BigInt(decimals.padEnd(4, '0'))
+    }
+
+    /** The list priced at the chosen markets (the API's D8, with the same rules). */
+    function compareView(ws: string, refs: string[]): Schemas['CompareView'] {
+      const state = owned(ws)
+      const entries = itemsOf(ws).flatMap((item) => {
+        const product = allProducts(ws).find((each) => each.id === item.productId)
+        return product ? [{ item, product }] : []
+      })
+      const all = [...FAKE_PRICES, ...(state.prices ?? [])]
+      const latest = (ref: string, productId: string) =>
+        all
+          .filter((each) => each.marketRef === ref && each.productId === productId)
+          .reduce<MockPrice | undefined>(
+            (best, each) => (!best || each.observedOn >= best.observedOn ? each : best),
+            undefined,
+          )
+
+      // The two markets that price most of the list; a tie goes to the more recent price.
+      const pricedAt = new Map<string, { count: number; recent: string }>()
+      for (const { product } of entries) {
+        for (const ref of new Set(all.map((each) => each.marketRef))) {
+          const found = latest(ref, product.id)
+          if (!found) continue
+          const seen = pricedAt.get(ref)
+          pricedAt.set(ref, {
+            count: (seen?.count ?? 0) + 1,
+            recent: seen && seen.recent > found.observedOn ? seen.recent : found.observedOn,
+          })
+        }
+      }
+      const ranked = [...pricedAt.entries()].sort(
+        ([, a], [, b]) => b.count - a.count || b.recent.localeCompare(a.recent),
+      )
+      const suggested = ranked.length < 2 ? [] : ranked.slice(0, 2).map(([ref]) => ref)
+
+      const today = Date.now()
+      const rows = entries.map(({ item, product }) => {
+        const prices = refs.map((ref) => {
+          const found = latest(ref, product.id)
+          return found
+            ? {
+                ref,
+                unitPrice: found.unitPrice,
+                unit: found.unit ?? product.unit,
+                observedOn: found.observedOn,
+                old: today - Date.parse(`${found.observedOn}T00:00:00Z`) > 60 * DAY,
+              }
+            : null
+        })
+        const present = prices.every((each) => each !== null)
+        const sameUnit = new Set(prices.map((each) => each?.unit)).size === 1
+        return {
+          productId: product.id,
+          name: product.name,
+          quantity: item.quantity,
+          prices,
+          common: refs.length > 0 && present && sameUnit,
+          unitMismatch: refs.length > 0 && present && !sameUnit,
+        }
+      })
+      return {
+        suggested,
+        markets: refs.map((ref, index) => {
+          const total = rows
+            .filter((row) => row.common)
+            .reduce(
+              (sum, row) => sum + scale4(row.prices[index]!.unitPrice) * scale4(row.quantity),
+              0n,
+            )
+          const cents = toCents(total)
+          return {
+            ref,
+            name: card(ws, ref)?.name ?? null,
+            total: `${cents / 100n}.${(cents % 100n).toString().padStart(2, '0')}`,
+            missingCount: rows.filter((row) => row.prices[index] === null).length,
+          }
+        }),
+        commonCount: rows.filter((row) => row.common).length,
+        unitMismatchCount: rows.filter((row) => row.unitMismatch).length,
+        items: rows,
+      }
+    }
+
     return [
+      // Before the ref routes: `compare` is not a market ref. Every role sees it.
+      http.get<{ ws: string }>(url('/v1/workspaces/:ws/markets/compare'), ({ params, request }) => {
+        const workspace = listGuard(params.ws, 'read')
+        if (workspace instanceof Response) return workspace
+        const asked = new URL(request.url).searchParams.get('markets')
+        const refs = asked === null ? [] : asked.split(',')
+        if (
+          asked !== null &&
+          (refs.length < 2 || refs.length > 3 || new Set(refs).size !== refs.length)
+        ) {
+          return problem(
+            422,
+            'compare.markets_invalid',
+            'Escolha dois ou três mercados diferentes.',
+          )
+        }
+        if (refs.some((ref) => !card(workspace.id, ref))) return notFound()
+        return HttpResponse.json(compareView(workspace.id, refs))
+      }),
+
       http.get<{ ws: string }>(url('/v1/workspaces/:ws/markets/list'), ({ params }) => {
         const workspace = listGuard(params.ws, 'read')
         if (workspace instanceof Response) return workspace

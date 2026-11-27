@@ -73,6 +73,8 @@ export interface MockPrice {
   productId: string
   unitPrice: string
   observedOn: string
+  /** The unit the price was seen in, when it is not the product's own. */
+  unit?: MockProduct['unit']
 }
 
 /** Invented products every family starts with (a price book is never empty in the mock). */

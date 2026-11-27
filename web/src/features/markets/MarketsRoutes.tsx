@@ -26,6 +26,10 @@ const ShoppingListPage = lazy(() =>
   import('./list/ShoppingListPage').then((m) => ({ default: m.ShoppingListPage })),
 )
 
+const ComparePage = lazy(() =>
+  import('./compare/ComparePage').then((m) => ({ default: m.ComparePage })),
+)
+
 function Loading() {
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
@@ -52,6 +56,7 @@ export function MarketsRoutes() {
     { path: 'nota', element: <ReceiptPage /> },
     { path: 'produtos', element: <ProductsPage /> },
     { path: 'lista', element: <ShoppingListPage /> },
+    { path: 'comparar', element: <ComparePage /> },
   ])
   // Offline with no saved plan the query waits for a connection: the saved Feira opens meanwhile.
   if (plan.isPending && plan.fetchStatus !== 'paused') return <Loading />

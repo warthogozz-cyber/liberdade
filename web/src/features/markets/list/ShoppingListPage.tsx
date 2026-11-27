@@ -103,6 +103,10 @@ export function ShoppingListPage() {
         <FormattedMessage id="markets.list.title" />
       </h1>
 
+      <Link to="/mais/feira/comparar" className={`${outline} self-start`}>
+        <FormattedMessage id="markets.compare.link" />
+      </Link>
+
       {canEdit && ws !== undefined && (
         <section className="flex flex-col gap-2">
           <h2 className="font-medium">

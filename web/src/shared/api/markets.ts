@@ -30,6 +30,8 @@ export type ProductOverview = Schemas['ProductOverview']
 export type ProductsOverview = Schemas['ProductsOverview']
 export type SuggestedPair = Schemas['SuggestedPair']
 export type EditProductBody = Schemas['EditProductRequest']
+export type MarketComparison = Schemas['CompareView']
+export type ComparedItem = Schemas['CompareItemView']
 
 /** The area a search sends: the center is always rounded to 2 decimals, so it never reveals a precise spot. */
 export type SearchArea = { lat: string; lon: string; radiusKm: number }
@@ -175,6 +177,18 @@ export async function dismissPair(ws: string, a: string, b: string): Promise<voi
     client.POST('/v1/workspaces/{ws}/markets/products/dismissals', {
       params: { path: { ws } },
       body: { a, b },
+    }),
+  )
+}
+
+/**
+ * The shopping list priced at 2 or 3 markets (their refs, in the order the person chose). With no
+ * refs the answer only carries the two suggested markets and the items without prices.
+ */
+export function getComparison(ws: string, refs: readonly string[]): Promise<MarketComparison> {
+  return unwrap(
+    client.GET('/v1/workspaces/{ws}/markets/compare', {
+      params: { path: { ws }, query: refs.length === 0 ? {} : { markets: refs.join(',') } },
     }),
   )
 }

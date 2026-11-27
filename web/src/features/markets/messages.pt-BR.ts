@@ -266,4 +266,23 @@ export const marketsMessages = {
   'markets.list.clear.ask': 'Tirar os itens pegos da lista?',
   'markets.list.clear.confirm': 'Limpar',
   'markets.list.clear.cancel': 'Cancelar',
+  'markets.compare.link': 'Comparar mercados',
+  'markets.compare.title': 'Comparar mercados',
+  'markets.compare.back': 'Voltar para a lista',
+  'markets.compare.choose': 'Mercados a comparar (dois ou três)',
+  'markets.compare.noMarkets': 'Nenhum mercado tem preço registrado para os itens da lista.',
+  'markets.compare.atLeastTwo': 'Escolha pelo menos dois mercados.',
+  'markets.compare.loadFailed': 'Não deu para carregar a comparação.',
+  'markets.compare.price': '{price} ({date})',
+  'markets.compare.noPrice': '—',
+  'markets.compare.old': 'antigo',
+  'markets.compare.totals': 'Totais',
+  'markets.compare.common':
+    '{n, plural, one {No # item que os mercados têm:} other {Nos # itens que os mercados têm:}}',
+  'markets.compare.missing':
+    '{k, plural, one {# item sem preço em {market}} other {# itens sem preço em {market}}}',
+  'markets.compare.mismatch':
+    '{u, plural, one {# item com unidade diferente ficou fora do total.} other {# itens com unidades diferentes ficaram fora do total.}}',
+  'markets.compare.source':
+    'Preços de notas registradas pela família. Datas ao lado de cada preço.',
 } as const
