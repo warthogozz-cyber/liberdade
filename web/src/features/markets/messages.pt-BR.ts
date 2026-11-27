@@ -233,7 +233,7 @@ export const marketsMessages = {
   'markets.products.suggestion.failed': 'Não deu para recusar a sugestão. Tente de novo.',
   'markets.products.merge.title': 'Juntar produtos',
   'markets.products.merge.body':
-    'Os preços de {removed} passam para {kept}, e {removed} some. Não dá para desfazer.',
+    'Preços, itens da lista e apelidos de {removed} passam para {kept}, e {removed} sai do catálogo. Não dá para desfazer.',
   'markets.products.merge.which': 'Qual nome fica?',
   'markets.products.merge.confirm': 'Juntar',
   'markets.products.merge.cancel': 'Cancelar',
@@ -243,6 +243,8 @@ export const marketsMessages = {
     'Estes produtos têm códigos de barras diferentes e não podem ser juntados.',
   'markets.products.merge.same': 'Escolha outro produto: este é o mesmo.',
   'markets.products.merge.not_found': 'Um dos produtos não existe mais.',
+  'markets.products.merge.quantity_too_large':
+    'Os dois estão na lista de compras, e a quantidade somada ficaria grande demais. Diminua a quantidade na lista e tente de novo.',
   'markets.list.link': 'Lista de compras',
   'markets.list.title': 'Lista de compras',
   'markets.list.back': 'Voltar para a Feira',
@@ -250,6 +252,8 @@ export const marketsMessages = {
   'markets.list.empty': 'A lista está vazia. Adicione o que falta em casa.',
   'markets.list.add': 'Adicionar à lista',
   'markets.list.addFailed': 'Não deu para adicionar à lista. Tente de novo.',
+  'markets.list.quantityTooLarge': 'A quantidade ficaria grande demais. Use um número menor.',
+  'markets.list.full': 'A lista já tem o máximo de 300 itens.',
   'markets.list.changeFailed': 'Não deu para salvar a mudança. A lista voltou ao que era.',
   'markets.list.stale': 'A lista mudou em outro aparelho.',
   'markets.list.check': 'Marcar {name}',

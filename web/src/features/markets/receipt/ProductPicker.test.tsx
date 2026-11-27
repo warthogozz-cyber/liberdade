@@ -107,3 +107,21 @@ describe('ProductPicker', () => {
     expect(names.indexOf('Zeta leite em pó')).toBeLessThan(names.indexOf('Leite integral'))
   })
 })
+
+describe('ProductPicker blank row', () => {
+  it('offersAtMostTenListItemsBeforeAnythingIsTyped', () => {
+    const many = Array.from({ length: 25 }, (_, index) => ({
+      id: `00000000-0000-4000-8000-0000000d${String(index).padStart(4, '0')}`,
+      name: `Item ${String(index).padStart(2, '0')}`,
+      unit: 'UN',
+    }))
+    render(vi.fn(), many)
+
+    const shown = screen
+      .getAllByRole('button')
+      .filter((each) => /^Item \d\d$/.test(each.textContent ?? ''))
+    expect(shown.map((each) => each.textContent)).toEqual(
+      many.slice(0, 10).map((each) => each.name),
+    )
+  })
+})

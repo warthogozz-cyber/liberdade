@@ -301,8 +301,8 @@ A lista, os produtos e a comparação ficam no mesmo módulo `markets`, com as t
   lista soma a quantidade e desmarca, em vez de duplicar, então dois aparelhos que adicionam o mesmo
   produto ao mesmo tempo acabam com um item só. A lista tem até 300 itens.
 - **Papéis.** Dono e Adulto fazem tudo. O Jovem adiciona (inclusive criando um produto só com o nome),
-  muda a quantidade e a ordem, marca e desmarca; não tira item, não limpa os pegos, não renomeia e não
-  junta. O Leitor só vê. O Jovem não apaga o que outra pessoa pôs na lista.
+  muda a quantidade e a ordem, marca e desmarca; não apaga item nenhum (nem os que ele pôs), não limpa
+  os pegos, não renomeia e não junta. O Leitor só vê.
 - **Ordem.** `PUT …/list/order` manda a lista inteira. Se outro aparelho mudou a lista no meio, a API
   responde 409 `list.order_stale`, e a web recarrega a lista e avisa.
 - **Produtos.** `GET …/markets/products/overview` traz os produtos com o último preço em cada mercado

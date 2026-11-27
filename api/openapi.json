@@ -5062,6 +5062,7 @@
             "nullable": true
           },
           "quantity": {
+            "pattern": "^\\d{1,15}(\\.\\d{1,4})?$",
             "type": "string",
             "nullable": true,
             "example": "1"
@@ -5357,6 +5358,7 @@
             "format": "uuid"
           },
           "quantity": {
+            "pattern": "^\\d{1,15}(\\.\\d{1,4})?$",
             "type": "string",
             "example": "2.5"
           },
@@ -6739,6 +6741,7 @@
             "format": "uuid"
           },
           "quantity": {
+            "pattern": "^\\d{1,15}(\\.\\d{1,4})?$",
             "type": "string",
             "example": "2.5"
           },
@@ -7811,6 +7814,7 @@
             "nullable": true
           },
           "quantity": {
+            "pattern": "^\\d{1,15}(\\.\\d{1,4})?$",
             "type": "string",
             "nullable": true,
             "example": "1.5"
@@ -8835,6 +8839,7 @@
             "nullable": true
           },
           "quantity": {
+            "pattern": "^\\d{1,15}(\\.\\d{1,4})?$",
             "type": "string",
             "nullable": true,
             "example": "2.5"

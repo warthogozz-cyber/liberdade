@@ -91,6 +91,68 @@ class ShoppingListSchemaIT {
     }
 
     @Test
+    void leavingMemberNullsCreatedByAndKeepsTheRows() {
+        UUID member = workspaces.addMember(
+                ws, users.create("Caio Teste", "caio@example.com"), br.com.liberdadefamilia.workspace.Role.ADULT);
+        UUID market = MarketsTestData.family(jdbc, ws, "Mercado Exemplo", null, null);
+        UUID milk = product(ws, "Leite Exemplo 1 L");
+        jdbc.sql("""
+                        insert into shopping_list_items (workspace_id, product_id, position, created_by)
+                        values (:ws, :p, 0, :by)""").param("ws", ws).param("p", milk).param("by", member).update();
+        UUID receipt = jdbc.sql("""
+                        insert into receipts (workspace_id, market_id, key_hash, issued_on, mode, item_count, created_by)
+                        values (:ws, :m, 'h1', '2026-11-10', 'MANUAL', 1, :by) returning id""")
+                .param("ws", ws)
+                .param("m", market)
+                .param("by", member)
+                .query(UUID.class)
+                .single();
+        jdbc.sql("""
+                        insert into price_records
+                            (workspace_id, market_id, product_id, receipt_id, observed_on, unit, unit_price, created_by)
+                        values (:ws, :m, :p, :r, '2026-11-10', 'UN', 4, :by)""")
+                .param("ws", ws)
+                .param("m", market)
+                .param("p", milk)
+                .param("r", receipt)
+                .param("by", member)
+                .update();
+
+        jdbc.sql("delete from memberships where id = :id").param("id", member).update();
+
+        for (String table : new String[] {"shopping_list_items", "receipts", "price_records"}) {
+            assertThat(count(table)).as(table).isEqualTo(1);
+            assertThat(jdbc.sql("select created_by from " + table + " where workspace_id = :ws")
+                            .param("ws", ws)
+                            .query(UUID.class)
+                            .optional())
+                    .as(table)
+                    .isEmpty();
+        }
+    }
+
+    @Test
+    void createdByMustBeAMemberOfTheSameFamily() {
+        UUID other = workspaces.createFor(users.create("Bia Teste", "bia@example.com"));
+        UUID foreignMember = jdbc.sql("select id from memberships where workspace_id = :ws")
+                .param("ws", other)
+                .query(UUID.class)
+                .single();
+        UUID milk = product(ws, "Leite Exemplo 1 L");
+
+        for (UUID bad : new UUID[] {foreignMember, UUID.randomUUID()}) {
+            assertThatThrownBy(() -> jdbc.sql("""
+                                    insert into shopping_list_items (workspace_id, product_id, position, created_by)
+                                    values (:ws, :p, 0, :by)""")
+                            .param("ws", ws)
+                            .param("p", milk)
+                            .param("by", bad)
+                            .update())
+                    .isInstanceOf(DataIntegrityViolationException.class);
+        }
+    }
+
+    @Test
     void auditAcceptsProduct() {
         assertThatCode(() -> jdbc.sql("insert into audit_events (action, target_type) values ('TEST', 'PRODUCT')")
                         .update())

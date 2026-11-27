@@ -44,6 +44,7 @@ class PriceAndProductRepositoryIT {
     private UUID ws;
     private UUID other;
     private UUID actor;
+    private UUID otherActor;
 
     @BeforeEach
     void families() {
@@ -52,6 +53,7 @@ class PriceAndProductRepositoryIT {
         ws = workspaces.createFor(ana);
         other = workspaces.createFor(bia);
         actor = workspaces.membershipOf(ws, ana);
+        otherActor = workspaces.membershipOf(other, bia);
     }
 
     @Test
@@ -178,6 +180,14 @@ class PriceAndProductRepositoryIT {
 
     private void insert(UUID workspace, UUID market, UUID product, UUID receipt, String day, String price) {
         prices.insert(
-                workspace, market, product, receipt, LocalDate.parse(day), "UN", null, new BigDecimal(price), actor);
+                workspace,
+                market,
+                product,
+                receipt,
+                LocalDate.parse(day),
+                "UN",
+                null,
+                new BigDecimal(price),
+                workspace.equals(other) ? otherActor : actor);
     }
 }

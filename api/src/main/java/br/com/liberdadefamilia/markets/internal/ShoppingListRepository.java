@@ -32,8 +32,9 @@ class ShoppingListRepository {
     record Added(UUID id, boolean created) {}
 
     /**
-     * Serializes the adds of one family until the transaction ends, so the limit, the end position and a product made
-     * from a name cannot race: the table has no uniqueness on names to catch two threads making the same one.
+     * Serializes the adds of one family, and the product merges, until the transaction ends, so the limit, the end
+     * position and a product made from a name cannot race: the table has no uniqueness on names to catch two threads
+     * making the same one, and a merge deletes a product an add may be about to use.
      */
     void lockAdds(UUID workspaceId) {
         jdbc.sql("select 1 from (select pg_advisory_xact_lock(hashtextextended(:key, 0))) locked")
@@ -59,8 +60,15 @@ class ShoppingListRepository {
                 .single();
     }
 
-    /** Adds at the end, or adds the quantity to the item the product already has and unticks it. */
-    Added add(UUID workspaceId, UUID productId, BigDecimal quantity, UUID userId) {
+    /** The largest sum {@code numeric(19,4)} holds is below this: 15 digits before the point. */
+    static final BigDecimal QUANTITY_LIMIT = new BigDecimal("1000000000000000");
+
+    /**
+     * Adds at the end, or adds the quantity to the item the product already has and unticks it.
+     *
+     * @return empty when the sum for an item already there would not fit the column; nothing changed
+     */
+    Optional<Added> add(UUID workspaceId, UUID productId, BigDecimal quantity, UUID membershipId) {
         return jdbc.sql("""
                         insert into shopping_list_items (workspace_id, product_id, quantity, position, created_by)
                         values (:ws, :product, :quantity,
@@ -68,13 +76,15 @@ class ShoppingListRepository {
                                  from shopping_list_items where workspace_id = :ws), :user)
                         on conflict (workspace_id, product_id) do update
                         set quantity = shopping_list_items.quantity + excluded.quantity, checked_at = null
+                        where shopping_list_items.quantity + excluded.quantity < :limit
                         returning id, (xmax = 0) as created""")
                 .param("ws", workspaceId)
                 .param("product", productId)
                 .param("quantity", quantity)
-                .param("user", userId)
+                .param("user", membershipId)
+                .param("limit", QUANTITY_LIMIT)
                 .query((rs, n) -> new Added(rs.getObject("id", UUID.class), rs.getBoolean("created")))
-                .single();
+                .optional();
     }
 
     List<ItemRow> items(UUID workspaceId) {
@@ -111,7 +121,11 @@ class ShoppingListRepository {
                 .update();
     }
 
-    /** The ids of the whole list, locked until the transaction ends, so no add or removal slips in during a reorder. */
+    /**
+     * The ids of the whole list, row-locked until the transaction ends, so no removal, update or other row change
+     * slips in during a reorder. An add inserts a new row, which the row locks do not stop: a reorder that races an
+     * add still sees the stale ids it was given and answers 409, or lands before the add.
+     */
     List<UUID> lockIds(UUID workspaceId) {
         return jdbc.sql("select id from shopping_list_items where workspace_id = :ws for update")
                 .param("ws", workspaceId)

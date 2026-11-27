@@ -43,7 +43,7 @@ record SaveReceiptRequest(
             @Nullable @Schema(nullable = true) String newProductName,
             @Nullable ProductUnit unit,
 
-            @Nullable @Schema(nullable = true, example = "1.5")
+            @Nullable @Schema(nullable = true, example = "1.5", pattern = MarketViews.QUANTITY_PATTERN)
             String quantity,
 
             @Nullable @Schema(example = "4.99") String unitPrice) {

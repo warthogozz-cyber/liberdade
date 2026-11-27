@@ -7,14 +7,14 @@ import br.com.liberdadefamilia.markets.domain.ComparisonCalculator.PricePoint;
 import br.com.liberdadefamilia.markets.domain.FamilyRef;
 import br.com.liberdadefamilia.markets.domain.MarketRef;
 import br.com.liberdadefamilia.markets.domain.OsmRef;
+import br.com.liberdadefamilia.markets.domain.ProductUnit;
 import br.com.liberdadefamilia.markets.internal.MarketViews.CompareItemView;
 import br.com.liberdadefamilia.markets.internal.MarketViews.CompareMarketView;
 import br.com.liberdadefamilia.markets.internal.MarketViews.ComparePriceView;
 import br.com.liberdadefamilia.markets.internal.MarketViews.CompareView;
-import br.com.liberdadefamilia.markets.internal.MarketViews.ProductPriceView;
 import br.com.liberdadefamilia.markets.internal.OsmMarketRepository.OsmObject;
+import br.com.liberdadefamilia.markets.internal.PriceRepository.LatestPrice;
 import br.com.liberdadefamilia.markets.internal.ShoppingListRepository.ItemRow;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -42,19 +42,19 @@ class CompareService {
     private static final int OLD_AFTER_DAYS = 60;
 
     private final ShoppingListRepository list;
-    private final ProductsService productsService;
+    private final PriceRepository prices;
     private final MarketRepository markets;
     private final OsmMarketRepository osm;
     private final Clock clock;
 
     CompareService(
             ShoppingListRepository list,
-            ProductsService productsService,
+            PriceRepository prices,
             MarketRepository markets,
             OsmMarketRepository osm,
             Clock clock) {
         this.list = list;
-        this.productsService = productsService;
+        this.prices = prices;
         this.markets = markets;
         this.osm = osm;
         this.clock = clock;
@@ -74,7 +74,7 @@ class CompareService {
     CompareView compare(UUID workspaceId, @Nullable String marketsParam) {
         List<Chosen> chosen = choose(workspaceId, marketsParam);
         List<ItemRow> rows = list.items(workspaceId);
-        Map<UUID, List<ProductPriceView>> prices = productsService.pricesByProduct(workspaceId);
+        Map<UUID, List<LatestPrice>> prices = pricesByProduct(workspaceId);
 
         List<ItemPrices> items = new ArrayList<>();
         for (ItemRow row : rows) {
@@ -124,14 +124,24 @@ class CompareService {
         if (parts.length < MIN_MARKETS || parts.length > MAX_MARKETS) {
             throw CompareException.marketsInvalid();
         }
-        List<Chosen> chosen = new ArrayList<>();
-        Set<MarketRef> seen = new HashSet<>();
+        // Every check that needs no lookup comes first, so a bad request is a 422 whatever the refs name.
+        List<Optional<MarketRef>> refs = new ArrayList<>();
+        Set<Object> seen = new HashSet<>();
         for (String part : parts) {
-            MarketRef ref = MarketRef.parse(part.strip()).orElseThrow(MarketNotFoundException::new);
-            chosen.add(resolve(workspaceId, ref));
-            if (!seen.add(ref)) {
+            String text = part.strip();
+            Optional<MarketRef> ref = MarketRef.parse(text);
+            refs.add(ref);
+            if (!seen.add(ref.isPresent() ? ref.get() : text)) {
                 throw CompareException.marketsInvalid();
             }
+        }
+        List<Chosen> chosen = new ArrayList<>();
+        for (Optional<MarketRef> ref : refs) {
+            chosen.add(resolve(workspaceId, ref.orElseThrow(MarketNotFoundException::new)));
+        }
+        // The same market by its family id and by its OSM ref is still one market.
+        if (chosen.stream().map(Chosen::id).distinct().count() != chosen.size()) {
+            throw CompareException.marketsInvalid();
         }
         return chosen;
     }
@@ -156,17 +166,29 @@ class CompareService {
         };
     }
 
-    private static Map<UUID, PricePoint> pointsOf(@Nullable List<ProductPriceView> prices, List<Chosen> chosen) {
+    /** The last price of each product at each market, by product. */
+    private Map<UUID, List<LatestPrice>> pricesByProduct(UUID workspaceId) {
+        Map<UUID, List<LatestPrice>> byProduct = new HashMap<>();
+        for (LatestPrice price : prices.latestPerProductAndMarket(workspaceId)) {
+            byProduct
+                    .computeIfAbsent(price.productId(), id -> new ArrayList<>())
+                    .add(price);
+        }
+        return byProduct;
+    }
+
+    /** Prices are told apart by the market's row id, not by the text it was asked for: an OSM market has two. */
+    private static Map<UUID, PricePoint> pointsOf(@Nullable List<LatestPrice> prices, List<Chosen> chosen) {
         Map<UUID, PricePoint> byMarket = new HashMap<>();
         if (prices == null) {
             return byMarket;
         }
         for (Chosen market : chosen) {
-            for (ProductPriceView price : prices) {
-                if (price.marketRef().equals(market.text())) {
+            for (LatestPrice price : prices) {
+                if (price.marketId().equals(market.id())) {
                     byMarket.put(
                             market.id(),
-                            new PricePoint(new BigDecimal(price.unitPrice()), price.unit(), price.observedOn()));
+                            new PricePoint(price.unitPrice(), ProductUnit.valueOf(price.unit()), price.observedOn()));
                 }
             }
         }
@@ -183,11 +205,11 @@ class CompareService {
     }
 
     /** The two markets with the most list items priced; a tie goes to the one with the newest price. */
-    private static List<String> suggested(List<ItemRow> rows, Map<UUID, List<ProductPriceView>> prices) {
+    private static List<String> suggested(List<ItemRow> rows, Map<UUID, List<LatestPrice>> prices) {
         Map<String, Integer> count = new HashMap<>();
         Map<String, LocalDate> newest = new HashMap<>();
         for (ItemRow row : rows) {
-            for (ProductPriceView price : prices.getOrDefault(row.productId(), List.of())) {
+            for (LatestPrice price : prices.getOrDefault(row.productId(), List.of())) {
                 count.merge(price.marketRef(), 1, Integer::sum);
                 newest.merge(price.marketRef(), price.observedOn(), (a, b) -> a.isAfter(b) ? a : b);
             }
