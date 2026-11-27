@@ -480,6 +480,19 @@ describe('AcceptInvitationPage', () => {
     ).toHaveLength(1)
   })
 
+  it('passkeyExplainedForAnAdult', async () => {
+    mockState.signedIn = false
+    seedMockInvitation({ token: TOKEN })
+    renderAccept()
+
+    await screen.findByRole('button', { name: 'Criar passkey neste aparelho' })
+    expect(
+      screen.getAllByText(
+        'Passkey é entrar com a digital, o rosto ou o PIN do aparelho, sem senha.',
+      ),
+    ).toHaveLength(1)
+  })
+
   it('passkeyExplainedAtTheCreateStep', async () => {
     sessionStorage.removeItem(TOKEN_KEY)
     sessionStorage.setItem(PENDING_KEY, 'Convidada')

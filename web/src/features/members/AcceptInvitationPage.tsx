@@ -455,6 +455,11 @@ export function AcceptInvitationPage() {
               >
                 {intl.formatMessage({ id: 'accept.passkey' })}
               </button>
+              {preview.role !== 'YOUTH' && (
+                <p className="text-sm text-text-muted">
+                  {intl.formatMessage({ id: 'passkey.what' })}
+                </p>
+              )}
             </form>
           </>
         )}
