@@ -83,4 +83,25 @@ describe('MergeDialog', () => {
     ).toBeVisible()
     expect(onMerged).not.toHaveBeenCalled()
   })
+
+  it('quantityTooLargeMessage', async () => {
+    server.use(
+      http.post(MERGE, () =>
+        HttpResponse.json(
+          { status: 422, code: 'list.quantity_too_large', detail: 'detalhe do servidor' },
+          { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+      ),
+    )
+    const { onMerged } = open()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Juntar' }))
+
+    expect(
+      await screen.findByText(
+        'Os dois estão na lista de compras, e a quantidade somada ficaria grande demais. Diminua a quantidade na lista e tente de novo.',
+      ),
+    ).toBeVisible()
+    expect(onMerged).not.toHaveBeenCalled()
+  })
 })

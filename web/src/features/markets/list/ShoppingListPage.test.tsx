@@ -79,6 +79,21 @@ describe('ShoppingListPage', () => {
     expect(bodies[1]).toMatchObject({ newProductName: 'Café Exemplo' })
   })
 
+  it.each([
+    ['list.quantity_too_large', 'A quantidade ficaria grande demais. Use um número menor.'],
+    ['list.full', 'A lista já tem o máximo de 300 itens.'],
+  ])('addRefusalSaysWhy %s', async (code, text) => {
+    server.use(http.post(ROOT, () => problem(422, code, 'detalhe do servidor')))
+    render()
+    await screen.findByText('Arroz tipo 1')
+
+    fireEvent.change(screen.getByLabelText('Produto'), { target: { value: 'leite' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'Leite integral' }))
+
+    expect(await screen.findByText(text)).toBeVisible()
+    expect(screen.queryByText('Não deu para adicionar à lista. Tente de novo.')).toBeNull()
+  })
+
   it('checkIsOptimistic', async () => {
     server.use(
       http.patch(`${ROOT}/:id`, async () => {
