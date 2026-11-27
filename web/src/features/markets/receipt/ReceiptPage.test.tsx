@@ -292,7 +292,9 @@ describe('ReceiptPage', () => {
     await screen.findByText('Esta nota é deste mercado')
     fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
 
-    const anchor = await screen.findByRole('link', { name: 'Abrir a nota no site da SEFAZ' })
+    const anchor = await screen.findByRole('link', {
+      name: 'Abrir a nota no site da Fazenda (SEFAZ)',
+    })
     expect(anchor).toHaveAttribute('href', link)
     expect(anchor).toHaveAttribute('rel', 'noopener noreferrer')
     expect(anchor).toHaveAttribute('target', '_blank')
@@ -309,7 +311,7 @@ describe('ReceiptPage', () => {
     await screen.findByText('Esta nota é deste mercado')
     fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
 
-    expect(await screen.findByText(/A leitura automática ainda não existe/)).toBeVisible()
+    expect(await screen.findByText(/Ainda não lemos notas de /)).toBeVisible()
     expect(screen.queryByRole('link', { name: /SEFAZ/ })).not.toBeInTheDocument()
   })
 

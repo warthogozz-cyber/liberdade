@@ -93,8 +93,7 @@ export const membersMessages = {
     'Seu acesso foi recuperado em {date}. Se não foi você, avise o Dono da família.',
   'recovery.dismiss': 'Entendi',
   'members.home.title': 'Endereço da família na Feira',
-  'members.home.help':
-    'Serve para achar mercados perto de casa. Ficam salvos só o ponto aproximado e o rótulo, nunca o texto digitado.',
+  'members.home.help': 'Serve para achar mercados perto de casa. Guardamos só um ponto aproximado.',
   'members.home.current': 'Endereço atual: {label}',
   'members.home.currentNoLabel': 'Há um endereço salvo, sem rótulo.',
   'members.home.none': 'Nenhum endereço salvo.',
