@@ -70,7 +70,10 @@ export function SettingsPage() {
           aria-checked={tipsOn}
           aria-label={intl.formatMessage({ id: 'settings.tips.label' })}
           aria-describedby={tipsHelpId}
-          onClick={() => setTipsOn(!tipsOn)}
+          onClick={() => {
+            setTipsOn(!tipsOn)
+            setReviewed(false)
+          }}
           className={`relative h-8 w-14 shrink-0 rounded-full border border-primary ${
             tipsOn ? 'bg-primary' : 'bg-surface'
           } ${focus}`}

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { useMe } from '@/shared/api'
 import { registerMessages } from '@/shared/i18n'
 import { seenId, tours, type TourId, type TourStep } from './catalog'
+import { OPEN_DIALOG_SELECTOR } from './dialogs'
 import { markSeen, useSeen, useTipsEnabled } from './helpStore'
 import { helpMessages } from './messages.pt-BR'
 
@@ -13,7 +14,7 @@ const Tour = lazy(() => import('./Tour'))
 
 /** The tour can show: no other dialog is on the page and one of its anchors is. */
 function canShow(steps: TourStep[]): boolean {
-  if (document.querySelector('[role="dialog"]') !== null) return false
+  if (document.querySelector(OPEN_DIALOG_SELECTOR) !== null) return false
   return steps.some((step) => document.querySelector(`[data-tour="${step.anchor}"]`) !== null)
 }
 

@@ -73,12 +73,20 @@ describe('HowItWorksPage', () => {
   it('seeTourNavigatesWithState', async () => {
     const { router } = renderPage('ADULT')
 
-    const feira = await screen.findByRole('region', { name: 'Feira' })
-    expect(within(feira).getByText(/preços das notas/)).toBeInTheDocument()
-    fireEvent.click(within(feira).getByRole('link', { name: 'Ver o tour' }))
+    const planning = await screen.findByRole('region', { name: 'Planejamento' })
+    fireEvent.click(within(planning).getByRole('link', { name: 'Ver o tour' }))
 
-    expect(router.state.location.pathname).toBe('/mais/feira')
-    expect(router.state.location.state).toEqual({ forceTour: 'markets' })
+    expect(router.state.location.pathname).toBe('/planejar')
+    expect(router.state.location.state).toEqual({ forceTour: 'planning' })
+  })
+
+  it('noTourLinkWithoutSteps', async () => {
+    renderPage('OWNER')
+
+    const feira = await screen.findByRole('region', { name: 'Feira' })
+    expect(within(feira).queryByRole('link', { name: 'Ver o tour' })).not.toBeInTheDocument()
+    const planning = screen.getByRole('region', { name: 'Planejamento' })
+    expect(within(planning).getByRole('link', { name: 'Ver o tour' })).toBeInTheDocument()
   })
 
   it('glossaryHasEveryTerm', async () => {

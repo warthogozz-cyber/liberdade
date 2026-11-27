@@ -76,6 +76,25 @@ describe('PageTour', () => {
     expect(router.state.location.pathname).toBe('/planejar')
   })
 
+  it('waitsForAlertDialog', async () => {
+    localStorage.removeItem('liberdade.tips')
+    const confirm = document.createElement('div')
+    confirm.setAttribute('role', 'alertdialog')
+    confirm.setAttribute('aria-label', 'Apagar?')
+    document.body.appendChild(confirm)
+    try {
+      renderWithProviders(<PageTour id="planning" />, { path: '/planejar' })
+
+      await wait()
+      expect(screen.queryByText('Passo 1 de 4')).not.toBeInTheDocument()
+
+      act(() => confirm.remove())
+      expect(await screen.findByText('Passo 1 de 4')).toBeInTheDocument()
+    } finally {
+      confirm.remove()
+    }
+  })
+
   it('waitsForDialog', async () => {
     localStorage.removeItem('liberdade.tips')
     const picker = document.createElement('div')

@@ -112,6 +112,24 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Pronto. As dicas vão aparecer de novo.')
   })
 
+  it('reviewedClearsWhenTipsTurnedOff', async () => {
+    renderWithProviders(<SettingsPage />, { path: '/mais/ajustes' })
+
+    const review = screen.getByRole('button', { name: 'Rever dicas' })
+    await waitFor(() => expect(review).toBeEnabled())
+    fireEvent.click(review)
+    expect(screen.getByRole('status')).toHaveTextContent('Pronto. As dicas vão aparecer de novo.')
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Mostrar dicas' }))
+    expect(screen.getByRole('switch', { name: 'Mostrar dicas' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    )
+    const status = screen.getByRole('status')
+    expect(status).toBeInTheDocument()
+    expect(status).not.toHaveTextContent('Pronto. As dicas vão aparecer de novo.')
+  })
+
   it('reviewTipsKeepsOtherPeople', async () => {
     markSeen('someone-else', 'home')
     renderWithProviders(<SettingsPage />, { path: '/mais/ajustes' })
