@@ -107,9 +107,11 @@ describe('Tour', () => {
     anchors(ALL)
     renderWithProviders(<PageTour id="planning" />)
     await screen.findByRole('dialog')
-    fireEvent.keyDown(document, { key: 'Escape' })
-
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // The key listener is added by an effect, which can run just after the card shows.
+    await waitFor(() => {
+      fireEvent.keyDown(document, { key: 'Escape' })
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
     expect(seen()).toBe(true)
   })
 
@@ -154,7 +156,7 @@ describe('Tour', () => {
     anchors(ALL)
     const view = renderWithProviders(<PageTour id="planning" />)
     await screen.findByRole('dialog')
-    expect(isHelpOpen()).toBe(true)
+    await waitFor(() => expect(isHelpOpen()).toBe(true))
 
     view.unmount()
     expect(isHelpOpen()).toBe(false)
@@ -225,7 +227,7 @@ describe('Tour', () => {
     const [budget] = anchors(ALL)
     renderWithProviders(<PageTour id="planning" />)
     await screen.findByRole('dialog')
-    expect(budget?.style.outline).not.toBe('')
+    await waitFor(() => expect(budget?.style.outline).not.toBe(''))
     fireEvent.click(screen.getByRole('button', { name: 'Próximo' }))
     expect(budget?.style.outline).toBe('')
   })
@@ -234,7 +236,9 @@ describe('Tour', () => {
     anchors(ALL)
     renderWithProviders(<PageTour id="planning" />)
     await screen.findByRole('dialog')
-    expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }))
+    await waitFor(() =>
+      expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' })),
+    )
   })
 
   it('reducedMotionScrollsAtOnce', async () => {
@@ -242,6 +246,8 @@ describe('Tour', () => {
     anchors(ALL)
     renderWithProviders(<PageTour id="planning" />)
     await screen.findByRole('dialog')
-    expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'auto' }))
+    await waitFor(() =>
+      expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'auto' })),
+    )
   })
 })
