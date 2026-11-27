@@ -66,9 +66,6 @@ test('editShoppingListOnTwoDevices: the Youth and the Owner share one list, comp
       await addToList(youth, ITEM_NAME)
       await addToList(youth, RICE_NAME)
       await expect(
-        youth.getByRole('checkbox', { name: `Marcar ${RICE_NAME}`, exact: true }),
-      ).toBeVisible()
-      await expect(
         owner.getByRole('checkbox', { name: `Marcar ${ITEM_NAME}`, exact: true }),
       ).toBeVisible({
         timeout: LIVE_TIMEOUT_MS,
@@ -111,9 +108,6 @@ test('editShoppingListOnTwoDevices: the Youth and the Owner share one list, comp
       // "Produtos"; the Owner joins the two and the list keeps one milk.
       await owner.goto(LIST_PATH)
       await addToList(owner, NEAR_DUPLICATE)
-      await expect(
-        owner.getByRole('checkbox', { name: `Marcar ${NEAR_DUPLICATE}`, exact: true }),
-      ).toBeVisible()
 
       await owner.goto('/mais/feira/produtos')
       const suggestion = owner

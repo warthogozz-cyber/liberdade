@@ -199,8 +199,12 @@ export async function registerReceipt(
   await expect(page.getByRole('link', { name: NEAREST_MARKET })).toBeVisible()
 }
 
-/** On the shopping list, adds a product by its name: the one the family has, or a new one. */
+/**
+ * On the shopping list, adds a product by its name: the one the family has, or a new one. Waits
+ * for the item on the list, so a navigation right after it never cuts the add short.
+ */
 export async function addToList(page: Page, name: string): Promise<void> {
   await page.getByLabel('Produto', { exact: true }).fill(name)
   await productChoice(page, name).click()
+  await expect(page.getByRole('checkbox', { name: `Marcar ${name}`, exact: true })).toBeVisible()
 }
