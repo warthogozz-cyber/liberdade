@@ -4,12 +4,14 @@ import { privacy2026112Messages } from './texts/privacy-2026-11.2'
 import { privacy2026113Messages } from './texts/privacy-2026-11.3'
 import { privacy2026114Messages } from './texts/privacy-2026-11.4'
 import { privacy2026115Messages } from './texts/privacy-2026-11.5'
+import { privacy2026116Messages } from './texts/privacy-2026-11.6'
 import { privacy202612Messages } from './texts/privacy-2026-12'
 import { privacy2026121Messages } from './texts/privacy-2026-12.1'
 import { privacy2026122Messages } from './texts/privacy-2026-12.2'
 import { privacy2026123Messages } from './texts/privacy-2026-12.3'
 import { privacy2026124Messages } from './texts/privacy-2026-12.4'
 import { privacy2026125Messages } from './texts/privacy-2026-12.5'
+import { privacy2026126Messages } from './texts/privacy-2026-12.6'
 import { terms202611Messages } from './texts/terms-2026-11'
 import { terms202612Messages } from './texts/terms-2026-12'
 
@@ -58,12 +60,14 @@ export const legalMessages = {
   ...privacy2026113Messages,
   ...privacy2026114Messages,
   ...privacy2026115Messages,
+  ...privacy2026116Messages,
   ...privacy202612Messages,
   ...privacy2026121Messages,
   ...privacy2026122Messages,
   ...privacy2026123Messages,
   ...privacy2026124Messages,
   ...privacy2026125Messages,
+  ...privacy2026126Messages,
   ...terms202611Messages,
   ...terms202612Messages,
 } as const

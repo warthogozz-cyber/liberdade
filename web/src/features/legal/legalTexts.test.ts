@@ -24,12 +24,14 @@ describe('legal texts', () => {
       'privacy-2026-11.3',
       'privacy-2026-11.4',
       'privacy-2026-11.5',
+      'privacy-2026-11.6',
       'privacy-2026-12',
       'privacy-2026-12.1',
       'privacy-2026-12.2',
       'privacy-2026-12.3',
       'privacy-2026-12.4',
       'privacy-2026-12.5',
+      'privacy-2026-12.6',
       'terms-2026-11',
       'terms-2026-12',
     ])
@@ -47,7 +49,7 @@ describe('legal texts', () => {
   })
 
   it('latestIsEmbedded', () => {
-    expect(legalConfig.latest).toEqual({ terms: 'terms-2026-12', privacy: 'privacy-2026-12.5' })
+    expect(legalConfig.latest).toEqual({ terms: 'terms-2026-12', privacy: 'privacy-2026-12.6' })
     expect(legalConfig.texts).toHaveProperty([legalConfig.latest.terms])
     expect(legalConfig.texts).toHaveProperty([legalConfig.latest.privacy])
   })
@@ -88,7 +90,6 @@ describe('legal texts', () => {
   })
 
   it('privacy 11.5 and 12.5 add the Feira section', () => {
-    expect(legalConfig.latest.privacy).toBe('privacy-2026-12.5')
     for (const version of ['privacy-2026-11.5', 'privacy-2026-12.5']) {
       const text = legalConfig.texts[version]
       expect(text.updatedAt).toBe('25 de novembro de 2026')
@@ -117,6 +118,27 @@ describe('legal texts', () => {
       expect(shown).toContain('OpenStreetMap Foundation, no Reino Unido')
       expect(shown).toContain('Google e a publicação do Instagram vem da Meta, nos Estados Unidos')
       expect(shown).toContain('endereço de IP')
+    }
+  })
+
+  it('privacy 11.6 and 12.6 say the import sends each description for a category hint', () => {
+    expect(legalConfig.latest.privacy).toBe('privacy-2026-12.6')
+    for (const version of ['privacy-2026-11.6', 'privacy-2026-12.6']) {
+      const text = legalConfig.texts[version]
+      expect(text.updatedAt).toBe('27 de novembro de 2026')
+      const shown = idsOf(text)
+        .map((id) => legalMessages[id as keyof typeof legalMessages])
+        .join(' ')
+      expect(shown).toContain(
+        'para sugerir a categoria de cada linha, o app envia a descrição da linha',
+      )
+      expect(shown).toContain('Não vão valor nem data, e essa descrição não fica guardada')
+      expect(shown).toContain('E a Feira, os mercados perto de você?')
+      // The older version of the same line said only confirmed lines leave the device.
+      const before = idsOf(legalConfig.texts[version.replace('.6', '.5')])
+        .map((id) => legalMessages[id as keyof typeof legalMessages])
+        .join(' ')
+      expect(before).not.toContain('sugerir a categoria')
     }
   })
 

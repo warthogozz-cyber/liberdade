@@ -129,11 +129,16 @@ aceitou, e a versão sobe junto na API (`LegalDocuments`) e na web (`legalConfig
      começa com dados reais.
    - Alternativa: mudar o app para pedir as sugestões só depois da confirmação. É mais trabalho e
      piora a importação (as categorias aparecem tarde).
+   - **Decidido e feito:** nova versão da política (`privacy-2026-11.6`, sem cobrança, e
+     `privacy-2026-12.6`, com cobrança), com o aceite pedido de novo. A API só lê as categorias da
+     família para responder e não guarda as descrições.
 2. **Item 14, Termos de uso e botão de reembolso.** Os termos mandam tocar em "Receber meu dinheiro
    de volta"; o botão do app diz "Pedir o dinheiro de volta". Só importa com a cobrança ligada.
    - **Recomendado:** corrigir junto com a próxima versão dos termos, no dia de ligar a cobrança
      (runbook [billing-sandbox](billing-sandbox.md), seção "Antes da produção"). Não pede um aceite
      novo agora, quando ninguém paga nada.
+   - **Decidido:** fica para o dia de ligar a cobrança; o item já está na lista "Antes da produção"
+     do runbook.
 
 ### Grupo C: depois, com o retorno das famílias
 
@@ -445,7 +450,7 @@ Comece por elas.
 - [ ] Repositório limpo: só o PR #16 aberto, nenhuma branch mesclada sobrando.
 - [ ] "Automatically delete head branches" ligado.
 - [ ] PRs A1 a A4 mesclados; `e2e` verde na `main`.
-- [ ] Grupo B decidido; política nova mesclada, se for o caso.
+- [x] Grupo B decidido; política nova mesclada, se for o caso.
 - [ ] Go-live passos 1 a 15 com todos os "Conferir".
 - [ ] Parte 4.3 feita no staging.
 - [ ] Cobrança desligada na produção (nenhum parâmetro de cobrança no SSM da produção).
