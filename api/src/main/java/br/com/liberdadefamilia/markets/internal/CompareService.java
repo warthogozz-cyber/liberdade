@@ -39,7 +39,7 @@ class CompareService {
     static final int MIN_MARKETS = 2;
     static final int MAX_MARKETS = 3;
     private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
-    private static final int OLD_AFTER_MONTHS = 2;
+    private static final int OLD_AFTER_DAYS = 60;
 
     private final ShoppingListRepository list;
     private final ProductsService productsService;
@@ -83,7 +83,7 @@ class CompareService {
         Comparison comparison = ComparisonCalculator.compute(
                 items, chosen.stream().map(Chosen::id).toList());
 
-        LocalDate oldBefore = clock.instant().atZone(SAO_PAULO).toLocalDate().minusMonths(OLD_AFTER_MONTHS);
+        LocalDate oldBefore = clock.instant().atZone(SAO_PAULO).toLocalDate().minusDays(OLD_AFTER_DAYS);
         List<CompareItemView> itemViews = new ArrayList<>();
         for (int i = 0; i < rows.size(); i++) {
             ItemRow row = rows.get(i);

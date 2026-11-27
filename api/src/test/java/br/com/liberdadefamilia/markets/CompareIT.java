@@ -129,8 +129,8 @@ class CompareIT {
     void oldAfterSixtyDays() {
         UUID milk = listed("Leite Exemplo 1 L", "1");
         UUID rice = listed("Arroz Exemplo 5 kg", "1");
-        price(marketA, milk, "2026-09-24", "4.5000", "UN");
-        price(marketA, rice, "2026-09-23", "20.0000", "UN");
+        price(marketA, milk, "2026-09-25", "4.5000", "UN");
+        price(marketA, rice, "2026-09-24", "20.0000", "UN");
 
         MvcTestResult result = compare(marketA + "," + marketB);
 
