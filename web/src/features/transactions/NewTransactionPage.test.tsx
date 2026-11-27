@@ -1172,4 +1172,36 @@ describe('NewTransactionPage tip', () => {
       'Digite o valor, escolha a categoria e salve. Dá para desfazer logo depois.',
     )
   })
+
+  it('launchTipHiddenWhileEditing', async () => {
+    localStorage.removeItem('liberdade.tips')
+    const workspace = seedMockFamily()
+    storeForEdit(workspace)
+    await openEdit()
+
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+
+  it('launchTipShownWhileFixing', async () => {
+    localStorage.removeItem('liberdade.tips')
+    const workspace = seedMockFamily()
+    await db.outbox.add(
+      outboxItem('0192f3a4-0000-7000-8000-0000000000f1', {
+        userId: mockState.user.id,
+        workspaceId: workspace.id,
+        status: 'needs-attention',
+        attempts: 1,
+        problem: { code: 'transaction.account-not-found', detail: 'Conta arquivada.' },
+        payload: outboxPayload('0192f3a4-0000-7000-8000-0000000000f1', {
+          accountId: mockState.accounts[0].id,
+          categoryId: category('Mercado').id,
+        }),
+      }),
+    )
+    await openForm('/lancar?corrigir=0192f3a4-0000-7000-8000-0000000000f1')
+
+    expect(screen.getByRole('note')).toHaveTextContent(
+      'Digite o valor, escolha a categoria e salve. Dá para desfazer logo depois.',
+    )
+  })
 })
