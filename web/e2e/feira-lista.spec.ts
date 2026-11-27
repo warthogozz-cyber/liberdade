@@ -65,21 +65,29 @@ test('editShoppingListOnTwoDevices: the Youth and the Owner share one list, comp
       // 3. The Youth adds both products; the Owner sees them without reloading.
       await addToList(youth, ITEM_NAME)
       await addToList(youth, RICE_NAME)
-      await expect(youth.getByRole('checkbox', { name: `Marcar ${RICE_NAME}` })).toBeVisible()
-      await expect(owner.getByRole('checkbox', { name: `Marcar ${ITEM_NAME}` })).toBeVisible({
+      await expect(
+        youth.getByRole('checkbox', { name: `Marcar ${RICE_NAME}`, exact: true }),
+      ).toBeVisible()
+      await expect(
+        owner.getByRole('checkbox', { name: `Marcar ${ITEM_NAME}`, exact: true }),
+      ).toBeVisible({
         timeout: LIVE_TIMEOUT_MS,
       })
-      await expect(owner.getByRole('checkbox', { name: `Marcar ${RICE_NAME}` })).toBeVisible({
+      await expect(
+        owner.getByRole('checkbox', { name: `Marcar ${RICE_NAME}`, exact: true }),
+      ).toBeVisible({
         timeout: LIVE_TIMEOUT_MS,
       })
 
       // 4. The Owner ticks the milk; the Youth sees it struck through, under "Pegos".
       // A click, not `check()`: the ticked item moves to "Pegos" and the box is drawn anew there.
-      await owner.getByRole('checkbox', { name: `Marcar ${ITEM_NAME}` }).click()
+      await owner.getByRole('checkbox', { name: `Marcar ${ITEM_NAME}`, exact: true }).click()
       const picked = youth.getByRole('region', { name: 'Pegos' })
       await expect(picked).toBeVisible({ timeout: LIVE_TIMEOUT_MS })
       await expect(picked.getByText(ITEM_NAME, { exact: true })).toHaveClass(/line-through/)
-      await expect(youth.getByRole('checkbox', { name: `Marcar ${ITEM_NAME}` })).toBeChecked()
+      await expect(
+        youth.getByRole('checkbox', { name: `Marcar ${ITEM_NAME}`, exact: true }),
+      ).toBeChecked()
 
       // 5. The Owner compares: both markets chosen, one item at both, the rice only at the first.
       await owner.getByRole('link', { name: 'Comparar mercados' }).click()
@@ -103,7 +111,9 @@ test('editShoppingListOnTwoDevices: the Youth and the Owner share one list, comp
       // "Produtos"; the Owner joins the two and the list keeps one milk.
       await owner.goto(LIST_PATH)
       await addToList(owner, NEAR_DUPLICATE)
-      await expect(owner.getByRole('checkbox', { name: `Marcar ${NEAR_DUPLICATE}` })).toBeVisible()
+      await expect(
+        owner.getByRole('checkbox', { name: `Marcar ${NEAR_DUPLICATE}`, exact: true }),
+      ).toBeVisible()
 
       await owner.goto('/mais/feira/produtos')
       const suggestion = owner
@@ -111,7 +121,7 @@ test('editShoppingListOnTwoDevices: the Youth and the Owner share one list, comp
         .filter({ has: owner.getByText('São o mesmo produto?') })
       await expect(suggestion).toContainText(ITEM_NAME)
       await expect(suggestion).toContainText(NEAR_DUPLICATE)
-      await suggestion.getByRole('button', { name: 'Juntar' }).click()
+      await suggestion.getByRole('button', { name: 'Juntar', exact: true }).click()
 
       const dialog = owner.getByRole('dialog', { name: 'Juntar produtos' })
       await dialog.getByRole('radio', { name: ITEM_NAME, exact: true }).check()
@@ -121,10 +131,16 @@ test('editShoppingListOnTwoDevices: the Youth and the Owner share one list, comp
       await expect(owner.getByText(NEAR_DUPLICATE)).toHaveCount(0)
 
       await owner.goto(LIST_PATH)
-      await expect(owner.getByRole('checkbox', { name: `Marcar ${ITEM_NAME}` })).toBeVisible()
-      await expect(owner.getByRole('checkbox', { name: `Marcar ${NEAR_DUPLICATE}` })).toHaveCount(0)
+      await expect(
+        owner.getByRole('checkbox', { name: `Marcar ${ITEM_NAME}`, exact: true }),
+      ).toBeVisible()
+      await expect(
+        owner.getByRole('checkbox', { name: `Marcar ${NEAR_DUPLICATE}`, exact: true }),
+      ).toHaveCount(0)
       // The merged item's quantity is added to the one that stayed (1 + 1).
-      await expect(owner.getByLabel(`Quantidade de ${ITEM_NAME}`)).toHaveValue('2')
+      await expect(
+        owner.getByRole('textbox', { name: `Quantidade de ${ITEM_NAME}`, exact: true }),
+      ).toHaveValue('2')
     },
     NO_SERVICE_WORKER,
   )

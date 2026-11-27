@@ -752,7 +752,7 @@ test('the products, the shopping list and the market comparison meet WCAG 2.2 AA
   await page.goto('/mais/feira/lista')
   await addToList(page, ITEM_NAME)
   await addToList(page, RICE_NAME)
-  await page.getByRole('checkbox', { name: `Marcar ${RICE_NAME}` }).click()
+  await page.getByRole('checkbox', { name: `Marcar ${RICE_NAME}`, exact: true }).click()
   await expectNoViolations(page, 'Lista de compras', page.getByRole('region', { name: 'Pegos' }))
 
   // The comparison, with both markets chosen and the rice missing at the second.
