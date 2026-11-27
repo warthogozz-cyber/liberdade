@@ -40,6 +40,7 @@ export function PrivacyPage() {
       <h2 className="mt-2 text-lg font-semibold">
         {intl.formatMessage({ id: 'privacy.passkeys' })}
       </h2>
+      <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'passkey.what' })}</p>
       <PasskeyList />
       <div className="mt-4 flex flex-col gap-3">
         {workspace?.role === 'OWNER' && (

@@ -18,6 +18,17 @@ const ALLOWED = new Set([
   'Imposto',
   'Renda',
   'IR',
+  // The full names of the acronyms, spelled out where each first appears.
+  'Fundo',
+  'Garantidor',
+  'Créditos',
+  'Certificado',
+  'Depósito',
+  'Bancário',
+  'Letras',
+  'Crédito',
+  'Imobiliário',
+  'Agronegócio',
 ])
 
 /** Every string of every topic, as its own piece of text. */
@@ -44,7 +55,9 @@ describe('investment texts', () => {
   it('noRecommendationWords', () => {
     const forbidden = [/recomend/i, /melhor/i, /ideal para você/i, /indicamos/i, /garantido/i]
     for (const text of texts) {
-      for (const word of forbidden) expect(text).not.toMatch(word)
+      // "Garantidor" is part of the FGC's own name, not a promise.
+      const clean = text.replace(/Fundo Garantidor de Créditos/g, 'FGC')
+      for (const word of forbidden) expect(clean).not.toMatch(word)
     }
   })
 
@@ -58,6 +71,54 @@ describe('investment texts', () => {
         if (!opensSentence) expect(ALLOWED, `"${match[0]}" in: ${text}`).toContain(match[0])
       }
     }
+  })
+
+  it('oneSentencePerField', () => {
+    for (const topic of INVESTMENT_TOPICS) {
+      for (const text of [
+        topic.whatItIs,
+        topic.risk,
+        topic.liquidity,
+        topic.guarantee,
+        topic.tax,
+      ]) {
+        expect(text.replace(/[.!?]$/, ''), text).not.toMatch(/[.!?]/)
+        expect(text.length, text).toBeLessThanOrEqual(280)
+      }
+    }
+  })
+
+  it('acronymsExplainedOnFirstUse', () => {
+    // In card order, the first field that names each acronym carries its explanation.
+    const explanations: [string, RegExp][] = [
+      ['FGC', /Fundo Garantidor de Créditos/],
+      ['CDB', /Certificado de Depósito Bancário/],
+      ['LCI', /Letras de Crédito Imobiliário/],
+      ['LCA', /do Agronegócio/],
+      ['CDI', /taxa que os bancos usam entre si/],
+      ['IPCA', /inflação oficial/],
+      ['Selic', /taxa básica de juros/],
+    ]
+    const fields = INVESTMENT_TOPICS.flatMap((topic) => [
+      topic.whatItIs,
+      topic.risk,
+      topic.liquidity,
+      topic.guarantee,
+      topic.tax,
+    ])
+    for (const [acronym, explanation] of explanations) {
+      const first = fields.find((text) => new RegExp(`\\b${acronym}\\b`).test(text))
+      expect(first, acronym).toMatch(explanation)
+    }
+    const renda = INVESTMENT_TOPICS.find((topic) => topic.id === 'renda-fixa')
+    expect(renda?.tax).toContain('alíquota (a porcentagem de imposto)')
+    const tesouro = INVESTMENT_TOPICS.find((topic) => topic.id === 'tesouro-direto')
+    expect(tesouro?.tax).toContain('custódia (a taxa de guarda dos títulos)')
+  })
+
+  it('noLossPhrase', () => {
+    const loss = /perd|perca|resta|expir|quebr|corra|última chance|não deixe|falta/i
+    for (const text of texts) expect(text).not.toMatch(loss)
   })
 
   it('fgcCitesItsDate', () => {

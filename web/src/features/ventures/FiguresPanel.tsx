@@ -90,6 +90,9 @@ export function FiguresPanel({
               </li>
             ))}
           </ul>
+          <p className="text-sm text-text-muted">
+            {intl.formatMessage({ id: 'ventures.caption.margin' })}
+          </p>
           <dl className="flex flex-col gap-1 border-t border-text-muted/30 pt-3">
             <Row label={intl.formatMessage({ id: 'ventures.figures.breakEven' })}>
               {breakEvenEdge ??
@@ -103,6 +106,12 @@ export function FiguresPanel({
             </Row>
             <Row label={intl.formatMessage({ id: 'ventures.figures.roi' })}>{roiText(figures)}</Row>
           </dl>
+          <p className="text-sm text-text-muted">
+            {intl.formatMessage({ id: 'ventures.caption.breakEven' })}
+          </p>
+          <p className="text-sm text-text-muted">
+            {intl.formatMessage({ id: 'ventures.caption.payback' })}
+          </p>
         </>
       )}
       <p className="text-text-muted">{intl.formatMessage({ id: 'ventures.figures.note' })}</p>

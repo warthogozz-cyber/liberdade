@@ -63,6 +63,18 @@ describe('PrivacyPage', () => {
     expect(await screen.findByText('Responsável legal pelo uso do app')).toBeInTheDocument()
   })
 
+  it('passkeyExplained', async () => {
+    seedMockFamily()
+    renderPrivacy()
+
+    await screen.findByRole('heading', { name: 'Passkeys' })
+    expect(
+      screen.getAllByText(
+        'Passkey é entrar com a digital, o rosto ou o PIN do aparelho, sem senha.',
+      ),
+    ).toHaveLength(1)
+  })
+
   it('downloadsZip', async () => {
     seedMockFamily()
     renderPrivacy()

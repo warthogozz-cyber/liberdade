@@ -30,6 +30,25 @@ function fillBasics() {
 }
 
 describe('InvestmentSimulatorPage', () => {
+  it('rateOptionsExplained', async () => {
+    render()
+    await screen.findByDisplayValue('15,00')
+
+    expect(
+      screen.getByRole('group', {
+        name: 'Cenário 1',
+        description: 'Selic: a taxa básica de juros do país, definida pelo Banco Central.',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('group', {
+        name: 'Cenário 2',
+        description:
+          'CDI: a taxa que os bancos usam entre si; muitos investimentos rendem uma porcentagem dela.',
+      }),
+    ).toBeVisible()
+  })
+
   it('showsTheDisclaimerAndNote', async () => {
     render()
     expect(screen.getByRole('note')).toHaveTextContent(

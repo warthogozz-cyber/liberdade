@@ -189,6 +189,9 @@ export const routeHelp: Record<string, RouteHelp> = {
   '/mais/projetos': { tour: 'ventures' },
   '/mais/projetos/comecar': { inherits: '/mais/projetos' },
   '/mais/projetos/:id/editar': { inherits: '/mais/projetos' },
+  '/mais/projetos/:id': { inline: 'ventures.caption.margin' },
+  '/mais/projetos/investimentos': { inline: 'ventures.invest.intro' },
+  '/mais/projetos/investimentos/simulador': { inline: 'ventures.invest.disclaimer' },
 }
 
 /** The ids under which "seen" is stored; they match what existing devices already hold. */

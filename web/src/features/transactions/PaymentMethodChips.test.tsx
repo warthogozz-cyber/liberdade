@@ -31,7 +31,7 @@ describe('PaymentMethodChips', () => {
       'Crédito',
       'Débito',
       'Boleto',
-      'TED',
+      'Transferência (TED)',
       'Dinheiro',
     ])
     for (const button of buttons) expect(button).toHaveAttribute('aria-pressed', 'false')

@@ -23,9 +23,9 @@ describe('HowWeCalculate', () => {
         'Ponto de equilíbrio: R$ 270,00 ÷ R$ 2,70 = 100 unidades, arredondado para cima',
       ),
     ).toBeVisible()
-    expect(screen.getByText('Payback: R$ 800,00 ÷ R$ 540,00 = 1,48 → 2 meses')).toBeVisible()
+    expect(screen.getByText('Retorno: R$ 800,00 ÷ R$ 540,00 = 1,48 → 2 meses')).toBeVisible()
     expect(
-      screen.getByText('ROI em 12 meses: (12 × R$ 540,00 − R$ 800,00) ÷ R$ 800,00 = 710,0%'),
+      screen.getByText('Retorno em 12 meses: (12 × R$ 540,00 − R$ 800,00) ÷ R$ 800,00 = 710,0%'),
     ).toBeVisible()
   })
 
@@ -48,7 +48,7 @@ describe('HowWeCalculate', () => {
     )
     open()
 
-    expect(screen.getByText('Payback: não se paga com esses números')).toBeVisible()
+    expect(screen.getByText('Retorno: não se paga com esses números')).toBeVisible()
     expect(
       screen.getByText('Ponto de equilíbrio: não há ponto de equilíbrio com esses números'),
     ).toBeVisible()

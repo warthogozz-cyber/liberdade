@@ -131,6 +131,11 @@ export function SignInPage() {
             <FormattedMessage id="signIn.passkey" />
           </button>
         )}
+        {supportsPasskey && (
+          <p className="text-sm text-text-muted">
+            <FormattedMessage id="passkey.what" />
+          </p>
+        )}
         {!online && (
           <p className="text-text-muted">
             <FormattedMessage id="signIn.offline" />
