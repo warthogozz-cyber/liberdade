@@ -140,16 +140,16 @@ export function ProductsPage() {
   const formatMoney = useFormatMoney()
   const workspace = useCurrentWorkspace()
   const ws = workspace?.id
-  // The suggestions and the edits are for the people who may join and change products.
+  // Everyone sees the suggestions; the buttons and the edits are for the people who may change products.
   const canWrite = workspace?.role === 'OWNER' || workspace?.role === 'ADULT'
   const overview = useProductsOverview(ws)
-  const suggestions = useProductSuggestions(ws, canWrite)
+  const suggestions = useProductSuggestions(ws)
   const dismiss = useDismissPair(ws ?? '')
   const [editing, setEditing] = useState<ProductOverview | null>(null)
   const [merging, setMerging] = useState<{ a: ProductName; b: ProductName } | null>(null)
 
   const products = overview.data?.products
-  const pairs = canWrite ? (suggestions.data ?? []) : []
+  const pairs = suggestions.data ?? []
   const formatDate = (day: string) =>
     intl.formatDate(`${day}T12:00:00Z`, {
       day: '2-digit',
@@ -174,6 +174,7 @@ export function ProductsPage() {
               key={`${pair.a.id}-${pair.b.id}`}
               pair={pair}
               busy={dismiss.isPending}
+              canWrite={canWrite}
               onMerge={() => setMerging({ a: pair.a, b: pair.b })}
               onDismiss={() => dismiss.mutate({ a: pair.a.id, b: pair.b.id })}
             />

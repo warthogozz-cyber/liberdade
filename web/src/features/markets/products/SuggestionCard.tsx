@@ -8,6 +8,8 @@ registerMessages(marketsMessages)
 interface SuggestionCardProps {
   pair: SuggestedPair
   busy: boolean
+  /** Owner and Adult: the ones who may join or turn down a pair. */
+  canWrite: boolean
   onMerge: () => void
   onDismiss: () => void
 }
@@ -16,7 +18,7 @@ const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visi
 const button = `min-h-12 flex-1 rounded-field px-4 font-medium disabled:opacity-50 ${focus}`
 
 /** Two products that may be one: the person joins them or says they are not. Plain words, no score. */
-export function SuggestionCard({ pair, busy, onMerge, onDismiss }: SuggestionCardProps) {
+export function SuggestionCard({ pair, busy, canWrite, onMerge, onDismiss }: SuggestionCardProps) {
   return (
     <li className="flex flex-col gap-3 rounded-card bg-surface px-4 py-3">
       <p className="text-sm text-text-muted">
@@ -26,24 +28,26 @@ export function SuggestionCard({ pair, busy, onMerge, onDismiss }: SuggestionCar
         <span>{pair.a.name}</span>
         <span>{pair.b.name}</span>
       </p>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onMerge}
-          className={`${button} bg-primary text-on-primary`}
-        >
-          <FormattedMessage id="markets.products.suggestion.merge" />
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onDismiss}
-          className={`${button} border border-primary text-primary`}
-        >
-          <FormattedMessage id="markets.products.suggestion.dismiss" />
-        </button>
-      </div>
+      {canWrite && (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onMerge}
+            className={`${button} bg-primary text-on-primary`}
+          >
+            <FormattedMessage id="markets.products.suggestion.merge" />
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onDismiss}
+            className={`${button} border border-primary text-primary`}
+          >
+            <FormattedMessage id="markets.products.suggestion.dismiss" />
+          </button>
+        </div>
+      )}
     </li>
   )
 }

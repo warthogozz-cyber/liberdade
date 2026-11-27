@@ -97,8 +97,8 @@ describe('ProductsPage', () => {
     render(role)
 
     expect(await screen.findByText('Arroz tipo 1')).toBeVisible()
-    expect(screen.getByText('Café Exemplo 500 g')).toBeVisible()
-    expect(screen.queryByText('São o mesmo produto?')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Café Exemplo 500 g')).toHaveLength(2)
+    expect(await screen.findByText('São o mesmo produto?')).toBeVisible()
     expect(screen.queryByRole('button', { name: /Juntar|Não são|Editar/ })).not.toBeInTheDocument()
   })
 })
