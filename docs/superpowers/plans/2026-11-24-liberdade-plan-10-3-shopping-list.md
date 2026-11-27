@@ -6,6 +6,24 @@
 > 10.2 existirem no código. Antes da Task 1, o controlador confere contra o `main` os nomes que este
 > plano usa delas (seção "Interfaces"), o `LiveRelay`, as versões da exportação e as migrações. Onde
 > o código mudou, o plano é ajustado num PR de docs pequeno antes de começar.
+>
+> **Conferido em 2026-11-26** contra o `main` em `189d017` (10.1, 10.2 e o polimento #83 já no
+> `main`). O que mudou está corrigido no texto abaixo:
+> - `FORMAT_VERSION` do `ExportService` está em 10: esta entrega escreve 11.
+> - A V42 está livre (a última migração é a V41). Ela também refaz o CHECK de
+>   `audit_events.target_type` com `PRODUCT`.
+> - O `LiveRelay` já filtra por módulo (`@Nullable ModuleKey`): a troca de D10 caiu. Os avisos novos
+>   são métodos `on(...)` dentro do próprio `LiveRelay`, e o `live` passa a depender de `markets`.
+> - O `ProductRepository` da 10.2 não tem busca por nome normalizado, edição nem junção; a Task 1
+>   cria as três. A unidade em `ProductRow` é texto.
+> - O `PriceRepository` só lê o último preço de um mercado por vez; a Task 1 cria a leitura do
+>   último preço de cada produto em cada mercado, que a lista e a comparação reusam.
+> - As rotas da Feira ficam em `features/markets/MarketsRoutes.tsx`, atrás do `PlanRequired`.
+> - No MSW, o `marketsGuard` só deixa Dono e Adulto escrever; as rotas da lista precisam de uma
+>   guarda que deixe o Jovem, registradas antes das rotas com `:ref`.
+> - O e2e roda só no CI, em HTTPS, com `buyFamilyPlan` e `setModules`, e os ajudantes de
+>   `e2e/receipts.ts`.
+> - Os comandos para gerar o contrato estão nas restrições globais.
 
 **Goal:**
 - A família mantém uma lista de compras única, que muda ao vivo em todos os aparelhos.
@@ -55,8 +73,9 @@ aprovado pelo mantenedor em 2026-11-24. Este plano cobre a seção 6.7 e a parte
   ponto flutuante em conta de dinheiro, nem na web.
 - **Fronteiras de módulo:** tudo novo fica em `markets`. `live`, `audit` e `privacy` usam só os
   tipos públicos da raiz do pacote.
-- **Contrato:** `api/openapi.json`, `web/src/shared/api/schema.ts` e o `RoleMatrixIT` mudam no
-  mesmo commit da rota.
+- **Contrato:** `api/openapi.json`, `web/src/shared/api/schema.ts` e o `RoleMatrixIT` (linhas em
+  `marketRows()`) mudam no mesmo commit da rota. "Gerar o contrato" quer dizer: em `api/`,
+  `UPDATE_OPENAPI=true ./gradlew test --rerun --tests '*OpenApiDriftIT'`; em `web/`, `npm run gen:api`.
 - **Cobertura:** JaCoCo 80% no total, 90% em `shared*` e `*.domain*`.
 - **Desempenho:** pacote inicial até 200 KB (`npm run check:chunks`); as telas novas são `lazy`.
 - **Acessibilidade:** WCAG 2.2 AA; axe sem violações. Marcar item funciona por teclado; mudar a
@@ -67,18 +86,22 @@ aprovado pelo mantenedor em 2026-11-24. Este plano cobre a seção 6.7 e a parte
 ### Pré-requisitos de execução
 
 - **10.1 e 10.2 no `main`** e conferidas no staging.
-- **Versão da exportação:** antes da Task 5, conferir o `FORMAT_VERSION` do `ExportService` no
-  `main`. Este plano escreve o seguinte (a 10.2 já subiu um).
-- **Migração:** a V42 é desta entrega. Se o `main` já tiver uma V42, a execução para e avisa.
-- **`LiveRelay`:** antes da Task 3, conferir a assinatura de `LiveRelay.send` no `main`. Este plano
-  parte de `send(UUID workspaceId, String entity, @Nullable UUID id, Audience audience, boolean needsPlanning)`.
-  Se o Plano 9 ou outro já tiver trocado o `boolean`, a Task 3 segue a forma nova em vez de D10.
+- **Versão da exportação:** o `FORMAT_VERSION` do `ExportService` está em 10 no `main`; esta
+  entrega escreve 11.
+- **Migração:** a V42 é desta entrega (a última no `main` é a V41). Se o `main` já tiver uma V42, a
+  execução para e avisa.
+- **`LiveRelay`:** já recebe o módulo, no `main`:
+  `send(UUID workspaceId, String entity, @Nullable UUID id, Audience audience, @Nullable ModuleKey module)`
+  (privado; `null` = sempre manda). Os avisos são métodos
+  `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT) void on(...)` dentro dele.
 - **A política de privacidade e o `/robo` não mudam.** A lista e os produtos já estão na política
   publicada com a 10.1.
 
 ### Pré-requisitos locais
 
-- Docker para o PostgreSQL dos testes (`docker compose up -d db`). Nunca `docker compose down -v`.
+- Docker para o Testcontainers, que sobe o PostgreSQL dos ITs sozinho. Nunca `docker compose down -v`
+  e nunca recriar os contêineres de quem roda.
+- O e2e roda só no CI (jobs `e2e` e `e2e-mobile`).
 
 ## Entrega
 
@@ -92,16 +115,26 @@ aprovado pelo mantenedor em 2026-11-24. Este plano cobre a seção 6.7 e a parte
 
 Conferir os nomes no `main` antes de começar (aviso do topo).
 
-- 10.1: `MarketRepository.findByRef`, `MarketRef.parse`, `TextNorm.normalize`, `MarketViews`,
-  `MarketsExport`, `MarketEdited`; na web, `useMarketSearch`, `SourceStamp`, `FeiraPage.tsx`,
-  `features/markets/{messages.pt-BR.ts,register.ts}`, as rotas em `app/routes.tsx` dentro de
-  `<ModuleRoute module="markets">`, MSW em `mocks/handlers.ts` e `data.ts`.
-- 10.2: as tabelas `products`, `product_aliases` e `price_records` (V41); `ProductUnit`,
-  `ProductRepository.create`, `search`; `PriceRepository.latestByMarket`; as rotas
-  `GET /markets/products?q` e `GET /markets/{ref}/prices`; `MarketsExport.products/prices`;
-  na web, `ProductPicker.tsx`, `useFamilyProducts`, `unitPriceToCents` (`features/markets/price.ts`).
-- Fora da Feira: `LiveRelay` (`live`), `web/src/shared/live/invalidation.ts` (mapa `PREFIXES`),
-  `shared/money` (`formatMoney`, `parseTypedAmount`) e `useFormatMoney`.
+- 10.1: `MarketRepository.findByRef`, `MarketRef.parse` (devolve `Optional<MarketRef>`),
+  `TextNorm.normalize` (público), `MarketViews`, `MarketsExport`, `MarketEdited`,
+  `MarketNotFoundException` (404 `market.not_found`); na web, `useMarketSearch`, `SourceStamp`,
+  `FeiraPage.tsx`, `features/markets/{messages.pt-BR.ts,register.ts}` (o `register.ts` não muda),
+  as rotas em `features/markets/MarketsRoutes.tsx` (`useRoutes`, atrás do `PlanRequired`), as chaves
+  em `marketsKeys` (`shared/api/markets.ts`), MSW em `mocks/handlers.ts` (`marketsHandlers()`) e
+  `data.ts`.
+- 10.2: as tabelas `products`, `product_aliases` e `price_records` (V41); `ProductUnit` (`UN`, `KG`,
+  `G`, `L`, `ML`, `CX`, `PCT`, `DZ`); `ProductRepository` (do pacote: `byGtin`, `byAlias`, `exists`,
+  `create(ws, name, ProductUnit)`, `discard`, `addAlias`, `search`; `ProductRow(UUID id, String name,
+  String unit, @Nullable String gtin)`, com a unidade em texto); `PriceRepository.latestByMarket(ws,
+  marketId, limit)` (um mercado por vez); `ReceiptSaveService.DECIMAL` (a forma da quantidade); as
+  rotas `GET /markets/products?q` (`FamilyProductsView`) e `GET /markets/{ref}/prices`
+  (`MarketPricesController`); `MarketsExport.products/aliases/prices/receipts`; na web,
+  `ProductPicker.tsx` (props `{ws, value, onChange, inputId?, invalid?, describedBy?}`; não busca
+  nada até a pessoa digitar), `useFamilyProducts` (`useReceipts.ts`) e `unitPriceToCents`
+  (`features/markets/price.ts`).
+- Fora da Feira: `LiveRelay` e `Audience.Everyone` (`live/internal`),
+  `web/src/shared/live/invalidation.ts` (mapa `PREFIXES`), `shared/money` (`formatMoney`,
+  `parseTypedAmount`) e `useFormatMoney`.
 
 ## Decisões deste plano
 
@@ -109,7 +142,8 @@ Conferir os nomes no `main` antes de começar (aviso do topo).
 - `markets/domain`: `NameSimilarity`, `ComparisonCalculator` e os registros deles. Sem Spring.
 - `markets/internal`: o resto. Raiz do pacote: os eventos `ShoppingListChanged` e `ProductsMerged`
   e os registros da exportação.
-- `live/package-info.java`: `markets` entra em `allowedDependencies`, como a 10.1 deixou anotado.
+- `live/package-info.java`: `markets` entra em `allowedDependencies` (hoje: `identity`, `workspace`,
+  `ledger`, `planning`, `gamification`, `ventures` e `shared`).
 
 **D2. Produtos** (`GET /v1/workspaces/{ws}/markets/products/overview`).
 - Resposta `{products: [{id, name, unit, gtin, prices: [{marketRef, marketName, unitPrice, unit, observedOn}]}]}`:
@@ -225,23 +259,24 @@ Adulto).
   - `feira-nao-juntar.csv`: `produto_a;produto_b`.
 - **A mais que o spec:** `feira-nao-juntar.csv` (escolha da família, pequena; sem ela, a importação
   futura voltaria a sugerir o que a família recusou).
-- `FORMAT_VERSION` vai para a seguinte à do `main` (pré-requisito).
+- `FORMAT_VERSION` vai de 10 para 11.
 - Exclusão: em cascata pela `workspace_id`.
 
 **D10. Ao vivo.**
-- `LiveRelay.send(…, boolean needsPlanning)` vira `send(…, @Nullable ModuleKey requires)`:
-  - `null` = sempre manda; `ModuleKey.PLANNING` = o comportamento antigo de `needsPlanning = true`;
-  - os chamadores de hoje trocam `false` por `null` e `true` por `ModuleKey.PLANNING`, sem mudar o
-    que fazem (os testes atuais do `live` provam).
-- `@ApplicationModuleListener` no `live` para `ShoppingListChanged` e `ProductsChanged`/`ProductsMerged`
-  (estes avisam a lista, porque mudam os nomes e os preços):
-  `send(ws, "shopping-list", null, Audience.everyone(), ModuleKey.MARKETS)`. Conferir o nome exato
-  da audiência de todos no `main`.
+- O `LiveRelay` já filtra por módulo; os chamadores de hoje não mudam.
+- Métodos `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT) void on(...)` dentro do
+  `LiveRelay`, como os que já existem, para `ShoppingListChanged`, `ProductsChanged` e
+  `ProductsMerged` (estes avisam a lista, porque mudam os nomes e os preços):
+  `send(ws, "shopping-list", null, new Everyone(), ModuleKey.MARKETS)`.
+- `docs/architecture.md`, seção "Avisos ao vivo": o aviso `shopping-list` entra na lista.
 - Web, `shared/live/invalidation.ts`:
   `'shopping-list': [['markets', 'list'], ['markets', 'compare'], ['markets', 'products']]`, em
-  arrays literais (o `shared` não importa a feature).
-- As chaves de consulta da Feira na web seguem essas raízes: `['ws', ws, 'markets', 'list']`,
-  `['ws', ws, 'markets', 'compare', refs]`, `['ws', ws, 'markets', 'products', …]`.
+  arrays literais (o `shared` não importa a feature), com o teste conferindo que batem com
+  `marketsKeys`, como já se faz com `ventures`.
+- As chaves novas entram em `marketsKeys` e seguem essas raízes: `list(ws)` =
+  `['ws', ws, 'markets', 'list']`, `compare(ws, refs)` = `['ws', ws, 'markets', 'compare', refs]`.
+  A do overview fica sob `products`, mas não pode coincidir com `products(ws, q)`:
+  `['ws', ws, 'markets', 'products', { view: 'overview' }]` (um objeto nunca é igual a um texto).
 
 **D11. Web: Produtos** (`/mais/feira/produtos`, `ProductsPage.tsx`).
 - No topo, as sugestões: "São o mesmo produto?" com os dois nomes, "Juntar" e "Não são" (Dono e
@@ -302,7 +337,7 @@ Caminhos da API relativos a `api/src/main/java/br/com/liberdadefamilia/` (testes
 | `api/src/main/resources/db/migration/V42__shopping_list.sql` | 1 | lista e recusas |
 | `markets/internal/{ProductsController,ProductsService,ProductMergeService}.java`, `markets/{ProductsMerged,ProductsChanged}.java` | 1 | produtos, edição e junção |
 | `markets/domain/NameSimilarity.java`, `markets/internal/ProductSuggestionsService.java` | 2 | sugestões e "Não são" |
-| `markets/internal/{ShoppingListController,ShoppingListService,ShoppingListRepository}.java`, `markets/ShoppingListChanged.java`, `live/internal/{LiveRelay,…Listeners}.java`, `live/package-info.java`, `shared/live/invalidation.ts` | 3 | lista e ao vivo |
+| `markets/internal/{ShoppingListController,ShoppingListService,ShoppingListRepository}.java`, `markets/ShoppingListChanged.java`, `live/internal/LiveRelay.java`, `live/package-info.java`, `shared/live/invalidation.ts` | 3 | lista e ao vivo |
 | `markets/domain/ComparisonCalculator.java`, `markets/internal/{CompareController,CompareService}.java` | 4 | comparação |
 | `markets/MarketsExport.java`, `markets/internal/JdbcMarketsExport.java`, `privacy/internal/ExportService.java`, `audit/internal/AuditListeners.java`, `audit/AuditEntry.java` | 5 | exportação e auditoria |
 | `features/markets/products/{ProductsPage.tsx,MergeDialog.tsx,SuggestionCard.tsx,useProducts.ts}` | 6 | tela Produtos |
@@ -310,7 +345,7 @@ Caminhos da API relativos a `api/src/main/java/br/com/liberdadefamilia/` (testes
 | `features/markets/compare/{ComparePage.tsx,useCompare.ts}` | 8 | tela Comparar |
 | `web/e2e/{feira-lista.spec.ts,a11y.spec.ts}`, `docs/{architecture.md,data-model.md}` | 9 | e2e e docs |
 
-`app/routes.tsx`, `features/markets/messages.pt-BR.ts`, `mocks/{handlers.ts,data.ts}`,
+`features/markets/MarketsRoutes.tsx`, `features/markets/messages.pt-BR.ts`, `mocks/{handlers.ts,data.ts}`,
 `api/openapi.json`, `web/src/shared/api/schema.ts` e `RoleMatrixIT.java` mudam nas tasks que tocam
 cada rota ou tela.
 
@@ -320,9 +355,10 @@ cada rota ou tela.
 
 **Files:**
 - Create: `db/migration/V42__shopping_list.sql`, os arquivos da Task 1 no mapa.
-- Modify: `markets/internal/ProductRepository.java`, `api/openapi.json`, `schema.ts`,
-  `RoleMatrixIT.java`.
-- Test: `markets/ProductsIT.java`, `markets/ProductMergeIT.java`, `markets/ShoppingListSchemaIT.java`,
+- Modify: `markets/internal/{ProductRepository,PriceRepository}.java`, `api/openapi.json`,
+  `schema.ts`, `RoleMatrixIT.java`.
+- Test: `markets/ProductsIT.java`, `markets/ProductMergeIT.java`, `markets/ShoppingListSchemaIT.java`
+  (no molde de `MarketsSchemaIT` e `ReceiptsSchemaIT`), `PriceAndProductRepositoryIT` (estendido),
   `RoleMatrixIT`.
 
 **Interfaces:**
@@ -332,12 +368,21 @@ cada rota ou tela.
   - `record ProductsChanged(UUID workspaceId)`;
   - `ProductsService.overview(UUID ws): ProductsOverview` e o registro `ProductPriceView(String marketRef, @Nullable String marketName, BigDecimal unitPrice, ProductUnit unit, LocalDate observedOn)`,
     que a lista (Task 3) reusa para `prices`;
-  - `ProductRepository.findByNormalizedName(UUID ws, String norm): Optional<UUID>`, que a Task 3
-    usa.
+  - criados aqui (a 10.2 não tem): `ProductRepository.findByNormalizedName(UUID ws, String norm): Optional<UUID>`
+    (compara com `TextNorm.normalize` do nome), que a Task 3 usa, e a edição e a junção (D3, D4);
+  - `PriceRepository.latestPerProductAndMarket(UUID ws): List<LatestPrice>`, o último preço de cada
+    produto em cada mercado da família (`distinct on (product_id, market_id)`, mesma regra de
+    "último" da 10.2), que o overview, a lista (Task 3) e a comparação (Task 4) usam.
 
 **Como fica:** a V42 é o DDL da seção 6.3 do spec (V42), mais
 `CHECK (product_a < product_b)` em `product_join_dismissals` e as FKs `(workspace_id, product_a)` e
-`(workspace_id, product_b)` para `products (workspace_id, id) ON DELETE CASCADE`.
+`(workspace_id, product_b)` para `products (workspace_id, id) ON DELETE CASCADE`. Também:
+- `shopping_list_items.id` com `DEFAULT uuidv7()` e a FK composta `(workspace_id, product_id)` para
+  `products (workspace_id, id)`;
+- `DROP` e `ADD` de `audit_events_target_type_check` com a lista da V41 (`USER`, `MEMBERSHIP`,
+  `INVITATION`, `WORKSPACE`, `MODULE`, `CONSENT`, `ORDER`, `PLAN`, `RECURRING_RULE`, `GOAL`,
+  `ACCOUNT`, `VENTURE`, `MARKET`, `RECEIPT`) mais `PRODUCT`; o Javadoc de `AuditEntry` e de
+  `AuditListeners` ganha `PRODUCT` na Task 5.
 
 - [ ] **Step 1: Escrever os testes (falhando)**
 
@@ -345,6 +390,8 @@ cada rota ou tela.
 |---|---|
 | `ShoppingListSchemaIT.productOncePerList` | o mesmo produto duas vezes na lista → violação |
 | `ShoppingListSchemaIT.dismissalOrdered` | `product_a > product_b` → violação |
+| `ShoppingListSchemaIT.auditAcceptsProduct` | `audit_events` com `target_type = 'PRODUCT'` → aceito |
+| `PriceAndProductRepositoryIT.latestPerProductAndMarket` | 2 preços do mesmo produto no mesmo mercado e 1 em outro → 2 linhas, as mais novas |
 | `ProductsIT.overviewLatestPerMarket` | produto com preços em 2 mercados (dois no mesmo) → 2 itens em `prices`, os mais novos |
 | `ProductsIT.renameAndUnit` | `PATCH {name: "Leite Exemplo Integral 1 L", unit: L}` → 200; preços antigos com a unidade antiga |
 | `ProductsIT.blankNameIs422` | `name: "  "` ou 81 caracteres → 422 `product.name_invalid` |
@@ -407,18 +454,18 @@ cada rota ou tela.
 
 **Files:**
 - Create: os arquivos da lista na Task 3 no mapa.
-- Modify: `live/internal/LiveRelay.java` e os chamadores dele, `live/package-info.java`, um listener
-  novo no `live` para os eventos da Feira, `web/src/shared/live/invalidation.ts`,
-  `api/openapi.json`, `schema.ts`, `RoleMatrixIT.java`.
-- Test: `markets/ShoppingListIT.java`, `live/ShoppingListLiveIT.java`, os testes atuais do `live`,
+- Modify: `live/internal/LiveRelay.java` (métodos `on(...)` novos), `live/package-info.java`,
+  `docs/architecture.md` ("Avisos ao vivo"), `web/src/shared/live/invalidation.ts`,
+  `web/src/shared/api/markets.ts` (`marketsKeys.list`), `api/openapi.json`, `schema.ts`,
+  `RoleMatrixIT.java`.
+- Test: `markets/ShoppingListIT.java`, `live/LiveRelayIT.java` (estendido),
   `web/src/shared/live/invalidation.test.ts`, `RoleMatrixIT`.
 
 **Interfaces:**
 - Consumes: `ProductsService` e `ProductPriceView` (Task 1); `ProductRepository.findByNormalizedName`
-  (Task 1), `create` (10.2).
+  e `PriceRepository.latestPerProductAndMarket` (Task 1), `create` (10.2).
 - Produces:
   - `record ShoppingListChanged(UUID workspaceId)`;
-  - `LiveRelay.send(UUID workspaceId, String entity, @Nullable UUID id, Audience audience, @Nullable ModuleKey requires)`;
   - as rotas de D7, que as Tasks 4 e 7 usam.
 
 - [ ] **Step 1: Escrever os testes (falhando)**
@@ -437,9 +484,8 @@ cada rota ou tela.
 | `ShoppingListIT.listFull` | 300 itens → o 301º dá 422 `list.full` |
 | `ShoppingListIT.pricesPerMarket` | item com preços em 2 mercados → `prices` com os 2 |
 | `ShoppingListIT.eventOnEveryWrite` | cada escrita publica `ShoppingListChanged` (`@RecordApplicationEvents`) |
-| `ShoppingListLiveIT.relaysToEveryoneWhenMarketsOn` | evento → `{"entity":"shopping-list"}` no canal da família, para os quatro papéis |
-| `ShoppingListLiveIT.silentWhenMarketsOff` | módulo desligado → nada enviado |
-| testes atuais do `live` | passam sem mudar o que esperam (só a chamada nova) |
+| `LiveRelayIT.shoppingListToEveryoneWhenMarketsOn` | evento → `{"entity":"shopping-list"}` no canal da família, para os quatro papéis |
+| `LiveRelayIT.shoppingListSilentWhenMarketsOff` | módulo desligado → nada enviado |
 | `invalidation.test.ts › shoppingList` | `{"entity":"shopping-list"}` invalida as chaves que começam com `['ws', ws, 'markets', 'list']`, `…'compare'` e `…'products'` |
 | `RoleMatrixIT` | `GET`: os quatro 200; `POST`, `PATCH`, `PUT order`: Dono, Adulto e Jovem 2xx, Leitor 403; `DELETE` e `clear-checked`: Dono e Adulto 2xx, Jovem e Leitor 403 |
 
@@ -460,7 +506,10 @@ cada rota ou tela.
 - Test: `markets/domain/ComparisonCalculatorTest.java`, `markets/CompareIT.java`, `RoleMatrixIT`.
 
 **Interfaces:**
-- Consumes: a lista (Task 3), `PriceRepository` (10.2), `MarketRef.parse` e `findByRef` (10.1).
+- Consumes: a lista (Task 3), `PriceRepository.latestPerProductAndMarket` (Task 1), `MarketRef.parse`
+  e `findByRef` (10.1). `parse` vazio → 404 `market.not_found`; ref do OSM válido sem linha → mercado
+  sem preços, sem erro. Os limites de tamanho e a forma da quantidade (`ReceiptSaveService.DECIMAL`)
+  são os da 10.2; "hoje" vem do `Clock` em `America/Sao_Paulo`.
 - Produces:
   - `record ItemPrices(UUID productId, BigDecimal quantity, Map<UUID, PricePoint> byMarket)`,
     `record PricePoint(BigDecimal unitPrice, ProductUnit unit, LocalDate observedOn)`;
@@ -498,7 +547,9 @@ cada rota ou tela.
 **Files:**
 - Modify: `markets/MarketsExport.java`, `markets/internal/JdbcMarketsExport.java`,
   `privacy/internal/ExportService.java`, `audit/internal/AuditListeners.java`,
-  `audit/AuditEntry.java`, os testes de exportação existentes.
+  `audit/AuditEntry.java`, os testes de exportação que conferem a versão 10: `ExportIT` (~linhas 93,
+  328, 510, 548 e 580; a lista de CSVs, ~270-287, ganha `feira-lista.csv` e `feira-nao-juntar.csv`),
+  `ExportMarketsIT` (~155), `ExportReceiptsIT` (~155) e `VentureExportIT` (~79, 117 e 149).
 - Test: `privacy/ExportShoppingListIT.java`, `audit/ProductsAuditIT.java`, `privacy/FamilyDeletionIT`.
 
 **Interfaces:**
@@ -515,14 +566,14 @@ cada rota ou tela.
 |---|---|
 | `ExportShoppingListIT.listAndDismissalsExported` | `feira-lista.csv` e `feira-nao-juntar.csv` com os cabeçalhos de D9 e as linhas certas |
 | `ExportShoppingListIT.productIdsMatchProductsCsv` | todo `produto_id` da lista existe em `feira-produtos.csv` |
-| `ExportShoppingListIT.formatVersionBumped` | `formatVersion` = a do `main` + 1 |
+| `ExportShoppingListIT.formatVersionBumped` | `formatVersion` = 11 |
 | `ProductsAuditIT.mergeAudited` | `products.merged`, `targetType PRODUCT`, metadata exatamente `{removedProductId}`, sem nomes |
 | `ProductsAuditIT.listNotAudited` | adicionar, marcar e limpar → nenhuma linha nova na auditoria |
 | `FamilyDeletionIT` | apagar a família apaga `shopping_list_items` e `product_join_dismissals` |
 
 - [ ] **Step 2: Rodar e ver falhar** → FAIL.
 - [ ] **Step 3: Implementar.** D9 e a linha da auditoria acima; `PRODUCT` entra no Javadoc de
-  `AuditEntry`.
+  `AuditEntry` e de `AuditListeners` (o CHECK já veio na V42, Task 1).
 - [ ] **Step 4: Rodar e ver passar** → PASS.
 - [ ] **Step 5: Conferir.** `./gradlew build`.
 - [ ] **Step 6: Commit.** `git commit -m "feat(markets): export the shopping list and audit product merges"`.
@@ -533,9 +584,12 @@ cada rota ou tela.
 
 **Files:**
 - Create: os arquivos da Task 6 no mapa.
-- Modify: `app/routes.tsx`, `features/markets/{FeiraPage.tsx,messages.pt-BR.ts}`,
-  `mocks/{handlers.ts,data.ts}`.
-- Test: `features/markets/products/{ProductsPage.test.tsx,MergeDialog.test.tsx}`.
+- Modify: `features/markets/MarketsRoutes.tsx` (rota `produtos`, `lazy`),
+  `features/markets/{FeiraPage.tsx,messages.pt-BR.ts}` (o link entra perto dos atuais, ~linha 213),
+  `shared/api/markets.ts` (`marketsKeys.productsOverview`), `mocks/{handlers.ts,data.ts}` (um
+  segundo mercado com preços, porque hoje `FAKE_PRICES` só tem preços em `osm-n-9001`).
+- Test: `features/markets/products/{ProductsPage.test.tsx,MergeDialog.test.tsx}`,
+  `features/markets/MarketsRoutes.test.tsx`. Os testes do MSW seguem `mocks/receiptsHandlers.test.ts`.
 
 **Interfaces:**
 - Consumes: as rotas das Tasks 1 e 2; `ProductPicker` e `unitPriceToCents` (10.2).
@@ -565,8 +619,11 @@ cada rota ou tela.
 
 **Files:**
 - Create: os arquivos da Task 7 no mapa.
-- Modify: `app/routes.tsx`, `features/markets/{FeiraPage.tsx,messages.pt-BR.ts}`,
-  `features/markets/receipt/ProductPicker.tsx`, `mocks/{handlers.ts,data.ts}`.
+- Modify: `features/markets/MarketsRoutes.tsx` (rota `lista`, `lazy`),
+  `features/markets/{FeiraPage.tsx,messages.pt-BR.ts}`, `features/markets/receipt/ProductPicker.tsx`
+  (prop nova de sugestões: os itens da lista, mostrados antes de a pessoa digitar),
+  `mocks/{handlers.ts,data.ts}`. No MSW, as rotas da lista ganham uma guarda que deixa o Jovem
+  escrever (o `marketsGuard` de hoje só deixa Dono e Adulto) e entram antes das rotas com `:ref`.
 - Test: `features/markets/list/{ShoppingListPage.test.tsx,ListItemRow.test.tsx}`,
   `features/markets/receipt/ProductPicker.test.tsx`.
 
@@ -603,7 +660,9 @@ cada rota ou tela.
 
 **Files:**
 - Create: os arquivos da Task 8 no mapa.
-- Modify: `app/routes.tsx`, `features/markets/{messages.pt-BR.ts,list/ShoppingListPage.tsx}`,
+- Modify: `features/markets/MarketsRoutes.tsx` (rota `comparar`, `lazy`),
+  `features/markets/{messages.pt-BR.ts,list/ShoppingListPage.tsx}`, `shared/api/markets.ts`
+  (`marketsKeys.compare`),
   `mocks/{handlers.ts,data.ts}`.
 - Test: `features/markets/compare/ComparePage.test.tsx`,
   `features/markets/messagesNeutral.test.ts`.
@@ -641,11 +700,15 @@ cada rota ou tela.
 - Test: `web/e2e/feira-lista.spec.ts`, `web/e2e/a11y.spec.ts`.
 
 **Como fica:**
-- `feira-lista.spec.ts` (perfil `e2e` da API, fontes falsas da 10.1):
-  1. Preparo pela API do e2e: duas notas inventadas (o mesmo gerador de chave da 10.2) em "Mercado
-     Exemplo 1" e "Mercado Exemplo 2", com "Leite Exemplo 1 L" nos dois e "Arroz Exemplo 5 kg" só
-     no 1.
-  2. Dois contextos do navegador: Dono e Jovem da mesma família, os dois na Lista.
+- `feira-lista.spec.ts` (perfil `e2e` da API, fontes falsas da 10.1, em HTTPS, nos projetos do
+  computador e dos celulares):
+  0. Como os outros specs da Feira: `buyFamilyPlan`, depois `setModules`.
+  1. Preparo pela tela, com os ajudantes de `e2e/receipts.ts` (`openFeira`, `freshReceipt`,
+     `openKeyField`, `submitKey`, `expectMarketChoice`, `chooseMarket`, `fillItem`): duas notas
+     inventadas em "Mercado Exemplo 1" e "Mercado Exemplo 2", com "Leite Exemplo 1 L" nos dois e
+     "Arroz Exemplo 5 kg" só no 1 (o e2e não tem preparo pela API).
+  2. Dois contextos do navegador, no molde de `live-sync.spec.ts` (`withContext`, `createInvitation`,
+     `joinAsYouth`, `serviceWorkers: 'block'`): Dono e Jovem da mesma família, os dois na Lista.
   3. O Jovem adiciona "Leite Exemplo 1 L" e "Arroz Exemplo 5 kg"; o Dono vê os dois sem recarregar.
   4. O Dono marca o leite; o Jovem vê riscado.
   5. O Dono abre "Comparar mercados": os dois mercados marcados; "Nos 1 itens…" (ajustar o plural
@@ -653,15 +716,15 @@ cada rota ou tela.
   6. O Jovem não vê "Limpar os pegos".
   7. Produtos: dois produtos parecidos criados pelo preparo aparecem em "São o mesmo produto?"; o
      Dono junta e a lista mostra um só.
-- `a11y.spec.ts`: axe em Produtos, Lista e Comparar.
+- `a11y.spec.ts`: axe em Produtos, Lista e Comparar (junto das telas da Feira que já estão lá).
 - Docs:
-  - `architecture.md`: lista, comparação e o evento ao vivo `shopping-list`;
+  - `architecture.md`: lista, comparação e a seção da V42 (o aviso `shopping-list` já entrou na
+    Task 3);
   - `data-model.md`: a V42 e o mapa de dados.
 
 - [ ] **Step 1: Escrever o e2e e o axe.**
-- [ ] **Step 2: Rodar.** Em `web/`: `npm run e2e -- feira-lista a11y core-without-modules` → PASS
-  (se um contêiner antigo atrapalhar localmente, o CI confere; nunca recriar contêineres com
-  `down -v`).
+- [ ] **Step 2: Rodar.** O e2e roda só no CI: os jobs `e2e` e `e2e-mobile` verdes no PR. Localmente,
+  `npm run lint` e `typecheck` em `web/` pegam os erros de tipo do spec.
 - [ ] **Step 3: Conferir tudo.** `./gradlew build` em `api/`; `npm run lint`, `typecheck`, `test`,
   `build` e `check:chunks` em `web/`.
 - [ ] **Step 4: Commit.** `git commit -m "test(markets): edit the shopping list on two devices end to end"`.
