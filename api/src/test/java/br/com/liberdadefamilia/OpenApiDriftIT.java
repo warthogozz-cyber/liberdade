@@ -55,4 +55,27 @@ class OpenApiDriftIT {
         }
         CommittedContract.assertMatches(CONTRACT, served);
     }
+
+    /** Every quantity is decimal text; the schema says which text the API accepts, so clients can check it. */
+    @Test
+    void quantitiesCarryTheDecimalPattern() {
+        var result = mvc.get().uri("/v3/api-docs").exchange();
+        assertThat(result).hasStatusOk();
+        JsonNode served = JSON.readTree(result.getResponse().getContentAsByteArray());
+
+        java.util.List<String> without = new java.util.ArrayList<>();
+        int checked = 0;
+        for (var schema : served.path("components").path("schemas").properties()) {
+            JsonNode quantity = schema.getValue().path("properties").path("quantity");
+            if (quantity.isMissingNode()) {
+                continue;
+            }
+            checked++;
+            if (!"^\\d{1,15}(\\.\\d{1,4})?$".equals(quantity.path("pattern").asString())) {
+                without.add(schema.getKey());
+            }
+        }
+        org.assertj.core.api.Assertions.assertThat(checked).isGreaterThanOrEqualTo(5);
+        org.assertj.core.api.Assertions.assertThat(without).isEmpty();
+    }
 }

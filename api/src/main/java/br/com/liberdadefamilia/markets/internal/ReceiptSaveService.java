@@ -44,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 class ReceiptSaveService {
 
     private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
-    private static final Pattern DECIMAL = Pattern.compile("\\d{1,15}(\\.\\d{1,4})?");
+    private static final Pattern DECIMAL = Pattern.compile(MarketViews.QUANTITY_PATTERN);
     private static final int MAX_ITEMS = 200;
     private static final int MAX_NAME = 80;
     private static final String MODE = "MANUAL";

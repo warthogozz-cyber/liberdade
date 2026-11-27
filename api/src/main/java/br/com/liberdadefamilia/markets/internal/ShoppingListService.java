@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 class ShoppingListService {
 
     static final int MAX_ITEMS = 300;
-    private static final Pattern DECIMAL = Pattern.compile("\\d{1,15}(\\.\\d{1,4})?");
+    private static final Pattern DECIMAL = Pattern.compile(MarketViews.QUANTITY_PATTERN);
     private static final BigDecimal ONE = BigDecimal.ONE;
 
     private final ShoppingListRepository list;
