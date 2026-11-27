@@ -2,7 +2,8 @@ import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventTipHost } from '@/app/EventTipHost'
 import { mockState } from '@/mocks/data'
-import { hasSeen, isHelpOpen, setHelpOpen } from '@/shared/help'
+import { Outlet } from 'react-router'
+import { hasSeen, isHelpOpen, PageTip, PageTour, setHelpOpen } from '@/shared/help'
 import { markRemoteArrival, resetLocalChanges } from '@/shared/live/localChanges'
 import { notifyQueued } from '@/shared/offline/queuedSignal'
 import { renderWithProviders } from '@/shared/testing'
@@ -164,5 +165,77 @@ describe('EventTipHost', () => {
 
     view.unmount()
     expect(isHelpOpen()).toBe(false)
+  })
+})
+
+describe('EventTipHost with a page tour or tip', () => {
+  const TIP = 'Todos os lançamentos do mês. Toque em um para editar ou excluir.'
+
+  /** The host in a layout, as in WorkspaceLayout, with a tour screen and a tip screen under it. */
+  async function renderLayout() {
+    Element.prototype.scrollIntoView = vi.fn()
+    const result = renderWithProviders(null, {
+      routes: [
+        {
+          path: '/',
+          element: (
+            <>
+              <Outlet />
+              <EventTipHost />
+            </>
+          ),
+          children: [
+            { index: true, element: null },
+            {
+              path: 'planejar',
+              element: (
+                <>
+                  <div data-tour="planning-budget" />
+                  <div data-tour="planning-goals" />
+                  <PageTour id="planning" />
+                </>
+              ),
+            },
+            { path: 'lancamentos', element: <PageTip id="transactions" /> },
+          ],
+        },
+      ],
+    })
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+    return result
+  }
+
+  it('tourWaitsForEventTip', async () => {
+    setOnline(false)
+    const { router } = await renderLayout()
+    act(() => notifyQueued())
+    await screen.findByText(new RegExp(OFFLINE))
+
+    await act(() => router.navigate('/planejar'))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+    expect(screen.queryByText('Passo 1 de 2')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Entendi' }))
+    expect(await screen.findByText('Passo 1 de 2')).toBeInTheDocument()
+    // The tour holds the slot itself, which must not close it.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+    expect(screen.getByText('Passo 1 de 2')).toBeInTheDocument()
+  })
+
+  it('pageTipWaitsForEventTip', async () => {
+    setOnline(false)
+    const { router } = await renderLayout()
+    act(() => notifyQueued())
+    await screen.findByText(new RegExp(OFFLINE))
+
+    await act(() => router.navigate('/lancamentos'))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+    expect(screen.queryByText(TIP)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Entendi' }))
+    expect(await screen.findByText(TIP)).toBeInTheDocument()
+    // The bubble holds the slot itself, which must not hide it.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+    expect(screen.getByText(TIP)).toBeInTheDocument()
   })
 })

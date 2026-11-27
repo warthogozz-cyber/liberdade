@@ -118,13 +118,20 @@ export function useTipsEnabled(): [boolean, (on: boolean) => void] {
 /** Marks that a bubble, tour or event tip opened (true) or closed (false), so only one shows at a time. */
 export function setHelpOpen(open: boolean): void {
   helpOpenCount = open ? helpOpenCount + 1 : Math.max(0, helpOpenCount - 1)
+  emit()
 }
 
 export function isHelpOpen(): boolean {
   return helpOpenCount > 0
 }
 
+/** Whether a bubble, tour or event tip holds the slot; re-renders when it is taken or let go. */
+export function useHelpOpen(): boolean {
+  return useSyncExternalStore(subscribe, isHelpOpen, () => false)
+}
+
 /** Forgets every open surface; for tests. */
 export function resetHelpOpenForTests(): void {
   helpOpenCount = 0
+  emit()
 }

@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '@/shared/testing'
+import { setHelpOpen } from './helpStore'
 import { PageTour } from './PageTour'
 
 // These use the planning tour, whose anchors the tests add by hand.
@@ -117,5 +118,18 @@ describe('PageTour', () => {
     })
     await wait()
     expect(screen.getByText('Passo 1 de 4')).toBeInTheDocument()
+  })
+
+  it('waitsForHelpSlotReleaseWithoutDomChange', async () => {
+    localStorage.removeItem('liberdade.tips')
+    // Another surface holds the slot; letting it go changes nothing on the page.
+    setHelpOpen(true)
+    renderWithProviders(<PageTour id="planning" />, { path: '/planejar' })
+
+    await wait()
+    expect(screen.queryByText('Passo 1 de 4')).not.toBeInTheDocument()
+
+    act(() => setHelpOpen(false))
+    expect(await screen.findByText('Passo 1 de 4')).toBeInTheDocument()
   })
 })
