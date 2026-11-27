@@ -95,6 +95,24 @@ describe('FiguresPanel', () => {
     expect(container.innerHTML).not.toMatch(/negative|danger|error|red-|alert/)
   })
 
+  it('errorWithOldFiguresSaysTheyAreOld', () => {
+    const { container } = renderWithProviders(
+      <FiguresPanel figures={prdExampleFigures()} currency="BRL" error />,
+    )
+
+    expect(
+      screen.getByText('Não deu para atualizar. Estes números são da última conta que deu certo.'),
+    ).toBeVisible()
+    expect(screen.getByText('2 meses')).toBeVisible()
+    expect(container.innerHTML).not.toMatch(/negative|danger|error|red-|alert/)
+  })
+
+  it('noOldFiguresNoticeWithoutAnError', () => {
+    render(prdExampleFigures())
+
+    expect(screen.queryByText(/Não deu para atualizar/)).not.toBeInTheDocument()
+  })
+
   it('offlineSaysToConnect', () => {
     renderWithProviders(<FiguresPanel currency="BRL" offline />)
 

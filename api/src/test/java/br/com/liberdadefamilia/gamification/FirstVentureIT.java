@@ -181,6 +181,17 @@ class FirstVentureIT {
     }
 
     @Test
+    @DisplayName("com projetos desligado a conquista não é dada")
+    void venturesOffAwardsNothing() {
+        insertVenture(adult, "ACTIVE", "2026-11-05", null);
+        disable("ventures");
+
+        service.evaluateFamily(ws, true);
+
+        assertThat(count()).isZero();
+    }
+
+    @Test
     @DisplayName("ligar a gamificação com projeto já ativo dá a conquista em silêncio")
     void turningGamificationOnIsSilent() {
         disable("gamification");

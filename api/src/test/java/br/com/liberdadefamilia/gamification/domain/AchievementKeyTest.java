@@ -2,8 +2,10 @@ package br.com.liberdadefamilia.gamification.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import br.com.liberdadefamilia.workspace.ModuleKey;
 import br.com.liberdadefamilia.workspace.Role;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -52,12 +54,14 @@ class AchievementKeyTest {
 
     @ParameterizedTest
     @EnumSource(AchievementKey.class)
-    @DisplayName("needsPlanning só é falso em FIRST_TRANSACTION, STREAK_4_WEEKS e FIRST_VENTURE")
-    void needsPlanningOnlyFalseForTheFirstTwo(AchievementKey key) {
-        boolean free = key == AchievementKey.FIRST_TRANSACTION
-                || key == AchievementKey.STREAK_4_WEEKS
-                || key == AchievementKey.FIRST_VENTURE;
-        assertThat(key.needsPlanning()).isEqualTo(!free);
+    @DisplayName("o módulo de cada chave: nenhum nas duas primeiras, Projetos em FIRST_VENTURE, Planejar nas outras")
+    void moduleOfEachKey(AchievementKey key) {
+        Optional<ModuleKey> expected = switch (key) {
+            case FIRST_TRANSACTION, STREAK_4_WEEKS -> Optional.empty();
+            case FIRST_VENTURE -> Optional.of(ModuleKey.VENTURES);
+            default -> Optional.of(ModuleKey.PLANNING);
+        };
+        assertThat(key.module()).isEqualTo(expected);
     }
 
     @Test

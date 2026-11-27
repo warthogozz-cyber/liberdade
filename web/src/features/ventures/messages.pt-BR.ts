@@ -78,6 +78,8 @@ export const venturesMessages = {
   'ventures.figures.title': 'Prévia das contas',
   'ventures.figures.loading': 'Calculando…',
   'ventures.figures.error': 'Não deu para calcular com esses números.',
+  'ventures.figures.stale':
+    'Não deu para atualizar. Estes números são da última conta que deu certo.',
   'ventures.figures.offline': 'Conecte-se para ver as contas.',
   'ventures.figures.note': 'Com os números que você digitou. Não é promessa de resultado.',
   'ventures.figures.product': 'Produto {n}',

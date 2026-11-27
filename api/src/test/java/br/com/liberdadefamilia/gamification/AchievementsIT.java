@@ -11,6 +11,7 @@ import br.com.liberdadefamilia.support.TestIds;
 import br.com.liberdadefamilia.support.TestLedger;
 import br.com.liberdadefamilia.support.TestUsers;
 import br.com.liberdadefamilia.support.TestWorkspaces;
+import br.com.liberdadefamilia.workspace.ModuleKey;
 import br.com.liberdadefamilia.workspace.Role;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -210,7 +211,7 @@ class AchievementsIT {
         service.evaluateFamily(ws, false);
 
         for (UUID member : List.of(owner, adult, viewer, youth)) {
-            assertThat(keys(member)).noneMatch(AchievementKey::needsPlanning);
+            assertThat(keys(member)).noneMatch(key -> key.module().orElse(null) == ModuleKey.PLANNING);
         }
     }
 

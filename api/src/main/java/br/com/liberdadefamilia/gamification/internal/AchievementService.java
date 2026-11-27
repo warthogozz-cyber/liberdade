@@ -28,8 +28,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Grants the achievements a member has earned (D6). Nothing is done with the gamification module off. What needs the
- * planning module is skipped with it off. {@code MONTH_IN_BUDGET} is never granted here; only the monthly job does.
+ * Grants the achievements a member has earned (D6). Nothing is done with the gamification module off. What is read
+ * from another module (Planejar, Projetos) is skipped with that module off. {@code MONTH_IN_BUDGET} is never granted here; only the monthly job does.
  * Writes are idempotent: a key the member already has is neither read again nor written again.
  */
 @Service
@@ -74,7 +74,7 @@ public class AchievementService {
         }
         memberships.activeMember(workspaceId, membershipId).ifPresent(member -> {
             FamilyFacts facts = new FamilyFacts(workspaceId, member);
-            grantFor(member, facts, planningOn(workspaceId), silent);
+            grantFor(member, facts, modulesOff(workspaceId), silent);
         });
     }
 
@@ -95,9 +95,9 @@ public class AchievementService {
         // Members share the family's zone and currency, so the Owner's reading of the reserve stands for everyone.
         WorkspaceMember reference = memberships.activeOwner(workspaceId).orElse(active.get(0));
         FamilyFacts facts = new FamilyFacts(workspaceId, reference);
-        boolean planningOn = planningOn(workspaceId);
+        Set<ModuleKey> off = modulesOff(workspaceId);
         for (WorkspaceMember member : active) {
-            grantFor(member, facts, planningOn, silent);
+            grantFor(member, facts, off, silent);
         }
     }
 
@@ -106,11 +106,18 @@ public class AchievementService {
         return repository.earned(workspaceId, membershipId);
     }
 
-    private boolean planningOn(UUID workspaceId) {
-        return modules.isEnabled(workspaceId, ModuleKey.PLANNING);
+    /** The modules some achievement is read from that the family has switched off. */
+    public Set<ModuleKey> modulesOff(UUID workspaceId) {
+        Set<ModuleKey> off = EnumSet.noneOf(ModuleKey.class);
+        for (AchievementKey key : AchievementKey.values()) {
+            key.module()
+                    .filter(module -> !off.contains(module) && !modules.isEnabled(workspaceId, module))
+                    .ifPresent(off::add);
+        }
+        return off;
     }
 
-    private void grantFor(WorkspaceMember member, FamilyFacts facts, boolean planningOn, boolean silent) {
+    private void grantFor(WorkspaceMember member, FamilyFacts facts, Set<ModuleKey> off, boolean silent) {
         Set<AchievementKey> held = EnumSet.noneOf(AchievementKey.class);
         repository.earned(member.workspaceId(), member.membershipId()).forEach(row -> held.add(row.key()));
         MemberFacts mine = new MemberFacts(member);
@@ -120,7 +127,7 @@ public class AchievementService {
             if (key == AchievementKey.MONTH_IN_BUDGET
                     || held.contains(key)
                     || !key.earnableBy(member.role())
-                    || key.needsPlanning() && !planningOn) {
+                    || key.module().filter(off::contains).isPresent()) {
                 continue;
             }
             if (qualifies(key, member, facts, mine)

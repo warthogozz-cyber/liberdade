@@ -110,6 +110,33 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
     () => [...(expenseCategories ?? []), ...(incomeCategories ?? [])],
     [expenseCategories, incomeCategories],
   )
+  const categoryName = categoryId && categoryNameOf(categoryList, categoryId)
+  const accountName = accountList?.find(({ id }) => id === accountId)?.name
+  const tagName = tagList?.find(({ id }) => id === tagId)?.name
+  const ventureName = ventures?.find(({ id }) => id === ventureId)?.name
+  // An id the loaded list does not have (deleted, or an old link) leaves the URL, so no empty chip.
+  const staleCategory =
+    categoryId !== undefined &&
+    expenseCategories !== undefined &&
+    incomeCategories !== undefined &&
+    !categoryName
+  const staleAccount = accountId !== undefined && accountList !== undefined && !accountName
+  const staleTag = tagId !== undefined && tagList !== undefined && !tagName
+  const staleVenture = ventureId !== undefined && !ventureName
+  useEffect(() => {
+    if (!staleCategory && !staleAccount && !staleTag && !staleVenture) return
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (staleCategory) next.delete('categoria')
+        if (staleAccount) next.delete('conta')
+        if (staleTag) next.delete('tag')
+        if (staleVenture) next.delete('projeto')
+        return next
+      },
+      { replace: true },
+    )
+  }, [setParams, staleCategory, staleAccount, staleTag, staleVenture])
 
   function update(next: {
     month?: string
@@ -156,35 +183,21 @@ function TransactionsScreen({ userId, displayName, workspace }: ScreenProps) {
         <button type="button" onClick={() => setFiltering(true)} className={outlineButton}>
           <FormattedMessage id="transactions.filters" />
         </button>
-        {categoryId && (
-          <FilterChip
-            label={categoryNameOf(categoryList, categoryId)}
-            onClear={() => update({ categoryId: null })}
-          />
+        {categoryName && (
+          <FilterChip label={categoryName} onClear={() => update({ categoryId: null })} />
         )}
-        {accountId && (
-          <FilterChip
-            label={accountList?.find(({ id }) => id === accountId)?.name ?? ''}
-            onClear={() => update({ accountId: null })}
-          />
+        {accountName && (
+          <FilterChip label={accountName} onClear={() => update({ accountId: null })} />
         )}
-        {tagId && (
-          <FilterChip
-            label={tagList?.find(({ id }) => id === tagId)?.name ?? ''}
-            onClear={() => update({ tagId: null })}
-          />
-        )}
+        {tagName && <FilterChip label={tagName} onClear={() => update({ tagId: null })} />}
         {paymentMethod && (
           <FilterChip
             label={intl.formatMessage({ id: `payment.${paymentMethod}` })}
             onClear={() => update({ paymentMethod: null })}
           />
         )}
-        {ventureId && (
-          <FilterChip
-            label={ventures?.find(({ id }) => id === ventureId)?.name ?? ''}
-            onClear={() => update({ ventureId: null })}
-          />
+        {ventureName && (
+          <FilterChip label={ventureName} onClear={() => update({ ventureId: null })} />
         )}
         {canImport && (
           <Link
