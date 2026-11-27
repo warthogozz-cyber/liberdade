@@ -60,7 +60,7 @@ export const importMessages = {
   'import.sending': 'Importando…',
   'import.result.title': 'Importação concluída',
   'import.result.partialTitle': 'Parte da importação não entrou',
-  'import.result.created': 'Entraram {n, number}.',
+  'import.result.created': '{n, plural, one {Entrou #.} other {Entraram #.}}',
   'import.result.confirmed': 'Confirmaram previstos: {n, number}.',
   'import.result.skipped': 'Já existiam: {n, number}.',
   'import.result.partial':

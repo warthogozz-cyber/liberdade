@@ -311,7 +311,7 @@ describe('ReceiptPage', () => {
     await screen.findByText('Esta nota é deste mercado')
     fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
 
-    expect(await screen.findByText(/Ainda não lemos notas de /)).toBeVisible()
+    expect(await screen.findByText(/Digite os itens à mão\./)).toBeVisible()
     expect(screen.queryByRole('link', { name: /SEFAZ/ })).not.toBeInTheDocument()
   })
 

@@ -37,6 +37,12 @@ describe('ImportResult', () => {
     expect(screen.queryByText(/Já existiam/)).not.toBeInTheDocument()
   })
 
+  it('singularCreated', async () => {
+    show(totals({ created: 1 }))
+
+    expect(await screen.findByText('Entrou 1.')).toBeInTheDocument()
+  })
+
   it('showsOnlyTheSkippedLine', async () => {
     show(totals({ skipped: 3 }))
 

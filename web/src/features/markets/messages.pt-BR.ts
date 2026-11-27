@@ -133,7 +133,8 @@ export const marketsMessages = {
   'markets.instagram.loading': 'Carregando a publicação…',
   'markets.instagram.unavailable': 'Este perfil não pode ser mostrado aqui',
   'markets.instagram.link': 'Abrir no Instagram',
-  'markets.receipt.error.not-nfce': 'Esta nota não é de compra no mercado.',
+  'markets.receipt.error.not-nfce':
+    'Isto não parece o QR ou o link de uma nota. Confira e tente de novo.',
   'markets.receipt.error.check-digit':
     'A chave não confere. Veja se algum número foi digitado errado.',
   'markets.receipt.error.model':
@@ -177,7 +178,7 @@ export const marketsMessages = {
     'Escolha onde procurar para ver os mercados perto de você.',
   'markets.receipt.market.chooseLocation': 'Escolher onde procurar',
   'markets.receipt.market.next': 'Continuar',
-  'markets.receipt.items.noReader': 'Ainda não lemos notas de {uf}. Digite os itens você mesmo.',
+  'markets.receipt.items.noReader': 'Ainda não lemos notas de {uf}. Digite os itens à mão.',
   'markets.receipt.items.sefaz': 'Abrir a nota no site da Fazenda (SEFAZ)',
   'markets.receipt.items.date': 'Data da compra',
   'markets.receipt.items.item': 'Item {n}',
