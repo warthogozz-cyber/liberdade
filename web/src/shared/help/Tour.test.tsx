@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '@/shared/testing'
+import { isHelpOpen } from './helpStore'
 import { PageTour } from './PageTour'
 
 const scrollIntoView = vi.fn()
@@ -36,8 +37,11 @@ beforeEach(() => {
   setReducedMotion(false)
 })
 
+const foreign: HTMLElement[] = []
+
 afterEach(() => {
   cleanup()
+  for (const el of foreign.splice(0)) el.remove()
   document.body.querySelectorAll('[data-tour]').forEach((el) => el.remove())
 })
 
@@ -118,6 +122,7 @@ describe('Tour', () => {
     other.setAttribute('role', 'dialog')
     const inner = document.createElement('button')
     other.appendChild(inner)
+    foreign.push(other)
     act(() => {
       document.body.appendChild(other)
     })
@@ -125,7 +130,34 @@ describe('Tour', () => {
 
     expect(screen.getByRole('dialog', { name: /limite por categoria/ })).toBeInTheDocument()
     expect(seen()).toBe(false)
-    other.remove()
+  })
+
+  it('escapeInsideAnAlertDialogDoesNotSkip', async () => {
+    anchors(ALL)
+    renderWithProviders(<PageTour id="planning" />)
+    await screen.findByRole('dialog', { name: /limite por categoria/ })
+    const confirm = document.createElement('div')
+    confirm.setAttribute('role', 'alertdialog')
+    const inner = document.createElement('button')
+    confirm.appendChild(inner)
+    foreign.push(confirm)
+    act(() => {
+      document.body.appendChild(confirm)
+    })
+    fireEvent.keyDown(inner, { key: 'Escape' })
+
+    expect(screen.getByRole('dialog', { name: /limite por categoria/ })).toBeInTheDocument()
+    expect(seen()).toBe(false)
+  })
+
+  it('marksHelpOpenWhileMounted', async () => {
+    anchors(ALL)
+    const view = renderWithProviders(<PageTour id="planning" />)
+    await screen.findByRole('dialog')
+    expect(isHelpOpen()).toBe(true)
+
+    view.unmount()
+    expect(isHelpOpen()).toBe(false)
   })
 
   it('focusGoesBack', async () => {

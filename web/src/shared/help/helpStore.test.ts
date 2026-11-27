@@ -8,6 +8,7 @@ import {
   isTipsEnabled,
   markSeen,
   resetAllSeen,
+  resetHelpOpenForTests,
   setHelpOpen,
   setTipsEnabled,
   useSeen,
@@ -17,7 +18,7 @@ import {
 afterEach(() => {
   localStorage.clear()
   vi.restoreAllMocks()
-  setHelpOpen(false)
+  resetHelpOpenForTests()
 })
 
 describe('helpStore', () => {
@@ -101,6 +102,24 @@ describe('helpStore', () => {
   })
 
   it('helpOpenFlag', () => {
+    setHelpOpen(true)
+    expect(isHelpOpen()).toBe(true)
+    setHelpOpen(false)
+    expect(isHelpOpen()).toBe(false)
+  })
+
+  it('twoOpensOneCloseStaysOpen', () => {
+    setHelpOpen(true)
+    setHelpOpen(true)
+    setHelpOpen(false)
+    expect(isHelpOpen()).toBe(true)
+    setHelpOpen(false)
+    expect(isHelpOpen()).toBe(false)
+  })
+
+  it('closeBelowZeroStaysAtZero', () => {
+    setHelpOpen(false)
+    setHelpOpen(false)
     setHelpOpen(true)
     expect(isHelpOpen()).toBe(true)
     setHelpOpen(false)
