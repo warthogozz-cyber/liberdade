@@ -17,21 +17,20 @@ export const billingMessages = {
   'billing.noAutoCharge': 'Não existe cobrança automática.',
   'billing.contact': 'Dúvidas? Escreva para {email}.',
   'billing.stalled':
-    'Ainda não recebemos a confirmação do Asaas. Volte a esta tela mais tarde: o plano aparece aqui assim que o pagamento for confirmado.',
+    'O pagamento ainda não foi confirmado. Volte mais tarde: o plano aparece aqui quando chegar.',
   'billing.notCompleted': 'O pagamento não foi concluído. Você pode tentar de novo quando quiser.',
-  'billing.waiting':
-    'Estamos esperando a confirmação do Asaas. Pode fechar esta tela; avisamos aqui quando chegar.',
+  'billing.waiting': 'Esperando a confirmação do pagamento. Pode fechar; avisamos aqui.',
   'billing.refundPending': 'Reembolso em processamento',
   'billing.refundPending.card':
     'No cartão, o estorno pode levar até 10 dias úteis para aparecer na fatura.',
   'billing.duplicate': 'Recebemos dois pagamentos. Devolvemos um deles pelo Asaas.',
   'billing.refund.hint': 'Desistiu? Até {date} você recebe os R$ 89,00 de volta.',
-  'billing.refund.open': 'Receber meu dinheiro de volta',
-  'billing.refund.title': 'Receber o dinheiro de volta?',
+  'billing.refund.open': 'Pedir o dinheiro de volta',
+  'billing.refund.title': 'Pedir o dinheiro de volta?',
   'billing.refund.body':
-    'O plano termina na hora: o tema e o selo voltam ao padrão e nenhum dado da família é apagado. O dinheiro volta pelo mesmo meio do pagamento, pelo Asaas.',
-  'billing.refund.confirm': 'Receber os R$ 89,00 de volta',
-  'billing.refund.keep': 'Continuar Fundadora',
+    'O plano termina agora e o tema volta ao padrão. Nenhum dado é apagado. O dinheiro volta pelo mesmo meio.',
+  'billing.refund.confirm': 'Pedir os R$ 89,00 de volta',
+  'billing.refund.keep': 'Continuar como Família Fundadora',
   'billing.theme': 'Tema',
   'billing.actionFailed': 'Não deu certo. Tente de novo.',
 }

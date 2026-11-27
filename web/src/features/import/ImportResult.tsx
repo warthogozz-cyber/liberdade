@@ -33,16 +33,23 @@ export function ImportResult({
       <h2 className="text-xl font-semibold">
         <FormattedMessage id={partial ? 'import.result.partialTitle' : 'import.result.title'} />
       </h2>
-      <p role="status">
-        <FormattedMessage
-          id="import.result.counts"
-          values={{
-            created: totals.created,
-            confirmed: totals.confirmed,
-            skipped: totals.skipped,
-          }}
-        />
-      </p>
+      <div role="status" className="flex flex-col gap-1">
+        {totals.created > 0 && (
+          <p>
+            <FormattedMessage id="import.result.created" values={{ n: totals.created }} />
+          </p>
+        )}
+        {totals.confirmed > 0 && (
+          <p>
+            <FormattedMessage id="import.result.confirmed" values={{ n: totals.confirmed }} />
+          </p>
+        )}
+        {totals.skipped > 0 && (
+          <p>
+            <FormattedMessage id="import.result.skipped" values={{ n: totals.skipped }} />
+          </p>
+        )}
+      </div>
       {partial && (
         <>
           <p>

@@ -18,7 +18,7 @@ export const accountsMessages = {
   'accounts.hint.SAVINGS': 'Dinheiro guardado que rende pouco e sai fácil.',
   'accounts.hint.CASH': 'Notas e moedas na mão.',
   'accounts.hint.CREDIT_CARD':
-    'Os gastos deixam o saldo negativo. Pagar a fatura é uma transferência de outra conta para o cartão.',
+    'Os gastos deixam o saldo negativo. Para pagar a fatura, transfira de outra conta.',
   'accounts.hint.WALLET': 'Saldo em app de pagamento, como carteiras de celular.',
   'accounts.hint.INVESTMENT': 'Atualize o saldo à mão quando quiser, com Acertar saldo.',
   'accounts.field.reserve': 'Esta conta é reserva',
@@ -34,8 +34,7 @@ export const accountsMessages = {
   'accounts.cancel': 'Cancelar',
   'accounts.archive': 'Arquivar',
   'accounts.archive.title': 'Arquivar {name}?',
-  'accounts.archive.body':
-    'Ela some das escolhas. Os lançamentos continuam no histórico, e você pode reativar depois.',
+  'accounts.archive.body': 'Some das escolhas. O histórico fica e você pode reativar.',
   'accounts.archive.bodyWithBalance':
     'O saldo de {amount} sai do total da família. Os lançamentos continuam no histórico, e você pode reativar depois.',
   'accounts.created': 'Conta criada.',

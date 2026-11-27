@@ -181,7 +181,7 @@ describe('ImportPage', () => {
     expect(list.getAllByRole('checkbox')).toHaveLength(5)
     for (const name of [/SALDO ANTERIOR/, /SALDO DO DIA/, /S A L D O/]) {
       expect(line(name).getByRole('checkbox')).not.toBeChecked()
-      expect(line(name).getByText('Saldo?')).toBeInTheDocument()
+      expect(line(name).getByText('Isto é saldo?')).toBeInTheDocument()
       expect(
         line(name).getByText(
           'Parece uma linha de saldo, não um lançamento, por isso ficou desmarcada.',
@@ -189,7 +189,7 @@ describe('ImportPage', () => {
       ).toBeInTheDocument()
     }
     expect(line(/PADARIA/).getByRole('checkbox')).toBeChecked()
-    expect(line(/PADARIA/).queryByText('Saldo?')).toBeNull()
+    expect(line(/PADARIA/).queryByText('Isto é saldo?')).toBeNull()
     expect(screen.getByRole('button', { name: 'Ajustar colunas' })).toBeInTheDocument()
     expect(screen.queryByText(/ignorada/)).toBeNull()
   })
@@ -357,9 +357,8 @@ describe('ImportPage', () => {
     fireEvent.click(line(/Doação/).getByRole('radio', { name: '🎁 Presentes' }))
     fireEvent.click(importButton())
 
-    expect(
-      await screen.findByText('3 entraram, 0 confirmaram um previsto, 1 já existia'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Já existiam: 1.')).toBeInTheDocument()
+    expect(screen.getByText('Entraram 3.')).toBeInTheDocument()
     expect(sent).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'Ver os lançamentos' })).toHaveAttribute(
       'href',
@@ -385,7 +384,7 @@ describe('ImportPage', () => {
     fireEvent.click(importButton())
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'O servidor recusou o envio, então tentar de novo não resolve: A conta não aceita importação.',
+      'Não foi aceito, então tentar de novo não resolve: A conta não aceita importação.',
     )
     expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
   })
@@ -412,9 +411,7 @@ describe('ImportPage', () => {
     fireEvent.click(importButton())
     fireEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }))
 
-    expect(
-      await screen.findByText('0 entraram, 0 confirmaram um previsto, 1 já existia'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Já existiam: 1.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
   })
 

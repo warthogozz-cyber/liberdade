@@ -20,7 +20,7 @@ export const planningMessages = {
   'planning.goals.linkedTo': 'Acompanha o saldo de {account}',
   'planning.goals.linkedFamily': 'Acompanha o saldo de uma conta da família',
   'planning.goals.limitReached':
-    'No plano Grátis, a família tem até 3 metas ativas. Conclua ou arquive uma, ou veja o plano Família em Mais > Plano.',
+    'No plano Grátis são 3 metas ativas. Conclua ou arquive uma para criar outra.',
   'planning.goals.failed': 'Não deu para salvar a meta. Tente de novo.',
   'planning.goals.conflict': 'Essa meta mudou. Confira os valores.',
   'planning.goals.duePast': 'O prazo não pode ser um mês que já passou.',
@@ -86,7 +86,7 @@ export const planningMessages = {
   'planning.reserve.target': 'Meta da reserva',
   'planning.reserve.targetOption': '{months, plural, one {# mês} other {# meses}}',
   'planning.reserve.education':
-    'Uma reserva de emergência é um dinheiro guardado para imprevistos, como uma conta inesperada ou um mês sem renda. Ela fica fácil de usar e não serve para outras metas.',
+    'É o dinheiro guardado para imprevistos, como uma conta inesperada ou um mês sem renda. Fica fácil de sacar.',
   'planning.reserve.offline': 'Sem conexão. A reserva precisa de internet para mudar.',
   'planning.reserve.loadFailed': 'Não deu para carregar a reserva.',
   'planning.reserve.failed': 'Não deu para salvar a reserva. Tente de novo.',
@@ -134,8 +134,7 @@ export const planningMessages = {
   'planning.projection.scheduled': 'Recorrências e previstos',
   'planning.projection.estimated': 'Gasto estimado',
   'planning.projection.result': 'Saldo previsto',
-  'planning.projection.note':
-    'É uma estimativa com a média dos gastos sem recorrência dos últimos 3 meses.',
+  'planning.projection.note': 'É uma estimativa: usa a média de gastos dos últimos 3 meses.',
   'planning.projection.noteNoHistory': 'Ainda não há 3 meses de gastos para estimar o resto.',
   'planning.split.title': 'Gastos do mês',
   'planning.split.fixed': 'Gastos fixos',

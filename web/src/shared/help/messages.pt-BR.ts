@@ -7,9 +7,8 @@ export const helpMessages = {
   'tips.transactions': 'Todos os lançamentos do mês. Toque em um para editar ou excluir.',
   'tips.accounts': 'Cada conta mostra o saldo. Marque as que são reserva de emergência.',
   'tips.calculator':
-    'Compare o rendimento com a inflação do período. É uma conta, não uma recomendação.',
-  'tips.import':
-    'O arquivo do banco é lido neste aparelho. Você confere cada linha antes de gravar.',
+    'Veja se o dinheiro rende mais que os preços sobem. É só uma conta, não um conselho.',
+  'tips.import': 'Seu extrato fica só neste aparelho. Confira cada linha antes de salvar.',
   'tips.family':
     'Dono cuida de tudo e Adulto lança e planeja. Jovem lança só nas próprias contas, e Leitor só olha.',
   'tips.recurrences':
@@ -38,9 +37,11 @@ export const helpMessages = {
   'tips.tour.step': 'Passo {n} de {total}',
   'tips.tour.planning.budget': 'Defina um limite por categoria e acompanhe o mês.',
   'tips.tour.planning.goals': 'Metas guardam dinheiro para um objetivo, no seu ritmo.',
-  'tips.tour.planning.reserve': 'A reserva mostra quantos meses de custo a família já cobre.',
+  'tips.tour.planning.reserve':
+    'A reserva mostra por quantos meses a família se sustenta sem renda.',
   'tips.tour.planning.recurring': 'Contas que se repetem entram sozinhas como previstas.',
-  'tips.tour.indicators.cards': 'Cada cartão mostra um indicador oficial, com a fonte e a data.',
+  'tips.tour.indicators.cards':
+    'Cada cartão mostra um número oficial da economia, com a fonte e a data.',
   'tips.tour.indicators.calculator': 'A calculadora compara um rendimento com a inflação.',
   'tips.tour.achievements.streak': 'Sua sequência conta as semanas em que você lançou algo.',
   'tips.tour.achievements.streakBreak': 'Uma semana de folga por mês não interrompe a sequência.',

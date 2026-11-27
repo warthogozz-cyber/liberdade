@@ -23,7 +23,7 @@ describe('AccountForm', () => {
 
     expect(
       screen.getByText(
-        'Os gastos deixam o saldo negativo. Pagar a fatura é uma transferência de outra conta para o cartão.',
+        'Os gastos deixam o saldo negativo. Para pagar a fatura, transfira de outra conta.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText('Para o dia a dia: salário, contas, Pix.')).not.toBeInTheDocument()
@@ -35,7 +35,7 @@ describe('AccountForm', () => {
     fireEvent.click(screen.getByRole('radio', { name: /Cartão de crédito/ }))
 
     expect(screen.getByRole('radiogroup', { name: 'Tipo' })).toHaveAccessibleDescription(
-      'Os gastos deixam o saldo negativo. Pagar a fatura é uma transferência de outra conta para o cartão.',
+      'Os gastos deixam o saldo negativo. Para pagar a fatura, transfira de outra conta.',
     )
   })
 

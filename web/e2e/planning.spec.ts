@@ -110,8 +110,6 @@ test('free plan goal limit', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Festa/ })).toBeVisible()
   await page.getByRole('button', { name: 'Nova meta' }).click()
   await expect(
-    page
-      .getByRole('dialog', { name: 'Nova meta' })
-      .getByText(/No plano Grátis, a família tem até 3 metas ativas/),
+    page.getByRole('dialog', { name: 'Nova meta' }).getByText(/No plano Grátis são 3 metas ativas/),
   ).toBeVisible()
 })

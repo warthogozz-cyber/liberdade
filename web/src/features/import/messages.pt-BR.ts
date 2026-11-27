@@ -2,7 +2,7 @@
 export const importMessages = {
   'import.columns.title': 'Quais colunas são quais?',
   'import.columns.intro':
-    'Não deu para reconhecer com certeza as colunas deste arquivo. Confira cada uma e como os centavos aparecem.',
+    'Não deu para saber qual coluna é qual. Confira e diga como os centavos aparecem.',
   'import.columns.introAdjust': 'Confira qual coluna é qual e como os centavos aparecem.',
   'import.columns.choose': 'Escolha a coluna',
   'import.columns.column': 'Coluna {n}',
@@ -21,8 +21,7 @@ export const importMessages = {
   'import.columns.continue': 'Continuar',
   'import.columns.back': 'Voltar sem mudar',
   'import.title': 'Importar extrato',
-  'import.intro':
-    'Escolha a conta e o arquivo OFX ou CSV que o banco exporta. O arquivo é lido aqui no aparelho.',
+  'import.intro': 'Escolha a conta e o arquivo de extrato do banco (OFX ou CSV).',
   'import.account': 'Conta',
   'import.file': 'Arquivo do extrato',
   'import.reading': 'Lendo o arquivo…',
@@ -40,8 +39,8 @@ export const importMessages = {
   'import.state.alreadyImported': 'Já importado',
   'import.state.confirmPlanned': 'Confirmar o previsto',
   'import.state.possibleRepeat': 'Possível repetido',
-  'import.state.billPayment': 'Pagamento da fatura?',
-  'import.state.balance': 'Saldo?',
+  'import.state.billPayment': 'Pagamento de fatura?',
+  'import.state.balance': 'Isto é saldo?',
   'import.balanceNotice':
     'Parece uma linha de saldo, não um lançamento, por isso ficou desmarcada.',
   'import.adjustColumns': 'Ajustar colunas',
@@ -51,7 +50,7 @@ export const importMessages = {
   'import.plannedCategoryUnknown': 'Mantém a categoria do previsto',
   'import.nothingChecked': 'Marque ao menos um lançamento.',
   'import.billPaymentNotice':
-    'Pagamento da fatura? Ele já aparece como saída na conta de onde saiu o dinheiro.',
+    'Pagamento de fatura? Ele já aparece como saída na conta de onde saiu o dinheiro.',
   'import.bulk':
     'Usar a mesma categoria {n, plural, one {na # sem categoria} other {nas # sem categoria}}',
   'import.needsCategory':
@@ -61,15 +60,15 @@ export const importMessages = {
   'import.sending': 'Importando…',
   'import.result.title': 'Importação concluída',
   'import.result.partialTitle': 'Parte da importação não entrou',
-  'import.result.counts':
-    '{created, plural, =0 {# entraram} one {# entrou} other {# entraram}}, {confirmed, plural, =0 {# confirmaram um previsto} one {# confirmou um previsto} other {# confirmaram um previsto}}, {skipped, plural, =0 {# já existiam} one {# já existia} other {# já existiam}}',
+  'import.result.created': 'Entraram {n, number}.',
+  'import.result.confirmed': 'Confirmaram previstos: {n, number}.',
+  'import.result.skipped': 'Já existiam: {n, number}.',
   'import.result.partial':
     '{sent, plural, =0 {# lançamentos foram enviados} one {# lançamento foi enviado} other {# lançamentos foram enviados}} de {total}. Você pode tentar de novo: o que já entrou não se repete.',
   'import.result.retry': 'Tentar de novo',
-  'import.result.rejected':
-    'O servidor recusou o envio, então tentar de novo não resolve: {detail}',
+  'import.result.rejected': 'Não foi aceito, então tentar de novo não resolve: {detail}',
   'import.result.rejectedGeneric':
-    'O servidor recusou o envio, então tentar de novo não resolve. Confira a conta e as categorias escolhidas.',
+    'Não foi aceito, então tentar de novo não resolve. Confira a conta e as categorias escolhidas.',
   'import.result.list': 'Ver os lançamentos',
   'import.result.another': 'Importar outro arquivo',
 } as const
