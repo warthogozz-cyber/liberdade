@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
@@ -80,7 +80,8 @@ describe('AchievementsPage tour', () => {
     renderWithProviders(<AchievementsPage />, { path: '/mais/conquistas' })
 
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveTextContent('Passo 1 de 3')
+    // The streak (and its rest step) can land just after the card opens; the list is still loading.
+    await waitFor(() => expect(dialog).toHaveTextContent('Passo 1 de 3'))
     expect(document.querySelectorAll('[data-tour="achievements-list"]')).toHaveLength(1)
     expect(document.querySelector('[data-tour="achievements-list"]')).toHaveAttribute(
       'aria-busy',
