@@ -48,6 +48,11 @@ describe('MarketHomeSection', () => {
     // The typed text never reaches the device's storage.
     expect(JSON.stringify({ ...localStorage })).not.toContain('Rua Exemplo')
     expect(screen.getByText('Busca de endereço © OpenStreetMap')).toBeVisible()
+    expect(
+      screen.getByText(
+        'Serve para achar mercados perto de casa. Guardamos só um ponto aproximado e o rótulo.',
+      ),
+    ).toBeVisible()
   })
 
   it('hiddenForYouth', async () => {

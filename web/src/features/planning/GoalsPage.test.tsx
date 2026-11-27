@@ -99,9 +99,7 @@ describe('GoalsPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Nova meta' }))
     const dialog = await screen.findByRole('dialog')
 
-    expect(
-      within(dialog).getByText(/No plano Grátis, a família tem até 3 metas ativas/),
-    ).toBeVisible()
+    expect(within(dialog).getByText(/No plano Grátis são 3 metas ativas/)).toBeVisible()
     expect(within(dialog).queryByLabelText('Nome')).not.toBeInTheDocument()
   })
 

@@ -190,7 +190,9 @@ describe('PrivacyPage', () => {
     renderPrivacy()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Revogar' }))
-    expect(await screen.findByText(/O Jovem sai da família/)).toBeInTheDocument()
+    expect(
+      await screen.findByText(/O Jovem sai da família: sem o consentimento/),
+    ).toBeInTheDocument()
     // Nothing is revoked until the person confirms.
     expect(mockState.consents[0]!.revokedAt).toBeNull()
 

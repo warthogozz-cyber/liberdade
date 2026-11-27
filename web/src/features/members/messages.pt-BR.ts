@@ -94,7 +94,7 @@ export const membersMessages = {
   'recovery.dismiss': 'Entendi',
   'members.home.title': 'Endereço da família na Feira',
   'members.home.help':
-    'Serve para achar mercados perto de casa. Ficam salvos só o ponto aproximado e o rótulo, nunca o texto digitado.',
+    'Serve para achar mercados perto de casa. Guardamos só um ponto aproximado e o rótulo.',
   'members.home.current': 'Endereço atual: {label}',
   'members.home.currentNoLabel': 'Há um endereço salvo, sem rótulo.',
   'members.home.none': 'Nenhum endereço salvo.',

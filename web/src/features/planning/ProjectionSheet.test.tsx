@@ -41,9 +41,7 @@ describe('ProjectionSheet', () => {
     expect(within(dialog).getByText('Gasto estimado')).toBeInTheDocument()
     expect(within(dialog).getByText('−R$ 1.000,00')).toBeInTheDocument()
     expect(
-      within(dialog).getByText(
-        'É uma estimativa com a média dos gastos sem recorrência dos últimos 3 meses.',
-      ),
+      within(dialog).getByText('É uma estimativa: usa a média de gastos dos últimos 3 meses.'),
     ).toBeInTheDocument()
   })
 
