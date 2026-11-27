@@ -10,6 +10,7 @@ import {
   markSeen,
   OPEN_DIALOG_SELECTOR,
   seenId,
+  setHelpOpen,
   type EventTipId,
 } from '@/shared/help'
 import { onArrival } from '@/shared/live'
@@ -31,7 +32,9 @@ export function EventTipHost() {
       if (currentRef.current !== null) return
       if (!isTipsEnabled() || hasSeen(userId, seenId.event(id))) return
       if (isHelpOpen() || document.querySelector(OPEN_DIALOG_SELECTOR) !== null) return
+      // Held from now, not from when the lazy tip mounts, so no tour or bubble opens in between.
       currentRef.current = id
+      setHelpOpen(true)
       setCurrent(id)
     }
     const offQueued = onQueued(() => {
@@ -41,20 +44,29 @@ export function EventTipHost() {
     return () => {
       offQueued()
       offArrival()
+      if (currentRef.current !== null) {
+        currentRef.current = null
+        setHelpOpen(false)
+      }
     }
   }, [userId])
 
-  if (!userId || current === null) return null
+  // The live region stays in the page, empty, so a screen reader announces the tip put into it.
   return (
-    <Suspense fallback={null}>
-      <EventTip
-        message={intl.formatMessage({ id: eventTips[current] })}
-        onDismiss={() => {
-          markSeen(userId, seenId.event(current))
-          currentRef.current = null
-          setCurrent(null)
-        }}
-      />
-    </Suspense>
+    <div role="status">
+      {userId && current !== null && (
+        <Suspense fallback={null}>
+          <EventTip
+            message={intl.formatMessage({ id: eventTips[current] })}
+            onDismiss={() => {
+              markSeen(userId, seenId.event(current))
+              currentRef.current = null
+              setHelpOpen(false)
+              setCurrent(null)
+            }}
+          />
+        </Suspense>
+      )}
+    </div>
   )
 }

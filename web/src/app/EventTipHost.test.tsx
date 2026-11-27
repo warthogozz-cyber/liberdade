@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventTipHost } from '@/app/EventTipHost'
 import { mockState } from '@/mocks/data'
-import { hasSeen, setHelpOpen } from '@/shared/help'
+import { hasSeen, isHelpOpen, setHelpOpen } from '@/shared/help'
 import { markRemoteArrival, resetLocalChanges } from '@/shared/live/localChanges'
 import { notifyQueued } from '@/shared/offline/queuedSignal'
 import { renderWithProviders } from '@/shared/testing'
@@ -46,14 +46,15 @@ describe('EventTipHost', () => {
     await renderHost()
     act(() => notifyQueued())
 
-    expect(await screen.findByRole('status')).toHaveTextContent(OFFLINE)
+    await screen.findByText(new RegExp(OFFLINE))
+    expect(screen.getByRole('status')).toHaveTextContent(OFFLINE)
     fireEvent.click(screen.getByRole('button', { name: 'Entendi' }))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
     expect(hasSeen(mockState.user.id, 'event-offline')).toBe(true)
 
     act(() => notifyQueued())
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('noOfflineTipWhenOnline', async () => {
@@ -61,14 +62,15 @@ describe('EventTipHost', () => {
     act(() => notifyQueued())
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('liveTipOnArrival', async () => {
     await renderHost()
     act(() => markRemoteArrival('t1'))
 
-    expect(await screen.findByRole('status')).toHaveTextContent(LIVE)
+    await screen.findByText(new RegExp(LIVE))
+    expect(screen.getByRole('status')).toHaveTextContent(LIVE)
   })
 
   it('skipsWhileDialogOpen', async () => {
@@ -77,7 +79,7 @@ describe('EventTipHost', () => {
     act(() => markRemoteArrival('t1'))
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
     expect(hasSeen(mockState.user.id, 'event-live')).toBe(false)
   })
 
@@ -87,7 +89,7 @@ describe('EventTipHost', () => {
     act(() => markRemoteArrival('t1'))
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
     expect(hasSeen(mockState.user.id, 'event-live')).toBe(false)
   })
 
@@ -97,14 +99,15 @@ describe('EventTipHost', () => {
     act(() => markRemoteArrival('t1'))
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('oneAtATime', async () => {
     setOnline(false)
     await renderHost()
     act(() => notifyQueued())
-    expect(await screen.findByRole('status')).toHaveTextContent(OFFLINE)
+    await screen.findByText(new RegExp(OFFLINE))
+    expect(screen.getByRole('status')).toHaveTextContent(OFFLINE)
     act(() => markRemoteArrival('t1'))
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
@@ -119,7 +122,39 @@ describe('EventTipHost', () => {
     act(() => markRemoteArrival('t1'))
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
     await waitFor(() => expect(hasSeen(mockState.user.id, 'event-live')).toBe(false))
+  })
+
+  it('liveRegionExistsBeforeText', async () => {
+    await renderHost()
+    const region = screen.getByRole('status')
+    expect(region).toBeEmptyDOMElement()
+
+    act(() => markRemoteArrival('t1'))
+    await screen.findByText(new RegExp(LIVE))
+
+    expect(screen.getByRole('status')).toBe(region)
+    expect(region).toHaveTextContent(LIVE)
+  })
+
+  it('marksHelpOpenAsSoonAsAccepted', async () => {
+    setOnline(false)
+    await renderHost()
+    act(() => notifyQueued())
+    expect(isHelpOpen()).toBe(true)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Entendi' }))
+    expect(isHelpOpen()).toBe(false)
+  })
+
+  it('unmountWhileShowingReleasesHelpSlot', async () => {
+    const view = await renderHost()
+    act(() => markRemoteArrival('t1'))
+    await screen.findByText(new RegExp(LIVE))
+    expect(isHelpOpen()).toBe(true)
+
+    view.unmount()
+    expect(isHelpOpen()).toBe(false)
   })
 })

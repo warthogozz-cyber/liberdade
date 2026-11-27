@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
 import { useIntl } from 'react-intl'
-import { setHelpOpen } from './helpStore'
 
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
-/** The tip of an event, as a status message at the bottom of the screen; it covers no control above. */
+/**
+ * The tip of an event, at the bottom of the screen. The host's live region announces it and holds
+ * the help slot while it shows, so this component does neither.
+ */
 export default function EventTip({
   message,
   onDismiss,
@@ -13,15 +14,8 @@ export default function EventTip({
   onDismiss: () => void
 }) {
   const intl = useIntl()
-  useEffect(() => {
-    setHelpOpen(true)
-    return () => setHelpOpen(false)
-  }, [])
   return (
-    <div
-      role="status"
-      className="fixed inset-x-4 bottom-20 z-40 mx-auto flex max-w-lg items-center justify-between gap-3 rounded-card border border-primary bg-surface p-4 text-text shadow-lg"
-    >
+    <div className="fixed inset-x-4 bottom-20 z-40 mx-auto flex max-w-lg items-center justify-between gap-3 rounded-card border border-primary bg-surface p-4 text-text shadow-lg">
       <p>{message}</p>
       <button
         type="button"
