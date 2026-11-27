@@ -131,6 +131,7 @@ export const venturesMessages = {
   'ventures.how.roi': 'ROI em 12 meses: (12 × {profit} − {investment}) ÷ {investment} = {roi}',
   'ventures.how.roiEdge': 'ROI em 12 meses: {text}',
   'ventures.steps.title': 'Passos',
+  'ventures.steps.help': 'Liste os próximos passos. Marque como Feito ao concluir.',
   'ventures.steps.empty': 'Nenhum passo ainda.',
   'ventures.steps.done': 'Feito',
   'ventures.steps.todo': 'A fazer',

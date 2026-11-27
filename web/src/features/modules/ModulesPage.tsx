@@ -10,7 +10,7 @@ import {
   type ModuleKey,
 } from '@/shared/api'
 import { useSetModule } from '@/shared/api/privacy'
-import { clearSeen, moduleHelp, seenId } from '@/shared/help'
+import { clearSeen, moduleHelp, PageTip, seenId } from '@/shared/help'
 import { useOnline } from '@/shared/offline'
 import { useDocumentTitle } from '@/shared/ui'
 import { isAvailable, OPTIONAL_MODULES } from './moduleCatalog'
@@ -47,6 +47,7 @@ export function ModulesPage() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
+      <PageTip id="modules" />
       {workspace ? (
         <ModuleList workspace={workspace} />
       ) : (

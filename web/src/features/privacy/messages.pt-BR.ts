@@ -1,6 +1,8 @@
 /** The privacy center's, the activity's and the pending-deletion screens' text. It loads with their routes (see `registerMessages`). */
 export const privacyMessages = {
   'privacy.title': 'Privacidade',
+  'privacy.intro':
+    'Aqui você baixa seus dados, vê quem entrou e pode excluir a conta. Excluir leva 30 dias e dá para cancelar.',
   'privacy.offline': 'Sem conexão. Baixar e excluir dados voltam com o sinal.',
   'privacy.exportMine': 'Baixar meus dados',
   'privacy.exportFamily': 'Baixar os dados da família',

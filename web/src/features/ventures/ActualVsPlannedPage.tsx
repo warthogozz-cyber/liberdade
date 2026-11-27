@@ -2,6 +2,7 @@ import { useIntl } from 'react-intl'
 import { Link, useParams } from 'react-router'
 import { ApiError, useCurrentWorkspace } from '@/shared/api'
 import { useActualVsPlanned, useVenture } from '@/shared/api/ventures'
+import { PageTip } from '@/shared/help'
 import { registerMessages } from '@/shared/i18n'
 import { useDocumentTitle } from '@/shared/ui'
 import { venturesMessages } from './messages.pt-BR'
@@ -58,6 +59,7 @@ export function ActualVsPlannedPage() {
             )}
           </p>
         </header>
+        <PageTip id="venture-real" />
         <RealPaybackCards planned={view.data.planned} real={view.data.real} />
         <MonthsTable months={view.data.months} totals={view.data.totals} />
         <Link to={transactions} className={`${outline} self-start`}>

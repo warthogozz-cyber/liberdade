@@ -12,6 +12,7 @@ import { defaultIssuedOn, lookupBody, type ParsedNfce } from './nfceQr'
 import { ReceiptItemsStep, type ItemsDraft } from './ReceiptItemsStep'
 import { ReceiptKeyStep } from './ReceiptKeyStep'
 import { ReceiptMarketStep, type MarketChoice } from './ReceiptMarketStep'
+import { PageTip } from '@/shared/help'
 
 registerMessages(marketsMessages)
 
@@ -130,6 +131,7 @@ export function ReceiptPage() {
       <h1 className="text-2xl font-semibold">
         <FormattedMessage id="markets.receipt.title" />
       </h1>
+      <PageTip id="receipt" />
 
       {savedRef !== null ? (
         <div className="flex flex-col items-start gap-4">

@@ -39,6 +39,17 @@ function renderPrivacy() {
 const lastButton = (name: string) => screen.getAllByRole('button', { name }).at(-1)!
 
 describe('PrivacyPage', () => {
+  it('helpText', async () => {
+    seedMockFamily()
+    renderPrivacy()
+
+    expect(
+      await screen.findByText(
+        'Aqui você baixa seus dados, vê quem entrou e pode excluir a conta. Excluir leva 30 dias e dá para cancelar.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('rendersActions', async () => {
     seedMockFamily()
     renderPrivacy()

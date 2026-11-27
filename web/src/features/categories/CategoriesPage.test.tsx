@@ -50,6 +50,16 @@ function capture(method: 'post' | 'patch', path: string) {
 }
 
 describe('CategoriesPage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    seedMockFamily()
+    renderCategories()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Use Dentro de para criar subcategorias, como Mercado dentro de Casa.',
+    )
+  })
+
   it('tabsSplitByKind', async () => {
     seedMockFamily()
     renderCategories()

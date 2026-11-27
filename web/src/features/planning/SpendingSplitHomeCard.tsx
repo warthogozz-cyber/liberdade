@@ -38,6 +38,9 @@ export default function SpendingSplitHomeCard() {
           <span className="text-lg font-medium">{format(variable)}</span>
         </p>
       </div>
+      <p className="text-sm text-text-muted">
+        {intl.formatMessage({ id: 'planning.split.caption' })}
+      </p>
       {total > 0n && (
         <span
           role="meter"

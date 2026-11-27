@@ -10,6 +10,21 @@ import { ActualVsPlannedPage } from './ActualVsPlannedPage'
 afterEach(cleanup)
 
 describe('ActualVsPlannedPage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    const workspace = seedMockFamily()
+    const venture = prdExampleVenture({ status: 'ACTIVE', startedOn: '2026-10-01' })
+    seedVentureFixture(workspace, venture)
+    renderWithProviders(<ActualVsPlannedPage />, {
+      path: '/mais/projetos/:id/real',
+      route: `/mais/projetos/${venture.id}/real`,
+    })
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Real é o que os lançamentos marcados mostram. Previsto é o que você planejou.',
+    )
+  })
+
   it('linksToFilteredTransactions', async () => {
     const workspace = seedMockFamily()
     const venture = prdExampleVenture({ status: 'ACTIVE', startedOn: '2026-10-01' })

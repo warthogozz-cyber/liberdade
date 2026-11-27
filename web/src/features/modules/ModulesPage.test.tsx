@@ -16,6 +16,16 @@ function renderModules() {
 }
 
 describe('ModulesPage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    seedMockFamily()
+    renderModules()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Ligue só o que quiser usar. Desligar esconde a parte, mas não apaga nada.',
+    )
+  })
+
   it('comingSoonDisabled', async () => {
     seedMockFamily()
     renderModules()
