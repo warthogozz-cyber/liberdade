@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockState, seedMockFamily } from '@/mocks/data'
@@ -291,6 +291,24 @@ describe('FeiraPage tour', () => {
 
     const tour = await screen.findByText('Passo 1 de 3')
     expect(tour).toBeVisible()
+    expect(screen.queryByText('Onde procurar mercados?')).not.toBeInTheDocument()
+  })
+
+  it('forcedTourWaitsForChooser', async () => {
+    const workspace = seedMockFamily()
+    mockState.modules[workspace.id] = { markets: true }
+    const { router } = render()
+    // Arrives the way the "Ver o tour" link does.
+    await act(() => router.navigate('/mais/feira', { state: { forceTour: 'markets' } }))
+
+    const chooser = await screen.findByRole('dialog')
+    expect(within(chooser).getByText('Onde procurar mercados?')).toBeVisible()
+    expect(screen.queryByText(/Passo 1 de/)).not.toBeInTheDocument()
+
+    fireEvent.click(within(chooser).getByRole('radio', { name: /Minha localização aproximada/ }))
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Continuar' }))
+
+    expect(await screen.findByText('Passo 1 de 3')).toBeVisible()
     expect(screen.queryByText('Onde procurar mercados?')).not.toBeInTheDocument()
   })
 

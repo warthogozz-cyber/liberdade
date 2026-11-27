@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '@/shared/testing'
 import { PageTour } from './PageTour'
 
-// The markets tour has no steps until its screen gets anchors (ruling R2), so these use planning.
+// These use the planning tour, whose anchors the tests add by hand.
 const ANCHORS = ['planning-budget', 'planning-goals', 'planning-reserve', 'planning-recurring']
 const SEEN_SUFFIX = ':tour-planning'
 
