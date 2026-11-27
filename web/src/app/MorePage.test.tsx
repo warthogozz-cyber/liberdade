@@ -71,6 +71,22 @@ describe('MorePage', () => {
     },
   )
 
+  it.each(['OWNER', 'ADULT', 'YOUTH', 'VIEWER'] as const)(
+    'howItWorksLinkForEveryone (%s)',
+    async (role) => {
+      const workspace = seedMockFamily()
+      workspace.role = role
+      renderWithProviders(<MorePage />, { path: '/mais' })
+
+      expect(await screen.findByText(workspace.name)).toBeInTheDocument()
+      const link = screen.getByRole('link', { name: 'Como funciona' })
+      expect(link).toHaveAttribute('href', '/mais/como-funciona')
+      // Right before Privacy.
+      const links = screen.getAllByRole('link')
+      expect(links[links.indexOf(link) + 1]).toHaveAttribute('href', '/mais/privacidade')
+    },
+  )
+
   it('hasPlanEntry', async () => {
     const workspace = seedMockFamily()
     renderWithProviders(<MorePage />, { path: '/mais' })

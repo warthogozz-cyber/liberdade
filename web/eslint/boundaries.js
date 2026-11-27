@@ -15,6 +15,7 @@ export const CORE = [
   'portrait',
   'settings',
   'import',
+  'help',
 ]
 export const OPTIONAL = [
   'planning',

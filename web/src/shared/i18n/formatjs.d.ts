@@ -32,6 +32,8 @@ import type { settingsMessages } from '@/features/settings/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { importMessages } from '@/features/import/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
+import type { howItWorksMessages } from '@/features/help/messages.pt-BR'
+// eslint-disable-next-line no-restricted-imports
 import type { indicatorsMessages } from '@/features/indicators/messages.pt-BR'
 // eslint-disable-next-line no-restricted-imports
 import type { marketsMessages } from '@/features/markets/messages.pt-BR'
@@ -59,6 +61,7 @@ declare global {
         | keyof typeof dashboardMessages
         | keyof typeof gamificationMessages
         | keyof typeof gettingStartedMessages
+        | keyof typeof howItWorksMessages
         | keyof typeof importMessages
         | keyof typeof indicatorsMessages
         | keyof typeof legalLabelsMessages

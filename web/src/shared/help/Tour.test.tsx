@@ -111,13 +111,16 @@ describe('Tour', () => {
 
   it('escapeInsideAnotherDialogDoesNotSkip', async () => {
     anchors(ALL)
+    // The tour waits for an open dialog to close, so the other dialog opens after it.
+    renderWithProviders(<PageTour id="planning" />)
+    await screen.findByRole('dialog', { name: /limite por categoria/ })
     const other = document.createElement('div')
     other.setAttribute('role', 'dialog')
     const inner = document.createElement('button')
     other.appendChild(inner)
-    document.body.appendChild(other)
-    renderWithProviders(<PageTour id="planning" />)
-    await screen.findByRole('dialog', { name: /limite por categoria/ })
+    act(() => {
+      document.body.appendChild(other)
+    })
     fireEvent.keyDown(inner, { key: 'Escape' })
 
     expect(screen.getByRole('dialog', { name: /limite por categoria/ })).toBeInTheDocument()

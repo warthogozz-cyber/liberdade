@@ -162,6 +162,13 @@ export const routes: RouteObject[] = [
                   })),
               },
               {
+                path: '/mais/como-funciona',
+                lazy: () =>
+                  import('@/features/help/HowItWorksPage').then((m) => ({
+                    Component: m.HowItWorksPage,
+                  })),
+              },
+              {
                 path: '/mais/categorias',
                 lazy: () =>
                   import('@/features/categories/CategoriesPage').then((m) => ({

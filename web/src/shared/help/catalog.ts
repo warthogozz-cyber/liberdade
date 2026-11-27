@@ -77,10 +77,63 @@ export const tours: Partial<Record<TourId, TourStep[]>> = {
   ],
 }
 
-export const moduleHelp: ModuleHelp[] = []
-export const glossary: { termId: string; bodyId: string }[] = []
+/**
+ * The optional modules on the "Como funciona" screen, in the spec's order. `titleId` and the
+ * body (`help.module.<module>`) are ids of that screen's own bundle.
+ */
+export const moduleHelp: ModuleHelp[] = [
+  {
+    module: 'planning',
+    tour: 'planning',
+    path: '/planejar',
+    titleId: 'help.module.planning.title',
+    hiddenForYouth: false,
+  },
+  {
+    module: 'indicators',
+    tour: 'indicators',
+    path: '/mais/indicadores',
+    titleId: 'help.module.indicators.title',
+    hiddenForYouth: false,
+  },
+  {
+    module: 'gamification',
+    tour: 'achievements',
+    path: '/mais/conquistas',
+    titleId: 'help.module.gamification.title',
+    hiddenForYouth: false,
+  },
+  {
+    module: 'markets',
+    tour: 'markets',
+    path: '/mais/feira',
+    titleId: 'help.module.markets.title',
+    hiddenForYouth: false,
+  },
+  {
+    module: 'ventures',
+    tour: 'ventures',
+    path: '/mais/projetos',
+    titleId: 'help.module.ventures.title',
+    hiddenForYouth: true,
+  },
+]
+
+/** The words of the "Como funciona" screen, in order; ids of the screen's own bundle. */
+export const glossary: { termId: string; bodyId: string }[] = [
+  'passkey',
+  'cdb',
+  'lciLca',
+  'cdi',
+  'ipca',
+  'selic',
+  'fgc',
+].map((word) => ({ termId: `help.term.${word}`, bodyId: `help.def.${word}` }))
+
 /** Key = full path, e.g. '/mais/feira/lista'. */
-export const routeHelp: Record<string, RouteHelp> = {}
+export const routeHelp: Record<string, RouteHelp> = {
+  '/mais/como-funciona': { exception: 'help screen' },
+}
 
 /** The ids under which "seen" is stored; they match what existing devices already hold. */
 export const seenId = {

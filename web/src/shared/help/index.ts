@@ -1,6 +1,7 @@
 export { PageTip } from './PageTip'
 export { PageTour } from './PageTour'
-export type { EventTipId, TipId, TourId } from './catalog'
+export { glossary, moduleHelp } from './catalog'
+export type { EventTipId, ModuleHelp, TipId, TourId } from './catalog'
 export {
   clearSeen,
   hasSeen,
