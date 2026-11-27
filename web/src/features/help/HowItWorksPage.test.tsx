@@ -89,6 +89,21 @@ describe('HowItWorksPage', () => {
     }
   })
 
+  it('tourLinksAreDescribedByTheirModule', async () => {
+    renderPage('OWNER')
+
+    const titles = ['Planejamento', 'Indicadores', 'Conquistas', 'Feira', 'Projetos']
+    const descriptions: string[] = []
+    for (const name of titles) {
+      const region = await screen.findByRole('region', { name })
+      const link = within(region).getByRole('link', { name: 'Ver o tour' })
+      expect(link).toHaveAccessibleDescription(name)
+      descriptions.push(name)
+    }
+    expect(screen.getAllByRole('link', { name: 'Ver o tour' })).toHaveLength(titles.length)
+    expect(new Set(descriptions).size).toBe(titles.length)
+  })
+
   it('glossaryHasEveryTerm', async () => {
     const { container } = renderPage('OWNER')
 
