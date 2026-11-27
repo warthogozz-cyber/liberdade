@@ -85,7 +85,13 @@ describe('shoppingList', () => {
     expect(marketsKeys.list('ws1')).toEqual(['ws', 'ws1', 'markets', 'list'])
     expect(marketsKeys.compare('ws1', ['a'])).toEqual(['ws', 'ws1', 'markets', 'compare', ['a']])
     // The overview sits under `products` but never equals a text search key.
-    expect(marketsKeys.productsOverview('ws1')).toEqual(['ws', 'ws1', 'markets', 'products', { view: 'overview' }])
+    expect(marketsKeys.productsOverview('ws1')).toEqual([
+      'ws',
+      'ws1',
+      'markets',
+      'products',
+      { view: 'overview' },
+    ])
     expect(marketsKeys.productsOverview('ws1')).not.toEqual(marketsKeys.products('ws1', ''))
   })
 })

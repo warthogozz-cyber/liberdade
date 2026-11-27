@@ -36,8 +36,7 @@ function digit(text: string, weights: number[]): number {
  * A valid invented NFC-e key (copied from `src/features/markets/receipt/testing/nfceFixtures.ts`: the
  * e2e does not import from the src helpers). The CNPJ base is invented, never a real company.
  */
-function makeChave(aamm: string, serie: number, number: number): string {
-  const base = '123456780001'
+function makeChave(aamm: string, serie: number, number: number, base = '123456780001'): string {
   const partial = base + digit(base, FIRST)
   const cnpj = partial + digit(partial, SECOND)
   const serieText = String(serie).padStart(3, '0')
@@ -63,15 +62,16 @@ export interface FreshReceipt {
 /**
  * A key no run has used (the series and number are random), so a retry in CI never meets "already
  * registered" on the first save. It is from last month: that is never after the current month, and
- * the date is typed because a typed key carries none.
+ * the date is typed because a typed key carries none. A CNPJ base other than the default makes the
+ * key belong to another (invented) company.
  */
-export function freshReceipt(): FreshReceipt {
+export function freshReceipt(base?: string): FreshReceipt {
   const now = new Date()
   const last = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 15))
   const year = String(last.getUTCFullYear())
   const month = String(last.getUTCMonth() + 1).padStart(2, '0')
   return {
-    chave: makeChave(`${year.slice(2)}${month}`, randomUpTo(999), randomUpTo(999_999_999)),
+    chave: makeChave(`${year.slice(2)}${month}`, randomUpTo(999), randomUpTo(999_999_999), base),
     issuedOn: `${year}-${month}-15`,
     shownOn: `15/${month}/${year}`,
   }
@@ -171,7 +171,9 @@ export async function registerReceipt(
   market: string,
   lines: readonly ReceiptLine[],
 ): Promise<void> {
-  const { chave, issuedOn } = freshReceipt()
+  // A CNPJ of its own: a saved receipt ties its CNPJ to the market, so a second receipt with the same
+  // one would skip the market choice ("Esta nota é deste mercado").
+  const { chave, issuedOn } = freshReceipt(`${String(randomUpTo(99_999_999)).padStart(8, '0')}0001`)
   await openKeyField(page)
   await submitKey(page, chave)
   await chooseMarket(page, market)
