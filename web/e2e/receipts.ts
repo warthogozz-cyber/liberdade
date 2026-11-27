@@ -143,3 +143,62 @@ export async function fillItem(page: Page, issuedOn: string): Promise<void> {
   await expect(page.getByRole('combobox', { name: /^Unidade/ })).toHaveValue('UN')
   await page.getByLabel('Preço da unidade').fill('4,99')
 }
+
+/** The second invented market, for the specs that compare two. */
+export const SECOND_MARKET = 'Mercado Exemplo 2'
+
+/** An invented item that only the first market's receipt carries. */
+export const RICE_NAME = 'Arroz Exemplo 5 kg'
+
+/** One line of a receipt: a product name and its unit price as typed ("4,99"). */
+export interface ReceiptLine {
+  name: string
+  price: string
+}
+
+/** The button that picks a product by name, whether the family has it already or it is typed as new. */
+function productChoice(page: Page, name: string) {
+  return page.getByRole('button', { name: new RegExp(`^(Novo: )?${name}$`) })
+}
+
+/**
+ * A whole receipt by hand, from the Feira back to the Feira: a fresh key, the market, one row per
+ * line, and the way back through the market card. A product the family has is picked, a new one is
+ * created, so the same name on two receipts is one product.
+ */
+export async function registerReceipt(
+  page: Page,
+  market: string,
+  lines: readonly ReceiptLine[],
+): Promise<void> {
+  const { chave, issuedOn } = freshReceipt()
+  await openKeyField(page)
+  await submitKey(page, chave)
+  await chooseMarket(page, market)
+
+  await page.getByLabel('Data da compra').fill(issuedOn)
+  for (const [index, line] of lines.entries()) {
+    if (index > 0) await page.getByRole('button', { name: 'Adicionar item' }).click()
+    const row = page
+      .getByRole('listitem')
+      .filter({ has: page.getByText(`Item ${index + 1}`, { exact: true }) })
+    await row.getByLabel('Produto', { exact: true }).fill(line.name)
+    await productChoice(page, line.name).click()
+    await row.getByLabel('Preço da unidade').fill(line.price)
+  }
+  await page.getByRole('button', { name: 'Gravar' }).click()
+  await expect(
+    page.getByText('Preços registrados. A nota não vira um gasto; para lançar, use Lançar.'),
+  ).toBeVisible()
+
+  await page.getByRole('link', { name: 'Ver o cartão do mercado' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: market })).toBeVisible()
+  await page.getByRole('link', { name: 'Voltar para a Feira' }).click()
+  await expect(page.getByRole('link', { name: NEAREST_MARKET })).toBeVisible()
+}
+
+/** On the shopping list, adds a product by its name: the one the family has, or a new one. */
+export async function addToList(page: Page, name: string): Promise<void> {
+  await page.getByLabel('Produto', { exact: true }).fill(name)
+  await productChoice(page, name).click()
+}

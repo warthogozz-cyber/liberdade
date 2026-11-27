@@ -29,6 +29,7 @@ import {
   withContext,
 } from './support.ts'
 import {
+  addToList,
   chooseMarket,
   expectMarketChoice,
   fillItem,
@@ -37,6 +38,9 @@ import {
   openFeira,
   openKeyField,
   RECEIPT_MARKET,
+  registerReceipt,
+  RICE_NAME,
+  SECOND_MARKET,
   submitKey,
 } from './receipts.ts'
 
@@ -723,5 +727,45 @@ test('the three receipt steps and the market card with prices meet WCAG 2.2 AA i
     page,
     RECEIPT_MARKET,
     page.getByRole('listitem').filter({ hasText: ITEM_NAME }),
+  )
+})
+
+test('the products, the shopping list and the market comparison meet WCAG 2.2 AA in both themes', async ({
+  page,
+  request,
+}) => {
+  test.setTimeout(240_000)
+  // Nothing may reach Google or Meta even by mistake while the Feira is open.
+  await page
+    .context()
+    .route(/^https:\/\/([^/]+\.)?(google|instagram|cdninstagram|facebook)\.com\//, (route) =>
+      route.abort(),
+    )
+  await openFeira(page, request)
+  await registerReceipt(page, RECEIPT_MARKET, [
+    { name: ITEM_NAME, price: '4,99' },
+    { name: RICE_NAME, price: '25,90' },
+  ])
+  await registerReceipt(page, SECOND_MARKET, [{ name: ITEM_NAME, price: '4,99' }])
+
+  // The list, with one item ticked so "Pegos" is on the screen too.
+  await page.goto('/mais/feira/lista')
+  await addToList(page, ITEM_NAME)
+  await addToList(page, RICE_NAME)
+  await page.getByRole('checkbox', { name: `Marcar ${RICE_NAME}` }).click()
+  await expectNoViolations(page, 'Lista de compras', page.getByRole('region', { name: 'Pegos' }))
+
+  // The comparison, with both markets chosen and the rice missing at the second.
+  await page.getByRole('link', { name: 'Comparar mercados' }).click()
+  await expectNoViolations(page, 'Comparar mercados', page.getByRole('list', { name: 'Totais' }))
+
+  // The products, with a pair that may be one.
+  await page.goto('/mais/feira/lista')
+  await addToList(page, 'Leite Exemplo Integral 1 L')
+  await page.goto('/mais/feira/produtos')
+  await expectNoViolations(
+    page,
+    'Produtos',
+    page.getByRole('button', { name: 'Juntar', exact: true }),
   )
 })
