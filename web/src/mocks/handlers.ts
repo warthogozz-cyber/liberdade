@@ -1324,6 +1324,29 @@ function marketsHandlers() {
             )
           }
           const state = owned(workspace.id)
+          const list = (state.list ??= [])
+          const onList = list.find((each) => each.productId === remove.id)
+          const survivor = list.find((each) => each.productId === keep.id)
+          if (
+            onList &&
+            survivor &&
+            !fitsColumn(sumQuantities(survivor.quantity, onList.quantity))
+          ) {
+            return problem(
+              422,
+              'list.quantity_too_large',
+              'A quantidade somada passa do limite. Ajuste os itens antes de juntar.',
+            )
+          }
+          if (onList) {
+            if (survivor) {
+              survivor.quantity = sumQuantities(survivor.quantity, onList.quantity)
+              survivor.checked = survivor.checked && onList.checked
+              list.splice(list.indexOf(onList), 1)
+            } else {
+              onList.productId = keep.id
+            }
+          }
           const moved = [...FAKE_PRICES, ...(state.prices ?? [])].filter(
             (price) => price.productId === remove.id,
           )
@@ -1557,15 +1580,7 @@ function marketsHandlers() {
         prices: product ? overviewOf(ws, product).prices : [],
       }
     }
-    const sum = (a: string, b: string) => {
-      const scaled = (text: string) => {
-        const [whole = '0', decimals = ''] = text.split('.')
-        return BigInt(whole) * 10000n + BigInt(decimals.padEnd(4, '0'))
-      }
-      const total = scaled(a) + scaled(b)
-      const decimals = (total % 10000n).toString().padStart(4, '0').replace(/0+$/, '')
-      return decimals === '' ? `${total / 10000n}` : `${total / 10000n}.${decimals}`
-    }
+    const sum = sumQuantities
     const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
     const DAY = 86_400_000
@@ -4461,3 +4476,19 @@ export const handlers = [
     },
   ),
 ]
+
+/** Adds two decimal quantities as the API does: exact, up to 4 places. */
+function sumQuantities(a: string, b: string): string {
+  const scaled = (text: string) => {
+    const [whole = '0', decimals = ''] = text.split('.')
+    return BigInt(whole) * 10000n + BigInt(decimals.padEnd(4, '0'))
+  }
+  const total = scaled(a) + scaled(b)
+  const decimals = (total % 10000n).toString().padStart(4, '0').replace(/0+$/, '')
+  return decimals === '' ? `${total / 10000n}` : `${total / 10000n}.${decimals}`
+}
+
+/** The API refuses a quantity of 10^15 or more (numeric(19,4)). */
+function fitsColumn(quantity: string): boolean {
+  return quantity.split('.')[0]!.length <= 15
+}
