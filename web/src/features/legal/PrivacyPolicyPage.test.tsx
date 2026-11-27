@@ -146,7 +146,7 @@ describe('PrivacyPolicyPage', () => {
 
     await waitFor(() => expect(asked).toBe(true))
     expect(
-      await screen.findByText(/Versão privacy-2026-12.5 · atualizada em 25 de novembro de 2026/),
+      await screen.findByText(/Versão privacy-2026-12.6 · atualizada em 27 de novembro de 2026/),
     ).toBeVisible()
   })
 })

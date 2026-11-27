@@ -230,7 +230,7 @@ export interface MockOrder {
 /** The versions in force, as LegalDocuments.java picks them with billing on (as in staging and the e2e). */
 const CURRENT_DOCUMENTS: MockState['currentDocuments'] = {
   TERMS: 'terms-2026-12',
-  PRIVACY: 'privacy-2026-12.5',
+  PRIVACY: 'privacy-2026-12.6',
 }
 
 /** `LegalDocuments.KEEPS_ACCEPTANCE`: a version keeps the acceptance of the one it continues. */

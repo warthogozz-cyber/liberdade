@@ -176,7 +176,7 @@ test.describe(() => {
           (window as unknown as { acceptBodies: string[] }).acceptBodies.map((b) => JSON.parse(b)),
         ),
       )
-      .toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12.5' }])
+      .toEqual([{ terms: 'terms-2026-12', privacy: 'privacy-2026-12.6' }])
     await expect(page.getByRole('heading', GATE)).toHaveCount(0)
     await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible()
   })

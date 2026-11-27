@@ -102,7 +102,7 @@ describe('AcceptInvitationPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Entrar na família' }))
 
     expect(await screen.findByText('Início da família')).toBeInTheDocument()
-    expect(sent).toEqual({ terms: 'terms-2026-12', privacy: 'privacy-2026-12.5' })
+    expect(sent).toEqual({ terms: 'terms-2026-12', privacy: 'privacy-2026-12.6' })
     expect(mockState.acceptedDocuments.TERMS?.version).toBe('terms-2026-12')
   })
 

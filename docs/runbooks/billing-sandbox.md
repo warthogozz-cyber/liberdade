@@ -276,6 +276,10 @@ itens, ligue a cobrança na produção.
       Veja a tabela de variáveis no [go-live](go-live.md).
 - [ ] O mantenedor leu os textos 2026-12 dos termos e da política de privacidade (de preferência
       com apoio jurídico) antes de ligar a cobrança na produção.
+- [ ] Nova versão dos termos 2026-12 publicada no mesmo dia: o texto atual diz "Receber meu
+      dinheiro de volta", mas o botão do app diz "Pedir o dinheiro de volta"
+      (`web/src/features/billing/messages.pt-BR.ts`). A nova versão usa o nome do botão. Como
+      muda só o nome, ela pode entrar em `KEEPS_ACCEPTANCE`, sem pedir o aceite de novo.
 - [ ] Só então, na produção: `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN` de produção no SSM, mais
       `LIBERDADE_BILLING_ENABLED=true`, `LIBERDADE_BILLING_ASAAS_BASE_URL` e
       `LIBERDADE_BILLING_CHECKOUT_HOSTS` com os valores de produção do Asaas, e
