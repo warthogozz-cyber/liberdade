@@ -7,6 +7,8 @@ const listeners = new Set<() => void>()
 // What this page remembers when `localStorage` is unavailable; it lasts until the page closes.
 const memorySeen = new Set<string>()
 let memoryTipsOn = true
+// Set when the last write of the switch failed, so the memory value wins over what storage holds.
+let tipsWriteFailed = false
 let helpOpen = false
 
 const seenKey = (userId: string, id: string) => `${TIP_PREFIX}${userId}:${id}`
@@ -31,7 +33,7 @@ function subscribe(listener: () => void): () => void {
 export function hasSeen(userId: string, id: string): boolean {
   const key = seenKey(userId, id)
   try {
-    return localStorage.getItem(key) === '1'
+    return localStorage.getItem(key) === '1' || memorySeen.has(key)
   } catch {
     return memorySeen.has(key)
   }
@@ -85,6 +87,7 @@ export function useSeen(userId: string | undefined, id: string): boolean {
 
 /** Whether the first visit tips show: on by default, and on when storage is unavailable. */
 export function isTipsEnabled(): boolean {
+  if (tipsWriteFailed) return memoryTipsOn
   try {
     return localStorage.getItem(TIPS_KEY) !== 'off'
   } catch {
@@ -97,7 +100,9 @@ export function setTipsEnabled(on: boolean): void {
   try {
     if (on) localStorage.removeItem(TIPS_KEY)
     else localStorage.setItem(TIPS_KEY, 'off')
+    tipsWriteFailed = false
   } catch {
+    tipsWriteFailed = true
     // Without storage the choice only lasts until the page closes.
   }
   emit()

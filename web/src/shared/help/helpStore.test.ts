@@ -5,9 +5,11 @@ import {
   clearSeen,
   hasSeen,
   isHelpOpen,
+  isTipsEnabled,
   markSeen,
   resetAllSeen,
   setHelpOpen,
+  setTipsEnabled,
   useSeen,
   useTipsEnabled,
 } from './helpStore'
@@ -103,5 +105,33 @@ describe('helpStore', () => {
     expect(isHelpOpen()).toBe(true)
     setHelpOpen(false)
     expect(isHelpOpen()).toBe(false)
+  })
+
+  it('seenSurvivesWhenOnlyWritesThrow', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota')
+    })
+    markSeen('u8', 'home')
+    expect(hasSeen('u8', 'home')).toBe(true)
+    expect(hasSeen('u8', 'home')).toBe(true)
+    resetAllSeen('u8')
+    expect(hasSeen('u8', 'home')).toBe(false)
+    markSeen('u8', 'home')
+    clearSeen('u8', 'home')
+    expect(hasSeen('u8', 'home')).toBe(false)
+  })
+
+  it('tipsSwitchStaysWhenOnlyWritesThrow', () => {
+    localStorage.removeItem('liberdade.tips')
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota')
+    })
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('quota')
+    })
+    setTipsEnabled(false)
+    expect(isTipsEnabled()).toBe(false)
+    setTipsEnabled(true)
+    expect(isTipsEnabled()).toBe(true)
   })
 })
