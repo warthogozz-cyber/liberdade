@@ -22,6 +22,12 @@ public interface MarketsExport {
     /** The family's receipts, by creation; the access key and its hash stay out. */
     List<ExportedReceipt> receipts(UUID workspaceId);
 
+    /** The family's shopping list, in the order the family set. */
+    List<ExportedListItem> shoppingList(UUID workspaceId);
+
+    /** The pairs of products the family said are not the same, by id. */
+    List<ExportedDismissal> joinDismissals(UUID workspaceId);
+
     /** The address the family's markets are searched from, if it set one. */
     Optional<ExportedMarketHome> home(UUID workspaceId);
 }

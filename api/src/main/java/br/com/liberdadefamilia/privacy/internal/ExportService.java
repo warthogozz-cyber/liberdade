@@ -17,6 +17,8 @@ import br.com.liberdadefamilia.ledger.ExportedTag;
 import br.com.liberdadefamilia.ledger.ExportedTransaction;
 import br.com.liberdadefamilia.ledger.LedgerExport;
 import br.com.liberdadefamilia.markets.ExportedAlias;
+import br.com.liberdadefamilia.markets.ExportedDismissal;
+import br.com.liberdadefamilia.markets.ExportedListItem;
 import br.com.liberdadefamilia.markets.ExportedMarket;
 import br.com.liberdadefamilia.markets.ExportedMarketHome;
 import br.com.liberdadefamilia.markets.ExportedPrice;
@@ -83,7 +85,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 class ExportService {
 
-    private static final int FORMAT_VERSION = 10;
+    private static final int FORMAT_VERSION = 11;
     private static final ZoneId FORTALEZA = ZoneId.of("America/Fortaleza");
     private static final List<String> TRANSACTION_HEADER = List.of(
             "data",
@@ -243,6 +245,8 @@ class ExportService {
             List<ExportedAlias> aliases,
             List<ExportedPrice> prices,
             List<ExportedReceipt> receipts,
+            List<ExportedListItem> shoppingList,
+            List<ExportedDismissal> joinDismissals,
             List<OrderLine> orders,
             @Nullable ExportedPlan plan,
             Map<String, Boolean> modules,
@@ -464,6 +468,8 @@ class ExportService {
                 markets.aliases(workspaceId),
                 markets.prices(workspaceId),
                 markets.receipts(workspaceId),
+                markets.shoppingList(workspaceId),
+                markets.joinDismissals(workspaceId),
                 billing.orders(workspaceId).stream().map(OrderLine::of).toList(),
                 billing.plan(workspaceId).orElse(null),
                 enabled,
@@ -605,6 +611,8 @@ class ExportService {
         root.put("aliases", data.aliases());
         root.put("prices", data.prices());
         root.put("receipts", data.receipts());
+        root.put("shoppingList", data.shoppingList());
+        root.put("joinDismissals", data.joinDismissals());
         root.put("modules", data.modules());
         root.put("orders", data.orders());
         root.put("plan", data.plan());
@@ -779,6 +787,20 @@ class ExportService {
                     Integer.toString(r.itemCount()),
                     r.createdAt().toString()));
         }
+        List<List<String>> listRows = new ArrayList<>();
+        for (ExportedListItem i : data.shoppingList()) {
+            Instant checkedAt = i.checkedAt();
+            listRows.add(List.of(
+                    i.productId().toString(),
+                    fourDecimals(i.quantity()),
+                    checkedAt == null ? "" : checkedAt.toString(),
+                    Integer.toString(i.position()),
+                    i.createdAt().toString()));
+        }
+        List<List<String>> dismissalRows = new ArrayList<>();
+        for (ExportedDismissal d : data.joinDismissals()) {
+            dismissalRows.add(List.of(d.productA().toString(), d.productB().toString()));
+        }
         List<List<String>> ventureRows = new ArrayList<>();
         List<List<String>> ventureItemRows = new ArrayList<>();
         List<List<String>> ventureProductRows = new ArrayList<>();
@@ -940,6 +962,11 @@ class ExportService {
         files.put(
                 "feira-notas.csv",
                 csv.toBytes(List.of("id", "mercado_id", "data", "modo", "itens", "criado_em"), receiptRows));
+        files.put(
+                "feira-lista.csv",
+                csv.toBytes(
+                        List.of("produto_id", "quantidade", "pego_em", "posicao", "criado_em"), listRows, Set.of(1)));
+        files.put("feira-nao-juntar.csv", csv.toBytes(List.of("produto_a", "produto_b"), dismissalRows));
         zip(out, files);
     }
 

@@ -13,6 +13,7 @@ import br.com.liberdadefamilia.markets.MarketAdded;
 import br.com.liberdadefamilia.markets.MarketEdited;
 import br.com.liberdadefamilia.markets.MarketHomeCleared;
 import br.com.liberdadefamilia.markets.MarketHomeSet;
+import br.com.liberdadefamilia.markets.ProductsMerged;
 import br.com.liberdadefamilia.markets.ReceiptAdded;
 import br.com.liberdadefamilia.planning.GoalArchived;
 import br.com.liberdadefamilia.planning.RecurringRuleArchived;
@@ -43,7 +44,8 @@ import org.springframework.stereotype.Component;
 /**
  * One plain, synchronous listener per event. They join the publisher's transaction, so an action that fails takes its
  * audit row with it; {@code SignedIn} is published after commit and its row simply commits on its own. Metadata holds
- * fixed labels only: no names, no addresses.
+ * fixed labels and ids only: no names, no addresses. A product join targets {@code PRODUCT}, the one that stayed; the
+ * shopping list itself is day-to-day and has no audit.
  */
 @Component
 class AuditListeners {
@@ -179,6 +181,17 @@ class AuditListeners {
                 "RECEIPT",
                 event.receiptId(),
                 Map.of("mode", event.mode(), "itemCount", String.valueOf(event.itemCount())));
+    }
+
+    @EventListener
+    void on(ProductsMerged event) {
+        record(
+                event.workspaceId(),
+                event.actorUserId(),
+                "products.merged",
+                "PRODUCT",
+                event.keptProductId(),
+                Map.of("removedProductId", event.removedProductId().toString()));
     }
 
     @EventListener
