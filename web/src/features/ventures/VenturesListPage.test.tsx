@@ -172,4 +172,31 @@ describe('VenturesListPage tour', () => {
     // Viewers read projects; tagging entries and starting a project are for the people who write.
     for (const step of steps) expect(step).not.toMatch(/Marque|Comece/)
   })
+
+  it('tourWaitsForTheList', async () => {
+    const workspace = seedMockFamily()
+    seedVentureFixture(workspace)
+    let release = () => {}
+    const loaded = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    // Holds the list back; returning nothing then hands the call to the usual handler.
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/ventures`, async () => {
+        await loaded
+      }),
+    )
+    // The card loads on demand; loaded first, a tour opened too early would show at once.
+    await import('@/shared/help/Tour')
+    render()
+
+    expect(await screen.findByRole('list', { busy: true })).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    release()
+    await screen.findByText('Doces caseiros')
+    const tour = await screen.findByRole('dialog')
+    expect(tour).toHaveTextContent('Passo 1 de 3')
+  })
 })

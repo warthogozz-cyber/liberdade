@@ -26,6 +26,10 @@ export function VenturesListPage() {
   const open = ventures.data?.ventures.filter((each) => each.status !== 'CLOSED') ?? []
   const closed = ventures.data?.ventures.filter((each) => each.status === 'CLOSED') ?? []
   const limitReached = ventures.data?.limitReached === true
+  // The tour joins once the list is in, so it counts every step from the start; a quick "Concluir"
+  // on a one-step tour shown while loading would mark the whole tour seen.
+  const [settled, setSettled] = useState(false)
+  if (ventures.data !== undefined && !settled) setSettled(true)
 
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
@@ -121,7 +125,7 @@ export function VenturesListPage() {
           ))}
         </ul>
       )}
-      <PageTour id="ventures" />
+      {settled && <PageTour id="ventures" />}
     </main>
   )
 }
