@@ -283,8 +283,8 @@ mercado. Só Dono e Adulto registram; os demais leem os preços.
   chunk próprio, com o `BarcodeDetector` do navegador ou o `jsQR` num Web Worker. A imagem nunca sai do
   aparelho e a câmera para ao sair da tela. Colar o link e digitar a chave são as alternativas sem câmera.
 - **O QR é limpo no aparelho.** O documento de quem comprou (`cDest` na v1; CPF ou CNPJ na v3 offline) nunca
-  sai do aparelho. O link original do QR só aparece como "Abrir a nota no site da SEFAZ", aberto no
-  navegador da pessoa, e nunca vai à API nem ao `localStorage`.
+  sai do aparelho. O link original do QR só aparece como "Abrir a nota no site da Fazenda (SEFAZ)",
+  aberto no navegador da pessoa, e nunca vai à API nem ao `localStorage`.
 - **A gravação refaz a validação.** A API recebe a chave no corpo, confere de novo, calcula o hash e tira o
   CNPJ e o mês dela. A chave não é guardada nem registrada em log; vale o mesmo para o `p` do QR.
 - **O estado da tela fica só na memória.** Sair da tela descarta tudo. Depois de gravar, a tela invalida a

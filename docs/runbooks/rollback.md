@@ -40,6 +40,13 @@ migração: a versão antiga vai rodar com o esquema novo, e isso só funciona s
 renomeado ou tornado obrigatório. Se a migração removeu ou renomeou algo, não faça o rollback
 direto: peça uma correção para a frente.
 
+Restrição nova também conta. A `V43__created_by_fk.sql` (PR #94) liga a autoria de notas, preços e
+itens da lista ao membro da família. As versões anteriores a ela gravam o id do usuário no autor do
+item da lista, e a restrição recusa esse valor: incluir item na lista dá erro até voltar uma versão
+com a V43. Não volte para antes do PR #94; peça uma correção para a frente. O mesmo vale quando o
+`deploy.sh` volta sozinho para a imagem anterior porque a API nova não ficou saudável: depois de um
+deploy com a V43, se isso acontecer, faça um deploy novo assim que a causa for corrigida.
+
 2. No GitHub, abra Actions > Deploy > Run workflow. Em "Use workflow from", escolha `main` (o
    Environment `production` e o `staging` só aceitam a `main`: de outro branch, a regra do
    Environment recusa o disparo). Preencha:
