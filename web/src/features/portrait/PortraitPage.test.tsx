@@ -97,6 +97,17 @@ function renderPortrait() {
 }
 
 describe('PortraitPage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    seedMockFamily()
+    serve(false)
+    renderPortrait()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Uma imagem do mês para compartilhar. Mostra só percentuais, nunca valores.',
+    )
+  })
+
   it('disablesShareWhenEmpty', async () => {
     seedMockFamily()
     serve(false)

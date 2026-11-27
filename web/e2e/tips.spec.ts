@@ -123,7 +123,7 @@ test.describe('first visit tips and tours', () => {
       await expect(page.getByRole('heading', { level: 1, name: 'Conquistas' })).toBeVisible({
         timeout: 3_000,
       })
-      await expect(tour.getByText('Passo 1 de 2')).toBeVisible({ timeout: 3_000 })
+      await expect(tour.getByText('Passo 1 de 3')).toBeVisible({ timeout: 3_000 })
       await expect(page).toHaveURL(/\/mais\/conquistas$/)
     }).toPass({ timeout: 45_000 })
 

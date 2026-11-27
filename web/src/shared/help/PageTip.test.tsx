@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { renderWithProviders } from '@/shared/testing'
+import { setHelpOpen } from './helpStore'
 import { PageTip } from './PageTip'
 
 beforeEach(() => {
@@ -47,5 +48,24 @@ describe('PageTip', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+
+  it('waitsWhileAnotherSurfaceHoldsTheSlot', async () => {
+    setHelpOpen(true)
+    renderWithProviders(<PageTip id="transactions" />)
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+
+    act(() => setHelpOpen(false))
+    expect(await screen.findByRole('note')).toHaveTextContent(TEXT)
+  })
+
+  it('staysWhileItHoldsTheSlotItself', async () => {
+    renderWithProviders(<PageTip id="transactions" />)
+    await screen.findByRole('note')
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.getByRole('note')).toHaveTextContent(TEXT)
   })
 })

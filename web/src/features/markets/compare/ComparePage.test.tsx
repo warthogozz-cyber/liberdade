@@ -78,6 +78,15 @@ function render() {
 const box = (name: string) => screen.findByRole('checkbox', { name })
 
 describe('ComparePage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    render()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'O total conta só os itens com preço em todos os mercados escolhidos.',
+    )
+  })
+
   it('suggestedPreselected', async () => {
     render()
 

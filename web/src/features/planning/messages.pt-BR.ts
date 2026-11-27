@@ -140,6 +140,8 @@ export const planningMessages = {
   'planning.split.title': 'Gastos do mês',
   'planning.split.fixed': 'Gastos fixos',
   'planning.split.variable': 'Variáveis',
+  'planning.split.caption':
+    'Fixos se repetem todo mês, como o aluguel. Variáveis mudam, como o mercado.',
   'planning.split.meter': 'Parte dos gastos que é fixa',
   'planning.recurrences.title': 'Recorrências',
   'planning.recurrences.description': 'Contas que se repetem',

@@ -16,6 +16,7 @@ import {
   useShoppingList,
   useUpdateListItem,
 } from './useShoppingList'
+import { PageTip } from '@/shared/help'
 
 registerMessages(marketsMessages)
 
@@ -102,6 +103,7 @@ export function ShoppingListPage() {
       <h1 className="text-2xl font-semibold">
         <FormattedMessage id="markets.list.title" />
       </h1>
+      <PageTip id="shopping-list" />
 
       <Link to="/mais/feira/comparar" className={`${outline} self-start`}>
         <FormattedMessage id="markets.compare.link" />

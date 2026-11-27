@@ -31,6 +31,23 @@ describe('FiguresPanel', () => {
     )
   })
 
+  it('captions', () => {
+    render(prdExampleFigures())
+
+    expect(screen.getByText('Margem: o que sobra de cada venda.')).toBeVisible()
+    expect(screen.getByText('Equilíbrio: quanto vender para não ter prejuízo.')).toBeVisible()
+    expect(screen.getByText('Retorno: em quantos meses o investimento volta.')).toBeVisible()
+    for (const label of [
+      'Margem por unidade',
+      'Margem',
+      'Equilíbrio (faturamento)',
+      'Retorno do investimento',
+      'Retorno em 12 meses',
+    ]) {
+      expect(screen.getByText(label)).toBeVisible()
+    }
+  })
+
   it('neutralEdgeTexts', () => {
     const base = prdExampleFigures()
     const edges: VentureFigures = {

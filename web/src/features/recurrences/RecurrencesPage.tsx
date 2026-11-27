@@ -16,6 +16,7 @@ import { useDocumentTitle } from '@/shared/ui'
 import { RuleSheet } from './RuleSheet'
 import { ruleText } from './ruleText'
 import './register'
+import { PageTip } from '@/shared/help'
 
 type View = { kind: 'new' } | { kind: 'edit'; rule: RecurringRuleView }
 
@@ -32,6 +33,7 @@ export function RecurrencesPage() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
+      <PageTip id="recurrences" />
       {workspace ? (
         <RecurrencesScreen workspace={workspace} />
       ) : (

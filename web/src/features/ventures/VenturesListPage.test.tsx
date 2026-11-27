@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { foodSweetsVenture, seedMockFamily, seedVentureFixture } from '@/mocks/data'
@@ -9,6 +9,7 @@ import { VenturesListPage } from './VenturesListPage'
 
 beforeEach(() => {
   localStorage.setItem('liberdade.tips', 'on')
+  Element.prototype.scrollIntoView = () => {}
 })
 
 afterEach(() => {
@@ -125,5 +126,77 @@ describe('VenturesListPage', () => {
     expect(await screen.findByText('Doces caseiros')).toBeVisible()
     expect(screen.queryByRole('link', { name: 'Começar um projeto' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Começar um projeto' })).not.toBeInTheDocument()
+  })
+})
+
+describe('VenturesListPage tour', () => {
+  const anchors = ['ventures-intro', 'ventures-start', 'ventures-actual']
+
+  it('tourAnchors', async () => {
+    const workspace = seedMockFamily()
+    seedVentureFixture(workspace)
+    render()
+    await screen.findByText('Doces caseiros')
+    for (const name of anchors) {
+      expect(document.querySelector(`[data-tour="${name}"]`), name).not.toBeNull()
+    }
+    cleanup()
+
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/ventures`, () =>
+        HttpResponse.json({ ventures: [], limitReached: false }),
+      ),
+    )
+    render()
+    await screen.findByText('Nenhum projeto ainda.')
+    for (const name of anchors) {
+      expect(document.querySelector(`[data-tour="${name}"]`), name).not.toBeNull()
+    }
+  })
+
+  it('viewerTourAsksForNothingTheyCannotDo', async () => {
+    const workspace = seedMockFamily()
+    workspace.role = 'VIEWER'
+    seedVentureFixture(workspace)
+    render()
+    await screen.findByText('Doces caseiros')
+
+    const steps: string[] = []
+    const tour = await screen.findByRole('dialog')
+    await waitFor(() => expect(tour).toHaveTextContent('Passo 1 de 2'))
+    steps.push(tour.textContent ?? '')
+    fireEvent.click(within(tour).getByRole('button', { name: 'Próximo' }))
+    expect(tour).toHaveTextContent('Passo 2 de 2')
+    steps.push(tour.textContent ?? '')
+
+    // Viewers read projects; tagging entries and starting a project are for the people who write.
+    for (const step of steps) expect(step).not.toMatch(/Marque|Comece/)
+  })
+
+  it('tourWaitsForTheList', async () => {
+    const workspace = seedMockFamily()
+    seedVentureFixture(workspace)
+    let release = () => {}
+    const loaded = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    // Holds the list back; returning nothing then hands the call to the usual handler.
+    server.use(
+      http.get(`${API_URL}/v1/workspaces/:ws/ventures`, async () => {
+        await loaded
+      }),
+    )
+    // The card loads on demand; loaded first, a tour opened too early would show at once.
+    await import('@/shared/help/Tour')
+    render()
+
+    expect(await screen.findByRole('list', { busy: true })).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    release()
+    await screen.findByText('Doces caseiros')
+    const tour = await screen.findByRole('dialog')
+    expect(tour).toHaveTextContent('Passo 1 de 3')
   })
 })

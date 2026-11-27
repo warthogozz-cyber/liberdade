@@ -80,13 +80,28 @@ describe('HowItWorksPage', () => {
     expect(router.state.location.state).toEqual({ forceTour: 'planning' })
   })
 
-  it('noTourLinkWithoutSteps', async () => {
+  it('everyModuleHasATourLink', async () => {
     renderPage('OWNER')
 
-    const feira = await screen.findByRole('region', { name: 'Feira' })
-    expect(within(feira).queryByRole('link', { name: 'Ver o tour' })).not.toBeInTheDocument()
-    const planning = screen.getByRole('region', { name: 'Planejamento' })
-    expect(within(planning).getByRole('link', { name: 'Ver o tour' })).toBeInTheDocument()
+    for (const name of ['Planejamento', 'Indicadores', 'Conquistas', 'Feira', 'Projetos']) {
+      const region = await screen.findByRole('region', { name })
+      expect(within(region).getByRole('link', { name: 'Ver o tour' }), name).toBeInTheDocument()
+    }
+  })
+
+  it('tourLinksAreDescribedByTheirModule', async () => {
+    renderPage('OWNER')
+
+    const titles = ['Planejamento', 'Indicadores', 'Conquistas', 'Feira', 'Projetos']
+    const descriptions: string[] = []
+    for (const name of titles) {
+      const region = await screen.findByRole('region', { name })
+      const link = within(region).getByRole('link', { name: 'Ver o tour' })
+      expect(link).toHaveAccessibleDescription(name)
+      descriptions.push(name)
+    }
+    expect(screen.getAllByRole('link', { name: 'Ver o tour' })).toHaveLength(titles.length)
+    expect(new Set(descriptions).size).toBe(titles.length)
   })
 
   it('glossaryHasEveryTerm', async () => {

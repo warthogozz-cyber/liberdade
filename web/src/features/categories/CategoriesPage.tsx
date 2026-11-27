@@ -20,6 +20,7 @@ import { CategoryTabs } from './CategoryTabs'
 import { categoryTabId, categoryTree, type CategoryTab } from './categoryStyle'
 import { COLOR_DOT } from './colorDot'
 import './register'
+import { PageTip } from '@/shared/help'
 
 /** The tags are managed rarely, so their tab is a chunk of its own. */
 const TagsTab = lazy(() => import('./TagsTab'))
@@ -43,6 +44,7 @@ export function CategoriesPage() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
+      <PageTip id="categories" />
       {workspace ? (
         <CategoriesScreen workspace={workspace} />
       ) : (

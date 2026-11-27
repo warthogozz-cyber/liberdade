@@ -15,6 +15,7 @@ import {
 import { buildPortrait } from './portraitData'
 import { sharePortrait } from './sharePortrait'
 import './register'
+import { PageTip } from '@/shared/help'
 
 const BLOCKS: { block: PortraitBlock; id: FormatjsIntl.Message['ids'] }[] = [
   { block: 'categories', id: 'portrait.show.categories' },
@@ -33,6 +34,7 @@ export function PortraitPage() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
+      <PageTip id="portrait" />
       {me && workspace ? (
         <PortraitScreen workspaceId={workspace.id} timezone={workspace.timezone} />
       ) : (

@@ -53,6 +53,16 @@ function setUp(role: 'OWNER' | 'YOUTH' = 'OWNER') {
 const render = () => renderWithProviders(<GoalsPage />, { path: '/planejar/metas' })
 
 describe('GoalsPage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    setUp()
+    render()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Guardar soma dinheiro na meta. Se a meta acompanha uma conta, o valor vem do saldo dela.',
+    )
+  })
+
   it('lists a goal with its saved amount, deadline and suggestion', async () => {
     setUp()
     addGoal('Viagem', '250.00', { dueOn: '2027-08' })

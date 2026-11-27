@@ -20,6 +20,7 @@ import {
   useProductsOverview,
   useProductSuggestions,
 } from './useProducts'
+import { PageTip } from '@/shared/help'
 
 registerMessages(marketsMessages)
 
@@ -166,6 +167,7 @@ export function ProductsPage() {
       <h1 className="text-2xl font-semibold">
         <FormattedMessage id="markets.products.title" />
       </h1>
+      <PageTip id="products" />
 
       {pairs.length > 0 && (
         <ul className="flex flex-col gap-3">

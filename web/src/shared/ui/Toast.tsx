@@ -1,7 +1,7 @@
 import { Toast } from 'radix-ui'
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useIntl } from 'react-intl'
-import { ToastContext, type ToastApi, type ToastOptions } from './useToast'
+import { ToastContext, ToastShowingContext, type ToastApi, type ToastOptions } from './useToast'
 
 const DURATION_MS = 5000
 
@@ -27,7 +27,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={api}>
       <Toast.Provider duration={DURATION_MS} label={region}>
-        {children}
+        <ToastShowingContext.Provider value={current !== null}>
+          {children}
+        </ToastShowingContext.Provider>
         {current && (
           <Toast.Root
             // A new key mounts a fresh notice, with its own timer.

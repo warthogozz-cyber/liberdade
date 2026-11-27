@@ -9,7 +9,8 @@ const memorySeen = new Set<string>()
 let memoryTipsOn = true
 // Set when the last write of the switch failed, so the memory value wins over what storage holds.
 let tipsWriteFailed = false
-let helpOpen = false
+// How many bubbles, tours and event tips are on the screen; a count, so one closing keeps the rest open.
+let helpOpenCount = 0
 
 const seenKey = (userId: string, id: string) => `${TIP_PREFIX}${userId}:${id}`
 
@@ -114,11 +115,23 @@ export function useTipsEnabled(): [boolean, (on: boolean) => void] {
   return [enabled, setTipsEnabled]
 }
 
-/** Marks that a bubble, tour or event tip is on the screen, so only one shows at a time. */
+/** Marks that a bubble, tour or event tip opened (true) or closed (false), so only one shows at a time. */
 export function setHelpOpen(open: boolean): void {
-  helpOpen = open
+  helpOpenCount = open ? helpOpenCount + 1 : Math.max(0, helpOpenCount - 1)
+  emit()
 }
 
 export function isHelpOpen(): boolean {
-  return helpOpen
+  return helpOpenCount > 0
+}
+
+/** Whether a bubble, tour or event tip holds the slot; re-renders when it is taken or let go. */
+export function useHelpOpen(): boolean {
+  return useSyncExternalStore(subscribe, isHelpOpen, () => false)
+}
+
+/** Forgets every open surface; for tests. */
+export function resetHelpOpenForTests(): void {
+  helpOpenCount = 0
+  emit()
 }

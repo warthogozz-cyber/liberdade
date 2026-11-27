@@ -448,6 +448,11 @@ describe('AcceptInvitationPage', () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Entrar com Google' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Como você se chama?')).not.toBeInTheDocument()
+    expect(
+      screen.getAllByText(
+        'Passkey é entrar com a digital, o rosto ou o PIN do aparelho, sem senha.',
+      ),
+    ).toHaveLength(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Recuperar acesso' }))
 
@@ -460,6 +465,45 @@ describe('AcceptInvitationPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Criar passkey' }))
     expect(await screen.findByText('Início da família')).toBeInTheDocument()
     expect(registerPasskey).toHaveBeenCalledWith('Bia')
+  })
+
+  it('passkeyExplained', async () => {
+    mockState.signedIn = false
+    seedMockInvitation({ token: TOKEN, role: 'YOUTH' })
+    renderAccept()
+
+    await screen.findByText('Para o Jovem, a entrada é só por passkey.')
+    expect(
+      screen.getAllByText(
+        'Passkey é entrar com a digital, o rosto ou o PIN do aparelho, sem senha.',
+      ),
+    ).toHaveLength(1)
+  })
+
+  it('passkeyExplainedForAnAdult', async () => {
+    mockState.signedIn = false
+    seedMockInvitation({ token: TOKEN })
+    renderAccept()
+
+    await screen.findByRole('button', { name: 'Criar passkey neste aparelho' })
+    expect(
+      screen.getAllByText(
+        'Passkey é entrar com a digital, o rosto ou o PIN do aparelho, sem senha.',
+      ),
+    ).toHaveLength(1)
+  })
+
+  it('passkeyExplainedAtTheCreateStep', async () => {
+    sessionStorage.removeItem(TOKEN_KEY)
+    sessionStorage.setItem(PENDING_KEY, 'Convidada')
+    renderAccept()
+
+    await screen.findByRole('heading', { name: 'Crie sua passkey para voltar depois' })
+    expect(
+      screen.getAllByText(
+        'Passkey é entrar com a digital, o rosto ou o PIN do aparelho, sem senha.',
+      ),
+    ).toHaveLength(1)
   })
 
   it('explainsWhyTheButtonsAreOffline', async () => {

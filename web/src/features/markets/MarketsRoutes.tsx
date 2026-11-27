@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { useRoutes } from 'react-router'
+import { useRoutes, type RouteObject } from 'react-router'
 import { useCurrentWorkspace } from '@/shared/api'
 import { familyFeaturesOpen, usePlan } from '@/shared/api/billing'
 import { registerMessages } from '@/shared/i18n'
@@ -40,6 +40,24 @@ function Loading() {
   )
 }
 
+// The one list of the screens: `marketsRoutePaths` reads it, so the help coverage test and the
+// router never diverge.
+const marketsRoutes: RouteObject[] = [
+  { index: true, element: <FeiraPage /> },
+  { path: 'mercado/:ref', element: <MarketCardPage /> },
+  { path: 'nota', element: <ReceiptPage /> },
+  { path: 'produtos', element: <ProductsPage /> },
+  { path: 'lista', element: <ShoppingListPage /> },
+  { path: 'comparar', element: <ComparePage /> },
+]
+
+/** The inner paths of the Feira screens (the Feira itself is the index, with no path of its own). */
+// Not a component, but it must sit beside the routes it reads (see the note above).
+// eslint-disable-next-line react-refresh/only-export-components
+export const marketsRoutePaths: readonly string[] = marketsRoutes.flatMap((route) =>
+  route.path === undefined ? [] : [route.path],
+)
+
 /**
  * The Feira screens under `/mais/feira`, behind the module guard of the app routes. On the free plan
  * (with the plan on sale) they give way to the plan screen. A plan that cannot be read, or that waits
@@ -50,14 +68,7 @@ export function MarketsRoutes() {
   const workspace = useCurrentWorkspace()
   const plan = usePlan(workspace?.id)
   // `useRoutes`, not `<Routes>`: it keeps the router's route-element helpers out of the first load.
-  const screen = useRoutes([
-    { index: true, element: <FeiraPage /> },
-    { path: 'mercado/:ref', element: <MarketCardPage /> },
-    { path: 'nota', element: <ReceiptPage /> },
-    { path: 'produtos', element: <ProductsPage /> },
-    { path: 'lista', element: <ShoppingListPage /> },
-    { path: 'comparar', element: <ComparePage /> },
-  ])
+  const screen = useRoutes(marketsRoutes)
   // Offline with no saved plan the query waits for a connection: the saved Feira opens meanwhile.
   if (plan.isPending && plan.fetchStatus !== 'paused') return <Loading />
   if (plan.data && !familyFeaturesOpen(plan.data)) {

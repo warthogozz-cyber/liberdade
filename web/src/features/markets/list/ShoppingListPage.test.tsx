@@ -48,6 +48,15 @@ function render(role: Role = 'OWNER', items: 'three' | 'none' = 'three') {
 const rowOf = async (name: string) => (await screen.findByText(name)).closest('li') as HTMLElement
 
 describe('ShoppingListPage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    render()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'A lista é da família toda e muda ao vivo em todos os aparelhos.',
+    )
+  })
+
   it('addByPickerOrNewName', async () => {
     const bodies: unknown[] = []
     server.use(

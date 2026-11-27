@@ -22,6 +22,7 @@ export function TagInput({ value, onChange }: TagInputProps) {
   const intl = useIntl()
   const inputId = useId()
   const listId = useId()
+  const helpId = useId()
   const tags = useTags(useCurrentWorkspace()?.id ?? '')
   const [text, setText] = useState('')
   const [active, setActive] = useState(-1)
@@ -134,6 +135,7 @@ export function TagInput({ value, onChange }: TagInputProps) {
         aria-expanded={suggestions.length > 0}
         aria-controls={listId}
         aria-autocomplete="list"
+        aria-describedby={helpId}
         aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
         autoComplete="off"
         placeholder={intl.formatMessage({ id: 'tags.placeholder' })}
@@ -146,6 +148,9 @@ export function TagInput({ value, onChange }: TagInputProps) {
         }}
         className="min-h-12 rounded-field border border-text-muted/30 bg-surface px-3"
       />
+      <p id={helpId} className="text-sm text-text-muted">
+        {intl.formatMessage({ id: 'transactions.tags.help' })}
+      </p>
       <ul
         id={listId}
         role="listbox"

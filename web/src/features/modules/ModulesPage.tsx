@@ -1,17 +1,42 @@
 import { useState } from 'react'
 import { useIntl } from 'react-intl'
+import { Link } from 'react-router'
 import {
   ApiError,
   useCurrentWorkspace,
+  useMe,
   useModules,
   type MeWorkspace,
   type ModuleKey,
 } from '@/shared/api'
 import { useSetModule } from '@/shared/api/privacy'
+import { clearSeen, moduleHelp, PageTip, seenId } from '@/shared/help'
 import { useOnline } from '@/shared/offline'
 import { useDocumentTitle } from '@/shared/ui'
 import { isAvailable, OPTIONAL_MODULES } from './moduleCatalog'
 import './register'
+
+/** After a module is switched on: its name and, when it has a tour, the way to its screen. */
+export function ModuleNotice({ module, role }: { module: ModuleKey; role: MeWorkspace['role'] }) {
+  const intl = useIntl()
+  const help = moduleHelp.find((each) => each.module === module)
+  if (!help) return null
+  const name = intl.formatMessage({ id: `modules.${module}` as 'modules.planning' })
+  const showLink = !(help.hiddenForYouth && role === 'YOUTH')
+  return (
+    <>
+      <span>{intl.formatMessage({ id: 'modules.enabled' }, { module: name })}</span>
+      {showLink && (
+        <Link
+          to={help.path}
+          className="ml-3 font-medium text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          {intl.formatMessage({ id: 'modules.open' }, { module: name })}
+        </Link>
+      )}
+    </>
+  )
+}
 
 /** What the family can switch on beyond the core. Only an Owner or an Adult has the switches. */
 export function ModulesPage() {
@@ -22,6 +47,7 @@ export function ModulesPage() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
+      <PageTip id="modules" />
       {workspace ? (
         <ModuleList workspace={workspace} />
       ) : (
@@ -37,6 +63,8 @@ function ModuleList({ workspace }: { workspace: MeWorkspace }) {
   const modules = useModules(workspace.id)
   const setModule = useSetModule(workspace.id)
   const [error, setError] = useState<string>()
+  const [enabled, setEnabled] = useState<ModuleKey>()
+  const userId = useMe().data?.user.id
   const canSwitch = workspace.role === 'OWNER' || workspace.role === 'ADULT'
 
   if (modules.isPending) return <p>{intl.formatMessage({ id: 'common.loading' })}</p>
@@ -44,8 +72,15 @@ function ModuleList({ workspace }: { workspace: MeWorkspace }) {
 
   async function toggle(key: ModuleKey, enabled: boolean) {
     setError(undefined)
+    setEnabled(undefined)
     try {
       await setModule.mutateAsync({ key, enabled })
+      if (enabled && moduleHelp.some((each) => each.module === key)) {
+        setEnabled(key)
+        // The module's tour shows again on its screen.
+        const tour = moduleHelp.find((each) => each.module === key)?.tour
+        if (userId && tour) clearSeen(userId, seenId.tour(tour))
+      }
     } catch (failure) {
       setError(
         (failure instanceof ApiError && failure.detail) ||
@@ -108,6 +143,7 @@ function ModuleList({ workspace }: { workspace: MeWorkspace }) {
           )
         })}
       </ul>
+      <div role="status">{enabled && <ModuleNotice module={enabled} role={workspace.role} />}</div>
       {error && (
         <p role="alert" className="text-negative">
           {error}

@@ -40,6 +40,14 @@ function patches() {
 }
 
 describe('StepsList', () => {
+  it('helpText', async () => {
+    render()
+
+    expect(
+      await screen.findByText('Liste os próximos passos. Marque como Feito ao concluir.'),
+    ).toBeInTheDocument()
+  })
+
   it('moveWithButtons', async () => {
     const bodies = patches()
     render()

@@ -34,6 +34,15 @@ function render(role: Role = 'OWNER') {
 }
 
 describe('ProductsPage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    render()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Se dois nomes são o mesmo produto, junte para os preços ficarem em um só.',
+    )
+  })
+
   it('listsPricesPerMarket', async () => {
     render()
 

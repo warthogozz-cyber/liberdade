@@ -15,6 +15,8 @@ export const modulesMessages = {
   'modules.ventures.description': 'Renda extra e pequenos negócios, separados das contas da casa.',
   'modules.markets': 'Feira',
   'modules.markets.description': 'Mercados perto de você, com preços que a família anota.',
+  'modules.enabled': '{module}: ligado.',
+  'modules.open': 'Abrir {module}',
   'modules.offline': 'Sem conexão. Ligar e desligar módulos volta com o sinal.',
   'modules.loadFailed': 'Não deu para carregar os módulos. Tente de novo.',
 } as const

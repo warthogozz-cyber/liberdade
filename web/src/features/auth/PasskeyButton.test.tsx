@@ -36,6 +36,17 @@ function renderButton() {
 const createButton = () => screen.findByRole('button', { name: 'Criar passkey neste aparelho' })
 
 describe('PasskeyButton', () => {
+  it('passkeyExplained', async () => {
+    renderButton()
+    await createButton()
+
+    expect(
+      screen.getAllByText(
+        'Passkey é entrar com a digital, o rosto ou o PIN do aparelho, sem senha.',
+      ),
+    ).toHaveLength(1)
+  })
+
   it('creates a passkey labelled for this device', async () => {
     const bodies: unknown[] = []
     server.use(

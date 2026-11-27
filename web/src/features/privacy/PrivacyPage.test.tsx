@@ -39,6 +39,17 @@ function renderPrivacy() {
 const lastButton = (name: string) => screen.getAllByRole('button', { name }).at(-1)!
 
 describe('PrivacyPage', () => {
+  it('helpText', async () => {
+    seedMockFamily()
+    renderPrivacy()
+
+    expect(
+      await screen.findByText(
+        'Aqui você baixa seus dados, vê quem entrou e pode excluir a conta. Excluir leva 30 dias e dá para cancelar.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('rendersActions', async () => {
     seedMockFamily()
     renderPrivacy()
@@ -50,6 +61,18 @@ describe('PrivacyPage', () => {
     )
     expect(screen.getByRole('button', { name: 'Excluir minha conta' })).toBeInTheDocument()
     expect(await screen.findByText('Responsável legal pelo uso do app')).toBeInTheDocument()
+  })
+
+  it('passkeyExplained', async () => {
+    seedMockFamily()
+    renderPrivacy()
+
+    await screen.findByRole('heading', { name: 'Passkeys' })
+    expect(
+      screen.getAllByText(
+        'Passkey é entrar com a digital, o rosto ou o PIN do aparelho, sem senha.',
+      ),
+    ).toHaveLength(1)
   })
 
   it('downloadsZip', async () => {

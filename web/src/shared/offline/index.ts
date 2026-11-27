@@ -9,6 +9,7 @@ export {
   pendingTotals,
   replaceOutboxItem,
 } from './outbox'
+export { onQueued } from './queuedSignal'
 export type { OutboxItem } from './types'
 export { persistOptions, saveQueryCacheNow } from './persister'
 export {

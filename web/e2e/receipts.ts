@@ -6,6 +6,7 @@ import {
   newUser,
   setModules,
   signInWithGoogle,
+  tipsOn,
 } from './support.ts'
 
 // The helpers the two receipt specs share: the Feira with a typed address, a fresh invented key and
@@ -102,6 +103,8 @@ export async function openFeira(page: Page, request: APIRequestContext): Promise
   await chooser.getByRole('radio', { name: 'Bairro Exemplo, Cidade Exemplo' }).check()
   await chooser.getByRole('button', { name: 'Continuar', exact: true }).click()
   await expect(chooser).toBeHidden()
+  // With the tips on, the Feira's tour opens once the chooser is gone; close it so it does not cover the page.
+  if (tipsOn()) await page.getByRole('button', { name: 'Pular' }).click()
   await expect(page.getByRole('link', { name: NEAREST_MARKET })).toBeVisible()
 }
 

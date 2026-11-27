@@ -299,6 +299,7 @@ export function AcceptInvitationPage() {
           {intl.formatMessage({ id: 'accept.passkeyTitle' })}
         </h1>
         <p>{intl.formatMessage({ id: 'accept.passkeyRequired' })}</p>
+        <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'passkey.what' })}</p>
         {passkeyFailed && (
           <p role="alert" className="text-negative">
             {intl.formatMessage({ id: 'accept.passkeyFailed' })}
@@ -384,6 +385,7 @@ export function AcceptInvitationPage() {
         {preview.kind === 'RECOVERY' ? (
           <>
             <p className="text-text-muted">{intl.formatMessage({ id: 'accept.recoveryHint' })}</p>
+            <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'passkey.what' })}</p>
             <button
               type="button"
               disabled={busy || !online}
@@ -414,9 +416,14 @@ export function AcceptInvitationPage() {
         ) : (
           <>
             {preview.role === 'YOUTH' ? (
-              <p className="text-text-muted">
-                {intl.formatMessage({ id: 'accept.youthPasskeyOnly' })}
-              </p>
+              <>
+                <p className="text-text-muted">
+                  {intl.formatMessage({ id: 'accept.youthPasskeyOnly' })}
+                </p>
+                <p className="text-sm text-text-muted">
+                  {intl.formatMessage({ id: 'passkey.what' })}
+                </p>
+              </>
             ) : (
               <button
                 type="button"
@@ -448,6 +455,11 @@ export function AcceptInvitationPage() {
               >
                 {intl.formatMessage({ id: 'accept.passkey' })}
               </button>
+              {preview.role !== 'YOUTH' && (
+                <p className="text-sm text-text-muted">
+                  {intl.formatMessage({ id: 'passkey.what' })}
+                </p>
+              )}
             </form>
           </>
         )}

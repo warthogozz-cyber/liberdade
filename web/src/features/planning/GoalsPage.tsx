@@ -11,6 +11,7 @@ import { GoalFacts } from './GoalFacts'
 import { goalEmoji } from './goalIcons'
 import { GoalSheet } from './GoalSheet'
 import './register'
+import { PageTip } from '@/shared/help'
 
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
@@ -23,6 +24,7 @@ export function GoalsPage() {
       <h1 className="text-2xl font-semibold">
         <FormattedMessage id="planning.goals.title" />
       </h1>
+      <PageTip id="goals" />
       {workspace ? (
         <GoalsContent workspace={workspace} />
       ) : (

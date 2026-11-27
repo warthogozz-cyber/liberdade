@@ -77,6 +77,18 @@ describe('useReauth', () => {
     )
   })
 
+  it('passkeyExplained', async () => {
+    const { run } = setup()
+    void run(() => Promise.reject(reauthRequired())).catch(() => {})
+
+    await passkeyButton()
+    expect(
+      screen.getAllByText(
+        'Passkey é entrar com a digital, o rosto ou o PIN do aparelho, sem senha.',
+      ),
+    ).toHaveLength(1)
+  })
+
   it('shows the dialog texts', async () => {
     const { run } = setup()
     void run(() => Promise.reject(reauthRequired())).catch(() => {})

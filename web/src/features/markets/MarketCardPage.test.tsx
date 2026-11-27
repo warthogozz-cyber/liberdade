@@ -72,6 +72,17 @@ function render(ref = REF) {
 }
 
 describe('MarketCardPage', () => {
+  it('helpText', async () => {
+    localStorage.setItem('liberdade.tips', 'on')
+    seed()
+    answerCard(cardOf())
+    render()
+
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'O cartão mostra o endereço, os links e os preços que a família registrou.',
+    )
+  })
+
   it('stampsEachLink', async () => {
     seed()
     answerCard(

@@ -29,6 +29,15 @@ function renderField(initial?: string[], tags: string[] = ['Escola', 'Viagem']) 
 }
 
 describe('TagInput', () => {
+  it('helpText', () => {
+    renderField()
+
+    const help = screen.getByText(
+      'Tags são etiquetas livres. Use para achar gastos parecidos depois.',
+    )
+    expect(field()).toHaveAttribute('aria-describedby', help.id)
+  })
+
   it('suggests the family tags that start with what is typed, ignoring case', async () => {
     renderField()
 
