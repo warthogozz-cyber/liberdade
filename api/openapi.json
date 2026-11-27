@@ -2259,6 +2259,140 @@
         ]
       }
     },
+    "/v1/workspaces/{ws}/markets/products/overview": {
+      "get": {
+        "operationId": "overview",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductsOverview"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "products-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/products/{id}": {
+      "patch": {
+        "operationId": "edit",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditProductRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOverview"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "products-controller"
+        ]
+      }
+    },
+    "/v1/workspaces/{ws}/markets/products/{keepId}/merge": {
+      "post": {
+        "operationId": "merge",
+        "parameters": [
+          {
+            "description": "Workspace (family) id",
+            "in": "path",
+            "name": "ws",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "keepId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeProductsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOverview"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "products-controller"
+        ]
+      }
+    },
     "/v1/workspaces/{ws}/markets/receipts": {
       "post": {
         "operationId": "save",
@@ -5447,6 +5581,31 @@
           }
         }
       },
+      "EditProductRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string",
+            "nullable": true
+          },
+          "unit": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          }
+        }
+      },
       "FamilyItem": {
         "type": "object",
         "properties": {
@@ -6401,6 +6560,18 @@
           }
         }
       },
+      "MergeProductsRequest": {
+        "required": [
+          "removeId"
+        ],
+        "type": "object",
+        "properties": {
+          "removeId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "ModuleView": {
         "type": "object",
         "properties": {
@@ -6866,6 +7037,74 @@
           }
         }
       },
+      "ProductOverview": {
+        "type": "object",
+        "properties": {
+          "gtin": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductPriceView"
+            }
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          }
+        }
+      },
+      "ProductPriceView": {
+        "type": "object",
+        "properties": {
+          "marketName": {
+            "type": "string",
+            "nullable": true
+          },
+          "marketRef": {
+            "type": "string"
+          },
+          "observedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "UN",
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "CX",
+              "PCT",
+              "DZ"
+            ]
+          },
+          "unitPrice": {
+            "type": "string",
+            "example": "4.99"
+          }
+        }
+      },
       "ProductView": {
         "type": "object",
         "properties": {
@@ -6888,6 +7127,20 @@
           },
           "unitVariableCost": {
             "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "ProductsOverview": {
+        "type": "object",
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductOverview"
+            }
+          },
+          "truncated": {
+            "type": "boolean"
           }
         }
       },

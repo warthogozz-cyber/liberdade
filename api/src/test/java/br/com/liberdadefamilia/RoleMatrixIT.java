@@ -407,6 +407,22 @@ class RoleMatrixIT {
                                 Outcome.OK,
                                 Outcome.OK),
                         each(
+                                "GET " + W + "/markets/products/overview",
+                                W + "/markets/products/overview",
+                                null,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK,
+                                Outcome.OK),
+                        ownerAndAdult(
+                                "PATCH " + W + "/markets/products/{id}",
+                                W + "/markets/products/{productA}",
+                                "{\"name\":\"Leite Exemplo Integral 1 L\",\"unit\":\"L\"}"),
+                        ownerAndAdult(
+                                "POST " + W + "/markets/products/{keepId}/merge",
+                                W + "/markets/products/{productA}/merge",
+                                "{\"removeId\":\"{productB}\"}"),
+                        each(
                                 "POST " + W + "/markets/{ref}/instagram-embed",
                                 W + "/markets/{instagramMarket}/instagram-embed",
                                 null,
@@ -1077,6 +1093,16 @@ class RoleMatrixIT {
                         insert into markets (workspace_id, origin, osm_type, osm_id)
                         values (:ws, 'OSM', 'n', 777)
                         returning id""").param("ws", ws).query(UUID.class).single());
+        for (String key : new String[] {"productA", "productB"}) {
+            ids.put(
+                    key,
+                    jdbc.sql("""
+                            insert into products (workspace_id, name) values (:ws, :name) returning id""")
+                            .param("ws", ws)
+                            .param("name", key.equals("productA") ? "Leite Exemplo 1 L" : "Leite Ex. 1L")
+                            .query(UUID.class)
+                            .single());
+        }
         ids.put("plannedFamily", planned(ws, ids.get("corrente"), ids.get("mercado"), anaMembership));
         ids.put("plannedYouth", planned(ws, ids.get("wallet"), ids.get("mercado"), anaMembership));
         byte[] tokenHash = new byte[32];

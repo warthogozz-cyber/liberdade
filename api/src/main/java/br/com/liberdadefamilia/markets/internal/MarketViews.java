@@ -1,6 +1,7 @@
 package br.com.liberdadefamilia.markets.internal;
 
 import br.com.liberdadefamilia.markets.domain.MarketKind;
+import br.com.liberdadefamilia.markets.domain.ProductUnit;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -177,6 +178,35 @@ final class MarketViews {
             String name,
             String unit,
             @Nullable @Schema(nullable = true) String gtin) {}
+
+    /** The last price of a product at one market; {@code unitPrice} is decimal text with four places. */
+    record ProductPriceView(
+            String marketRef,
+            @Nullable @Schema(nullable = true) String marketName,
+            @Schema(example = "4.9900") String unitPrice,
+            ProductUnit unit,
+            LocalDate observedOn) {}
+
+    /** A product with its last price at each market. */
+    record ProductOverview(
+            UUID id,
+            String name,
+            ProductUnit unit,
+            @Nullable @Schema(nullable = true) String gtin,
+            List<ProductPriceView> prices) {}
+
+    /** The family's products by name, up to 500; {@code truncated} when there are more. */
+    record ProductsOverview(List<ProductOverview> products, boolean truncated) {}
+
+    /** What to change in a product; a field left out stays as it is. */
+    record EditProductRequest(
+            @Nullable @Schema(nullable = true, minLength = 1, maxLength = 80)
+            String name,
+
+            @Nullable @Schema(nullable = true) ProductUnit unit) {}
+
+    /** The product to fold into the one in the path. */
+    record MergeProductsRequest(@NotNull UUID removeId) {}
 
     /** The family's products, by name, up to 50. */
     record FamilyProductsView(List<FamilyProductView> products) {}

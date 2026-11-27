@@ -78,6 +78,48 @@ class PriceAndProductRepositoryIT {
     }
 
     @Test
+    void latestPerProductAndMarket() {
+        UUID market = market(ws, "Mercado Exemplo 1");
+        UUID second = market(ws, "Mercado Exemplo 2");
+        UUID milk = products.create(ws, "Leite Exemplo 1 L", ProductUnit.L);
+        UUID receipt = receipt(ws, market, "k1");
+        insert(ws, market, milk, receipt, "2026-11-01", "4.0000");
+        insert(ws, market, milk, receipt, "2026-11-10", "5.5000");
+        insert(ws, second, milk, receipt(ws, second, "k2"), "2026-11-03", "6.0000");
+        UUID theirs = market(other, "Mercado Alheio");
+        insert(
+                other,
+                theirs,
+                products.create(other, "Leite Alheio", ProductUnit.L),
+                receipt(other, theirs, "k3"),
+                "2026-11-03",
+                "1.0000");
+
+        List<LatestPrice> latest = prices.latestPerProductAndMarket(ws);
+
+        assertThat(latest).hasSize(2);
+        assertThat(latest)
+                .extracting(LatestPrice::marketName)
+                .containsExactly("Mercado Exemplo 1", "Mercado Exemplo 2");
+        assertThat(latest.get(0).unitPrice()).isEqualByComparingTo("5.5");
+        assertThat(latest.get(0).observedOn()).isEqualTo(LocalDate.of(2026, 11, 10));
+        assertThat(latest.get(0).marketRef()).isEqualTo(market.toString());
+        assertThat(latest.get(1).unitPrice()).isEqualByComparingTo("6");
+        assertThat(prices.latestPerProductAndMarket(other)).hasSize(1);
+    }
+
+    @Test
+    void findByNormalizedName() {
+        UUID milk = products.create(ws, "Leite Integral Éxemplo", ProductUnit.L);
+        products.create(other, "Leite Integral Exemplo", ProductUnit.L);
+
+        assertThat(products.findByNormalizedName(ws, "leite integral exemplo")).contains(milk);
+        assertThat(products.findByNormalizedName(ws, "leite")).isEmpty();
+        assertThat(products.findByNormalizedName(UUID.randomUUID(), "leite integral exemplo"))
+                .isEmpty();
+    }
+
+    @Test
     void anotherFamilySeesNothing() {
         UUID market = market(ws, "Mercado Um");
         UUID rice = products.create(ws, "Arroz", ProductUnit.UN);

@@ -852,6 +852,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{ws}/markets/products/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["edit"];
+        trace?: never;
+    };
+    "/v1/workspaces/{ws}/markets/products/{keepId}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["merge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{ws}/markets/receipts": {
         parameters: {
             query?: never;
@@ -1806,6 +1854,11 @@ export interface components {
             /** @enum {string} */
             purpose: "TERMS" | "PRIVACY" | "PARENTAL";
         };
+        EditProductRequest: {
+            name: string | null;
+            /** @enum {string|null} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ" | null;
+        };
         FamilyItem: {
             /** @enum {string|null} */
             kind: "SUPERMARKET" | "CONVENIENCE" | "GREENGROCER" | "MARKETPLACE" | null;
@@ -2105,6 +2158,10 @@ export interface components {
             status: "ACTIVE" | "REMOVED";
             you: boolean;
         };
+        MergeProductsRequest: {
+            /** Format: uuid */
+            removeId: string;
+        };
         ModuleView: {
             enabled: boolean;
             /** @enum {string} */
@@ -2248,6 +2305,25 @@ export interface components {
             /** @example 1.8 */
             unitVariableCost: string;
         };
+        ProductOverview: {
+            gtin: string | null;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            prices: components["schemas"]["ProductPriceView"][];
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+        };
+        ProductPriceView: {
+            marketName: string | null;
+            marketRef: string;
+            /** Format: date */
+            observedOn: string;
+            /** @enum {string} */
+            unit: "UN" | "KG" | "G" | "L" | "ML" | "CX" | "PCT" | "DZ";
+            /** @example 4.99 */
+            unitPrice: string;
+        };
         ProductView: {
             /** Format: uuid */
             id: string;
@@ -2257,6 +2333,10 @@ export interface components {
             plannedUnitsMonth: number;
             unitPrice: components["schemas"]["Money"];
             unitVariableCost: components["schemas"]["Money"];
+        };
+        ProductsOverview: {
+            products: components["schemas"]["ProductOverview"][];
+            truncated: boolean;
         };
         ProjectionPointView: {
             balance: components["schemas"]["Money"];
@@ -4237,6 +4317,85 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FamilyProductsView"];
+                };
+            };
+        };
+    };
+    overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductsOverview"];
+                };
+            };
+        };
+    };
+    edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditProductRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOverview"];
+                };
+            };
+        };
+    };
+    merge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace (family) id */
+                ws: string;
+                keepId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeProductsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOverview"];
                 };
             };
         };

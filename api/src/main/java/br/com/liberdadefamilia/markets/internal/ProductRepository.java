@@ -2,6 +2,8 @@ package br.com.liberdadefamilia.markets.internal;
 
 import br.com.liberdadefamilia.markets.domain.ProductUnit;
 import br.com.liberdadefamilia.markets.domain.TextNorm;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,6 +43,44 @@ class ProductRepository {
                 .param("norm", norm)
                 .query(UUID.class)
                 .optional();
+    }
+
+    Optional<ProductRow> find(UUID workspaceId, UUID productId) {
+        return jdbc.sql("select id, name, unit, gtin from products where workspace_id = :ws and id = :id")
+                .param("ws", workspaceId)
+                .param("id", productId)
+                .query(ProductRepository::row)
+                .optional();
+    }
+
+    /** The product whose name normalizes to {@code norm} (already {@link TextNorm normalized}); the oldest if several do. */
+    Optional<UUID> findByNormalizedName(UUID workspaceId, String norm) {
+        return jdbc
+                .sql("select id, name, unit, gtin from products where workspace_id = :ws order by id")
+                .param("ws", workspaceId)
+                .query(ProductRepository::row)
+                .stream()
+                .filter(row -> TextNorm.normalize(row.name()).equals(norm))
+                .map(ProductRow::id)
+                .findFirst();
+    }
+
+    /** Changes the name and/or the unit ({@code null} keeps it). Old price records keep the unit they were made in. */
+    void update(UUID workspaceId, UUID productId, @Nullable String name, @Nullable ProductUnit unit) {
+        jdbc.sql("""
+                        update products
+                        set name = coalesce(cast(:name as text), name), unit = coalesce(cast(:unit as text), unit)
+                        where workspace_id = :ws and id = :id""")
+                .param("ws", workspaceId)
+                .param("id", productId)
+                .param("name", name)
+                .param("unit", unit == null ? null : unit.name())
+                .update();
+    }
+
+    private static ProductRow row(ResultSet rs, int n) throws SQLException {
+        return new ProductRow(
+                rs.getObject("id", UUID.class), rs.getString("name"), rs.getString("unit"), rs.getString("gtin"));
     }
 
     boolean exists(UUID workspaceId, UUID productId) {
