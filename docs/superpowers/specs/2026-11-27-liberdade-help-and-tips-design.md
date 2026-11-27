@@ -168,11 +168,11 @@ aparelho.
 ### 5.7 Tours de Feira e Projetos, e tour ao ligar módulo
 
 - **Feira** (tela `/mais/feira`, 3 passos): "Veja mercados perto de você e escolha onde
-  procurar." / "Registre a nota da compra para guardar os preços." / "Monte a lista de compras e
+  procurar." / "Registre a nota da compra para guardar os preços." / "Abra a lista de compras e
   compare os mercados."
 - **Projetos** (tela `/mais/projetos`, 3 passos): "Projetos mostram quanto sobra de uma renda
-  extra." / "Comece por um modelo e ajuste os números." / "Marque lançamentos no projeto para ver
-  o real contra o previsto."
+  extra." / "Comece por um modelo e ajuste os números." / "Cada projeto compara o real
+  com o previsto, pelos lançamentos marcados nele."
 - **Ao ligar um módulo** (tela Módulos, US-34): o aviso de módulo ligado ganha o link "Abrir
   <módulo>", que leva à tela principal dele (tabela da 5.1), onde o tour abre. O link não
   aparece se a pessoa não pode entrar na tela (Projetos para o Jovem). Se esta pessoa já tinha visto o
@@ -288,19 +288,19 @@ Regra da auditoria: dica acima de ~2 frases curtas ou ~200 caracteres, ou passo 
 | `billing msg:34` (refund.keep) | feminino fixo | "Continuar como Família Fundadora" |
 | `import msg:4-5` | "como os centavos aparecem" | "Não deu para saber qual coluna é qual. Confira e diga como os centavos aparecem." |
 | `import msg:24-25` | "OFX ou CSV" sem explicar | "Escolha a conta e o arquivo de extrato do banco (OFX ou CSV)." |
-| `import msg:64-65` (result.counts) | 3 contagens em 1 frase | Uma linha por contagem: "Entraram X. Confirmaram previstos: Y. Já existiam: Z." |
+| `import msg:64-65` (result.counts) | 3 contagens em 1 frase | Uma linha por contagem: "Entraram X. Confirmaram previstos: Y. Já existiam: Z." (com plural: "Entrou 1.") |
 | `import msg:69-72` | "O servidor recusou" | "Não foi aceito, então tentar de novo não resolve." |
 | `import msg:43-44` | "Pagamento da fatura?" e "Saldo?" crípticos | "Pagamento de fatura?" / "Isto é saldo?" mais 1 linha explicando |
 | `privacy msg:43-44` (deleteFamily.body) | ~200 car. | "A família e tudo nela somem em 30 dias. Até lá, só você, o Dono, pode cancelar." |
 | `privacy msg:49-50` (deleteAccount.body) | ~195 car. | "Em 30 dias sua conta some. Seus lançamentos ficam na família, sem o seu nome. Até lá dá para cancelar." |
 | `privacy msg:21-22` (revokeBody) | ~170 car. | "O Jovem sai da família: sem o consentimento do responsável, o app não pode guardar os dados dele." |
-| `members msg:90-91` (home.help) | ~150 car. | "Serve para achar mercados perto de casa. Guardamos só um ponto aproximado." |
+| `members msg:90-91` (home.help) | ~150 car. | "Serve para achar mercados perto de casa. Guardamos só um ponto aproximado e o rótulo." |
 | `markets msg:74-75` (osmHelp) | ~150 car. | "Mercado que não está no mapa? Cadastre no OpenStreetMap e ele aparece aqui depois." |
 | `markets msg:79-80` (convert.help) | ~170 car., "CNPJ, links, encarte" | "Este mercado saiu do mapa. Digite o nome e marque a posição para a família continuar usando." |
 | `markets msg:150-151` (scanner.paused) | ~190 car. | "A câmera desligou. Toque em Ler o QR, ou cole o link ou digite a chave." |
 | `markets msg:123-124,130-131` | "IP", "cookies" | "O Google vai saber que você abriu o mapa e pode guardar dados sobre você." (manter o aviso, em linguagem simples) |
-| `markets msg:136-151,181` | "nota fiscal de consumidor", "SEFAZ", "homologação", "chave de 44 números" | "Esta nota não é de compra no mercado." / "Abrir a nota no site da Fazenda (SEFAZ)" |
-| `markets msg:180` | "leitura automática ainda não existe para notas de {uf}" | "Ainda não lemos notas de {uf}. Digite os itens você mesmo." |
+| `markets msg:136-151,181` | "nota fiscal de consumidor", "SEFAZ", "homologação", "chave de 44 números" | QR ou link que não é de nota: "Isto não parece o QR ou o link de uma nota. Confira e tente de novo." / "Abrir a nota no site da Fazenda (SEFAZ)" |
+| `markets msg:180` | "leitura automática ainda não existe para notas de {uf}" | "Ainda não lemos notas de {uf}. Digite os itens à mão." |
 | `ventures msg:62-63` (exampleBanner) | ~110 car. | "Itens com o selo exemplo vêm do modelo. Ajuste para a sua realidade." |
 | `ventures msg:74-75` (conflictBody) | ~120 car. | "Outra pessoa mudou este projeto. O que você digitou fica; recarregue para ver a versão salva." |
 | `ventures msg:87-90,121-132` | jargão: Equilíbrio, Payback, ROI, Margem | Rótulo mais frase: "Margem: o que sobra de cada venda." "Equilíbrio: quanto vender para não ter prejuízo." "Retorno: em quantos meses o investimento volta." |
@@ -309,3 +309,7 @@ Regra da auditoria: dica acima de ~2 frases curtas ou ~200 caracteres, ou passo 
 | Jargão geral: "passkey" (`auth/signIn.messages.pt-BR.ts:6`, `i18n:33`, `members msg:66,72`, `privacy msg:26-40`), "TED" (`i18n:73`) | nunca explicados | Explicar 1 vez: "Passkey: entrar com a digital, o rosto ou o PIN do aparelho." "TED" vira "Transferência (TED)". |
 | Tom: `i18n:11` | único emoji do app ("👋") | manter ou padronizar |
 | Tom: `billing msg:30,33` | "Receber meu dinheiro de volta" (1ª pessoa) enquanto o resto fala com "você"/neutro | "Pedir o dinheiro de volta" |
+
+Ajustes da revisão final da 11.3 (2026-11-27): o texto do endereço de casa diz também que o rótulo fica
+guardado (o anterior prometia menos do que o app guarda); o erro de QR ou link que não é de nota ganhou
+um motivo correto; o leitor por estado diz "à mão"; e a contagem do importador usa plural.

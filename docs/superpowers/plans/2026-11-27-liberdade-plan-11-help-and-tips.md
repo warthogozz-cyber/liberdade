@@ -469,10 +469,10 @@ Passos (spec 5.7; D12 no passo 2 da sequência):
 |---|---|---|---|
 | markets | `markets-nearby` (div do título com o 📍, ~linha 114) | `tips.tour.markets.nearby` | "Veja mercados perto de você e escolha onde procurar." |
 | markets | `markets-receipt` (div do `canWrite`, ~linha 208) | `tips.tour.markets.receipt` | "Registre a nota da compra para guardar os preços." |
-| markets | `markets-list` (div dos links lista/produtos, ~linha 219) | `tips.tour.markets.list` | "Monte a lista de compras e compare os mercados." |
+| markets | `markets-list` (div dos links lista/produtos, ~linha 219) | `tips.tour.markets.list` | "Abra a lista de compras e compare os mercados." |
 | ventures | `ventures-intro` (o `h1`) | `tips.tour.ventures.intro` | "Projetos mostram quanto sobra de uma renda extra." |
 | ventures | `ventures-start` (o botão de começar) | `tips.tour.ventures.start` | "Comece por um modelo e ajuste os números." |
-| ventures | `ventures-actual` (a lista, ou o texto de vazio) | `tips.tour.ventures.actual` | "Marque lançamentos no projeto para ver o real contra o previsto." |
+| ventures | `ventures-actual` (a lista, ou o texto de vazio) | `tips.tour.ventures.actual` | "Cada projeto compara o real com o previsto, pelos lançamentos marcados nele." |
 | achievements | `achievements-streak` | `tips.tour.achievements.streak` | "Sua sequência conta as semanas em que você lançou algo." |
 | achievements | `achievements-rest` | `tips.tour.achievements.streakBreak` | "Uma semana de folga por mês não interrompe a sequência." |
 | achievements | `achievements-list` | `tips.tour.achievements.list` | (sem mudança) |
