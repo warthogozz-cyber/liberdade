@@ -244,4 +244,29 @@ describe('ShoppingListPage', () => {
       await screen.findByText('A lista está vazia. Adicione o que falta em casa.'),
     ).toBeVisible()
   })
+
+  it('removeFailureSaysTryAgain', async () => {
+    server.use(http.delete(`${ROOT}/:id`, () => problem(500, 'internal', 'Erro.')))
+    render('OWNER')
+    const beans = await rowOf('Feijão preto')
+    fireEvent.click(within(beans).getByRole('button', { name: 'Mais opções de Feijão preto' }))
+    fireEvent.click(within(beans).getByRole('button', { name: 'Remover' }))
+
+    expect(await screen.findByText('Não deu para tirar o item. Tente de novo.')).toBeVisible()
+    expect(screen.queryByText(/A lista voltou ao que era/)).not.toBeInTheDocument()
+  })
+
+  it('clearFailureSaysTryAgain', async () => {
+    server.use(http.post(`${ROOT}/clear-checked`, () => problem(500, 'internal', 'Erro.')))
+    render('OWNER')
+    const row = await rowOf('Arroz tipo 1')
+    fireEvent.click(within(row).getByRole('checkbox', { name: 'Marcar Arroz tipo 1' }))
+    await screen.findByRole('region', { name: 'Pegos' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar os pegos' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar' }))
+
+    expect(await screen.findByText('Não deu para limpar os pegos. Tente de novo.')).toBeVisible()
+    expect(screen.queryByText(/A lista voltou ao que era/)).not.toBeInTheDocument()
+  })
 })

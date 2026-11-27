@@ -250,7 +250,12 @@ export function MarketHomeSection() {
         confirmDisabled={remove.isPending}
         onConfirm={() => {
           setError(null)
-          remove.mutate(undefined, { onError: failed })
+          remove.mutate(undefined, {
+            onError: (failure) => {
+              setConfirmingRemoval(false)
+              failed(failure)
+            },
+          })
         }}
         onCancel={() => setConfirmingRemoval(false)}
       />
