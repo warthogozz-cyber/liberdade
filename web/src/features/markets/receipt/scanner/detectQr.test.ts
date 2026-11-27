@@ -35,10 +35,15 @@ describe('worker reader', () => {
     onmessage: ((event: { data: string | null }) => void) | null = null
     onerror: ((event: { message: string }) => void) | null = null
     posted: unknown[] = []
+    failNextPost = false
     constructor() {
       FakeWorker.last = this
     }
     postMessage(message: unknown) {
+      if (this.failNextPost) {
+        this.failNextPost = false
+        throw new Error('could not post')
+      }
       this.posted.push(message)
     }
     terminate() {}
@@ -95,5 +100,16 @@ describe('worker reader', () => {
     FakeWorker.last.onmessage?.({ data: null })
     expect(await next).toBeNull()
     expect(FakeWorker.last.posted).toHaveLength(2)
+  })
+
+  it('aPostThatThrowsDoesNotBlockTheNextFrame', async () => {
+    const reader = createReader('worker', {})
+    FakeWorker.last.failNextPost = true
+
+    await expect(reader.scan(video)).rejects.toThrow('could not post')
+    const next = reader.scan(video)
+    expect(FakeWorker.last.posted).toHaveLength(1)
+    FakeWorker.last.onmessage?.({ data: 'texto-do-qr' })
+    expect(await next).toBe('texto-do-qr')
   })
 })

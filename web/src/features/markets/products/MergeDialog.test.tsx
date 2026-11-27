@@ -32,7 +32,8 @@ describe('MergeDialog', () => {
     expect(body.length).toBeLessThanOrEqual(140)
     expect(body).toMatch(/pre[çc]os/i)
     expect(body).toMatch(/itens da lista/)
-    expect(body).toMatch(/apelidos/)
+    expect(body).toMatch(/nomes/)
+    expect(body).not.toMatch(/apelido|cat[áa]logo/i)
     expect(body).not.toMatch(/perd|perca|resta|expir|quebr|corra|última chance|não deixe|falta/i)
   })
 
@@ -48,13 +49,13 @@ describe('MergeDialog', () => {
 
     expect(
       await screen.findByText(
-        'Preços, itens da lista e apelidos de Café Exemplo Torrado 500 g passam para Café Exemplo 500 g, e Café Exemplo Torrado 500 g sai do catálogo. Não dá para desfazer.',
+        'Preços, itens da lista e nomes de Café Exemplo Torrado 500 g passam para Café Exemplo 500 g, e Café Exemplo Torrado 500 g deixa de existir. Não dá para desfazer.',
       ),
     ).toBeVisible()
     fireEvent.click(screen.getByRole('radio', { name: B.name }))
     expect(
       screen.getByText(
-        'Preços, itens da lista e apelidos de Café Exemplo 500 g passam para Café Exemplo Torrado 500 g, e Café Exemplo 500 g sai do catálogo. Não dá para desfazer.',
+        'Preços, itens da lista e nomes de Café Exemplo 500 g passam para Café Exemplo Torrado 500 g, e Café Exemplo 500 g deixa de existir. Não dá para desfazer.',
       ),
     ).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Juntar' }))

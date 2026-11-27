@@ -169,20 +169,31 @@ function Result({ comparison, unknown, money, formatDate }: ResultProps) {
       </ul>
 
       <section className="flex flex-col gap-2">
-        <p className="font-medium">
-          <FormattedMessage id="markets.compare.common" values={{ n: comparison.commonCount }} />
-        </p>
-        <ul
-          aria-label={intl.formatMessage({ id: 'markets.compare.totals' })}
-          className="flex flex-col gap-1"
-        >
-          {comparison.markets.map((market, index) => (
-            <li key={market.ref} className="flex justify-between gap-3">
-              <span>{nameOf(index)}</span>
-              <span>{money(market.total)}</span>
-            </li>
-          ))}
-        </ul>
+        {comparison.commonCount === 0 ? (
+          <p className="font-medium">
+            <FormattedMessage id="markets.compare.noCommon" />
+          </p>
+        ) : (
+          <>
+            <p className="font-medium">
+              <FormattedMessage
+                id="markets.compare.common"
+                values={{ n: comparison.commonCount }}
+              />
+            </p>
+            <ul
+              aria-label={intl.formatMessage({ id: 'markets.compare.totals' })}
+              className="flex flex-col gap-1"
+            >
+              {comparison.markets.map((market, index) => (
+                <li key={market.ref} className="flex justify-between gap-3">
+                  <span>{nameOf(index)}</span>
+                  <span>{money(market.total)}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         {comparison.markets
           .filter((market) => market.missingCount > 0)
           .map((market) => (
